@@ -2,13 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ClipboardPaste, Upload, Loader2, FileText, X } from "lucide-react";
+import { ClipboardPaste, Upload, Loader2, FileText, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 
-type Tab = "paste" | "upload";
+type Tab = "paste" | "upload" | "url";
 const MIN_CHARS = 300;
+
+function isValidUrl(s: string) {
+  try { return ["http:", "https:"].includes(new URL(s).protocol); }
+  catch { return false; }
+}
 const MAX_MB = 5;
 const ALLOWED_EXTS = [".pdf", ".docx", ".doc", ".txt", ".html"];
 
@@ -24,7 +29,8 @@ export default function ImportJobPage() {
   const canSubmit =
     !submitting &&
     ((tab === "paste" && text.trim().length >= MIN_CHARS) ||
-      (tab === "upload" && file !== null));
+      (tab === "upload" && file !== null) ||
+      (tab === "url" && isValidUrl(sourceUrl)));
 
   const handleFile = (f: File) => {
     const ext = "." + f.name.split(".").pop()?.toLowerCase();
@@ -50,6 +56,12 @@ export default function ImportJobPage() {
         fd.append("file", file);
         if (sourceUrl) fd.append("source_url", sourceUrl);
         res = await fetch("/api/jobs/import", { method: "POST", body: fd });
+      } else if (tab === "url") {
+        res = await fetch("/api/jobs/import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ url: sourceUrl }),
+        });
       } else {
         res = await fetch("/api/jobs/import", {
           method: "POST",
@@ -88,30 +100,45 @@ export default function ImportJobPage() {
 
         {/* Tabs */}
         <div className="mt-6 inline-flex rounded-lg border border-border p-1">
-          <button
-            onClick={() => setTab("paste")}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-              tab === "paste" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <ClipboardPaste className="h-4 w-4" />
-            Paste
-          </button>
-          <button
-            onClick={() => setTab("upload")}
-            className={cn(
-              "flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
-              tab === "upload" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
-            )}
-          >
-            <Upload className="h-4 w-4" />
-            Upload file
-          </button>
+          {(
+            [
+              { key: "url",    icon: <Link2 className="h-4 w-4" />,          label: "From URL" },
+              { key: "paste",  icon: <ClipboardPaste className="h-4 w-4" />, label: "Paste" },
+              { key: "upload", icon: <Upload className="h-4 w-4" />,         label: "Upload file" },
+            ] as { key: Tab; icon: React.ReactNode; label: string }[]
+          ).map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={cn(
+                "flex items-center gap-2 rounded-md px-4 py-1.5 text-sm font-medium transition-colors",
+                tab === t.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {t.icon}
+              {t.label}
+            </button>
+          ))}
         </div>
 
         <div className="mt-4 space-y-4">
-          {tab === "paste" ? (
+          {tab === "url" ? (
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Job posting URL</label>
+              <input
+                autoFocus
+                type="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="mt-2 text-xs text-muted-foreground">
+                Works with Greenhouse, Lever, Ashby, Workday, and most company career pages.
+                LinkedIn and Indeed may not work if they require sign-in.
+              </p>
+            </div>
+          ) : tab === "paste" ? (
             <div>
               <textarea
                 value={text}
@@ -133,17 +160,19 @@ export default function ImportJobPage() {
             <FileDrop file={file} onFile={handleFile} onClear={() => setFile(null)} />
           )}
 
-          {/* Source URL */}
-          <div>
-            <label className="mb-1 block text-sm font-medium">Source URL (optional)</label>
-            <input
-              type="url"
-              value={sourceUrl}
-              onChange={(e) => setSourceUrl(e.target.value)}
-              placeholder="https://…"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+          {/* Source URL — only on paste/upload tabs */}
+          {tab !== "url" && (
+            <div>
+              <label className="mb-1 block text-sm font-medium">Source URL (optional)</label>
+              <input
+                type="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          )}
 
           {error && (
             <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">
@@ -156,10 +185,10 @@ export default function ImportJobPage() {
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Importing…
+                  {tab === "url" ? "Fetching…" : "Importing…"}
                 </>
               ) : (
-                "Import & Match"
+                tab === "url" ? "Fetch & Import" : "Import & Match"
               )}
             </Button>
             <Button

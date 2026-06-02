@@ -7,6 +7,31 @@ import { extractText } from "@/lib/resume-extractor";
 import { parseJobText, scoreMatch } from "@/lib/job-parser";
 import type { ParsedJson } from "@/types/resume";
 
+// ─── URL scraping via Jina.ai Reader ─────────────────────────────────────────
+async function fetchUrlContent(url: string): Promise<string> {
+  const jinaUrl = `https://r.jina.ai/${url}`;
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+    "X-No-Cache": "true",
+    "X-Return-Format": "text",
+  };
+  if (process.env.JINA_API_KEY) {
+    headers["Authorization"] = `Bearer ${process.env.JINA_API_KEY}`;
+  }
+
+  const res = await fetch(jinaUrl, {
+    headers,
+    signal: AbortSignal.timeout(30_000),
+  });
+
+  if (!res.ok) throw new Error(`Jina fetch failed: ${res.status}`);
+
+  const json = (await res.json()) as { data?: { content?: string } };
+  const content = json.data?.content?.trim();
+  if (!content) throw new Error("No content extracted from URL");
+  return content;
+}
+
 const ALLOWED_TYPES = [
   "application/pdf",
   "application/msword",
@@ -64,11 +89,33 @@ export async function POST(req: NextRequest) {
       }
     }
   } else {
-    // JSON paste
     const body = await req.json().catch(() => ({}));
-    rawText = (body.text as string | null)?.trim() ?? "";
     sourceUrl = (body.source_url as string | null) ?? null;
     force = body.force === true;
+
+    if (body.url) {
+      // ── URL import ──────────────────────────────────────────────────────────
+      const targetUrl = (body.url as string).trim();
+      try {
+        new URL(targetUrl); // basic validity check
+      } catch {
+        return NextResponse.json({ error: "Invalid URL." }, { status: 400 });
+      }
+      sourceUrl = targetUrl;
+      try {
+        rawText = await fetchUrlContent(targetUrl);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : "Unknown error";
+        console.error("URL fetch error:", msg);
+        return NextResponse.json(
+          { error: "Could not fetch the URL. Make sure it is publicly accessible and try again." },
+          { status: 422 }
+        );
+      }
+    } else {
+      // ── Text paste ──────────────────────────────────────────────────────────
+      rawText = (body.text as string | null)?.trim() ?? "";
+    }
   }
 
   if (rawText.trim().length < MIN_CHARS) {
