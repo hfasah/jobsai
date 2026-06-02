@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { parseJobText, scoreMatch } from "@/lib/job-parser";
 import { applyToJob } from "@/lib/apply-agent";
+import { sendHighMatch } from "@/lib/email";
 import type { ParsedJson } from "@/types/resume";
 
 const MIN_CHARS = 300;
@@ -36,7 +37,7 @@ export async function fetchUrlContent(url: string): Promise<string> {
 
 // ─── Core job processing pipeline ────────────────────────────────────────────
 
-export async function processJob(jobId: string, userId: string, rawText: string) {
+export async function processJob(jobId: string, userId: string, rawText: string, notifyOnMatch = false) {
   try {
     const parsed = await parseJobText(rawText);
 
@@ -100,6 +101,10 @@ export async function processJob(jobId: string, userId: string, rawText: string)
     await supabaseAdmin.from("jobs").update({ status: "ready" }).eq("id", jobId);
 
     autoApplyIfEnabled(jobId, userId, matchScore).catch(console.error);
+
+    if (notifyOnMatch && matchScore > 0) {
+      maybeNotifyHighMatch(userId, jobId, matchScore, parsed.title ?? "Role", parsed.company ?? "Company").catch(console.error);
+    }
   } catch (err) {
     console.error("Job processing error:", err);
     await supabaseAdmin
@@ -125,6 +130,27 @@ export async function autoApplyIfEnabled(jobId: string, userId: string, matchSco
   await applyToJob(userId, jobId);
 }
 
+async function maybeNotifyHighMatch(
+  userId: string,
+  jobId: string,
+  matchScore: number,
+  title: string,
+  company: string
+) {
+  const { data: prefs } = await supabaseAdmin
+    .from("user_preferences")
+    .select("auto_apply_threshold, auto_apply_enabled")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const threshold = prefs?.auto_apply_threshold ?? 75;
+  if (matchScore < threshold) return;
+  // auto-apply is on: apply-agent will send the "submitted" or "manual_required" email instead
+  if (prefs?.auto_apply_enabled) return;
+
+  await sendHighMatch(userId, title, company, matchScore, jobId);
+}
+
 // ─── Import a single job from URL ─────────────────────────────────────────────
 
 export interface ImportResult {
@@ -135,7 +161,8 @@ export interface ImportResult {
 export async function importJobFromUrl(
   url: string,
   userId: string,
-  force = false
+  force = false,
+  notifyOnMatch = false
 ): Promise<ImportResult> {
   const rawText = await fetchUrlContent(url);
 
@@ -182,7 +209,7 @@ export async function importJobFromUrl(
 
   if (error || !job) throw new Error("Failed to create job record");
 
-  processJob(job.id, userId, rawText).catch(console.error);
+  processJob(job.id, userId, rawText, notifyOnMatch).catch(console.error);
 
   return { job_id: job.id, status: "created" };
 }

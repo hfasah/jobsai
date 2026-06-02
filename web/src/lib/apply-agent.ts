@@ -1,6 +1,7 @@
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { generateCoverLetter } from "@/lib/ai-content";
+import { sendApplySubmitted, sendManualRequired } from "@/lib/email";
 import type { ApplyPlatform, ApplyResult, ApplyProfile } from "@/types/apply";
 
 // ─── Platform detection ───────────────────────────────────────────────────────
@@ -161,18 +162,22 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
     );
 
     if (result.ok) {
-      // Move application to "applied" stage
       await upsertApplication(userId, jobId, "applied");
-      return logAttempt(userId, jobId, "lever", "submitted");
+      const attempt = await logAttempt(userId, jobId, "lever", "submitted");
+      sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+      return attempt;
     }
     return logAttempt(userId, jobId, "lever", "failed", result.message);
   }
 
   // 6. All other platforms → manual_required (cover letter + resume are ready)
   await upsertApplication(userId, jobId, "saved");
-  return logAttempt(userId, jobId, platform, "manual_required",
-    `${platform === "greenhouse" ? "Greenhouse" : platform === "ashby" ? "Ashby" : "This platform"} requires manual submission. Your cover letter and resume are ready.`
+  const platformLabel = platform === "greenhouse" ? "Greenhouse" : platform === "ashby" ? "Ashby" : "This platform";
+  const attempt = await logAttempt(userId, jobId, platform, "manual_required",
+    `${platformLabel} requires manual submission. Your cover letter and resume are ready.`
   );
+  sendManualRequired(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId, sourceUrl || null).catch(console.error);
+  return attempt;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

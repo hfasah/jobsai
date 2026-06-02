@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { discoverJobs } from "@/lib/job-discovery";
 import { importJobFromUrl } from "@/lib/job-import";
+import { sendDiscoverySummary } from "@/lib/email";
 import type { UserPreferences } from "@/types/preferences";
 
 // Allow up to 5 minutes on Vercel Pro
@@ -55,13 +56,18 @@ export async function GET(req: NextRequest) {
 
       // Take only the top N by relevance (already sorted by discoverJobs)
       const toImport = jobs.slice(0, MAX_IMPORTS_PER_USER);
+      const importedJobs: { title: string; company: string; jobId: string }[] = [];
 
       for (const job of toImport) {
         if (!job.url) continue;
         try {
-          const result = await importJobFromUrl(job.url, prefs.user_id);
-          if (result.status === "created") summary.jobs_imported++;
-          else summary.jobs_deduped++;
+          const result = await importJobFromUrl(job.url, prefs.user_id, false, true);
+          if (result.status === "created") {
+            summary.jobs_imported++;
+            importedJobs.push({ title: job.title, company: job.company, jobId: result.job_id });
+          } else {
+            summary.jobs_deduped++;
+          }
         } catch (err) {
           summary.errors++;
           console.error(`[cron] Import failed for ${job.url} (user ${prefs.user_id}):`, err);
@@ -73,9 +79,14 @@ export async function GET(req: NextRequest) {
         .from("user_preferences")
         .update({
           last_discovery_at: new Date().toISOString(),
-          last_discovery_count: summary.jobs_imported,
+          last_discovery_count: importedJobs.length,
         })
         .eq("user_id", prefs.user_id);
+
+      // Send discovery summary if any new jobs were imported
+      if (importedJobs.length > 0) {
+        sendDiscoverySummary(prefs.user_id, importedJobs).catch(console.error);
+      }
     } catch (err) {
       summary.errors++;
       console.error(`[cron] Discovery failed for user ${prefs.user_id}:`, err);
