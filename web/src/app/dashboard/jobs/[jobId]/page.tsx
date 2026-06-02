@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MatchDetail } from "@/components/job/match-score";
+import { JobTabs } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
 
 export default function JobDetailPage({
@@ -169,27 +170,6 @@ export default function JobDetailPage({
           </div>
         )}
 
-        {/* Match */}
-        {!processing && job.match && (
-          <section className="mt-8 rounded-xl border border-border bg-card p-6">
-            <h2 className="mb-4 font-semibold">Resume Match</h2>
-            <MatchDetail match={job.match} />
-          </section>
-        )}
-
-        {!processing && !job.match && job.status === "ready" && (
-          <div className="mt-8 rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
-            <p className="font-medium">No match score yet.</p>
-            <p className="mt-1">
-              Set a primary resume to see how well you match this job.
-            </p>
-            <Button size="sm" className="mt-3" onClick={rematch} disabled={rematching}>
-              {rematching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-              Run match
-            </Button>
-          </div>
-        )}
-
         {job.status === "failed" && (
           <div className="mt-8 rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
             <p className="font-medium">Processing failed</p>
@@ -197,42 +177,69 @@ export default function JobDetailPage({
           </div>
         )}
 
-        {/* Parsed details */}
-        {!processing && parsed && (
-          <section className="mt-6 space-y-6">
-            {parsed.summary && (
-              <div>
-                <h3 className="mb-2 font-semibold">Summary</h3>
-                <p className="text-sm text-muted-foreground">{parsed.summary}</p>
+        {/* Tabbed surfaces: Overview / ATS / Tailor / Cover Letter */}
+        {!processing && job.status === "ready" && (
+          <JobTabs
+            jobId={jobId}
+            overview={
+              <div className="space-y-8">
+                {/* Match */}
+                {job.match ? (
+                  <section className="rounded-2xl border border-border bg-card p-6">
+                    <h2 className="mb-4 font-display text-lg">Resume Match</h2>
+                    <MatchDetail match={job.match} />
+                  </section>
+                ) : (
+                  <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                    <p className="font-medium">No match score yet.</p>
+                    <p className="mt-1">Set a primary resume to see how well you match this job.</p>
+                    <Button size="sm" className="mt-3" onClick={rematch} disabled={rematching}>
+                      {rematching ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      Run match
+                    </Button>
+                  </div>
+                )}
+
+                {/* Parsed details */}
+                {parsed && (
+                  <section className="space-y-6">
+                    {parsed.summary && (
+                      <div>
+                        <h3 className="mb-2 font-semibold">Summary</h3>
+                        <p className="text-sm text-muted-foreground">{parsed.summary}</p>
+                      </div>
+                    )}
+                    {parsed.skills?.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 font-semibold">Skills</h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {parsed.skills.map((s, i) => (
+                            <span key={i} className="rounded-full border border-border px-2.5 py-0.5 text-xs">{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {parsed.requirements?.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 font-semibold">Requirements</h3>
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                          {parsed.requirements.map((r, i) => <li key={i}>{r}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {parsed.responsibilities?.length > 0 && (
+                      <div>
+                        <h3 className="mb-2 font-semibold">Responsibilities</h3>
+                        <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                          {parsed.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                  </section>
+                )}
               </div>
-            )}
-            {parsed.skills?.length > 0 && (
-              <div>
-                <h3 className="mb-2 font-semibold">Skills</h3>
-                <div className="flex flex-wrap gap-1.5">
-                  {parsed.skills.map((s, i) => (
-                    <span key={i} className="rounded-full border border-border px-2.5 py-0.5 text-xs">{s}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {parsed.requirements?.length > 0 && (
-              <div>
-                <h3 className="mb-2 font-semibold">Requirements</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                  {parsed.requirements.map((r, i) => <li key={i}>{r}</li>)}
-                </ul>
-              </div>
-            )}
-            {parsed.responsibilities?.length > 0 && (
-              <div>
-                <h3 className="mb-2 font-semibold">Responsibilities</h3>
-                <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-                  {parsed.responsibilities.map((r, i) => <li key={i}>{r}</li>)}
-                </ul>
-              </div>
-            )}
-          </section>
+            }
+          />
         )}
       </main>
     </>

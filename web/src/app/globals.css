@@ -14,6 +14,7 @@
   --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
   --font-heading: var(--font-sans);
+  --font-display: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -154,4 +155,71 @@
   html {
     @apply font-sans;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/* Phase 3 — editorial "AI report" surfaces                                   */
+/* -------------------------------------------------------------------------- */
+
+/* Display serif for scores, report headers, pull quotes */
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+  font-optical-sizing: auto;
+}
+
+/* Signature brand→accent gradient text */
+.text-gradient {
+  background: linear-gradient(
+    100deg,
+    var(--desyn-gradient-start),
+    var(--desyn-gradient-end)
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Atmospheric report background: layered radial mesh + faint grain */
+.report-surface {
+  position: relative;
+  background:
+    radial-gradient(120% 80% at 100% 0%, oklch(0.62 0.14 175 / 0.06), transparent 60%),
+    radial-gradient(100% 90% at 0% 0%, oklch(0.42 0.12 250 / 0.05), transparent 55%),
+    var(--card);
+}
+.report-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.025;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  border-radius: inherit;
+}
+
+/* Staggered reveal — one orchestrated entrance per report load */
+@keyframes reveal-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.reveal {
+  opacity: 0;
+  animation: reveal-up 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.reveal-1 { animation-delay: 0.05s; }
+.reveal-2 { animation-delay: 0.15s; }
+.reveal-3 { animation-delay: 0.27s; }
+.reveal-4 { animation-delay: 0.4s; }
+.reveal-5 { animation-delay: 0.54s; }
+
+/* Score count-up shimmer for the big number */
+@keyframes score-pop {
+  0%   { opacity: 0; transform: scale(0.82); }
+  60%  { transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.score-pop { animation: score-pop 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal, .score-pop { animation: none; opacity: 1; transform: none; }
 }

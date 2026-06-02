@@ -1,0 +1,159 @@
+"use client";
+
+import { useState } from "react";
+import { Wand2, Loader2, RefreshCw, ArrowRight, Plus, Copy, Check } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { EmptyState, RunningState } from "@/components/job/ats-report";
+import type { TailoredResume } from "@/types/phase3";
+
+export function TailoredResumeView({
+  tailored,
+  onRun,
+  running,
+}: {
+  tailored: TailoredResume | null;
+  onRun: () => void;
+  running: boolean;
+}) {
+  const [copied, setCopied] = useState(false);
+
+  if (!tailored && !running) {
+    return (
+      <EmptyState
+        icon={<Wand2 className="h-7 w-7" />}
+        title="Tailor your resume to this job"
+        body="AI rewrites your summary, bullets, and skills to match the role's language and surface your most relevant experience — truthfully, never inventing anything."
+        cta="Tailor my resume"
+        onClick={onRun}
+      />
+    );
+  }
+  if (running && !tailored) return <RunningState label="Tailoring your resume to this role…" />;
+  if (!tailored) return null;
+
+  const tj = tailored.tailored_json;
+
+  const copyText = () => {
+    const parts: string[] = [];
+    if (tj.headline) parts.push(tj.headline, "");
+    if (tj.summary) parts.push("SUMMARY", tj.summary, "");
+    if (tj.experience?.length) {
+      parts.push("EXPERIENCE");
+      tj.experience.forEach((e) => {
+        const dates = e.start_date || e.end_date || e.is_current
+          ? `  (${e.start_date ?? "?"} – ${e.is_current ? "Present" : (e.end_date ?? "?")})`
+          : "";
+        parts.push(`${e.title} — ${e.company}${dates}`);
+        e.bullets?.forEach((b) => parts.push(`• ${b}`));
+        parts.push("");
+      });
+    }
+    if (tj.skills?.length) parts.push("SKILLS", tj.skills.join(", "));
+    navigator.clipboard.writeText(parts.join("\n"));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Keywords added banner */}
+      {tailored.keywords_added?.length > 0 && (
+        <div className="reveal reveal-1 rounded-2xl border border-border report-surface p-5">
+          <p className="flex items-center gap-2 text-sm font-medium">
+            <Plus className="h-4 w-4 text-desyn-success" />
+            Keywords now surfaced for this job
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {tailored.keywords_added.map((k, i) => (
+              <span key={i} className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                {k}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tailored resume preview */}
+      <div className="reveal reveal-2 overflow-hidden rounded-2xl border border-border bg-card">
+        <div className="flex items-center justify-between border-b border-border px-5 py-3">
+          <h3 className="font-display text-lg">Tailored resume</h3>
+          <Button variant="outline" size="sm" onClick={copyText}>
+            {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+        </div>
+        <div className="space-y-5 p-6">
+          {tj.headline && <p className="font-display text-xl">{tj.headline}</p>}
+          {tj.summary && (
+            <div>
+              <p className="mb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">Summary</p>
+              <p className="text-sm leading-relaxed text-foreground/90">{tj.summary}</p>
+            </div>
+          )}
+          {tj.experience?.map((exp, i) => {
+            const dates = exp.start_date || exp.end_date || exp.is_current
+              ? `${exp.start_date ?? "?"} – ${exp.is_current ? "Present" : (exp.end_date ?? "?")}`
+              : null;
+            return (
+            <div key={i}>
+              <div className="flex items-baseline justify-between gap-3">
+                <p className="text-sm font-semibold">{exp.title} — <span className="text-muted-foreground">{exp.company}</span></p>
+                {dates && <p className="shrink-0 text-xs text-muted-foreground tabular-nums">{dates}</p>}
+              </div>
+              <ul className="mt-1.5 space-y-1">
+                {exp.bullets?.map((b, j) => (
+                  <li key={j} className="flex gap-2 text-sm text-foreground/90">
+                    <span className="text-desyn-accent">•</span>
+                    {b}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            );
+          })}
+          {tj.skills?.length ? (
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Skills</p>
+              <div className="flex flex-wrap gap-1.5">
+                {tj.skills.map((s, i) => (
+                  <span key={i} className="rounded-full border border-border px-2.5 py-0.5 text-xs">{s}</span>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Before / after changes */}
+      {tailored.changes?.length > 0 && (
+        <section className="reveal reveal-3">
+          <h3 className="mb-3 font-display text-lg">What changed & why</h3>
+          <div className="space-y-3">
+            {tailored.changes.map((c, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.section}</p>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900/70 line-through decoration-red-300">
+                    {c.before}
+                  </p>
+                  <ArrowRight className="mx-auto hidden h-4 w-4 text-muted-foreground sm:block" />
+                  <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
+                    {c.after}
+                  </p>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">{c.reason}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={onRun} disabled={running}>
+          {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+          Re-tailor
+        </Button>
+      </div>
+    </div>
+  );
+}
