@@ -166,10 +166,10 @@ for this specific candidate applying to this specific role. Ground every questio
 and the candidate's real background — no generic filler. Return ONLY valid JSON — no markdown.
 
 Categories to cover (distribute across all 10):
-- behavioral: past-behaviour questions (STAR-format expected)
-- technical: skill/domain knowledge tests specific to this role
-- role: questions about their fit, motivation, or approach to this specific job
-- culture: team fit, working style, values alignment
+- behavioral: past-behaviour questions answered with the STAR method (4 questions minimum)
+- technical: skill/domain knowledge tests specific to this role (2–3 questions)
+- role: questions about fit, motivation, or approach to this specific job (2 questions)
+- culture: team fit, working style, values alignment (1–2 questions)
 
 Schema:
 {
@@ -179,14 +179,26 @@ Schema:
       "category": "behavioral|technical|role|culture",
       "question": "The interview question as the interviewer would ask it",
       "why_asked": "1 sentence: what the interviewer is trying to assess",
-      "talking_points": ["3–4 bullet points drawn from the candidate's REAL experience that directly answer this question"],
-      "sample_answer": "A 3–5 sentence sample answer using the candidate's actual background, honest and specific"
+      "talking_points": ["3–4 concise bullet points from the candidate's REAL experience that support their answer"],
+      "sample_answer": "Full prose answer (3–5 sentences) using the candidate's actual background",
+      "star": {
+        "situation": "Specific context from the candidate's real experience — where, when, what was happening",
+        "task": "The candidate's specific responsibility or challenge in that situation",
+        "action": "Concrete steps the candidate took — the most detailed part, referencing real skills/tools they have",
+        "result": "Measurable or tangible outcome — what changed, what was achieved, what was learned"
+      }
     }
   ]
 }
 
-Rules: talking_points and sample_answer must reference the candidate's REAL employers, roles, and skills.
-Never invent experience. If a question can't be grounded in their background, skip it and pick a better one.`;
+STAR rules:
+- Include "star" ONLY on behavioral and role questions. Omit it entirely for technical and culture questions.
+- Every STAR field must be grounded in the candidate's REAL employers, titles, and skills — never invent experience.
+- "action" should be the longest field — at least 2 sentences of specific steps.
+- "result" must be concrete: a number, a percentage, a shipped feature, a promotion, a saved cost, etc. If no metric is available, describe the qualitative impact specifically.
+
+General rules: talking_points and sample_answer must also reference the candidate's real background.
+Never invent experience. If a question can't be grounded in their background, choose a better one.`;
 
 export async function generateInterviewPrep(
   resume: ParsedJson,

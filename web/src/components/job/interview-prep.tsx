@@ -8,7 +8,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { EmptyState, RunningState } from "@/components/job/ats-report";
-import type { InterviewPrep, InterviewQuestion, InterviewCategory } from "@/types/phase3";
+import type { InterviewPrep, InterviewQuestion, InterviewCategory, StarAnswer } from "@/types/phase3";
 
 const CATEGORY_META: Record<InterviewCategory, { label: string; color: string }> = {
   behavioral: { label: "Behavioral", color: "bg-blue-100 text-blue-700" },
@@ -18,6 +18,34 @@ const CATEGORY_META: Record<InterviewCategory, { label: string; color: string }>
 };
 
 const CATEGORY_ORDER: InterviewCategory[] = ["behavioral", "technical", "role", "culture"];
+
+const STAR_META: { key: keyof StarAnswer; label: string; letter: string; color: string; bg: string }[] = [
+  { key: "situation", label: "Situation", letter: "S", color: "text-blue-700",   bg: "bg-blue-50 border-blue-200" },
+  { key: "task",      label: "Task",      letter: "T", color: "text-purple-700", bg: "bg-purple-50 border-purple-200" },
+  { key: "action",    label: "Action",    letter: "A", color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
+  { key: "result",    label: "Result",    letter: "R", color: "text-green-700",  bg: "bg-green-50 border-green-200" },
+];
+
+function StarBlock({ star }: { star: StarAnswer }) {
+  return (
+    <div className="mt-4 space-y-2.5">
+      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        STAR answer
+      </p>
+      {STAR_META.map(({ key, label, letter, color, bg }) => (
+        <div key={key} className={cn("rounded-lg border p-3", bg)}>
+          <div className="flex items-center gap-2">
+            <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold", color, "bg-white border border-current")}>
+              {letter}
+            </span>
+            <span className={cn("text-xs font-semibold uppercase tracking-wide", color)}>{label}</span>
+          </div>
+          <p className="mt-1.5 text-sm leading-relaxed text-foreground">{star[key]}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 function QuestionCard({
   q,
@@ -60,32 +88,37 @@ function QuestionCard({
               className="mt-4 flex items-center gap-2 rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors w-full justify-center"
             >
               <Eye className="h-4 w-4" />
-              Reveal talking points &amp; answer
+              Reveal answer
             </button>
           ) : (
             <>
-              {q.talking_points.length > 0 && (
-                <div className="mt-4">
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Talking points
-                  </p>
-                  <ul className="space-y-1.5">
-                    {q.talking_points.map((pt, i) => (
-                      <li key={i} className="flex items-start gap-2 text-sm">
-                        <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                        {pt}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+              {q.star ? (
+                <StarBlock star={q.star} />
+              ) : (
+                <>
+                  {q.talking_points.length > 0 && (
+                    <div className="mt-4">
+                      <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Talking points
+                      </p>
+                      <ul className="space-y-1.5">
+                        {q.talking_points.map((pt, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                            {pt}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="mt-4">
+                    <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      Sample answer
+                    </p>
+                    <p className="text-sm leading-relaxed text-muted-foreground">{q.sample_answer}</p>
+                  </div>
+                </>
               )}
-
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Sample answer
-                </p>
-                <p className="text-sm leading-relaxed text-muted-foreground">{q.sample_answer}</p>
-              </div>
 
               {practiceMode && revealed && (
                 <button
@@ -207,7 +240,7 @@ export function InterviewPrepView({
       <div className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
         <Sparkles className="h-4 w-4 shrink-0 text-desyn-accent" />
         <span>
-          Tip: in practice mode, read each question out loud and try to answer it before revealing the talking points.
+          Tip: in practice mode, read each question out loud and try to answer it — for behavioral questions, structure your answer using the STAR method (Situation → Task → Action → Result) before revealing.
         </span>
       </div>
     </div>

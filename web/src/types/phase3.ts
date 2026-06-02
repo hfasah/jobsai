@@ -86,6 +86,13 @@ export interface TailorChange {
 // ─── Interview Prep ──────────────────────────────────────────────────────────
 export type InterviewCategory = "behavioral" | "technical" | "role" | "culture";
 
+export interface StarAnswer {
+  situation: string;
+  task: string;
+  action: string;
+  result: string;
+}
+
 export interface InterviewQuestion {
   id: string;
   category: InterviewCategory;
@@ -93,6 +100,7 @@ export interface InterviewQuestion {
   why_asked: string;
   talking_points: string[];
   sample_answer: string;
+  star?: StarAnswer;  // present for behavioral and role questions
 }
 
 export interface InterviewPrep {
