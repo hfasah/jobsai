@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { APP_NAME, APP_TAGLINE } from "@/lib/constants";
 
-export default function Home() {
+export default async function Home() {
+  const user = await currentUser();
+  if (user) redirect("/dashboard");
+
   return (
     <>
       <SiteHeader />
@@ -18,18 +23,13 @@ export default function Home() {
           </h1>
           <p className="mt-4 text-lg text-muted-foreground">{APP_TAGLINE}</p>
           <p className="mt-6 text-sm text-muted-foreground">
-            Sign up free to save your profile. Resume upload and job matching
-            come in the next phases.
+            Sign up free to save your profile. Resume upload and job matching come in the next phases.
           </p>
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Button nativeButton={false} render={<Link href="/sign-in" />}>
               Sign in
             </Button>
-            <Button
-              variant="outline"
-              nativeButton={false}
-              render={<Link href="/sign-up" />}
-            >
+            <Button variant="outline" nativeButton={false} render={<Link href="/sign-up" />}>
               Get started
             </Button>
           </div>
