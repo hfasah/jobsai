@@ -6,6 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 import { parseResumeText } from "@/lib/resume-parser";
+import { checkResumeGate } from "@/lib/billing";
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -41,6 +42,24 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  // Only gate new document groups, not additional versions of existing resumes
+  // We check the gate here; if they pass resume_group_id it's a new version → skip
+  const contentTypeCheck = req.headers.get("content-type") ?? "";
+  if (contentTypeCheck.includes("multipart/form-data")) {
+    const clonedReq = req.clone();
+    const fd = await clonedReq.formData().catch(() => null);
+    const isNewGroup = !fd?.get("resume_group_id");
+    if (isNewGroup) {
+      const gate = await checkResumeGate(userId);
+      if (!gate.allowed) {
+        return NextResponse.json(
+          { error: gate.reason, upgrade_required: true },
+          { status: 402 }
+        );
+      }
+    }
+  }
 
   let formData: FormData;
   try {

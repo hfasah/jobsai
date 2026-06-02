@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 import { fetchUrlContent, processJob } from "@/lib/job-import";
+import { checkJobImportGate } from "@/lib/billing";
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -20,6 +21,11 @@ const MIN_CHARS = 300;
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const gate = await checkJobImportGate(userId);
+  if (!gate.allowed) {
+    return NextResponse.json({ error: gate.reason, upgrade_required: true }, { status: 402 });
+  }
 
   const contentType = req.headers.get("content-type") ?? "";
   let rawText = "";

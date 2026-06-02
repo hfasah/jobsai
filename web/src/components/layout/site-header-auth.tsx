@@ -7,7 +7,7 @@ import {
   UserButton,
   useAuth,
 } from "@clerk/nextjs";
-import { Settings2, Zap, Send } from "lucide-react";
+import { Settings2, Zap, Send, CreditCard } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -39,6 +39,14 @@ export function SiteHeaderAuth() {
         >
           <Settings2 className="h-4 w-4" />
           <span className="hidden sm:inline">Preferences</span>
+        </Link>
+        <Link
+          href="/dashboard/billing"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          title="Billing"
+        >
+          <CreditCard className="h-4 w-4" />
+          <span className="hidden sm:inline">Billing</span>
         </Link>
         <UserButton
           appearance={{
