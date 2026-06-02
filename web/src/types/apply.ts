@@ -19,7 +19,15 @@ export interface ApplyProfile {
 
 export type ApplyProfileUpdate = Omit<ApplyProfile, "id" | "user_id" | "created_at" | "updated_at">;
 
-export type ApplyPlatform = "lever" | "greenhouse" | "ashby" | "unknown";
+export type ApplyPlatform =
+  | "lever"
+  | "greenhouse"
+  | "ashby"
+  | "workday"
+  | "smartrecruiters"
+  | "bamboohr"
+  | "icims"
+  | "unknown";
 
 export type ApplyStatus = "pending" | "submitted" | "failed" | "manual_required";
 

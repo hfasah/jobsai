@@ -2,6 +2,8 @@ import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { generateCoverLetter } from "@/lib/ai-content";
 import { sendApplySubmitted, sendManualRequired } from "@/lib/email";
+import { parseAshbyUrl, submitToAshby } from "@/lib/ashby-apply";
+import { browserAgentConfigured, callBrowserAgent } from "@/lib/browser-client";
 import type { ApplyPlatform, ApplyResult, ApplyProfile } from "@/types/apply";
 
 // ─── Platform detection ───────────────────────────────────────────────────────
@@ -10,6 +12,10 @@ export function detectPlatform(url: string): ApplyPlatform {
   if (/jobs\.lever\.co|lever\.co\//.test(url)) return "lever";
   if (/boards\.greenhouse\.io|job-boards\.greenhouse\.io|greenhouse\.io\/careers/.test(url)) return "greenhouse";
   if (/ashbyhq\.com|jobs\.ashby\.io/.test(url)) return "ashby";
+  if (/myworkdayjobs\.com|workday\.com\/[^/]+\/job/.test(url)) return "workday";
+  if (/jobs\.smartrecruiters\.com|smartrecruiters\.com\//.test(url)) return "smartrecruiters";
+  if (/bamboohr\.com\/careers|\.bamboohr\.com\/jobs/.test(url)) return "bamboohr";
+  if (/\.icims\.com\/jobs|icims\.com\//.test(url)) return "icims";
   return "unknown";
 }
 
@@ -140,25 +146,22 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
     // Non-fatal — continue without cover letter
   }
 
-  // 5. Platform-specific submission
+  // 5. Download resume once — shared across all platforms that need it
+  const resume = await downloadResume(ctx.resumeVersionId);
+
+  // ── Lever ──────────────────────────────────────────────────────────────────
   if (platform === "lever") {
     const parsed = parseLeverUrl(sourceUrl);
     if (!parsed) {
       return logAttempt(userId, jobId, "lever", "manual_required", "Could not parse Lever URL.");
     }
-
-    const resume = await downloadResume(ctx.resumeVersionId);
     if (!resume) {
       return logAttempt(userId, jobId, "lever", "failed", "Could not download resume file.");
     }
 
     const result = await submitToLever(
-      parsed.company,
-      parsed.postingId,
-      profile as ApplyProfile,
-      resume.blob,
-      resume.filename,
-      coverLetter
+      parsed.company, parsed.postingId, profile as ApplyProfile,
+      resume.blob, resume.filename, coverLetter
     );
 
     if (result.ok) {
@@ -170,17 +173,84 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
     return logAttempt(userId, jobId, "lever", "failed", result.message);
   }
 
-  // 6. All other platforms → manual_required (cover letter + resume are ready)
-  await upsertApplication(userId, jobId, "saved");
-  const platformLabel = platform === "greenhouse" ? "Greenhouse" : platform === "ashby" ? "Ashby" : "This platform";
-  const attempt = await logAttempt(userId, jobId, platform, "manual_required",
-    `${platformLabel} requires manual submission. Your cover letter and resume are ready.`
-  );
-  sendManualRequired(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId, sourceUrl || null).catch(console.error);
-  return attempt;
+  // ── Ashby (direct API — no browser needed) ────────────────────────────────
+  if (platform === "ashby") {
+    const postingId = parseAshbyUrl(sourceUrl);
+    if (!postingId) {
+      return manualRequired(userId, jobId, "ashby", "Could not extract Ashby posting ID from URL.", ctx, sourceUrl);
+    }
+    if (!resume) {
+      return manualRequired(userId, jobId, "ashby", "Could not download resume.", ctx, sourceUrl);
+    }
+
+    const result = await submitToAshby(postingId, profile as ApplyProfile, resume.blob, resume.filename, coverLetter);
+
+    if (result.ok) {
+      await upsertApplication(userId, jobId, "applied");
+      const attempt = await logAttempt(userId, jobId, "ashby", "submitted");
+      sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+      return attempt;
+    }
+    // Ashby API failed — fall through to manual
+    return manualRequired(userId, jobId, "ashby", result.message, ctx, sourceUrl);
+  }
+
+  // ── Platforms handled by the browser agent (Greenhouse, Workday, etc.) ────
+  const browserPlatforms: ApplyPlatform[] = ["greenhouse", "workday", "smartrecruiters", "bamboohr", "icims"];
+  if (browserPlatforms.includes(platform) && browserAgentConfigured() && resume) {
+    const resumeBase64 = Buffer.from(await resume.blob.arrayBuffer()).toString("base64");
+    const agentResult = await callBrowserAgent({
+      platform,
+      sourceUrl,
+      profile: profile as ApplyProfile,
+      resumeBase64,
+      resumeMime: resume.blob.type,
+      resumeFilename: resume.filename,
+      coverLetter,
+    });
+
+    if (agentResult.status === "submitted") {
+      await upsertApplication(userId, jobId, "applied");
+      const attempt = await logAttempt(userId, jobId, platform, "submitted");
+      sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+      return attempt;
+    }
+    if (agentResult.status === "failed") {
+      return logAttempt(userId, jobId, platform, "failed", agentResult.message);
+    }
+    // manual_required from agent — fall through
+  }
+
+  // ── Manual fallback ────────────────────────────────────────────────────────
+  return manualRequired(userId, jobId, platform, undefined, ctx, sourceUrl);
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const PLATFORM_LABELS: Partial<Record<ApplyPlatform, string>> = {
+  greenhouse: "Greenhouse",
+  ashby: "Ashby",
+  workday: "Workday",
+  smartrecruiters: "SmartRecruiters",
+  bamboohr: "BambooHR",
+  icims: "iCIMS",
+};
+
+async function manualRequired(
+  userId: string,
+  jobId: string,
+  platform: ApplyPlatform,
+  reason: string | undefined,
+  ctx: { jobParsed: { title?: string | null; company?: string | null } },
+  sourceUrl: string
+): Promise<ApplyResult> {
+  const label = PLATFORM_LABELS[platform] ?? "This platform";
+  const msg = reason ?? `${label} requires manual submission. Your cover letter and resume are ready.`;
+  await upsertApplication(userId, jobId, "saved");
+  const attempt = await logAttempt(userId, jobId, platform, "manual_required", msg);
+  sendManualRequired(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId, sourceUrl || null).catch(console.error);
+  return attempt;
+}
 
 async function logAttempt(
   userId: string,
