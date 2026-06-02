@@ -1,0 +1,305 @@
+"use client";
+
+import { useEffect, useRef, useState, useCallback } from "react";
+import { Plus, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { UploadZone, UploadProgress } from "@/components/resume/upload-zone";
+import { ParsedPreview } from "@/components/resume/parsed-preview";
+import { ResumeCard } from "@/components/resume/resume-card";
+import { VersionsPanel } from "@/components/resume/versions-panel";
+import { SiteHeader } from "@/components/layout/site-header";
+import type { ResumeDocument, ResumeVersion } from "@/types/resume";
+
+type UploadState =
+  | { type: "idle" }
+  | { type: "uploading"; progress: number; abort?: AbortController }
+  | { type: "processing"; versionId: string; documentId: string }
+  | { type: "preview"; version: ResumeVersion; documentId: string; documentLabel: string }
+  | { type: "error"; message: string };
+
+export default function ResumesPage() {
+  const [docs, setDocs] = useState<ResumeDocument[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [uploadState, setUploadState] = useState<UploadState>({ type: "idle" });
+  const [uploadingForGroupId, setUploadingForGroupId] = useState<string | null>(null);
+  const [showUpload, setShowUpload] = useState(false);
+  const [versionsPanelDoc, setVersionsPanelDoc] = useState<ResumeDocument | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const fetchDocs = useCallback(async () => {
+    try {
+      const res = await fetch("/api/resumes");
+      const json = await res.json();
+      if (json.data) setDocs(json.data);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDocs();
+  }, [fetchDocs]);
+
+  // Poll for parse completion when in processing state
+  useEffect(() => {
+    if (uploadState.type !== "processing") {
+      if (pollRef.current) clearInterval(pollRef.current);
+      return;
+    }
+    const { versionId, documentId } = uploadState;
+
+    pollRef.current = setInterval(async () => {
+      const res = await fetch(`/api/resumes/versions/${versionId}`);
+      if (!res.ok) return;
+      const json = await res.json();
+      const version: ResumeVersion = json.data;
+
+      if (version.parse_status === "parsed" || version.parse_status === "partial") {
+        clearInterval(pollRef.current!);
+        // Fetch doc label
+        const docRes = await fetch(`/api/resumes/${documentId}`);
+        const docJson = await docRes.json();
+        setUploadState({
+          type: "preview",
+          version,
+          documentId,
+          documentLabel: docJson.data?.label ?? "My Resume",
+        });
+        fetchDocs();
+      } else if (version.parse_status === "failed") {
+        clearInterval(pollRef.current!);
+        setUploadState({
+          type: "error",
+          message:
+            version.parse_error_msg ??
+            "Parsing failed. Try a different file or format.",
+        });
+      }
+    }, 3000);
+
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [uploadState, fetchDocs]);
+
+  const handleFileSelected = async (file: File) => {
+    const abort = new AbortController();
+    setUploadState({ type: "uploading", progress: 0, abort });
+
+    const formData = new FormData();
+    formData.append("file", file);
+    if (uploadingForGroupId) formData.append("resume_group_id", uploadingForGroupId);
+
+    try {
+      // Simulate progress since fetch doesn't give upload progress natively
+      let prog = 0;
+      const ticker = setInterval(() => {
+        prog = Math.min(prog + 10, 85);
+        setUploadState({ type: "uploading", progress: prog, abort });
+      }, 200);
+
+      const res = await fetch("/api/resumes", {
+        method: "POST",
+        body: formData,
+        signal: abort.signal,
+      });
+
+      clearInterval(ticker);
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        setUploadState({ type: "error", message: json.error ?? "Upload failed." });
+        return;
+      }
+
+      setUploadState({ type: "uploading", progress: 100, abort });
+
+      const { resume_version_id, resume_document_id } = await res.json();
+      setUploadingForGroupId(null);
+      setShowUpload(false);
+      setUploadState({
+        type: "processing",
+        versionId: resume_version_id,
+        documentId: resume_document_id,
+      });
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") {
+        setUploadState({ type: "idle" });
+        return;
+      }
+      setUploadState({ type: "error", message: "Upload failed. Please try again." });
+    }
+  };
+
+  const handleSavePreview = async (label: string) => {
+    if (uploadState.type !== "preview") return;
+    await fetch(`/api/resumes/${uploadState.documentId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label }),
+    });
+    setUploadState({ type: "idle" });
+    fetchDocs();
+  };
+
+  const handleSetPrimary = async (id: string) => {
+    await fetch(`/api/resumes/${id}/set-primary`, { method: "POST" });
+    fetchDocs();
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Delete this resume? This cannot be undone.")) return;
+    await fetch(`/api/resumes/${id}`, { method: "DELETE" });
+    fetchDocs();
+  };
+
+  const handleDownload = async (versionId: string) => {
+    const res = await fetch(`/api/resumes/versions/${versionId}/download-url`, {
+      method: "POST",
+    });
+    const { url } = await res.json();
+    window.open(url, "_blank");
+  };
+
+  const handleRename = async (id: string, label: string) => {
+    await fetch(`/api/resumes/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label }),
+    });
+    fetchDocs();
+  };
+
+  return (
+    <>
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">
+              Resume manager
+            </p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight">Your Resumes</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Upload PDF, DOC, or DOCX — AI extracts your profile automatically.
+            </p>
+          </div>
+          {!showUpload && uploadState.type === "idle" && (
+            <Button onClick={() => setShowUpload(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Upload resume
+            </Button>
+          )}
+        </div>
+
+        <div className="mt-8 space-y-6">
+          {/* Upload zone */}
+          {(showUpload || uploadingForGroupId) && uploadState.type === "idle" && (
+            <div className="rounded-xl border border-border bg-card p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-medium">
+                  {uploadingForGroupId ? "Upload new version" : "Upload resume"}
+                </h2>
+                <button
+                  className="text-sm text-muted-foreground hover:text-foreground"
+                  onClick={() => { setShowUpload(false); setUploadingForGroupId(null); }}
+                >
+                  Cancel
+                </button>
+              </div>
+              <UploadZone onFileSelected={handleFileSelected} />
+            </div>
+          )}
+
+          {/* Upload progress */}
+          {uploadState.type === "uploading" && (
+            <UploadProgress
+              state="uploading"
+              progress={uploadState.progress}
+              onCancel={() => { uploadState.abort?.abort(); setUploadState({ type: "idle" }); }}
+            />
+          )}
+
+          {/* Processing */}
+          {uploadState.type === "processing" && (
+            <UploadProgress state="processing" />
+          )}
+
+          {/* Error */}
+          {uploadState.type === "error" && (
+            <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
+              <p className="font-medium">Upload failed</p>
+              <p className="mt-1">{uploadState.message}</p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-3"
+                onClick={() => setUploadState({ type: "idle" })}
+              >
+                Try again
+              </Button>
+            </div>
+          )}
+
+          {/* Parsed preview */}
+          {uploadState.type === "preview" && (
+            <div className="rounded-xl border border-border bg-card p-6">
+              <h2 className="mb-4 font-medium">Review parsed resume</h2>
+              <ParsedPreview
+                version={uploadState.version}
+                documentLabel={uploadState.documentLabel}
+                onSave={handleSavePreview}
+                onDiscard={() => setUploadState({ type: "idle" })}
+              />
+            </div>
+          )}
+
+          {/* Resume list */}
+          {loading ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground py-8">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading resumes…
+            </div>
+          ) : docs.length === 0 && uploadState.type === "idle" && !showUpload ? (
+            <div className="rounded-xl border border-dashed border-border p-12 text-center">
+              <p className="text-muted-foreground">No resumes yet.</p>
+              <Button className="mt-4" onClick={() => setShowUpload(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Upload your first resume
+              </Button>
+            </div>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {docs.map((doc) => (
+                <ResumeCard
+                  key={doc.id}
+                  doc={doc}
+                  onSetPrimary={handleSetPrimary}
+                  onDelete={handleDelete}
+                  onDownload={handleDownload}
+                  onUploadNewVersion={(id) => {
+                    setUploadingForGroupId(id);
+                    setShowUpload(false);
+                  }}
+                  onRename={handleRename}
+                  onViewVersions={(id) => {
+                    const d = docs.find((x) => x.id === id) ?? null;
+                    setVersionsPanelDoc(d);
+                  }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {versionsPanelDoc && (
+        <VersionsPanel
+          groupId={versionsPanelDoc.id}
+          documentLabel={versionsPanelDoc.label}
+          activeVersionId={versionsPanelDoc.active_version_id}
+          onClose={() => setVersionsPanelDoc(null)}
+          onChanged={fetchDocs}
+        />
+      )}
+    </>
+  );
+}
