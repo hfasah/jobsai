@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
-  Loader2, Save, Check, Zap, Lock,
+  Loader2, Save, Check, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TagInput } from "@/components/ui/tag-input";
@@ -274,12 +274,8 @@ export default function PreferencesPage() {
             />
           </section>
 
-          {/* ── Auto-apply (coming soon) ── */}
-          <section className="relative rounded-2xl border border-border bg-card p-6 opacity-60">
-            <div className="absolute right-4 top-4 flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              Coming in Phase 10
-            </div>
+          {/* ── Auto-apply ── */}
+          <section className="rounded-2xl border border-border bg-card p-6">
             <SectionHeader
               title="Auto-apply"
               description="The system will automatically submit applications on your behalf when a job's match score meets your threshold."
@@ -292,15 +288,21 @@ export default function PreferencesPage() {
                     Automatically apply to matching jobs as they're discovered.
                   </p>
                 </div>
-                <div className={cn(
-                  "relative h-6 w-11 rounded-full border-2 transition-colors",
-                  prefs.auto_apply_enabled ? "border-primary bg-primary" : "border-border bg-muted"
-                )}>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={prefs.auto_apply_enabled}
+                  onClick={() => set("auto_apply_enabled", !prefs.auto_apply_enabled)}
+                  className={cn(
+                    "relative h-6 w-11 rounded-full border-2 transition-colors cursor-pointer",
+                    prefs.auto_apply_enabled ? "border-primary bg-primary" : "border-border bg-muted"
+                  )}
+                >
                   <span className={cn(
                     "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
                     prefs.auto_apply_enabled ? "translate-x-5" : "translate-x-0.5"
                   )} />
-                </div>
+                </button>
               </div>
               <div>
                 <FieldLabel>Minimum match score to auto-apply</FieldLabel>
@@ -311,8 +313,8 @@ export default function PreferencesPage() {
                     max={100}
                     step={5}
                     value={prefs.auto_apply_threshold}
-                    disabled
-                    className="flex-1"
+                    onChange={(e) => set("auto_apply_threshold", Number(e.target.value))}
+                    className="flex-1 cursor-pointer"
                   />
                   <span className="w-12 text-right text-sm font-bold tabular-nums">
                     {prefs.auto_apply_threshold}%
