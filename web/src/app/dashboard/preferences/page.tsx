@@ -304,6 +304,31 @@ export default function PreferencesPage() {
                   )} />
                 </button>
               </div>
+              {prefs.auto_apply_enabled && (
+                <div className="flex items-center justify-between rounded-xl border border-border p-4">
+                  <div>
+                    <p className="font-medium">Require my approval first</p>
+                    <p className="text-sm text-muted-foreground">
+                      Jobs land in a review queue — you approve before we submit.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={prefs.require_approval}
+                    onClick={() => set("require_approval", !prefs.require_approval)}
+                    className={cn(
+                      "relative h-6 w-11 rounded-full border-2 transition-colors cursor-pointer",
+                      prefs.require_approval ? "border-primary bg-primary" : "border-border bg-muted"
+                    )}
+                  >
+                    <span className={cn(
+                      "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                      prefs.require_approval ? "translate-x-5" : "translate-x-0.5"
+                    )} />
+                  </button>
+                </div>
+              )}
               <div>
                 <FieldLabel>Minimum match score to auto-apply</FieldLabel>
                 <div className="flex items-center gap-4">

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, MapPin, Building2, Briefcase, RefreshCw, Trash2, ExternalLink,
-  ClipboardList, Check, Send, AlertCircle, Copy,
+  ClipboardList, Check, Send, AlertCircle, Copy, Mic,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -231,6 +231,17 @@ export default function JobDetailPage({
                 {rematching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
               </Button>
             )}
+            {!processing && job.status === "ready" && (
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={`/dashboard/jobs/${jobId}/interview-buddy`} />}
+                title="Interview Buddy — live coaching"
+              >
+                <Mic className="h-4 w-4" />
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={remove} className="text-destructive">
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -314,6 +325,7 @@ export default function JobDetailPage({
           <JobTabs
             jobId={jobId}
             activeTab={tabOverride}
+            companyName={parsed?.company ?? undefined}
             overview={
               <div className="space-y-8">
                 {/* Match */}

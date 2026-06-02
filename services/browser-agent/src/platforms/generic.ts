@@ -1,6 +1,7 @@
 import { Page } from "playwright";
 import type { ApplyProfile } from "../types";
-import { fillIfExists, uploadFile, hasCaptcha } from "../utils";
+import { fillIfExists, uploadFile } from "../utils";
+import { handleCaptcha } from "../captcha";
 
 // Heuristic selectors that cover many ATSes
 const NAME_SEL   = 'input[name*="name"]:not([name*="company"]):not([name*="school"]):not([name*="user"]), input[id*="name"]:not([id*="company"])';
@@ -15,8 +16,9 @@ export async function fillGeneric(
   resumePath: string,
   coverLetter: string
 ): Promise<{ ok: boolean; reason?: string }> {
-  if (await hasCaptcha(page)) {
-    return { ok: false, reason: "CAPTCHA detected — manual submission required" };
+  const captchaResult = await handleCaptcha(page, page.url());
+  if (captchaResult && !captchaResult.ok) {
+    return { ok: false, reason: captchaResult.reason };
   }
 
   const fullName = [profile.first_name, profile.last_name].filter(Boolean).join(" ");

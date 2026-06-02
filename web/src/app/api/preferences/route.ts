@@ -37,6 +37,7 @@ export async function PUT(req: NextRequest) {
     excluded_companies:   Array.isArray(body.excluded_companies) ? body.excluded_companies : undefined,
     auto_apply_enabled:   typeof body.auto_apply_enabled === "boolean" ? body.auto_apply_enabled : undefined,
     auto_apply_threshold: body.auto_apply_threshold != null ? Number(body.auto_apply_threshold) : undefined,
+    require_approval:     typeof body.require_approval === "boolean" ? body.require_approval : undefined,
   };
 
   const { data, error } = await supabaseAdmin

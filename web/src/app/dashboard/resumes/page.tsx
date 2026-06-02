@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Languages } from "lucide-react";
 
 function LinkedInIcon({ className }: { className?: string }) {
   return (
@@ -193,6 +193,13 @@ export default function ResumesPage() {
           </div>
           {!showUpload && uploadState.type === "idle" && (
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                render={<Link href="/dashboard/resumes/translate" />}
+              >
+                <Languages className="mr-1.5 h-4 w-4" />
+                Translate
+              </Button>
               <Button
                 variant="outline"
                 render={<Link href="/dashboard/resumes/linkedin" />}

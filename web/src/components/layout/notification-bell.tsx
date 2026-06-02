@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
 import {
-  Bell, Send, AlertCircle, TrendingUp, Zap, Crown, X,
+  Bell, Send, AlertCircle, TrendingUp, Zap, Crown, X, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,8 @@ type NotificationType =
   | "manual_required"
   | "high_match"
   | "discovery_summary"
-  | "plan_upgraded";
+  | "plan_upgraded"
+  | "pending_approval";
 
 interface AppNotification {
   id: string;
@@ -33,7 +34,8 @@ const TYPE_META: Record<NotificationType, { icon: React.ElementType; color: stri
   manual_required:   { icon: AlertCircle,   color: "text-amber-600 bg-amber-100" },
   high_match:        { icon: TrendingUp,    color: "text-desyn-success bg-desyn-success/10" },
   discovery_summary: { icon: Zap,           color: "text-purple-600 bg-purple-100" },
-  plan_upgraded:     { icon: Crown,         color: "text-primary bg-primary/10" },
+  plan_upgraded:     { icon: Crown,          color: "text-primary bg-primary/10" },
+  pending_approval:  { icon: ClipboardList,  color: "text-orange-600 bg-orange-100 dark:text-orange-400 dark:bg-orange-950/40" },
 };
 
 function notifLink(n: AppNotification): string {
@@ -42,7 +44,8 @@ function notifLink(n: AppNotification): string {
     return `/dashboard/jobs/${jobId}`;
   }
   if (n.type === "discovery_summary") return "/dashboard/discover";
-  if (n.type === "plan_upgraded") return "/dashboard/billing";
+  if (n.type === "plan_upgraded")     return "/dashboard/billing";
+  if (n.type === "pending_approval")  return "/dashboard/approve";
   return "/dashboard";
 }
 

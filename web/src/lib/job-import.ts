@@ -121,12 +121,36 @@ export async function processJob(jobId: string, userId: string, rawText: string,
 export async function autoApplyIfEnabled(jobId: string, userId: string, matchScore: number) {
   const { data: prefs } = await supabaseAdmin
     .from("user_preferences")
-    .select("auto_apply_enabled, auto_apply_threshold")
+    .select("auto_apply_enabled, auto_apply_threshold, require_approval")
     .eq("user_id", userId)
     .maybeSingle();
 
   if (!prefs?.auto_apply_enabled) return;
   if (matchScore < (prefs.auto_apply_threshold ?? 75)) return;
+
+  // Approval queue mode — park the job for user review instead of firing immediately
+  if (prefs.require_approval) {
+    const { data: job } = await supabaseAdmin
+      .from("jobs")
+      .select("id")
+      .eq("id", jobId)
+      .maybeSingle();
+    if (!job) return;
+
+    await supabaseAdmin.from("pending_approvals").upsert(
+      { user_id: userId, job_id: jobId, match_score: matchScore, status: "pending" },
+      { onConflict: "user_id,job_id", ignoreDuplicates: true }
+    );
+
+    createNotification(
+      userId,
+      "pending_approval",
+      "Job awaiting your approval",
+      `A ${matchScore}% match job is waiting in your approval queue before we apply.`,
+      { job_id: jobId, score: matchScore }
+    ).catch(console.error);
+    return;
+  }
 
   await applyToJob(userId, jobId);
 }

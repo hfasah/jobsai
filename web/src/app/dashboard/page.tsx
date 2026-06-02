@@ -321,7 +321,8 @@ export default async function DashboardPage() {
         <div className="grid gap-3 sm:grid-cols-3">
           {[
             { href: "/dashboard/resumes",     icon: Briefcase, label: "Resumes",          sub: "Upload & manage"           },
-            { href: "/dashboard/analytics",   icon: TrendingUp, label: "Analytics",        sub: "Match trends & skill gaps" },
+            { href: "/dashboard/skills",       icon: TrendingUp, label: "Skills Gap",        sub: "What to learn next"        },
+            { href: "/dashboard/approve",      icon: CheckCircle2, label: "Approval Queue",   sub: "Review before we apply"    },
             { href: "/dashboard/apply-profile", icon: Send,     label: "Apply profile",    sub: "Auto-apply passport"       },
           ].map(({ href, icon: Icon, label, sub }) => (
             <Link

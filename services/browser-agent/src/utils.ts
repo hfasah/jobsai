@@ -2,6 +2,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { Page } from "playwright";
+import { detectCaptcha } from "./captcha";
 
 export async function fillIfExists(page: Page, selector: string, value: string): Promise<void> {
   if (!value) return;
@@ -30,17 +31,7 @@ export async function uploadFile(
 }
 
 export async function hasCaptcha(page: Page): Promise<boolean> {
-  const captchaSelectors = [
-    'iframe[src*="recaptcha"]',
-    'iframe[src*="hcaptcha"]',
-    '.g-recaptcha',
-    '.h-captcha',
-    '[data-sitekey]',
-  ];
-  for (const sel of captchaSelectors) {
-    if (await page.$(sel)) return true;
-  }
-  return false;
+  return (await detectCaptcha(page)) !== null;
 }
 
 // Write a base64-encoded file to a temp path and return the path
