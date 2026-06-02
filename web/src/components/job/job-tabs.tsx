@@ -9,7 +9,7 @@ import { CoverLetterView } from "@/components/job/cover-letter";
 import { InterviewPrepView } from "@/components/job/interview-prep";
 import type { AtsScan, TailoredResume, CoverLetter, CoverTone, CoverLength, InterviewPrep } from "@/types/phase3";
 
-type TabKey = "overview" | "ats" | "tailor" | "cover" | "interview";
+export type TabKey = "overview" | "ats" | "tailor" | "cover" | "interview";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
   { key: "overview",   label: "Overview",      icon: <LayoutGrid className="h-4 w-4" /> },
@@ -22,11 +22,17 @@ const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
 export function JobTabs({
   jobId,
   overview,
+  activeTab: controlledTab,
 }: {
   jobId: string;
   overview: React.ReactNode;
+  activeTab?: TabKey;
 }) {
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<TabKey>(controlledTab ?? "overview");
+
+  useEffect(() => {
+    if (controlledTab) setTab(controlledTab);
+  }, [controlledTab]);
 
   // ATS
   const [scan, setScan] = useState<AtsScan | null>(null);

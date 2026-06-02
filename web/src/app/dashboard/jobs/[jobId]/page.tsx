@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, MapPin, Building2, Briefcase, RefreshCw, Trash2, ExternalLink,
-  ClipboardList, Check, Send, AlertCircle,
+  ClipboardList, Check, Send, AlertCircle, Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { MatchDetail } from "@/components/job/match-score";
 import { JobTabs } from "@/components/job/job-tabs";
+import type { TabKey } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
 
 export default function JobDetailPage({
@@ -29,6 +30,9 @@ export default function JobDetailPage({
   type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed";
   const [applyState, setApplyState] = useState<ApplyState>("idle");
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
+  const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
+  const [copiedCover, setCopiedCover] = useState(false);
+  const [tabOverride, setTabOverride] = useState<TabKey | undefined>(undefined);
 
   const fetchJob = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`);
@@ -83,6 +87,12 @@ export default function JobDetailPage({
       const status = json.data?.status;
       setApplyState(status === "submitted" ? "submitted" : status === "manual_required" ? "manual_required" : "failed");
       setApplyMsg(json.data?.message ?? null);
+      if (status === "manual_required") {
+        fetch(`/api/jobs/${jobId}/cover-letter`)
+          .then((r) => r.json())
+          .then((j) => { if (j.data?.body) setCoverLetterBody(j.data.body); })
+          .catch(() => null);
+      }
     } catch {
       setApplyState("failed");
       setApplyMsg("Network error. Please try again.");
@@ -228,15 +238,38 @@ export default function JobDetailPage({
         </div>
 
         {/* Apply status messages */}
-        {applyMsg && (applyState === "manual_required" || applyState === "failed") && (
+        {(applyState === "manual_required" || applyState === "failed") && (
           <div className={`mt-3 rounded-lg border px-4 py-2.5 text-sm ${
             applyState === "manual_required"
               ? "border-amber-200 bg-amber-50 text-amber-800"
               : "border-destructive/30 bg-destructive/5 text-destructive"
           }`}>
-            {applyMsg}
+            <p>{applyMsg ?? (applyState === "manual_required" ? "This platform requires manual submission." : "Apply failed.")}</p>
             {applyState === "manual_required" && (
-              <Link href="/dashboard/jobs" className="ml-2 underline">View cover letter in job tabs ↑</Link>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {coverLetterBody && (
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(coverLetterBody);
+                      setCopiedCover(true);
+                      setTimeout(() => setCopiedCover(false), 2000);
+                    }}
+                    className="inline-flex items-center gap-1.5 rounded border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 transition-colors"
+                  >
+                    {copiedCover ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                    {copiedCover ? "Copied!" : "Copy cover letter"}
+                  </button>
+                )}
+                <button
+                  onClick={() => {
+                    setTabOverride("cover");
+                    document.getElementById("job-tabs")?.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="inline-flex items-center gap-1.5 rounded border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 transition-colors"
+                >
+                  View cover letter ↓
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -277,8 +310,10 @@ export default function JobDetailPage({
 
         {/* Tabbed surfaces: Overview / ATS / Tailor / Cover Letter */}
         {!processing && job.status === "ready" && (
+          <div id="job-tabs">
           <JobTabs
             jobId={jobId}
+            activeTab={tabOverride}
             overview={
               <div className="space-y-8">
                 {/* Match */}
@@ -338,6 +373,7 @@ export default function JobDetailPage({
               </div>
             }
           />
+          </div>
         )}
       </main>
     </>
