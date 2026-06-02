@@ -20,7 +20,7 @@ export default async function DashboardPage() {
         <p className="mt-3 max-w-xl text-muted-foreground">
           Your AI-powered job application assistant. Upload your resume to get started.
         </p>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/dashboard/resumes"
             className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow"
@@ -46,6 +46,15 @@ export default async function DashboardPage() {
             <p className="font-semibold">Applications</p>
             <p className="mt-1 text-sm text-muted-foreground">
               Track each application through your pipeline, from saved to offer.
+            </p>
+          </Link>
+          <Link
+            href="/dashboard/analytics"
+            className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow"
+          >
+            <p className="font-semibold">Analytics</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Match trends, pipeline health, skill gaps, and AI usage at a glance.
             </p>
           </Link>
         </div>
