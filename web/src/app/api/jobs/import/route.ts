@@ -4,34 +4,7 @@ import { createHash } from "crypto";
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
-import { parseJobText, scoreMatch } from "@/lib/job-parser";
-import { applyToJob } from "@/lib/apply-agent";
-import type { ParsedJson } from "@/types/resume";
-
-// ─── URL scraping via Jina.ai Reader ─────────────────────────────────────────
-async function fetchUrlContent(url: string): Promise<string> {
-  const jinaUrl = `https://r.jina.ai/${url}`;
-  const headers: Record<string, string> = {
-    Accept: "application/json",
-    "X-No-Cache": "true",
-    "X-Return-Format": "text",
-  };
-  if (process.env.JINA_API_KEY) {
-    headers["Authorization"] = `Bearer ${process.env.JINA_API_KEY}`;
-  }
-
-  const res = await fetch(jinaUrl, {
-    headers,
-    signal: AbortSignal.timeout(30_000),
-  });
-
-  if (!res.ok) throw new Error(`Jina fetch failed: ${res.status}`);
-
-  const json = (await res.json()) as { data?: { content?: string } };
-  const content = json.data?.content?.trim();
-  if (!content) throw new Error("No content extracted from URL");
-  return content;
-}
+import { fetchUrlContent, processJob } from "@/lib/job-import";
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -40,10 +13,10 @@ const ALLOWED_TYPES = [
   "text/plain",
   "text/html",
 ];
-const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
+const MAX_SIZE_BYTES = 5 * 1024 * 1024;
 const MIN_CHARS = 300;
 
-// POST /api/jobs/import — paste text or upload a file
+// POST /api/jobs/import — paste text, upload a file, or import from URL
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -55,7 +28,6 @@ export async function POST(req: NextRequest) {
   let force = false;
 
   if (contentType.includes("multipart/form-data")) {
-    // File upload
     const formData = await req.formData();
     const file = formData.get("file") as File | null;
     sourceUrl = (formData.get("source_url") as string | null) ?? null;
@@ -74,7 +46,6 @@ export async function POST(req: NextRequest) {
 
     sourceType = "file";
     const buffer = Buffer.from(await file.arrayBuffer());
-
     if (file.type === "text/plain" || file.type === "text/html") {
       rawText = buffer.toString("utf-8");
     } else {
@@ -95,11 +66,8 @@ export async function POST(req: NextRequest) {
     force = body.force === true;
 
     if (body.url) {
-      // ── URL import ──────────────────────────────────────────────────────────
       const targetUrl = (body.url as string).trim();
-      try {
-        new URL(targetUrl); // basic validity check
-      } catch {
+      try { new URL(targetUrl); } catch {
         return NextResponse.json({ error: "Invalid URL." }, { status: 400 });
       }
       sourceUrl = targetUrl;
@@ -114,7 +82,6 @@ export async function POST(req: NextRequest) {
         );
       }
     } else {
-      // ── Text paste ──────────────────────────────────────────────────────────
       rawText = (body.text as string | null)?.trim() ?? "";
     }
   }
@@ -126,7 +93,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Dedupe: SHA-256 of canonicalized text
   const canonical = rawText.replace(/\s+/g, " ").trim().toLowerCase();
   const contentHash = createHash("sha256").update(canonical).digest("hex");
 
@@ -141,14 +107,10 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (existing) {
-      return NextResponse.json(
-        { job_id: existing.id, status: "ready", dedup: true },
-        { status: 200 }
-      );
+      return NextResponse.json({ job_id: existing.id, status: "ready", dedup: true });
     }
   }
 
-  // Create job record
   const { data: job, error: jobError } = await supabaseAdmin
     .from("jobs")
     .insert({
@@ -166,103 +128,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create job." }, { status: 500 });
   }
 
-  const response = NextResponse.json(
-    { job_id: job.id, status: "processing", dedup: false },
-    { status: 202 }
-  );
-
   processJob(job.id, userId, rawText).catch(console.error);
-  return response;
-}
 
-async function processJob(jobId: string, userId: string, rawText: string) {
-  try {
-    // 1. Parse job
-    const parsed = await parseJobText(rawText);
-
-    await supabaseAdmin.from("job_parsed").upsert({
-      job_id: jobId,
-      title: parsed.title ?? null,
-      company: parsed.company ?? null,
-      location: parsed.location ?? null,
-      employment_type: parsed.employment_type ?? null,
-      seniority: parsed.seniority ?? null,
-      compensation: parsed.compensation ?? null,
-      posting_url: parsed.posting_url ?? null,
-      summary: parsed.summary ?? null,
-      skills: parsed.skills ?? [],
-      responsibilities: parsed.responsibilities ?? [],
-      requirements: parsed.requirements ?? [],
-      parsed_json: parsed,
-    });
-
-    await supabaseAdmin
-      .from("jobs")
-      .update({ detected_language: parsed.detected_language ?? null })
-      .eq("id", jobId);
-
-    // 2. Find the user's primary resume's active version → score the match
-    const { data: primaryDoc } = await supabaseAdmin
-      .from("resume_documents")
-      .select("active_version_id")
-      .eq("user_id", userId)
-      .eq("is_primary", true)
-      .eq("is_archived", false)
-      .maybeSingle();
-
-    const activeVersionId = primaryDoc?.active_version_id;
-
-    let matchScore = 0;
-    if (activeVersionId) {
-      const { data: profile } = await supabaseAdmin
-        .from("resume_parsed_profile")
-        .select("parsed_json")
-        .eq("version_id", activeVersionId)
-        .maybeSingle();
-
-      if (profile?.parsed_json) {
-        const score = await scoreMatch(profile.parsed_json as ParsedJson, parsed);
-        matchScore = Math.round(score.match_score ?? 0);
-        await supabaseAdmin.from("job_matches").upsert(
-          {
-            job_id: jobId,
-            resume_version_id: activeVersionId,
-            match_score: matchScore,
-            matched_keywords: score.matched_keywords ?? [],
-            missing_keywords: score.missing_keywords ?? [],
-            explanation: score.explanation ?? null,
-            scored_json: score,
-          },
-          { onConflict: "job_id,resume_version_id" }
-        );
-      }
-    }
-
-    await supabaseAdmin.from("jobs").update({ status: "ready" }).eq("id", jobId);
-
-    // 3. Auto-apply if enabled and score meets threshold
-    autoApplyIfEnabled(jobId, userId, matchScore).catch(console.error);
-  } catch (err) {
-    console.error("Job processing error:", err);
-    await supabaseAdmin
-      .from("jobs")
-      .update({
-        status: "failed",
-        parse_error_msg: err instanceof Error ? err.message : "Unknown error",
-      })
-      .eq("id", jobId);
-  }
-}
-
-async function autoApplyIfEnabled(jobId: string, userId: string, matchScore: number) {
-  const { data: prefs } = await supabaseAdmin
-    .from("user_preferences")
-    .select("auto_apply_enabled, auto_apply_threshold")
-    .eq("user_id", userId)
-    .maybeSingle();
-
-  if (!prefs?.auto_apply_enabled) return;
-  if (matchScore < (prefs.auto_apply_threshold ?? 75)) return;
-
-  await applyToJob(userId, jobId);
+  return NextResponse.json({ job_id: job.id, status: "processing", dedup: false }, { status: 202 });
 }

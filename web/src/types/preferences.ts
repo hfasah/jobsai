@@ -40,6 +40,8 @@ export interface UserPreferences {
   excluded_companies: string[];
   auto_apply_enabled: boolean;
   auto_apply_threshold: number;
+  last_discovery_at: string | null;
+  last_discovery_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -58,4 +60,6 @@ export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   excluded_companies: [],
   auto_apply_enabled: false,
   auto_apply_threshold: 75,
+  last_discovery_at: null,
+  last_discovery_count: 0,
 };

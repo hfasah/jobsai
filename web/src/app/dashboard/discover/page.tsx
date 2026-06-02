@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Briefcase, Building2, MapPin, DollarSign,
   Loader2, RefreshCw, ExternalLink, Check,
-  Settings2, Zap, AlertCircle,
+  Settings2, Zap, AlertCircle, Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -147,6 +147,9 @@ interface PrefSummary {
   locations: string[];
   min_salary: number | null;
   salary_currency: string;
+  auto_apply_enabled: boolean;
+  last_discovery_at: string | null;
+  last_discovery_count: number;
 }
 
 function PrefSummaryBar({ prefs }: { prefs: PrefSummary }) {
@@ -178,6 +181,53 @@ function PrefSummaryBar({ prefs }: { prefs: PrefSummary }) {
       >
         <Settings2 className="h-3.5 w-3.5" />
         Edit
+      </Link>
+    </div>
+  );
+}
+
+// ─── Auto-discovery status bar ───────────────────────────────────────────────
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function AutoDiscoveryStatus({ prefs }: { prefs: PrefSummary }) {
+  const isOn = prefs.auto_apply_enabled;
+  return (
+    <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 text-sm">
+      <span className={cn(
+        "flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium",
+        isOn ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"
+      )}>
+        <Zap className="h-3 w-3" />
+        Auto-apply {isOn ? "on" : "off"}
+      </span>
+      {prefs.last_discovery_at ? (
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          Last run {timeAgo(prefs.last_discovery_at)}
+          {prefs.last_discovery_count > 0 && (
+            <span className="text-foreground font-medium">· {prefs.last_discovery_count} imported</span>
+          )}
+        </span>
+      ) : (
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          Auto-discovery runs every 6 hours
+        </span>
+      )}
+      <Link
+        href="/dashboard/preferences"
+        className="ml-auto flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+      >
+        <Settings2 className="h-3.5 w-3.5" />
+        Settings
       </Link>
     </div>
   );
@@ -264,10 +314,11 @@ export default function DiscoverPage() {
           </Button>
         </div>
 
-        {/* Preferences summary */}
+        {/* Preferences summary + auto-discovery status */}
         {prefs && (
-          <div className="mt-6">
+          <div className="mt-6 space-y-2">
             <PrefSummaryBar prefs={prefs} />
+            <AutoDiscoveryStatus prefs={prefs} />
           </div>
         )}
 
