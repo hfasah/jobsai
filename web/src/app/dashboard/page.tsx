@@ -2,8 +2,6 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 
 import { SiteHeader } from "@/components/layout/site-header";
-import { Button } from "@/components/ui/button";
-import { APP_NAME } from "@/lib/constants";
 
 export default async function DashboardPage() {
   const user = await currentUser();
@@ -41,10 +39,15 @@ export default async function DashboardPage() {
               Import a job description and see how well your resume matches.
             </p>
           </Link>
-          <div className="rounded-xl border border-dashed border-border p-5 opacity-50">
+          <Link
+            href="/dashboard/applications"
+            className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow"
+          >
             <p className="font-semibold">Applications</p>
-            <p className="mt-1 text-sm text-muted-foreground">Coming in Phase 3</p>
-          </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Track each application through your pipeline, from saved to offer.
+            </p>
+          </Link>
         </div>
       </main>
     </>

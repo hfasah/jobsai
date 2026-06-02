@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, MapPin, Building2, Briefcase, RefreshCw, Trash2, ExternalLink,
+  ClipboardList, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -22,6 +23,8 @@ export default function JobDetailPage({
   const [job, setJob] = useState<Job | null>(null);
   const [loading, setLoading] = useState(true);
   const [rematching, setRematching] = useState(false);
+  const [tracking, setTracking] = useState(false);
+  const [tracked, setTracked] = useState(false);
 
   const fetchJob = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`);
@@ -59,6 +62,24 @@ export default function JobDetailPage({
       await fetchJob();
     } finally {
       setRematching(false);
+    }
+  };
+
+  const track = async () => {
+    setTracking(true);
+    try {
+      const res = await fetch("/api/applications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_id: jobId }),
+      });
+      if (res.ok) setTracked(true);
+      else {
+        const json = await res.json().catch(() => ({}));
+        alert(json.error ?? "Could not add to tracker.");
+      }
+    } finally {
+      setTracking(false);
     }
   };
 
@@ -132,6 +153,18 @@ export default function JobDetailPage({
             )}
           </div>
           <div className="flex gap-2">
+            {!processing && job.status === "ready" && (
+              <Button variant="outline" size="sm" onClick={track} disabled={tracking || tracked}>
+                {tracking ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : tracked ? (
+                  <Check className="mr-2 h-4 w-4" />
+                ) : (
+                  <ClipboardList className="mr-2 h-4 w-4" />
+                )}
+                {tracked ? "Tracking" : "Track"}
+              </Button>
+            )}
             {!processing && (
               <Button variant="outline" size="sm" onClick={rematch} disabled={rematching}>
                 {rematching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}

@@ -1,0 +1,166 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import type { Application, UpdateApplicationBody } from "@/types/application";
+
+function scoreColor(score: number) {
+  return score >= 75
+    ? "text-green-600 bg-green-100"
+    : score >= 50
+      ? "text-yellow-700 bg-yellow-100"
+      : "text-red-600 bg-red-100";
+}
+
+export function ApplicationCard({
+  application,
+  onUpdate,
+  onDelete,
+  onDragStart,
+  dragging,
+}: {
+  application: Application;
+  onUpdate: (id: string, body: UpdateApplicationBody) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onDragStart: (id: string) => void;
+  dragging: boolean;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [notes, setNotes] = useState(application.notes ?? "");
+  const [nextAction, setNextAction] = useState(application.next_action ?? "");
+  const [nextDate, setNextDate] = useState(application.next_action_date ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const job = application.job;
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await onUpdate(application.id, {
+        notes: notes.trim() || null,
+        next_action: nextAction.trim() || null,
+        next_action_date: nextDate || null,
+      });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      draggable={!editing}
+      onDragStart={() => onDragStart(application.id)}
+      className={cn(
+        "rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all",
+        !editing && "cursor-grab active:cursor-grabbing hover:shadow-md",
+        dragging && "opacity-40"
+      )}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate font-medium leading-tight">
+            {job?.title ?? "Untitled role"}
+          </p>
+          {job?.company && (
+            <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+              <Building2 className="h-3 w-3 shrink-0" />
+              {job.company}
+            </p>
+          )}
+        </div>
+        {job?.match_score != null && (
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-2 py-0.5 text-xs font-bold",
+              scoreColor(job.match_score)
+            )}
+          >
+            {job.match_score}
+          </span>
+        )}
+      </div>
+
+      {!editing && application.next_action && (
+        <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-muted/60 px-2 py-1.5 text-xs text-muted-foreground">
+          <CalendarClock className="mt-0.5 h-3 w-3 shrink-0" />
+          <span className="min-w-0">
+            {application.next_action}
+            {application.next_action_date && (
+              <span className="ml-1 font-medium text-foreground">
+                · {new Date(application.next_action_date).toLocaleDateString()}
+              </span>
+            )}
+          </span>
+        </div>
+      )}
+
+      {!editing && application.notes && (
+        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{application.notes}</p>
+      )}
+
+      {editing && (
+        <div className="mt-3 space-y-2">
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Notes…"
+            rows={3}
+            className="w-full rounded-lg border border-border bg-background p-2 text-xs outline-none focus:border-primary"
+          />
+          <input
+            value={nextAction}
+            onChange={(e) => setNextAction(e.target.value)}
+            placeholder="Next action (e.g. Follow up)"
+            className="w-full rounded-lg border border-border bg-background p-2 text-xs outline-none focus:border-primary"
+          />
+          <input
+            type="date"
+            value={nextDate}
+            onChange={(e) => setNextDate(e.target.value)}
+            className="w-full rounded-lg border border-border bg-background p-2 text-xs outline-none focus:border-primary"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={save} disabled={saving} className="flex-1">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => setEditing(false)} disabled={saving}>
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!editing && (
+        <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2">
+          <Link
+            href={`/dashboard/jobs/${application.job_id}`}
+            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+          >
+            <ExternalLink className="h-3 w-3" />
+            View job
+          </Link>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setEditing(true)}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
+              aria-label="Edit"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => onDelete(application.id)}
+              className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-destructive"
+              aria-label="Remove from tracker"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
