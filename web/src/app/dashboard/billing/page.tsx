@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, CheckCircle2, Zap, Crown, Building2, ArrowRight, ExternalLink } from "lucide-react";
+import { Loader2, CheckCircle2, Zap, Crown, Building2, ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
@@ -94,16 +94,40 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [upgrading, setUpgrading] = useState<"pro" | "business" | null>(null);
   const [portaling, setPortaling] = useState(false);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
+  const [regenerating, setRegenerating] = useState(false);
 
   const justUpgraded = searchParams.get("success") === "true";
   const canceled = searchParams.get("canceled") === "true";
 
   useEffect(() => {
-    fetch("/api/billing")
-      .then((r) => r.json())
-      .then((j) => setBilling(j.data))
-      .finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/billing").then((r) => r.json()),
+      fetch("/api/user/api-key").then((r) => r.json()),
+    ]).then(([billingJson, keyJson]) => {
+      setBilling(billingJson.data);
+      setApiKey(keyJson.api_key ?? null);
+    }).finally(() => setLoading(false));
   }, []);
+
+  const copyApiKey = () => {
+    if (!apiKey) return;
+    navigator.clipboard.writeText(apiKey);
+    setApiKeyCopied(true);
+    setTimeout(() => setApiKeyCopied(false), 2000);
+  };
+
+  const regenerateKey = async () => {
+    setRegenerating(true);
+    try {
+      const res = await fetch("/api/user/api-key", { method: "POST" });
+      const json = await res.json();
+      setApiKey(json.api_key);
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   const upgrade = async (plan: "pro" | "business") => {
     setUpgrading(plan);
@@ -220,6 +244,41 @@ export default function BillingPage() {
                 limit={usage.jobs_this_month.limit === Infinity ? null : usage.jobs_this_month.limit}
               />
             </div>
+          </section>
+
+          {/* Chrome Extension API key */}
+          <section className="rounded-2xl border border-border bg-card p-6">
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10">
+                <Puzzle className="h-4 w-4 text-primary" />
+              </div>
+              <div>
+                <h2 className="font-semibold">Chrome Extension</h2>
+                <p className="text-xs text-muted-foreground">Import jobs from any site with one click</p>
+              </div>
+            </div>
+
+            <p className="mb-3 text-sm text-muted-foreground">
+              Copy your personal API key and paste it into the extension settings. Never share this key.
+            </p>
+
+            {apiKey ? (
+              <div className="flex items-center gap-2">
+                <code className="flex-1 overflow-hidden text-ellipsis rounded-lg border border-border bg-muted px-3 py-2 font-mono text-xs">
+                  {apiKey}
+                </code>
+                <Button variant="outline" size="sm" onClick={copyApiKey} className="shrink-0">
+                  {apiKeyCopied ? <Check className="h-3.5 w-3.5 text-desyn-success" /> : <Copy className="h-3.5 w-3.5" />}
+                </Button>
+                <Button variant="outline" size="sm" onClick={regenerateKey} disabled={regenerating} className="shrink-0">
+                  {regenerating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading key…
+              </div>
+            )}
           </section>
 
           {/* Upgrade section — only for free users */}
