@@ -83,6 +83,28 @@ export interface TailorChange {
   reason: string;
 }
 
+// ─── Interview Prep ──────────────────────────────────────────────────────────
+export type InterviewCategory = "behavioral" | "technical" | "role" | "culture";
+
+export interface InterviewQuestion {
+  id: string;
+  category: InterviewCategory;
+  question: string;
+  why_asked: string;
+  talking_points: string[];
+  sample_answer: string;
+}
+
+export interface InterviewPrep {
+  id: string;
+  user_id: string;
+  job_id: string;
+  resume_version_id: string;
+  questions: InterviewQuestion[];
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Cover Letter ────────────────────────────────────────────────────────────
 export type CoverTone = "professional" | "enthusiastic" | "confident" | "warm" | "concise";
 export type CoverLength = "short" | "medium" | "long";

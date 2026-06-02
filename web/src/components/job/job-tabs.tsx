@@ -1,20 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { LayoutGrid, ShieldCheck, Wand2, Mail } from "lucide-react";
+import { LayoutGrid, ShieldCheck, Wand2, Mail, BrainCircuit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AtsReport } from "@/components/job/ats-report";
 import { TailoredResumeView } from "@/components/job/tailored-resume";
 import { CoverLetterView } from "@/components/job/cover-letter";
-import type { AtsScan, TailoredResume, CoverLetter, CoverTone, CoverLength } from "@/types/phase3";
+import { InterviewPrepView } from "@/components/job/interview-prep";
+import type { AtsScan, TailoredResume, CoverLetter, CoverTone, CoverLength, InterviewPrep } from "@/types/phase3";
 
-type TabKey = "overview" | "ats" | "tailor" | "cover";
+type TabKey = "overview" | "ats" | "tailor" | "cover" | "interview";
 
 const TABS: { key: TabKey; label: string; icon: React.ReactNode }[] = [
-  { key: "overview", label: "Overview", icon: <LayoutGrid className="h-4 w-4" /> },
-  { key: "ats", label: "ATS Scan", icon: <ShieldCheck className="h-4 w-4" /> },
-  { key: "tailor", label: "Tailor Resume", icon: <Wand2 className="h-4 w-4" /> },
-  { key: "cover", label: "Cover Letter", icon: <Mail className="h-4 w-4" /> },
+  { key: "overview",   label: "Overview",      icon: <LayoutGrid className="h-4 w-4" /> },
+  { key: "ats",        label: "ATS Scan",       icon: <ShieldCheck className="h-4 w-4" /> },
+  { key: "tailor",     label: "Tailor Resume",  icon: <Wand2 className="h-4 w-4" /> },
+  { key: "cover",      label: "Cover Letter",   icon: <Mail className="h-4 w-4" /> },
+  { key: "interview",  label: "Interview Prep", icon: <BrainCircuit className="h-4 w-4" /> },
 ];
 
 export function JobTabs({
@@ -41,6 +43,11 @@ export function JobTabs({
   const [coverRunning, setCoverRunning] = useState(false);
   const [coverLoaded, setCoverLoaded] = useState(false);
 
+  // Interview
+  const [prep, setPrep] = useState<InterviewPrep | null>(null);
+  const [prepRunning, setPrepRunning] = useState(false);
+  const [prepLoaded, setPrepLoaded] = useState(false);
+
   // Lazy-load saved data when a tab is first opened
   useEffect(() => {
     if (tab === "ats" && !scanLoaded) {
@@ -55,7 +62,11 @@ export function JobTabs({
       setCoverLoaded(true);
       fetch(`/api/jobs/${jobId}/cover-letter`).then((r) => r.json()).then((j) => setLetter(j.data));
     }
-  }, [tab, jobId, scanLoaded, tailorLoaded, coverLoaded]);
+    if (tab === "interview" && !prepLoaded) {
+      setPrepLoaded(true);
+      fetch(`/api/jobs/${jobId}/interview-prep`).then((r) => r.json()).then((j) => setPrep(j.data));
+    }
+  }, [tab, jobId, scanLoaded, tailorLoaded, coverLoaded, prepLoaded]);
 
   const runScan = useCallback(async () => {
     setScanRunning(true);
@@ -78,6 +89,18 @@ export function JobTabs({
       setTailored(json.data);
     } finally {
       setTailorRunning(false);
+    }
+  }, [jobId]);
+
+  const runPrep = useCallback(async () => {
+    setPrepRunning(true);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/interview-prep`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? "Generation failed."); return; }
+      setPrep(json.data);
+    } finally {
+      setPrepRunning(false);
     }
   }, [jobId]);
 
@@ -124,6 +147,7 @@ export function JobTabs({
         {tab === "ats" && <AtsReport scan={scan} onRun={runScan} running={scanRunning} />}
         {tab === "tailor" && <TailoredResumeView tailored={tailored} onRun={runTailor} running={tailorRunning} />}
         {tab === "cover" && <CoverLetterView letter={letter} onGenerate={runCover} running={coverRunning} />}
+        {tab === "interview" && <InterviewPrepView prep={prep} onGenerate={runPrep} running={prepRunning} />}
       </div>
     </div>
   );

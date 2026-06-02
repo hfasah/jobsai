@@ -4,7 +4,7 @@ import type { ParsedJobJson } from "@/types/job";
 import type {
   AtsBreakdown, AtsWeakness, AtsFormattingIssue, AtsBuzzword,
   AtsKeywordCoverage, AtsFix, TailoredJson, TailorChange,
-  CoverTone, CoverLength,
+  CoverTone, CoverLength, InterviewQuestion,
 } from "@/types/phase3";
 
 let _openai: OpenAI | null = null;
@@ -156,6 +156,58 @@ const TONE_GUIDE: Record<CoverTone, string> = {
   concise: "tight and concise, no filler",
 };
 
+// ─── Interview Prep ──────────────────────────────────────────────────────────
+export interface InterviewPrepResult {
+  questions: InterviewQuestion[];
+}
+
+const INTERVIEW_SYSTEM = `You are an expert interview coach. Generate 10 highly likely interview questions
+for this specific candidate applying to this specific role. Ground every question in the actual job requirements
+and the candidate's real background — no generic filler. Return ONLY valid JSON — no markdown.
+
+Categories to cover (distribute across all 10):
+- behavioral: past-behaviour questions (STAR-format expected)
+- technical: skill/domain knowledge tests specific to this role
+- role: questions about their fit, motivation, or approach to this specific job
+- culture: team fit, working style, values alignment
+
+Schema:
+{
+  "questions": [
+    {
+      "id": "q1",
+      "category": "behavioral|technical|role|culture",
+      "question": "The interview question as the interviewer would ask it",
+      "why_asked": "1 sentence: what the interviewer is trying to assess",
+      "talking_points": ["3–4 bullet points drawn from the candidate's REAL experience that directly answer this question"],
+      "sample_answer": "A 3–5 sentence sample answer using the candidate's actual background, honest and specific"
+    }
+  ]
+}
+
+Rules: talking_points and sample_answer must reference the candidate's REAL employers, roles, and skills.
+Never invent experience. If a question can't be grounded in their background, skip it and pick a better one.`;
+
+export async function generateInterviewPrep(
+  resume: ParsedJson,
+  job: ParsedJobJson
+): Promise<InterviewPrepResult> {
+  const payload = { resume: resumeSlim(resume), job: jobSlim(job) };
+  const res = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: INTERVIEW_SYSTEM },
+      { role: "user", content: JSON.stringify(payload) },
+    ],
+    temperature: 0.4,
+    response_format: { type: "json_object" },
+  });
+  const content = res.choices[0]?.message?.content;
+  if (!content) throw new Error("Empty interview prep response");
+  return JSON.parse(content) as InterviewPrepResult;
+}
+
+// ─── Cover Letter ────────────────────────────────────────────────────────────
 export async function generateCoverLetter(
   resume: ParsedJson,
   job: ParsedJobJson,
