@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle2, Zap, Crown, Building2, ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -88,6 +88,14 @@ const PLAN_FEATURES: Record<Plan, string[]> = {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
+  return (
+    <Suspense>
+      <BillingContent />
+    </Suspense>
+  );
+}
+
+function BillingContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [billing, setBilling] = useState<BillingData | null>(null);

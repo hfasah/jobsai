@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Wand2, Loader2, RefreshCw, ArrowRight, Plus, Copy, Check } from "lucide-react";
+import Link from "next/link";
+import { Wand2, Loader2, RefreshCw, ArrowRight, Plus, Copy, Check, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, RunningState } from "@/components/job/ats-report";
 import type { TailoredResume } from "@/types/phase3";
@@ -10,10 +11,12 @@ export function TailoredResumeView({
   tailored,
   onRun,
   running,
+  jobId,
 }: {
   tailored: TailoredResume | null;
   onRun: () => void;
   running: boolean;
+  jobId: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -148,10 +151,14 @@ export function TailoredResumeView({
         </section>
       )}
 
-      <div className="flex justify-end">
+      <div className="flex items-center justify-end gap-2">
         <Button variant="outline" size="sm" onClick={onRun} disabled={running}>
           {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
           Re-tailor
+        </Button>
+        <Button size="sm" render={<Link href={`/dashboard/jobs/${jobId}/resume-preview`} target="_blank" />}>
+          <Download className="mr-1.5 h-3.5 w-3.5" />
+          Download PDF
         </Button>
       </div>
     </div>

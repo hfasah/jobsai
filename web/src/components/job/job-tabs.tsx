@@ -157,7 +157,7 @@ export function JobTabs({
       <div className="pt-6">
         {tab === "overview" && overview}
         {tab === "ats" && <AtsReport scan={scan} onRun={runScan} running={scanRunning} />}
-        {tab === "tailor" && <TailoredResumeView tailored={tailored} onRun={runTailor} running={tailorRunning} />}
+        {tab === "tailor" && <TailoredResumeView tailored={tailored} onRun={runTailor} running={tailorRunning} jobId={jobId} />}
         {tab === "cover" && <CoverLetterView letter={letter} onGenerate={runCover} running={coverRunning} />}
         {tab === "interview" && <InterviewPrepView prep={prep} onGenerate={runPrep} running={prepRunning} />}
         {tab === "mock" && (
