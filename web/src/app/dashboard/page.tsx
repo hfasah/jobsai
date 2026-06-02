@@ -1,11 +1,24 @@
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 
 import { SiteHeader } from "@/components/layout/site-header";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export default async function DashboardPage() {
   const user = await currentUser();
   const firstName = user?.firstName ?? "there";
+
+  if (user) {
+    const { data: resumes } = await supabaseAdmin
+      .from("resume_documents")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_archived", false)
+      .limit(1);
+
+    if (!resumes || resumes.length === 0) redirect("/onboard");
+  }
 
   return (
     <>
