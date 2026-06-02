@@ -2,6 +2,7 @@ import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { generateCoverLetter } from "@/lib/ai-content";
 import { sendApplySubmitted, sendManualRequired } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import { parseAshbyUrl, submitToAshby } from "@/lib/ashby-apply";
 import { browserAgentConfigured, callBrowserAgent } from "@/lib/browser-client";
 import type { ApplyPlatform, ApplyResult, ApplyProfile } from "@/types/apply";
@@ -168,6 +169,7 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
       await upsertApplication(userId, jobId, "applied");
       const attempt = await logAttempt(userId, jobId, "lever", "submitted");
       sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+      createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
       return attempt;
     }
     return logAttempt(userId, jobId, "lever", "failed", result.message);
@@ -189,6 +191,7 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
       await upsertApplication(userId, jobId, "applied");
       const attempt = await logAttempt(userId, jobId, "ashby", "submitted");
       sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+      createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
       return attempt;
     }
     // Ashby API failed — fall through to manual
@@ -213,6 +216,7 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
       await upsertApplication(userId, jobId, "applied");
       const attempt = await logAttempt(userId, jobId, platform, "submitted");
       sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+      createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
       return attempt;
     }
     if (agentResult.status === "failed") {
@@ -249,6 +253,7 @@ async function manualRequired(
   await upsertApplication(userId, jobId, "saved");
   const attempt = await logAttempt(userId, jobId, platform, "manual_required", msg);
   sendManualRequired(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId, sourceUrl || null).catch(console.error);
+  createNotification(userId, "manual_required", "Manual application needed", `${ctx.jobParsed.title ?? "A role"} at ${ctx.jobParsed.company ?? "a company"} requires manual submission. Your cover letter is ready.`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
   return attempt;
 }
 

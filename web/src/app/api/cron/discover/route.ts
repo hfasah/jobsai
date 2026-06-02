@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { discoverJobs } from "@/lib/job-discovery";
 import { importJobFromUrl } from "@/lib/job-import";
 import { sendDiscoverySummary } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import type { UserPreferences } from "@/types/preferences";
 
 // Allow up to 5 minutes on Vercel Pro
@@ -86,6 +87,13 @@ export async function GET(req: NextRequest) {
       // Send discovery summary if any new jobs were imported
       if (importedJobs.length > 0) {
         sendDiscoverySummary(prefs.user_id, importedJobs).catch(console.error);
+        createNotification(
+          prefs.user_id,
+          "discovery_summary",
+          `${importedJobs.length} new job${importedJobs.length === 1 ? "" : "s"} discovered`,
+          `We found ${importedJobs.length} matching job${importedJobs.length === 1 ? "" : "s"} for you today.`,
+          { count: importedJobs.length }
+        ).catch(console.error);
       }
     } catch (err) {
       summary.errors++;

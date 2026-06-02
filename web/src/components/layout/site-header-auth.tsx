@@ -8,6 +8,7 @@ import {
   useAuth,
 } from "@clerk/nextjs";
 import { Settings2, Zap, Send, CreditCard } from "lucide-react";
+import { NotificationBell } from "@/components/layout/notification-bell";
 
 import { Button } from "@/components/ui/button";
 
@@ -48,6 +49,7 @@ export function SiteHeaderAuth() {
           <CreditCard className="h-4 w-4" />
           <span className="hidden sm:inline">Billing</span>
         </Link>
+        <NotificationBell />
         <UserButton
           appearance={{
             elements: {

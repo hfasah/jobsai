@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { parseJobText, scoreMatch } from "@/lib/job-parser";
 import { applyToJob } from "@/lib/apply-agent";
 import { sendHighMatch } from "@/lib/email";
+import { createNotification } from "@/lib/notifications";
 import type { ParsedJson } from "@/types/resume";
 
 const MIN_CHARS = 300;
@@ -149,6 +150,7 @@ async function maybeNotifyHighMatch(
   if (prefs?.auto_apply_enabled) return;
 
   await sendHighMatch(userId, title, company, matchScore, jobId);
+  createNotification(userId, "high_match", "High match found", `${title} at ${company} — ${matchScore}% match`, { job_id: jobId, title, company, score: matchScore }).catch(console.error);
 }
 
 // ─── Import a single job from URL ─────────────────────────────────────────────

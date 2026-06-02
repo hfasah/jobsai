@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase";
+import { createNotification } from "@/lib/notifications";
 import type Stripe from "stripe";
 
 // Stripe sends the raw body — must NOT parse as JSON before signature check
@@ -77,6 +78,9 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     },
     { onConflict: "user_id" }
   );
+
+  const planLabel = plan === "pro" ? "Pro" : "Business";
+  createNotification(userId, "plan_upgraded", `Welcome to ${planLabel}!`, `Your plan has been upgraded to ${planLabel}. All features are now unlocked.`, { plan }).catch(console.error);
 }
 
 async function handleSubscriptionChange(sub: Stripe.Subscription) {
