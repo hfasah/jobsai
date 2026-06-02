@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, MapPin, Building2, Briefcase, RefreshCw, Trash2, ExternalLink,
-  ClipboardList, Check,
+  ClipboardList, Check, Send, AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -25,6 +25,10 @@ export default function JobDetailPage({
   const [rematching, setRematching] = useState(false);
   const [tracking, setTracking] = useState(false);
   const [tracked, setTracked] = useState(false);
+
+  type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed";
+  const [applyState, setApplyState] = useState<ApplyState>("idle");
+  const [applyMsg, setApplyMsg] = useState<string | null>(null);
 
   const fetchJob = useCallback(async () => {
     const res = await fetch(`/api/jobs/${jobId}`);
@@ -62,6 +66,26 @@ export default function JobDetailPage({
       await fetchJob();
     } finally {
       setRematching(false);
+    }
+  };
+
+  const applyNow = async () => {
+    setApplyState("applying");
+    setApplyMsg(null);
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/apply`, { method: "POST" });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setApplyState("failed");
+        setApplyMsg(json.error ?? "Apply failed.");
+        return;
+      }
+      const status = json.data?.status;
+      setApplyState(status === "submitted" ? "submitted" : status === "manual_required" ? "manual_required" : "failed");
+      setApplyMsg(json.data?.message ?? null);
+    } catch {
+      setApplyState("failed");
+      setApplyMsg("Network error. Please try again.");
     }
   };
 
@@ -152,7 +176,34 @@ export default function JobDetailPage({
               <p className="mt-1 text-sm font-medium text-green-600">{parsed.compensation}</p>
             )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            {!processing && job.status === "ready" && applyState !== "submitted" && (
+              <Button
+                size="sm"
+                variant={applyState === "manual_required" ? "outline" : "default"}
+                onClick={applyState === "manual_required" && job.source_url
+                  ? () => window.open(job.source_url!, "_blank")
+                  : applyNow}
+                disabled={applyState === "applying"}
+                className={applyState === "manual_required" ? "border-amber-300 text-amber-700 hover:bg-amber-50" : ""}
+              >
+                {applyState === "applying" ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying…</>
+                ) : applyState === "manual_required" ? (
+                  <><AlertCircle className="mr-2 h-4 w-4" />Apply manually</>
+                ) : applyState === "failed" ? (
+                  <><Send className="mr-2 h-4 w-4" />Retry apply</>
+                ) : (
+                  <><Send className="mr-2 h-4 w-4" />Apply</>
+                )}
+              </Button>
+            )}
+            {applyState === "submitted" && (
+              <span className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700">
+                <Check className="h-4 w-4" />
+                Applied
+              </span>
+            )}
             {!processing && job.status === "ready" && (
               <Button variant="outline" size="sm" onClick={track} disabled={tracking || tracked}>
                 {tracking ? (
@@ -175,6 +226,20 @@ export default function JobDetailPage({
             </Button>
           </div>
         </div>
+
+        {/* Apply status messages */}
+        {applyMsg && (applyState === "manual_required" || applyState === "failed") && (
+          <div className={`mt-3 rounded-lg border px-4 py-2.5 text-sm ${
+            applyState === "manual_required"
+              ? "border-amber-200 bg-amber-50 text-amber-800"
+              : "border-destructive/30 bg-destructive/5 text-destructive"
+          }`}>
+            {applyMsg}
+            {applyState === "manual_required" && (
+              <Link href="/dashboard/jobs" className="ml-2 underline">View cover letter in job tabs ↑</Link>
+            )}
+          </div>
+        )}
 
         {job.source_url && (
           <a

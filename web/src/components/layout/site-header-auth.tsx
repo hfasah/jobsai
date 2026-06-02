@@ -7,7 +7,7 @@ import {
   UserButton,
   useAuth,
 } from "@clerk/nextjs";
-import { Settings2, Zap } from "lucide-react";
+import { Settings2, Zap, Send } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -23,6 +23,14 @@ export function SiteHeaderAuth() {
         >
           <Zap className="h-4 w-4" />
           <span className="hidden sm:inline">Discover</span>
+        </Link>
+        <Link
+          href="/dashboard/apply-profile"
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          title="Apply Profile"
+        >
+          <Send className="h-4 w-4" />
+          <span className="hidden sm:inline">Apply Profile</span>
         </Link>
         <Link
           href="/dashboard/preferences"

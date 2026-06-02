@@ -5,6 +5,7 @@ import { createHash } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 import { parseJobText, scoreMatch } from "@/lib/job-parser";
+import { applyToJob } from "@/lib/apply-agent";
 import type { ParsedJson } from "@/types/resume";
 
 // ─── URL scraping via Jina.ai Reader ─────────────────────────────────────────
@@ -211,6 +212,7 @@ async function processJob(jobId: string, userId: string, rawText: string) {
 
     const activeVersionId = primaryDoc?.active_version_id;
 
+    let matchScore = 0;
     if (activeVersionId) {
       const { data: profile } = await supabaseAdmin
         .from("resume_parsed_profile")
@@ -220,11 +222,12 @@ async function processJob(jobId: string, userId: string, rawText: string) {
 
       if (profile?.parsed_json) {
         const score = await scoreMatch(profile.parsed_json as ParsedJson, parsed);
+        matchScore = Math.round(score.match_score ?? 0);
         await supabaseAdmin.from("job_matches").upsert(
           {
             job_id: jobId,
             resume_version_id: activeVersionId,
-            match_score: Math.round(score.match_score ?? 0),
+            match_score: matchScore,
             matched_keywords: score.matched_keywords ?? [],
             missing_keywords: score.missing_keywords ?? [],
             explanation: score.explanation ?? null,
@@ -236,6 +239,9 @@ async function processJob(jobId: string, userId: string, rawText: string) {
     }
 
     await supabaseAdmin.from("jobs").update({ status: "ready" }).eq("id", jobId);
+
+    // 3. Auto-apply if enabled and score meets threshold
+    autoApplyIfEnabled(jobId, userId, matchScore).catch(console.error);
   } catch (err) {
     console.error("Job processing error:", err);
     await supabaseAdmin
@@ -246,4 +252,17 @@ async function processJob(jobId: string, userId: string, rawText: string) {
       })
       .eq("id", jobId);
   }
+}
+
+async function autoApplyIfEnabled(jobId: string, userId: string, matchScore: number) {
+  const { data: prefs } = await supabaseAdmin
+    .from("user_preferences")
+    .select("auto_apply_enabled, auto_apply_threshold")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!prefs?.auto_apply_enabled) return;
+  if (matchScore < (prefs.auto_apply_threshold ?? 75)) return;
+
+  await applyToJob(userId, jobId);
 }
