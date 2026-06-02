@@ -58,6 +58,15 @@ export default async function DashboardPage() {
             </p>
           </Link>
           <Link
+            href="/dashboard/discover"
+            className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow"
+          >
+            <p className="font-semibold">Discover Jobs</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Auto-sourced jobs matched to your preferences from live job boards.
+            </p>
+          </Link>
+          <Link
             href="/dashboard/preferences"
             className="rounded-xl border border-border bg-card p-5 hover:shadow-sm transition-shadow"
           >
