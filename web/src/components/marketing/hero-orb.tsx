@@ -1,34 +1,35 @@
 import Link from "next/link";
 import { Mic } from "lucide-react";
 
-// Glowing voice-assistant orb — the hero centerpiece. Pure CSS (server-safe):
-// a blurred gradient halo, a slowly rotating conic ring, concentric guide rings,
-// and a pulsing gradient core. "Tap to Talk" routes to sign-up.
+// Liquid voice orb — the hero centerpiece. Pure CSS (server-safe).
+// A filled glossy blob whose silhouette morphs organically (Fireflies-style),
+// with color drifting inside and a glossy highlight up top.
+// Layers, back to front:
+//   1. orb-glow   — soft halo that morphs + breathes behind the blob
+//   2. orb-blob   — the filled, morphing gradient sphere (clips its children)
+//   3. orb-inner  — a magenta light that drifts inside, like liquid swirling
+//   4. orb-sheen  — drifting specular highlight (the glossy reflection)
+//   5. orb-dots   — three dots pulsing in sequence (listening / thinking)
+// Honors prefers-reduced-motion via globals.css.
 export function HeroOrb() {
   return (
     <div className="relative mx-auto flex h-72 w-72 items-center justify-center sm:h-80 sm:w-80">
-      {/* Soft halo */}
-      <span className="absolute inset-2 rounded-full bg-gradient-to-tr from-primary/30 via-desyn-purple/25 to-desyn-cyan/20 blur-3xl" />
+      {/* Outer halo */}
+      <span className="orb-glow absolute inset-0" aria-hidden />
 
-      {/* Concentric guide rings */}
-      <span className="absolute inset-0 rounded-full border border-white/10" />
-      <span className="absolute inset-6 rounded-full border border-white/10" />
+      {/* The morphing blob */}
+      <span className="orb-blob relative h-60 w-60 overflow-hidden sm:h-64 sm:w-64" aria-hidden>
+        {/* Liquid color drifting inside */}
+        <span className="orb-inner absolute inset-0" />
+        {/* Specular highlight */}
+        <span className="orb-sheen absolute" />
+      </span>
 
-      {/* Rotating conic arc ring */}
-      <span
-        className="absolute inset-0 animate-[spin_7s_linear_infinite] rounded-full"
-        style={{
-          background:
-            "conic-gradient(from 0deg, transparent 0deg, var(--desyn-brand) 40deg, var(--desyn-purple) 110deg, var(--cta) 150deg, transparent 200deg)",
-          WebkitMask:
-            "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))",
-          mask: "radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px))",
-        }}
-      />
-
-      {/* Pulsing core */}
-      <span className="animate-float-slow relative flex h-32 w-32 items-center justify-center rounded-full bg-gradient-to-br from-primary via-desyn-purple to-purple-700 shadow-glow-purple sm:h-36 sm:w-36">
-        <span className="absolute inset-0 rounded-full bg-white/20 blur-xl" />
+      {/* Listening dots (kept crisp, above the blob) */}
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center gap-2" aria-hidden>
+        <span className="orb-dot h-2.5 w-2.5 rounded-full bg-white" />
+        <span className="orb-dot h-2.5 w-2.5 rounded-full bg-white [animation-delay:200ms]" />
+        <span className="orb-dot h-2.5 w-2.5 rounded-full bg-white [animation-delay:400ms]" />
       </span>
 
       {/* Tap to Talk */}

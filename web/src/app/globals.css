@@ -434,6 +434,88 @@
   animation: shimmer-sweep 1.6s infinite;
 }
 
+/* ── Hero voice orb ──────────────────────────────────────────────────────── */
+/* Liquid blob: a filled glossy sphere whose silhouette morphs organically,
+   with color drifting inside and a glossy highlight. See hero-orb.tsx. */
+
+/* The morphing blob. Shared border-radius keyframes wobble the silhouette;
+   a separate breathe scales it. overflow-hidden clips children to the shape. */
+.orb-blob {
+  background:
+    radial-gradient(70% 55% at 50% 28%, rgba(255, 255, 255, 0.22), transparent 55%),
+    radial-gradient(120% 120% at 50% 100%, #f472b6 0%, #db2777 22%, #a21caf 46%, #7c3aed 72%, #4c1d95 100%);
+  box-shadow:
+    inset 0 -18px 40px -16px rgba(0, 0, 0, 0.45),
+    inset 0 14px 30px -14px rgba(255, 255, 255, 0.35),
+    0 20px 60px -18px color-mix(in oklch, var(--desyn-purple) 60%, transparent),
+    0 8px 40px -10px color-mix(in oklch, #db2777 45%, transparent);
+  animation: orb-morph 9s ease-in-out infinite, orb-breathe 6s ease-in-out infinite;
+  will-change: border-radius, transform;
+}
+
+/* Liquid color drifting inside the blob (own morph timing → swirling feel). */
+.orb-inner {
+  background:
+    radial-gradient(45% 40% at 35% 30%, color-mix(in oklch, #f472b6 55%, transparent), transparent 70%),
+    radial-gradient(50% 45% at 70% 75%, color-mix(in oklch, var(--desyn-purple) 60%, transparent), transparent 72%);
+  filter: blur(8px);
+  animation: orb-morph 11s ease-in-out infinite reverse, orb-inner-drift 8s ease-in-out infinite;
+  will-change: border-radius, transform;
+}
+
+/* Drifting specular highlight (upper-left), the glossy reflection. */
+.orb-sheen {
+  top: 14%;
+  left: 18%;
+  height: 32%;
+  width: 32%;
+  border-radius: 9999px;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 70%);
+  filter: blur(6px);
+  animation: orb-sheen 6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Outer halo glow that morphs + breathes behind the blob. */
+.orb-glow {
+  background:
+    radial-gradient(circle at 50% 45%, color-mix(in oklch, var(--desyn-purple) 50%, transparent), transparent 60%),
+    radial-gradient(circle at 50% 80%, color-mix(in oklch, #ec4899 45%, transparent), transparent 62%);
+  filter: blur(40px);
+  animation: orb-morph 9s ease-in-out infinite, orb-glow-pulse 6s ease-in-out infinite;
+  will-change: border-radius, transform, opacity;
+}
+
+.orb-dot { animation: orb-dot 1.4s ease-in-out infinite; }
+
+/* Organic silhouette wobble — four distinct blobby shapes so bulges travel. */
+@keyframes orb-morph {
+  0%, 100% { border-radius: 42% 58% 56% 44% / 52% 44% 56% 48%; }
+  25%      { border-radius: 58% 42% 40% 60% / 46% 58% 42% 54%; }
+  50%      { border-radius: 50% 50% 62% 38% / 60% 40% 60% 40%; }
+  75%      { border-radius: 44% 56% 48% 52% / 42% 56% 44% 58%; }
+}
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+@keyframes orb-inner-drift {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-6px, 8px) scale(1.08); }
+}
+@keyframes orb-glow-pulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.85; transform: scale(1.1); }
+}
+@keyframes orb-sheen {
+  0%, 100% { transform: translate(0, 0);      opacity: 0.7; }
+  50%      { transform: translate(10px, 12px); opacity: 1; }
+}
+@keyframes orb-dot {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50%      { opacity: 1;   transform: scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bg-gradient-brand-animated,
   .bg-mesh-animated,
@@ -442,5 +524,11 @@
   .animate-pulse-ring,
   .animate-bar,
   .animate-ring,
+  .orb-blob,
+  .orb-inner,
+  .orb-sheen,
+  .orb-glow,
+  .orb-dot,
   .shimmer::after { animation: none; }
+  .orb-blob, .orb-inner, .orb-glow { border-radius: 50%; }
 }
