@@ -7,7 +7,7 @@ import { UserButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Zap, Search, Briefcase, Plus, CheckCircle2, Inbox,
   FileText, Sparkles, Send,
-  Mic, MessageSquareText, Video,
+  Mic, MessageSquareText, Video, Headphones,
   BarChart3, Settings2, CreditCard,
   Menu, X, ExternalLink, Coins, ChevronDown,
 } from "lucide-react";
@@ -46,6 +46,7 @@ const SECTIONS: NavSection[] = [
   {
     heading: "Interview Prep", icon: Mic,
     items: [
+      { label: "Interview Buddy", href: "/dashboard/interview-buddy", icon: Headphones },
       { label: "Written Coach", href: "/dashboard/interview?mode=written", icon: MessageSquareText },
       { label: "Voice Interviewer", href: "/dashboard/interview?mode=voice", icon: Mic },
       { label: "Avatar Room", href: "/dashboard/interview?mode=avatar", icon: Video },
@@ -57,7 +58,7 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-const IMMERSIVE = ["/voice-interview", "/avatar-interview", "/interview-buddy", "/resume-preview"];
+const IMMERSIVE = ["/voice-interview", "/avatar-interview", "/resume-preview"];
 
 // Resolve the single active nav href from the current path (+ ?mode= for prep).
 function computeActive(pathname: string, mode: string | null): string | null {
