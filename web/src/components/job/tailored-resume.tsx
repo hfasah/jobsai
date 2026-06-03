@@ -68,7 +68,7 @@ export function TailoredResumeView({
           </p>
           <div className="mt-3 flex flex-wrap gap-1.5">
             {tailored.keywords_added.map((k, i) => (
-              <span key={i} className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+              <span key={i} className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-xs font-medium text-desyn-success">
                 {k}
               </span>
             ))}
@@ -81,7 +81,7 @@ export function TailoredResumeView({
         <div className="flex items-center justify-between border-b border-border px-5 py-3">
           <h3 className="font-display text-lg">Tailored resume</h3>
           <Button variant="outline" size="sm" onClick={copyText}>
-            {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-green-600" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
+            {copied ? <Check className="mr-1.5 h-3.5 w-3.5 text-desyn-success" /> : <Copy className="mr-1.5 h-3.5 w-3.5" />}
             {copied ? "Copied" : "Copy"}
           </Button>
         </div>
@@ -136,11 +136,11 @@ export function TailoredResumeView({
               <div key={i} className="rounded-xl border border-border bg-card p-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.section}</p>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                  <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-900/70 line-through decoration-red-300">
+                  <p className="rounded-lg bg-destructive/15 px-3 py-2 text-sm text-red-900/70 line-through decoration-red-300">
                     {c.before}
                   </p>
                   <ArrowRight className="mx-auto hidden h-4 w-4 text-muted-foreground sm:block" />
-                  <p className="rounded-lg bg-green-50 px-3 py-2 text-sm text-green-900">
+                  <p className="rounded-lg bg-desyn-success/15 px-3 py-2 text-sm text-green-900">
                     {c.after}
                   </p>
                 </div>

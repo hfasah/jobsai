@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ClipboardPaste, Upload, Loader2, FileText, X, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 
 type Tab = "paste" | "upload" | "url";
@@ -87,7 +86,6 @@ export default function ImportJobPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
         <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">
           New job
@@ -150,7 +148,7 @@ export default function ImportJobPage() {
               />
               <p className={cn(
                 "mt-1 text-xs",
-                text.trim().length < MIN_CHARS ? "text-muted-foreground" : "text-green-600"
+                text.trim().length < MIN_CHARS ? "text-muted-foreground" : "text-desyn-success"
               )}>
                 {text.trim().length} characters
                 {text.trim().length < MIN_CHARS && ` (min ${MIN_CHARS})`}

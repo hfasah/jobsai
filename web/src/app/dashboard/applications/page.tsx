@@ -1,10 +1,8 @@
-import { SiteHeader } from "@/components/layout/site-header";
 import { ApplicationBoard } from "@/components/application/application-board";
 
 export default function ApplicationsPage() {
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-10 sm:px-6">
         <div>
           <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">

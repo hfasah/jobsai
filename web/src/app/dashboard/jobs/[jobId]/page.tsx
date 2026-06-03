@@ -8,7 +8,6 @@ import {
   ClipboardList, Check, Send, AlertCircle, Copy, Mic, AudioLines, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { MatchDetail } from "@/components/job/match-score";
 import { JobTabs } from "@/components/job/job-tabs";
 import type { TabKey } from "@/components/job/job-tabs";
@@ -126,7 +125,6 @@ export default function JobDetailPage({
   if (loading) {
     return (
       <>
-        <SiteHeader />
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -139,7 +137,6 @@ export default function JobDetailPage({
   if (!job) {
     return (
       <>
-        <SiteHeader />
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
           <p className="text-muted-foreground">Job not found.</p>
           <Button className="mt-4" nativeButton={false} render={<Link href="/dashboard/jobs" />}>
@@ -155,8 +152,7 @@ export default function JobDetailPage({
 
   return (
     <>
-      <SiteHeader />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6">
         <Link
           href="/dashboard/jobs"
           className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
@@ -183,7 +179,7 @@ export default function JobDetailPage({
               )}
             </div>
             {parsed?.compensation && (
-              <p className="mt-1 text-sm font-medium text-green-600">{parsed.compensation}</p>
+              <p className="mt-1 text-sm font-medium text-desyn-success">{parsed.compensation}</p>
             )}
           </div>
           <div className="flex flex-wrap gap-2">
@@ -195,7 +191,7 @@ export default function JobDetailPage({
                   ? () => window.open(job.source_url!, "_blank")
                   : applyNow}
                 disabled={applyState === "applying"}
-                className={applyState === "manual_required" ? "border-amber-300 text-amber-700 hover:bg-amber-50" : ""}
+                className={applyState === "manual_required" ? "border-desyn-warning/40 text-desyn-warning hover:bg-desyn-warning/15" : ""}
               >
                 {applyState === "applying" ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying…</>
@@ -209,7 +205,7 @@ export default function JobDetailPage({
               </Button>
             )}
             {applyState === "submitted" && (
-              <span className="flex items-center gap-1.5 rounded-lg bg-green-50 px-3 py-1.5 text-sm font-medium text-green-700">
+              <span className="flex items-center gap-1.5 rounded-lg bg-desyn-success/15 px-3 py-1.5 text-sm font-medium text-desyn-success">
                 <Check className="h-4 w-4" />
                 Applied
               </span>
@@ -274,7 +270,7 @@ export default function JobDetailPage({
         {(applyState === "manual_required" || applyState === "failed") && (
           <div className={`mt-3 rounded-lg border px-4 py-2.5 text-sm ${
             applyState === "manual_required"
-              ? "border-amber-200 bg-amber-50 text-amber-800"
+              ? "border-desyn-warning/30 bg-desyn-warning/15 text-desyn-warning"
               : "border-destructive/30 bg-destructive/5 text-destructive"
           }`}>
             <p>{applyMsg ?? (applyState === "manual_required" ? "This platform requires manual submission." : "Apply failed.")}</p>
@@ -287,9 +283,9 @@ export default function JobDetailPage({
                       setCopiedCover(true);
                       setTimeout(() => setCopiedCover(false), 2000);
                     }}
-                    className="inline-flex items-center gap-1.5 rounded border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded border border-desyn-warning/40 bg-card px-2.5 py-1 text-xs font-medium text-desyn-warning hover:bg-desyn-warning/15 transition-colors"
                   >
-                    {copiedCover ? <Check className="h-3 w-3 text-green-600" /> : <Copy className="h-3 w-3" />}
+                    {copiedCover ? <Check className="h-3 w-3 text-desyn-success" /> : <Copy className="h-3 w-3" />}
                     {copiedCover ? "Copied!" : "Copy cover letter"}
                   </button>
                 )}
@@ -298,7 +294,7 @@ export default function JobDetailPage({
                     setTabOverride("cover");
                     document.getElementById("job-tabs")?.scrollIntoView({ behavior: "smooth" });
                   }}
-                  className="inline-flex items-center gap-1.5 rounded border border-amber-300 bg-white px-2.5 py-1 text-xs font-medium text-amber-800 hover:bg-amber-50 transition-colors"
+                  className="inline-flex items-center gap-1.5 rounded border border-desyn-warning/40 bg-card px-2.5 py-1 text-xs font-medium text-desyn-warning hover:bg-desyn-warning/15 transition-colors"
                 >
                   View cover letter ↓
                 </button>
@@ -357,7 +353,7 @@ export default function JobDetailPage({
                     <MatchDetail match={job.match} />
                   </section>
                 ) : (
-                  <div className="rounded-xl border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+                  <div className="rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 p-4 text-sm text-desyn-warning">
                     <p className="font-medium">No match score yet.</p>
                     <p className="mt-1">Set a primary resume to see how well you match this job.</p>
                     <Button size="sm" className="mt-3" onClick={rematch} disabled={rematching}>

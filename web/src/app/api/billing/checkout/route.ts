@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     customer: customerId,
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: `${APP_URL}/dashboard/billing?success=true`,
+    success_url: `${APP_URL}/onboarding/success`,
     cancel_url: `${APP_URL}/dashboard/billing?canceled=true`,
     allow_promotion_codes: true,
     metadata: { clerk_user_id: userId, plan, interval },

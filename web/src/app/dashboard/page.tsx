@@ -7,7 +7,6 @@ import {
   CheckCircle2, Clock, XCircle, ArrowRight, Coins,
 } from "lucide-react";
 
-import { SiteHeader } from "@/components/layout/site-header";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getTokenAccount } from "@/lib/tokens";
 import { cn } from "@/lib/utils";
@@ -98,7 +97,7 @@ function StatCard({ icon: Icon, label, value, sub }: { icon: React.ElementType; 
 
 const STAGE_META: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   saved:        { label: "Saved",        color: "text-muted-foreground bg-muted",         icon: Clock },
-  applied:      { label: "Applied",      color: "text-blue-700 bg-blue-100",              icon: Send },
+  applied:      { label: "Applied",      color: "text-primary bg-primary/15",              icon: Send },
   interviewing: { label: "Interviewing", color: "text-purple-700 bg-purple-100",          icon: Briefcase },
   offer:        { label: "Offer",        color: "text-desyn-success bg-desyn-success/10", icon: Trophy },
   rejected:     { label: "Rejected",     color: "text-destructive bg-destructive/10",     icon: XCircle },
@@ -155,7 +154,6 @@ export default async function DashboardPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-8 px-4 py-10 sm:px-6">
 
         {/* Header */}

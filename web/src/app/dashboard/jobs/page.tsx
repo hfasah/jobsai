@@ -6,7 +6,6 @@ import {
   Plus, Loader2, Briefcase, MapPin, Search, X, ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -32,10 +31,10 @@ type SortKey = "newest" | "oldest" | "score_desc" | "score_asc";
 
 function scoreColor(score: number) {
   return score >= 75
-    ? "text-green-700 bg-green-100"
+    ? "text-desyn-success bg-desyn-success/15"
     : score >= 50
-    ? "text-yellow-700 bg-yellow-100"
-    : "text-red-600 bg-red-100";
+    ? "text-desyn-warning bg-desyn-warning/15"
+    : "text-destructive bg-destructive/15";
 }
 
 function matchesScoreFilter(job: JobListItem, f: ScoreFilter) {
@@ -249,7 +248,6 @@ export default function JobsPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
         <div className="flex items-start justify-between">
           <div>

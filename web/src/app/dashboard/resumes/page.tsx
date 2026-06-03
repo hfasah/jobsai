@@ -16,7 +16,6 @@ import { UploadZone, UploadProgress } from "@/components/resume/upload-zone";
 import { ParsedPreview } from "@/components/resume/parsed-preview";
 import { ResumeCard } from "@/components/resume/resume-card";
 import { VersionsPanel } from "@/components/resume/versions-panel";
-import { SiteHeader } from "@/components/layout/site-header";
 import type { ResumeDocument, ResumeVersion } from "@/types/resume";
 
 type UploadState =
@@ -179,7 +178,6 @@ export default function ResumesPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
         <div className="flex items-start justify-between">
           <div>

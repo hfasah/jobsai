@@ -44,6 +44,8 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
+  --color-cta: var(--cta);
+  --color-cta-foreground: var(--cta-foreground);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -75,6 +77,9 @@
   --desyn-muted: oklch(0.55 0.03 257);     /* #64748B */
   --desyn-success: oklch(0.72 0.19 150);   /* #22C55E */
   --desyn-warning: oklch(0.79 0.16 75);
+  /* Conversion CTA — warm gold (RoboApply-style) */
+  --cta: oklch(0.84 0.17 88);              /* ~#F5C518 amber-gold */
+  --cta-foreground: oklch(0.24 0.04 75);   /* deep brown-slate for contrast */
   /* Signature gradient: blue → purple → cyan */
   --desyn-gradient-start: oklch(0.55 0.22 264);
   --desyn-gradient-mid: oklch(0.53 0.25 296);
@@ -126,6 +131,8 @@
   --desyn-muted: oklch(0.7 0.03 257);
   --desyn-success: oklch(0.75 0.18 150);
   --desyn-warning: oklch(0.82 0.16 75);
+  --cta: oklch(0.85 0.17 88);
+  --cta-foreground: oklch(0.22 0.04 75);
   --desyn-gradient-start: oklch(0.68 0.17 264);
   --desyn-gradient-mid: oklch(0.68 0.2 296);
   --desyn-gradient-end: oklch(0.78 0.13 215);
@@ -257,6 +264,22 @@
     var(--desyn-gradient-mid) 52%,
     var(--desyn-gradient-end)
   );
+}
+
+/* Conversion CTA button — warm gold, used on the paywall + upsell surfaces */
+.btn-cta {
+  background-color: var(--cta);
+  color: var(--cta-foreground);
+  font-weight: 600;
+  transition: filter 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  box-shadow: 0 8px 24px -10px color-mix(in oklch, var(--cta) 70%, transparent);
+}
+.btn-cta:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 30px -8px color-mix(in oklch, var(--cta) 80%, transparent);
+}
+.btn-cta:active {
+  transform: translateY(1px);
 }
 
 /* Animated version — slow drift, great for hero CTAs and active surfaces */

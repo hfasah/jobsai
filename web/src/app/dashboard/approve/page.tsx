@@ -7,7 +7,6 @@ import {
   ClipboardList, Zap, Settings2, RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 import type { PendingApprovalItem } from "@/app/api/approvals/route";
 
@@ -25,7 +24,7 @@ interface ApprovalCard extends PendingApprovalItem {
 function ScoreBadge({ score }: { score: number }) {
   const color =
     score >= 80 ? "bg-desyn-success/10 text-desyn-success border-desyn-success/20" :
-    score >= 65 ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40" :
+    score >= 65 ? "bg-desyn-warning/15 text-desyn-warning border-desyn-warning/30 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/40" :
                   "bg-muted text-muted-foreground border-border";
   return (
     <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-bold tabular-nums", color)}>
@@ -208,7 +207,6 @@ export default function ApprovePage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
         <Link
           href="/dashboard"

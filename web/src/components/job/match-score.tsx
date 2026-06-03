@@ -88,7 +88,7 @@ export function MatchDetail({ match }: { match: JobMatch }) {
         <div className="grid gap-4 sm:grid-cols-2">
           {strengths.length > 0 && (
             <div>
-              <h4 className="mb-2 text-sm font-medium text-green-700">Strengths</h4>
+              <h4 className="mb-2 text-sm font-medium text-desyn-success">Strengths</h4>
               <ul className="space-y-1.5">
                 {strengths.map((s, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -101,7 +101,7 @@ export function MatchDetail({ match }: { match: JobMatch }) {
           )}
           {gaps.length > 0 && (
             <div>
-              <h4 className="mb-2 text-sm font-medium text-yellow-700">Gaps</h4>
+              <h4 className="mb-2 text-sm font-medium text-desyn-warning">Gaps</h4>
               <ul className="space-y-1.5">
                 {gaps.map((g, i) => (
                   <li key={i} className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -150,8 +150,8 @@ function KeywordList({
               className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-medium",
                 variant === "match"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-red-100 text-red-700"
+                  ? "bg-desyn-success/15 text-desyn-success"
+                  : "bg-destructive/15 text-destructive"
               )}
             >
               {k}

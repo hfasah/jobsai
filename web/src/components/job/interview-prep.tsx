@@ -11,19 +11,19 @@ import { EmptyState, RunningState } from "@/components/job/ats-report";
 import type { InterviewPrep, InterviewQuestion, InterviewCategory, StarAnswer } from "@/types/phase3";
 
 const CATEGORY_META: Record<InterviewCategory, { label: string; color: string }> = {
-  behavioral: { label: "Behavioral", color: "bg-blue-100 text-blue-700" },
+  behavioral: { label: "Behavioral", color: "bg-primary/15 text-primary" },
   technical:  { label: "Technical",  color: "bg-purple-100 text-purple-700" },
-  role:       { label: "Role fit",   color: "bg-amber-100 text-amber-700" },
-  culture:    { label: "Culture",    color: "bg-green-100 text-green-700" },
+  role:       { label: "Role fit",   color: "bg-desyn-warning/15 text-desyn-warning" },
+  culture:    { label: "Culture",    color: "bg-desyn-success/15 text-desyn-success" },
 };
 
 const CATEGORY_ORDER: InterviewCategory[] = ["behavioral", "technical", "role", "culture"];
 
 const STAR_META: { key: keyof StarAnswer; label: string; letter: string; color: string; bg: string }[] = [
-  { key: "situation", label: "Situation", letter: "S", color: "text-blue-700",   bg: "bg-blue-50 border-blue-200" },
+  { key: "situation", label: "Situation", letter: "S", color: "text-primary",   bg: "bg-primary/10 border-primary/30" },
   { key: "task",      label: "Task",      letter: "T", color: "text-purple-700", bg: "bg-purple-50 border-purple-200" },
-  { key: "action",    label: "Action",    letter: "A", color: "text-amber-700",  bg: "bg-amber-50 border-amber-200" },
-  { key: "result",    label: "Result",    letter: "R", color: "text-green-700",  bg: "bg-green-50 border-green-200" },
+  { key: "action",    label: "Action",    letter: "A", color: "text-desyn-warning",  bg: "bg-desyn-warning/15 border-desyn-warning/30" },
+  { key: "result",    label: "Result",    letter: "R", color: "text-desyn-success",  bg: "bg-desyn-success/15 border-desyn-success/30" },
 ];
 
 function StarBlock({ star }: { star: StarAnswer }) {
@@ -35,7 +35,7 @@ function StarBlock({ star }: { star: StarAnswer }) {
       {STAR_META.map(({ key, label, letter, color, bg }) => (
         <div key={key} className={cn("rounded-lg border p-3", bg)}>
           <div className="flex items-center gap-2">
-            <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold", color, "bg-white border border-current")}>
+            <span className={cn("flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold", color, "bg-card border border-current")}>
               {letter}
             </span>
             <span className={cn("text-xs font-semibold uppercase tracking-wide", color)}>{label}</span>

@@ -61,7 +61,7 @@ function RangeBar({ result }: { result: SalaryIntelResult }) {
 
         {/* Median dot */}
         <div
-          className="absolute top-2 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-primary bg-white shadow-sm"
+          className="absolute top-2 h-4 w-4 -translate-x-1/2 rounded-full border-2 border-primary bg-card shadow-sm"
           style={{ left: pct(p50) }}
         />
       </div>

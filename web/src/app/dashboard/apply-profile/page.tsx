@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { Loader2, Save, Check, User, Link2, MapPin, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import type { ApplyProfileUpdate } from "@/types/apply";
 
 const EMPTY: ApplyProfileUpdate = {
@@ -88,7 +87,6 @@ export default function ApplyProfilePage() {
   if (loading) {
     return (
       <>
-        <SiteHeader />
         <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
@@ -100,7 +98,6 @@ export default function ApplyProfilePage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
         <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">
           Application passport
@@ -172,7 +169,7 @@ export default function ApplyProfilePage() {
               )}
             </Button>
             {saved && (
-              <p className="text-sm text-green-600">
+              <p className="text-sm text-desyn-success">
                 Profile saved — ready for auto-apply.
               </p>
             )}

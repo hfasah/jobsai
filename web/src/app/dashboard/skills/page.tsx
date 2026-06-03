@@ -6,7 +6,6 @@ import {
   ArrowLeft, Loader2, RefreshCw, TrendingUp, Zap,
   BookOpen, CheckCircle2, AlertCircle, ChevronRight,
 } from "lucide-react";
-import { SiteHeader } from "@/components/layout/site-header";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { SkillsGapResult, SkillGap, SkillCategory, QuickWin } from "@/app/api/skills-gap/route";
@@ -48,7 +47,7 @@ function MatchRing({ percent }: { percent: number }) {
 
 const PRIORITY_META = {
   high:   { label: "High",   color: "bg-destructive/10 text-destructive border-destructive/20" },
-  medium: { label: "Medium", color: "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50" },
+  medium: { label: "Medium", color: "bg-desyn-warning/15 text-desyn-warning border-desyn-warning/30 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900/50" },
   low:    { label: "Low",    color: "bg-muted text-muted-foreground border-border" },
 };
 
@@ -190,7 +189,6 @@ export default function SkillsGapPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
         <Link
           href="/dashboard"

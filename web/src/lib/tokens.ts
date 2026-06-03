@@ -157,6 +157,12 @@ export async function deductTokens(
 ): Promise<SpendResult> {
   const account = await getTokenAccount(userId);
 
+  // Free tier is never metered — usage is capped by plan limits + the 1-trial
+  // interview gate, not by tokens. Don't consume or block on balance.
+  if (account.plan === "free") {
+    return { ok: true, balance: account.balance };
+  }
+
   if (account.balance < amount) {
     return {
       ok: false,

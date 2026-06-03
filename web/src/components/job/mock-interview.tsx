@@ -21,10 +21,10 @@ const MOCK_Q_COUNT = 5;
 const TOKEN_COST = 50; // per written evaluation — keep in sync with TOKEN_COSTS.written_eval
 
 const CATEGORY_META: Record<InterviewCategory, { label: string; color: string }> = {
-  behavioral: { label: "Behavioral", color: "bg-blue-100 text-blue-700" },
+  behavioral: { label: "Behavioral", color: "bg-primary/15 text-primary" },
   technical:  { label: "Technical",  color: "bg-purple-100 text-purple-700" },
-  role:       { label: "Role fit",   color: "bg-amber-100 text-amber-700" },
-  culture:    { label: "Culture",    color: "bg-green-100 text-green-700" },
+  role:       { label: "Role fit",   color: "bg-desyn-warning/15 text-desyn-warning" },
+  culture:    { label: "Culture",    color: "bg-desyn-success/15 text-desyn-success" },
 };
 
 const TYPE_OPTIONS: { value: InterviewType; label: string; icon: React.ElementType; cats: InterviewCategory[] }[] = [
@@ -108,7 +108,7 @@ function FeedbackCard({
 
   const scoreColor =
     evaluation.score >= 4 ? "text-desyn-success" :
-    evaluation.score >= 3 ? "text-amber-600" : "text-destructive";
+    evaluation.score >= 3 ? "text-desyn-warning" : "text-destructive";
 
   return (
     <div className="space-y-4">
@@ -139,8 +139,8 @@ function FeedbackCard({
             ))}
           </ul>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-700">
+        <div className="rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-desyn-warning">
             <AlertCircle className="h-3.5 w-3.5" /> Improve
           </p>
           <ul className="space-y-1.5">

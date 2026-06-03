@@ -13,7 +13,6 @@ function LinkedInIcon({ className }: { className?: string }) {
   );
 }
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { ParsedPreview } from "@/components/resume/parsed-preview";
 import { cn } from "@/lib/utils";
 import type { ResumeVersion } from "@/types/resume";
@@ -86,7 +85,6 @@ export default function LinkedInImportPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
         <Link
           href="/dashboard/resumes"

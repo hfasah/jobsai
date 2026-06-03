@@ -22,11 +22,11 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "JobsAI — Practice interviews like it's the real thing",
+    default: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
     template: "%s | JobsAI",
   },
   description:
-    "Practice with AI written, voice, and realistic avatar interviews built from your resume and target job — then let auto-apply land the interviews. The flight simulator for job interviews.",
+    "JobsAI auto-applies to thousands of jobs and reaches recruiters directly for you — so you stop grinding applications and start landing interviews, guaranteed. Plus AI interview prep built from your resume and the role.",
 };
 
 export default function RootLayout({

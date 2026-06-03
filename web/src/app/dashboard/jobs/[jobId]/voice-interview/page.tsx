@@ -285,7 +285,7 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
             </div>
 
             {!supported ? (
-              <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              <div className="rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 p-4 text-sm text-desyn-warning">
                 Voice interviews need Chrome or Edge for speech recognition.
               </div>
             ) : (
@@ -486,8 +486,8 @@ function VoiceResults({ analysis, onRestart }: { analysis: VoiceAnalysis; onRest
             ))}
           </ul>
         </div>
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-amber-700">
+        <div className="rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 p-4">
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-desyn-warning">
             <AlertCircle className="h-3.5 w-3.5" /> Improve
           </p>
           <ul className="space-y-1.5">

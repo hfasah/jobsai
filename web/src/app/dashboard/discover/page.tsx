@@ -9,7 +9,6 @@ import {
   Search, X, ArrowDownUp, Download,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 import type { DiscoveredJob } from "@/lib/job-discovery";
 
@@ -44,8 +43,8 @@ function postedLabel(iso?: string): string | null {
 }
 
 const SOURCE_META: Record<string, { label: string; color: string }> = {
-  remoteok: { label: "RemoteOK", color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400" },
-  adzuna:   { label: "Adzuna",   color: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400" },
+  remoteok: { label: "RemoteOK", color: "bg-desyn-success/15 text-desyn-success dark:bg-emerald-950/40 dark:text-emerald-400" },
+  adzuna:   { label: "Adzuna",   color: "bg-primary/15 text-primary dark:bg-blue-950/40 dark:text-blue-400" },
 };
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
@@ -201,7 +200,7 @@ function JobCard({
           </span>
         )}
         {salary && (
-          <span className="flex items-center gap-1 font-medium text-green-600">
+          <span className="flex items-center gap-1 font-medium text-desyn-success">
             <DollarSign className="h-3 w-3" />{salary}
           </span>
         )}
@@ -464,7 +463,6 @@ export default function DiscoverPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-10 sm:px-6">
 
         {/* Page header */}
@@ -515,15 +513,15 @@ export default function DiscoverPage() {
             <p className="text-sm">Searching across job sources…</p>
           </div>
         ) : error ? (
-          <div className="mt-8 rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-6">
+          <div className="mt-8 rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 dark:border-amber-900/50 dark:bg-amber-950/20 p-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-desyn-warning" />
               <div>
-                <p className="font-medium text-amber-800 dark:text-amber-400">{error.message}</p>
+                <p className="font-medium text-desyn-warning dark:text-amber-400">{error.message}</p>
                 {(error.code === "no_preferences" || error.code === "no_targets") && (
                   <Link
                     href="/dashboard/preferences"
-                    className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-amber-700 dark:text-amber-400 hover:underline"
+                    className="mt-2 inline-flex items-center gap-1.5 text-sm font-medium text-desyn-warning dark:text-amber-400 hover:underline"
                   >
                     <Settings2 className="h-4 w-4" />
                     Set up your preferences

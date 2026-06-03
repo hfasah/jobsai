@@ -6,7 +6,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TagInput } from "@/components/ui/tag-input";
-import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 import {
   DEFAULT_PREFERENCES,
@@ -100,7 +99,6 @@ export default function PreferencesPage() {
   if (loading) {
     return (
       <>
-        <SiteHeader />
         <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading preferences…
@@ -112,7 +110,6 @@ export default function PreferencesPage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
         <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">
           Job search profile
@@ -365,7 +362,7 @@ export default function PreferencesPage() {
               )}
             </Button>
             {saved && (
-              <p className="flex items-center gap-1.5 text-sm text-green-600">
+              <p className="flex items-center gap-1.5 text-sm text-desyn-success">
                 <Zap className="h-4 w-4" />
                 Your preferences are saved and ready for auto discovery.
               </p>

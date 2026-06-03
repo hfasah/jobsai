@@ -2,13 +2,15 @@ import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import {
-  Sparkles, ArrowRight, ChevronDown,
+  ArrowRight, ChevronDown,
   FileText, Send, Search, BarChart3, Mail,
-  Mic, Video, MessageSquareText, CheckCircle2,
+  Mic, Video, MessageSquareText,
   Building2, DollarSign, TrendingUp, Briefcase, PlayCircle,
+  MapPin, Star,
 } from "lucide-react";
 
 import { MarketingHeader } from "@/components/marketing/marketing-header";
+import { HeroOrb } from "@/components/marketing/hero-orb";
 import { HeroVisual } from "@/components/marketing/hero-visual";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { GradientBg } from "@/components/ui/gradient-bg";
@@ -16,14 +18,6 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
 import { APP_NAME } from "@/lib/constants";
-
-const TRUST = [
-  "Resume-based questions",
-  "Voice simulation",
-  "AI avatar interviews",
-  "Instant feedback",
-  "Interview scoring",
-];
 
 const LEVELS = [
   {
@@ -50,10 +44,10 @@ const LEVELS = [
 ];
 
 const STEPS = [
-  { n: "01", icon: FileText, title: "Upload your resume", body: "We parse your skills, experience, and preferences in seconds." },
-  { n: "02", icon: Briefcase, title: "Add the job", body: "Paste a job description or import a role — we tailor everything to it." },
-  { n: "03", icon: PlayCircle, title: "Choose your level", body: "Written, voice, or avatar — pick how real you want it to feel." },
-  { n: "04", icon: TrendingUp, title: "Get feedback & improve", body: "Scored feedback after every session, so each rep is sharper than the last." },
+  { n: "01", icon: FileText, title: "Upload your resume", body: "We parse your skills, experience, and target roles in seconds — once." },
+  { n: "02", icon: Search, title: "We find & match jobs", body: "Our AI scans thousands of boards daily and surfaces the roles you're most likely to land." },
+  { n: "03", icon: Send, title: "We auto-apply for you", body: "A tailored resume and cover letter are submitted to each role — and we reach recruiters directly." },
+  { n: "04", icon: Briefcase, title: "You land interviews — guaranteed", body: "Interviews start hitting your inbox. We even prep you for each one before you walk in." },
 ];
 
 const FEATURES = [
@@ -64,20 +58,20 @@ const FEATURES = [
   { icon: Mail, title: "Cover Letters", body: "Personalised cover letters in your tone, aligned to the company's voice." },
   { icon: Building2, title: "Company Research", body: "Culture, interview style, and likely questions — researched for you." },
   { icon: DollarSign, title: "Salary Intelligence", body: "Range estimates and negotiation tips so you never leave money on the table." },
-  { icon: TrendingUp, title: "Interview Scoring", body: "Confidence, communication, and technical scores that improve every rep." },
+  { icon: TrendingUp, title: "Interview Prep", body: "Once you land an interview, practice it first — written, voice, or avatar — with scored feedback." },
 ];
 
 const TESTIMONIALS = [
-  { quote: "The voice interviewer caught every time I rambled. By my real interview I sounded twice as sharp.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
-  { quote: "Avatar practice the night before my exec panel was a game-changer. I walked in calm and got the offer.", name: "Priya S.", role: "VP Product", initials: "PS" },
-  { quote: "Auto-apply landed me 5 interviews while I practiced. JobsAI does the whole funnel.", name: "Daniel R.", role: "Data Scientist", initials: "DR" },
+  { quote: "JobsAI auto-applied to 80+ roles in my first week. I had 6 interviews booked before I'd finished my coffee.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
+  { quote: "I stopped spending nights on applications — the interviews just started showing up. The prep tools got me the offer.", name: "Priya S.", role: "VP Product", initials: "PS" },
+  { quote: "Five interviews in two weeks without me lifting a finger on applications. This is the whole job search, automated.", name: "Daniel R.", role: "Data Scientist", initials: "DR" },
 ];
 
 const FAQ = [
-  { q: "How is this different from ChatGPT interview practice?", a: "JobsAI builds questions from your actual resume and the target job, then evaluates you across written, voice, and realistic avatar formats — with structured scoring and a model answer every time. It feels like a real interview, not a chat." },
-  { q: "Do I need a paid plan to try voice and avatar?", a: "No. The Free plan includes a trial of every level — written, voice, and avatar — so you can experience the full ladder before upgrading." },
-  { q: "What are tokens and why do you use them?", a: "Tokens meter the costly features (voice and avatar streaming) fairly. Written practice feels unlimited on paid plans; voice and avatar draw from your monthly token pool, and you can top up anytime if you have a big interview coming." },
-  { q: "Does JobsAI also apply to jobs for me?", a: "Yes. Beyond interview practice, JobsAI discovers matching roles, tailors your resume, writes cover letters, and auto-applies on Lever, Ashby, Greenhouse, and more — so you can focus on practicing." },
+  { q: "How does JobsAI actually get me interviews?", a: "JobsAI discovers roles that match your profile, tailors your resume and cover letter to each one, and auto-applies on Lever, Ashby, Greenhouse, Workday and more — while reaching recruiters directly. More targeted applications, sent faster, means more interviews. We back it with a 90-day interview guarantee." },
+  { q: "What is the interview guarantee?", a: "Land an interview within 90 days of actively using JobsAI or we refund you — no questions asked. We can offer it because the platform applies at a volume and quality that's hard to match by hand." },
+  { q: "Do you prep me for the interviews too?", a: "Yes — it's a bonus on top of getting you in the room. Once an interview lands, JobsAI builds practice from your resume and the exact role: written, voice, and realistic avatar rounds with scored feedback, so you walk in ready." },
+  { q: "What are tokens?", a: "Your subscription includes a monthly token allowance that covers the heavier AI features (like voice and avatar interview prep). Auto-apply and the core job tools run within your plan; tokens just meter the most expensive extras, and you can top up anytime." },
   { q: "Is my data secure?", a: "All data is encrypted at rest and in transit. We use Supabase (SOC 2 Type II) for storage and never sell your data." },
 ];
 
@@ -86,73 +80,133 @@ export default async function Home() {
   if (user) redirect("/dashboard");
 
   return (
-    <>
+    <div className="dark bg-background text-foreground">
       <MarketingHeader />
       <main className="flex flex-1 flex-col">
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
-        <section className="relative overflow-hidden px-4 pb-24 pt-16 sm:px-6 sm:pt-24">
-          <GradientBg variant="animated" />
-          <GradientBg variant="grid" className="opacity-60" />
+        <section id="home" className="relative overflow-hidden px-4 pb-20 pt-14 sm:px-6 sm:pt-20">
+          {/* Dark purple ambience */}
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(70% 55% at 50% 0%, color-mix(in oklch, var(--desyn-purple) 32%, transparent), transparent 70%), radial-gradient(50% 40% at 12% 15%, color-mix(in oklch, var(--desyn-brand) 22%, transparent), transparent 65%), radial-gradient(45% 40% at 90% 20%, color-mix(in oklch, var(--desyn-purple) 18%, transparent), transparent 60%)",
+            }}
+          />
+          <GradientBg variant="grid" className="opacity-30" />
 
-          <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2">
-            <div className="text-center lg:text-left">
-              <SectionBadge variant="outline" icon={Sparkles} className="reveal reveal-1">
-                The flight simulator for job interviews
-              </SectionBadge>
+          <div className="relative mx-auto flex max-w-4xl flex-col items-center text-center">
+            <span className="reveal reveal-1 inline-flex items-center gap-2 rounded-full border border-[var(--cta)]/40 bg-[var(--cta)]/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[var(--cta)]">
+              AI Auto Job Apply
+            </span>
+            <h1 className="reveal reveal-2 mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+              Stop applying,<br />
+              <span className="text-gradient">start interviewing</span>
+            </h1>
 
-              <h1 className="reveal reveal-2 mt-5 text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
-                Practice interviews{" "}
-                <span className="text-gradient">like it&apos;s the real thing</span>
-              </h1>
+            <p className="reveal reveal-3 mt-6 max-w-2xl text-lg text-muted-foreground">
+              {APP_NAME} auto-applies to thousands of jobs and reaches recruiters directly for
+              you — so you stop grinding applications and start landing interviews, guaranteed.
+              (And when they come in, we prep you to win them.)
+            </p>
 
-              <p className="reveal reveal-3 mx-auto mt-6 max-w-xl text-lg text-muted-foreground lg:mx-0">
-                Upload your resume and the job, then practice with AI written
-                questions, live voice interviews, or a realistic video avatar
-                interviewer — and let auto-apply land the interviews for you.
-              </p>
+            {/* Voice orb */}
+            <div className="reveal reveal-3 mt-10">
+              <HeroOrb />
+            </div>
 
-              <div className="reveal reveal-4 mt-9 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
-                <Link href="/sign-up" className={gradientButtonVariants({ size: "lg" })}>
-                  Start free interview practice
-                  <ArrowRight className="h-5 w-5" />
-                </Link>
-                <Link
-                  href="#how"
-                  className="inline-flex h-12 items-center gap-2 rounded-xl border border-border bg-card/70 px-7 text-base font-semibold text-foreground backdrop-blur transition-colors hover:bg-muted"
-                >
-                  <PlayCircle className="h-5 w-5 text-primary" />
-                  See how it works
-                </Link>
+            {/* Job search bar */}
+            <form
+              action="/sign-up"
+              className="reveal reveal-4 mt-12 flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-white/10 bg-card/60 p-2 backdrop-blur sm:flex-row"
+            >
+              <div className="flex flex-1 items-center gap-2 rounded-xl bg-background/60 px-3">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <input
+                  name="q"
+                  placeholder="Search by job title, keyword, etc."
+                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
               </div>
+              <div className="flex flex-1 items-center gap-2 rounded-xl bg-background/60 px-3 sm:max-w-[40%]">
+                <MapPin className="h-4 w-4 text-muted-foreground" />
+                <input
+                  name="loc"
+                  placeholder="Location"
+                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+                />
+              </div>
+              <button type="submit" className="btn-cta flex h-11 items-center justify-center rounded-xl px-5 text-sm">
+                <Search className="h-4 w-4" />
+              </button>
+            </form>
 
-              <div className="reveal reveal-5 mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 lg:justify-start">
-                {TRUST.map((t) => (
-                  <span key={t} className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <CheckCircle2 className="h-3.5 w-3.5 text-desyn-success" />
-                    {t}
+            {/* Social proof */}
+            <div className="reveal reveal-5 mt-7 flex items-center gap-3">
+              <div className="flex -space-x-2">
+                {["AT", "PS", "DR", "MK"].map((i) => (
+                  <span key={i} className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-background bg-gradient-brand text-[10px] font-bold text-white">
+                    {i}
                   </span>
                 ))}
               </div>
+              <div className="text-left text-sm">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-bold">4.9</span>
+                  <span className="flex">
+                    {[0, 1, 2, 3, 4].map((i) => (
+                      <Star key={i} className="h-3.5 w-3.5 fill-[var(--cta)] text-[var(--cta)]" />
+                    ))}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">Loved by thousands of job seekers</p>
+              </div>
             </div>
 
-            <div className="reveal reveal-3">
-              <HeroVisual />
+            {/* Dual CTAs */}
+            <div className="reveal reveal-5 mt-7 flex flex-wrap items-center justify-center gap-3">
+              <Link href="/sign-up" className="btn-cta inline-flex items-center gap-2 rounded-full px-7 py-3 text-base">
+                Start auto applying
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+              <Link
+                href="#how"
+                className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-card/60 px-7 py-3 text-base font-semibold text-foreground backdrop-blur transition-colors hover:bg-white/5"
+              >
+                <PlayCircle className="h-5 w-5 text-primary" />
+                Watch demo
+              </Link>
+            </div>
+
+            {/* Product frame */}
+            <div className="reveal reveal-5 mt-14 w-full">
+              <div className="mx-auto max-w-4xl overflow-hidden rounded-2xl border border-white/10 bg-card/60 shadow-glow-purple backdrop-blur">
+                <div className="flex items-center gap-1.5 border-b border-white/10 px-4 py-3">
+                  <span className="h-3 w-3 rounded-full bg-red-400/70" />
+                  <span className="h-3 w-3 rounded-full bg-yellow-400/70" />
+                  <span className="h-3 w-3 rounded-full bg-green-400/70" />
+                </div>
+                <div className="p-5 sm:p-7">
+                  <HeroVisual />
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         {/* ── Three levels ─────────────────────────────────────────────────── */}
-        <section id="interview" className="border-t border-border/60 px-4 py-24 sm:px-6">
-          <div className="mx-auto max-w-6xl">
+        <section id="interview" className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
+          <GradientBg variant="mesh" className="opacity-40" />
+          <div className="relative mx-auto max-w-6xl">
             <div className="mb-12 text-center">
-              <SectionBadge variant="soft">AI Interview Suite</SectionBadge>
+              <SectionBadge variant="soft">Bonus: once you&apos;re in</SectionBadge>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-                Three levels of realism
+                We land the interview. Then we get you ready to win it.
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-                Progress from typed practice to a face-to-face simulation — so the
-                real interview feels like one you&apos;ve already aced.
+                Every interview we land comes with practice built from your resume and the exact
+                role — typed, spoken, or face-to-face with a realistic avatar.
               </p>
             </div>
 
@@ -184,7 +238,7 @@ export default async function Home() {
             <div className="mb-12 text-center">
               <SectionBadge variant="soft">How it works</SectionBadge>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-                Four steps, then you&apos;re interview-ready
+                Four steps to a calendar full of interviews
               </h2>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -203,15 +257,17 @@ export default async function Home() {
         </section>
 
         {/* ── Features ─────────────────────────────────────────────────────── */}
-        <section id="features" className="border-t border-border/60 px-4 py-24 sm:px-6">
-          <div className="mx-auto max-w-6xl">
+        <section id="features" className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
+          <GradientBg variant="mesh" className="opacity-30" />
+          <div className="relative mx-auto max-w-6xl">
             <div className="mb-12 text-center">
               <SectionBadge variant="soft">Everything you need</SectionBadge>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-                Practice <span className="text-gradient">and</span> get hired
+                Apply less, <span className="text-gradient">interview more</span>
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-                The full job search, automated — so the only thing left to do is practice and show up.
+                The entire job search, automated end to end — discovery, tailoring, and applying —
+                so interviews land while you do nothing.
               </p>
             </div>
             <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -229,12 +285,13 @@ export default async function Home() {
         </section>
 
         {/* ── Testimonials ─────────────────────────────────────────────────── */}
-        <section className="border-t border-border/60 px-4 py-24 sm:px-6">
-          <div className="mx-auto max-w-6xl">
+        <section className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
+          <GradientBg variant="mesh" className="opacity-30" />
+          <div className="relative mx-auto max-w-6xl">
             <div className="mb-12 text-center">
               <SectionBadge variant="soft">Real results</SectionBadge>
               <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-                Confidence that shows up on the day
+                Interviews booked. Offers signed.
               </h2>
             </div>
             <div className="grid gap-5 md:grid-cols-3">
@@ -294,15 +351,16 @@ export default async function Home() {
           <GradientBg variant="animated" />
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-4xl font-bold tracking-tight sm:text-5xl">
-              Don&apos;t wait for the real interview{" "}
-              <span className="text-gradient">to practice</span>
+              Stop applying.{" "}
+              <span className="text-gradient">Start interviewing.</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Join thousands of job seekers who walk in already knowing they&apos;ve got it.
+              Let {APP_NAME} apply to thousands of jobs for you and land the interviews —
+              guaranteed, or your money back.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link href="/sign-up" className={gradientButtonVariants({ size: "xl" })}>
-                Start practicing now
+                Start auto applying
                 <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
@@ -328,6 +386,6 @@ export default async function Home() {
           </div>
         </footer>
       </main>
-    </>
+    </div>
   );
 }

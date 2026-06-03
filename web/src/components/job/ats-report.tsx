@@ -205,7 +205,7 @@ function KeywordCard({ title, tone, items }: { title: string; tone: "match" | "m
               key={i}
               className={cn(
                 "rounded-full px-2 py-0.5 text-xs font-medium",
-                tone === "match" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                tone === "match" ? "bg-desyn-success/15 text-desyn-success" : "bg-destructive/15 text-destructive"
               )}
             >
               {k}

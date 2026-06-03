@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Languages, Loader2, Printer, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { ResumePreviewClient } from "@/components/resume/resume-preview-client";
 import type { ResumeData } from "@/components/resume/resume-preview-client";
 import { cn } from "@/lib/utils";
@@ -165,7 +164,6 @@ export default function TranslatePage() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-10 sm:px-6">
         <Link
           href="/dashboard/resumes"

@@ -141,28 +141,34 @@ export function JobTabs({
   }, [jobId]);
 
   return (
-    <div className="mt-8">
-      {/* Tab bar */}
-      <div className="flex gap-1 overflow-x-auto border-b border-border">
+    <div className="mt-8 flex flex-col gap-6 md:flex-row md:gap-8">
+      {/* Vertical menu (left on desktop, horizontal scroll on mobile) */}
+      <nav
+        className={cn(
+          "-mx-4 flex gap-1 overflow-x-auto border-b border-border px-4",
+          "md:mx-0 md:w-48 md:shrink-0 md:flex-col md:gap-0.5 md:overflow-visible md:border-b-0 md:border-r md:px-0 md:pr-4"
+        )}
+      >
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
             className={cn(
-              "flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-medium transition-colors",
+              "flex items-center gap-2 whitespace-nowrap text-sm font-medium transition-colors",
+              "border-b-2 px-4 py-2.5 md:w-full md:rounded-lg md:border-b-0 md:px-3 md:py-2 md:text-left",
               tab === t.key
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground"
+                ? "border-primary text-foreground md:border-transparent md:bg-primary/10 md:text-primary"
+                : "border-transparent text-muted-foreground hover:text-foreground md:hover:bg-muted"
             )}
           >
             {t.icon}
             {t.label}
           </button>
         ))}
-      </div>
+      </nav>
 
       {/* Panels */}
-      <div className="pt-6">
+      <div className="min-w-0 flex-1">
         {tab === "overview" && overview}
         {tab === "ats" && <AtsReport scan={scan} onRun={runScan} running={scanRunning} />}
         {tab === "tailor" && <TailoredResumeView tailored={tailored} onRun={runTailor} running={tailorRunning} jobId={jobId} />}

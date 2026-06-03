@@ -182,7 +182,7 @@ export function CompanyResearchView({
 
       {/* Recent context */}
       {research.recent_context && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/20 p-5">
+        <div className="rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 dark:border-amber-900/50 dark:bg-amber-950/20 p-5">
           <SectionHeader icon={<Newspaper className="h-3.5 w-3.5" />} title="Recent Context" />
           <p className="text-sm text-muted-foreground leading-relaxed">{research.recent_context}</p>
         </div>

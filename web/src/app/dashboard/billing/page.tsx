@@ -7,7 +7,6 @@ import {
   ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SiteHeader } from "@/components/layout/site-header";
 import { cn } from "@/lib/utils";
 import type { Plan, PaidPlan, BillingInterval } from "@/lib/billing";
 
@@ -83,7 +82,7 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
     <div>
       <div className="mb-1.5 flex items-center justify-between text-sm">
         <span className="font-medium">{label}</span>
-        <span className={cn("text-xs", nearLimit ? "text-amber-600 font-medium" : "text-muted-foreground")}>
+        <span className={cn("text-xs", nearLimit ? "text-desyn-warning font-medium" : "text-muted-foreground")}>
           {isUnlimited ? `${used} (unlimited)` : `${used} / ${limit}`}
         </span>
       </div>
@@ -185,7 +184,6 @@ function BillingContent() {
   if (loading) {
     return (
       <>
-        <SiteHeader />
         <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading billing…
@@ -203,7 +201,6 @@ function BillingContent() {
 
   return (
     <>
-      <SiteHeader />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
         <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">Account</p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">Billing &amp; Plan</h1>
