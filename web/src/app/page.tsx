@@ -12,6 +12,8 @@ import {
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { HeroOrb } from "@/components/marketing/hero-orb";
 import { HeroVisual } from "@/components/marketing/hero-visual";
+import { ShowcaseSlides } from "@/components/marketing/showcase-slides";
+import { SupportWidget } from "@/components/marketing/support-widget";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { GradientBg } from "@/components/ui/gradient-bg";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -192,6 +194,23 @@ export default async function Home() {
                 </div>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* ── See it in action (slides) ────────────────────────────────────── */}
+        <section className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
+          <GradientBg variant="mesh" className="opacity-30" />
+          <div className="relative mx-auto max-w-6xl">
+            <div className="mb-12 text-center">
+              <SectionBadge variant="soft">See it in action</SectionBadge>
+              <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+                Your job search, <span className="text-gradient">running itself</span>
+              </h2>
+              <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+                From applying to interviews booked — here&apos;s what JobsAI does while you get on with your day.
+              </p>
+            </div>
+            <ShowcaseSlides />
           </div>
         </section>
 
@@ -386,6 +405,9 @@ export default async function Home() {
           </div>
         </footer>
       </main>
+
+      {/* Floating support: chat + voice (not LLM-connected yet) */}
+      <SupportWidget />
     </div>
   );
 }
