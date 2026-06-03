@@ -7,7 +7,12 @@ import {
   Loader2, Download, CheckCircle2, ArrowRight,
   MessageSquareText, Mic, Video,
 } from "lucide-react";
+import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { cn } from "@/lib/utils";
+
+// Drop a screenshot/demo at /public/marketing/interview-buddy-live.webp, then
+// flip this to true to render it in place of the placeholder.
+const LIVE_ASSIST_IMAGE_READY = false;
 
 type Account = { balance: number; plan: string } | null;
 
@@ -95,17 +100,15 @@ export default function InterviewBuddyPage() {
         time during the actual call — invisible to screen sharing.
       </p>
 
-      {/* Preview */}
-      <div className="relative mt-8 aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
-        <div className="absolute inset-0 grid place-items-center">
-          <span className="select-none text-3xl font-bold tracking-tight text-white/30 sm:text-5xl">
-            Interview Buddy
-          </span>
-        </div>
-        {/* faux audio indicator, bottom-right */}
-        <div className="absolute bottom-4 right-4 flex h-10 w-10 items-center justify-center rounded-full bg-desyn-accent text-desyn-accent-foreground shadow-glow">
-          <Volume2 className="h-5 w-5" />
-        </div>
+      {/* Preview image slot */}
+      <div className="mt-6">
+        <AIImageSlot
+          path="/marketing/interview-buddy-live.webp"
+          ready={LIVE_ASSIST_IMAGE_READY}
+          alt="Interview Buddy live assist"
+          prompt="The Interview Buddy desktop overlay during a video interview — a transcribed question with a suggested answer, dark UI, purple accents."
+          className="shadow-glow-purple"
+        />
       </div>
 
       {/* CTA */}
