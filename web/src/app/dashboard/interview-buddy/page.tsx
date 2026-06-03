@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Headphones, Lock, Info, ShieldOff, Volume2, Apple, Monitor,
-  Loader2, Download, CheckCircle2,
+  Loader2, Download, CheckCircle2, ArrowRight,
+  MessageSquareText, Mic, Video,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +15,13 @@ type Account = { balance: number; plan: string } | null;
 function isUnlocked(plan: string | undefined) {
   return plan != null && plan !== "free";
 }
+
+// Mock-interview practice modes — the prep half of Interview Buddy.
+const PRACTICE = [
+  { label: "Written Coach", href: "/dashboard/interview?mode=written", icon: MessageSquareText, blurb: "Typed Q&A with instant STAR scoring" },
+  { label: "Voice Interviewer", href: "/dashboard/interview?mode=voice", icon: Mic, blurb: "Spoken mock interview with feedback" },
+  { label: "Avatar Room", href: "/dashboard/interview?mode=avatar", icon: Video, blurb: "Face-to-face video round" },
+];
 
 export default function InterviewBuddyPage() {
   const [account, setAccount] = useState<Account>(null);
@@ -39,13 +47,53 @@ export default function InterviewBuddyPage() {
           <Headphones className="h-5 w-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Interview Buddy (Desktop)</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Interview Buddy</h1>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Get real-time assistance during job interviews with our desktop app, helping you answer
-            questions confidently. Invisible to screen sharing &amp; listens to the interviewer on the go.
+            Your AI interview prep companion. Practice with personalized mock interviews built from your
+            resume and the role, get instant feedback, then bring real-time assist to the real call.
           </p>
         </div>
       </div>
+
+      {/* Practice first */}
+      <section className="mt-8">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-sm font-semibold">Practice first</h2>
+          <Link href="/dashboard/interview" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+            All prep modes <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+        <div className="mt-3 grid gap-3 sm:grid-cols-3">
+          {PRACTICE.map(({ label, href, icon: Icon, blurb }) => (
+            <Link
+              key={label}
+              href={href}
+              className="group flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+            >
+              <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary transition-colors group-hover:bg-gradient-brand group-hover:text-white">
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="mt-1 flex items-center gap-1 text-sm font-semibold">
+                {label}
+                <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+              </span>
+              <span className="text-xs text-muted-foreground">{blurb}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Live assist heading */}
+      <div className="mt-10 flex flex-wrap items-center gap-2">
+        <h2 className="text-sm font-semibold">Live interview assist</h2>
+        <span className="inline-flex items-center gap-1 rounded-full bg-desyn-accent/15 px-2 py-0.5 text-[11px] font-semibold text-desyn-accent">
+          Added advantage · Desktop
+        </span>
+      </div>
+      <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+        On top of prep, the desktop app listens to your interviewer and surfaces tailored answers in real
+        time during the actual call — invisible to screen sharing.
+      </p>
 
       {/* Preview */}
       <div className="relative mt-8 aspect-video w-full overflow-hidden rounded-2xl border border-border bg-black">
