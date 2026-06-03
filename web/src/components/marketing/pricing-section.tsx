@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  CheckCircle2, MessageSquareText, Mic, Video, Sparkles, ShieldCheck, ArrowRight,
+  CheckCircle2, Sparkles, Send, Zap, Rocket, ShieldCheck, ArrowRight,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
@@ -26,58 +26,58 @@ const TIERS: Tier[] = [
     name: "Free",
     icon: Sparkles,
     monthly: 0,
-    tagline: "Explore every level",
+    tagline: "Try the tools, no card",
     cta: "Start free",
     features: [
-      "500 starter tokens",
-      "5 written interview sessions",
-      "1 voice interview (trial)",
-      "1 avatar interview (trial)",
+      "10 job imports / month",
       "Resume tailoring & ATS scan",
+      "Job discovery & match scores",
+      "Unlimited written interview prep",
+      "1 voice + 1 avatar prep trial",
     ],
   },
   {
     name: "Pro",
-    icon: MessageSquareText,
+    icon: Send,
     monthly: 29,
-    tagline: "For active job seekers",
+    tagline: "Auto-apply on autopilot",
     cta: "Start Pro",
     features: [
-      "5,000 tokens / month",
-      "Unlimited AI Written Coach",
-      "Full auto-apply + resume tools",
-      "Job discovery & tracking",
-      "Avatar via token top-up",
+      "Automatic applying — every day",
+      "Unlimited jobs, resumes & tailoring",
+      "Recruiter outreach + cover letters",
+      "90-day interview guarantee",
+      "5,000 tokens/mo for interview prep",
     ],
   },
   {
     name: "Premium",
-    icon: Mic,
+    icon: Zap,
     monthly: 79,
-    tagline: "Most chosen by interviewees",
+    tagline: "More volume, more interviews",
     highlight: true,
     badge: "Most Popular",
     cta: "Start Premium",
     features: [
-      "20,000 tokens / month",
       "Everything in Pro",
-      "AI Voice Interviewer",
-      "Speaking & confidence analysis",
-      "AI Avatar Room access",
+      "Higher daily auto-apply volume",
+      "Priority job matching",
+      "AI Voice interview prep",
+      "20,000 tokens / month",
     ],
   },
   {
     name: "Career Accelerator",
-    icon: Video,
+    icon: Rocket,
     monthly: 199,
-    tagline: "Maximum realism + coaching",
+    tagline: "Maximum volume + coaching",
     cta: "Go all-in",
     features: [
-      "60,000 tokens / month",
       "Everything in Premium",
-      "Avatar webcam + body-language analysis",
-      "Interview recordings & replay",
-      "Human coaching add-on",
+      "Highest auto-apply volume",
+      "AI Avatar prep + recordings",
+      "Body-language & presence analysis",
+      "60,000 tokens / month",
     ],
   },
 ];
@@ -100,11 +100,12 @@ export function PricingSection() {
         <div className="mb-10 text-center">
           <SectionBadge variant="soft">Pricing</SectionBadge>
           <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
-            One ladder, increasing realism
+            Apply more. <span className="text-gradient">Interview more.</span>
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Start free and explore every level. Upgrade to unlock written,
-            voice, then full avatar interviews — pay only for the realism you need.
+            Start free, then upgrade to auto-apply at higher volume and reach recruiters
+            directly. Every paid plan is backed by our 90-day interview guarantee —
+            interview prep included.
           </p>
 
           {/* billing toggle */}
