@@ -50,4 +50,43 @@ export const FEATURE_CONTENT: Record<string, FeatureContent> = {
       },
     ],
   },
+
+  "interview-buddy": {
+    eyebrow: "Interview Buddy",
+    headline: [
+      { t: "Ace every interview with " },
+      { t: "answers", tone: "gradient" },
+      { t: " they " },
+      { t: "can't see", tone: "cta" },
+    ],
+    subtext:
+      "Interview Buddy listens to your interviewer and feeds you tailored answers in real time — right on your desktop, and invisible to Zoom, Meet, and Teams screen sharing.",
+    ctaLabel: "Get Interview Buddy",
+    faqs: [
+      {
+        q: "How does Interview Buddy stay invisible during screen sharing?",
+        a: "It runs as a separate desktop overlay that screen-sharing tools like Zoom, Google Meet, and Teams don't capture. Your interviewer sees your normal screen; only you see your private answers.",
+      },
+      {
+        q: "Does it listen to me or to the interviewer?",
+        a: "Only the interviewer. The desktop app captures the system audio of whoever you're talking to and transcribes their questions — it never uses your microphone. (So if you test it alone, it won't pick anything up — that's expected, not a bug.)",
+      },
+      {
+        q: "How fast do the answers appear?",
+        a: "In real time. As the interviewer finishes a question, Interview Buddy transcribes it and surfaces tailored talking points within a second or two — fast enough to glance down and keep the conversation flowing.",
+      },
+      {
+        q: "Are the answers tailored to my background and the role?",
+        a: "Yes. It builds responses from your resume, the job description, and the company, so the talking points sound like you — not a generic script.",
+      },
+      {
+        q: "Which platforms and devices does it work on?",
+        a: "It's a desktop app for macOS and Windows, and works across any video platform — Zoom, Google Meet, Microsoft Teams, and phone or web calls played through your computer.",
+      },
+      {
+        q: "How do I get access?",
+        a: "Interview Buddy unlocks on any paid plan. Upgrade, download the macOS or Windows app, sign in, and you're ready for your next call.",
+      },
+    ],
+  },
 };
