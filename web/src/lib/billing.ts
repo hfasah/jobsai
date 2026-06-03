@@ -1,6 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase";
 
-export type Plan = "free" | "pro" | "business";
+export type Plan = "free" | "pro" | "premium" | "accelerator";
+export type PaidPlan = "pro" | "premium" | "accelerator";
+export type BillingInterval = "monthly" | "yearly";
 
 export const PLAN_LIMITS = {
   free: {
@@ -15,17 +17,53 @@ export const PLAN_LIMITS = {
     auto_apply: true,
     label: "Pro",
   },
-  business: {
+  premium: {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
-    label: "Business",
+    label: "Premium",
+  },
+  accelerator: {
+    max_resumes: Infinity,
+    max_jobs_per_month: Infinity,
+    auto_apply: true,
+    label: "Career Accelerator",
   },
 } as const;
 
-export const PLAN_PRICES: Record<"pro" | "business", { monthly: string; amount: string }> = {
-  pro:      { monthly: process.env.STRIPE_PRO_PRICE_ID ?? "",      amount: "$19/mo" },
-  business: { monthly: process.env.STRIPE_BUSINESS_PRICE_ID ?? "", amount: "$49/mo" },
+// Display prices (monthly anchor + yearly per-month, ~20% off).
+export const PLAN_PRICES: Record<PaidPlan, { monthly: number; yearly: number }> = {
+  pro:         { monthly: 29,  yearly: 23 },
+  premium:     { monthly: 79,  yearly: 63 },
+  accelerator: { monthly: 199, yearly: 159 },
+};
+
+// Stripe price IDs per plan + interval (set these in env once created in Stripe).
+const PRICE_ENV: Record<PaidPlan, { monthly?: string; yearly?: string }> = {
+  pro:         { monthly: process.env.STRIPE_PRO_PRICE_ID,         yearly: process.env.STRIPE_PRO_YEARLY_PRICE_ID },
+  premium:     { monthly: process.env.STRIPE_PREMIUM_PRICE_ID,     yearly: process.env.STRIPE_PREMIUM_YEARLY_PRICE_ID },
+  accelerator: { monthly: process.env.STRIPE_ACCELERATOR_PRICE_ID, yearly: process.env.STRIPE_ACCELERATOR_YEARLY_PRICE_ID },
+};
+
+export function getPlanPriceId(plan: PaidPlan, interval: BillingInterval): string | undefined {
+  const ids = PRICE_ENV[plan];
+  return interval === "yearly" ? (ids.yearly ?? ids.monthly) : ids.monthly;
+}
+
+// Reverse-lookup for webhooks: which plan does a Stripe price ID belong to?
+export function planFromPriceId(priceId: string | undefined): PaidPlan | null {
+  if (!priceId) return null;
+  for (const plan of ["pro", "premium", "accelerator"] as PaidPlan[]) {
+    if (priceId === PRICE_ENV[plan].monthly || priceId === PRICE_ENV[plan].yearly) return plan;
+  }
+  return null;
+}
+
+// One-time token top-up packs → Stripe price IDs.
+export const TOKEN_PACK_PRICE_IDS: Record<string, string | undefined> = {
+  pack_5k:  process.env.STRIPE_PACK_5K_PRICE_ID,
+  pack_20k: process.env.STRIPE_PACK_20K_PRICE_ID,
+  pack_60k: process.env.STRIPE_PACK_60K_PRICE_ID,
 };
 
 export interface BillingRecord {

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, MapPin, Building2, Briefcase, RefreshCw, Trash2, ExternalLink,
-  ClipboardList, Check, Send, AlertCircle, Copy, Mic,
+  ClipboardList, Check, Send, AlertCircle, Copy, Mic, AudioLines, Video,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SiteHeader } from "@/components/layout/site-header";
@@ -229,6 +229,28 @@ export default function JobDetailPage({
             {!processing && (
               <Button variant="outline" size="sm" onClick={rematch} disabled={rematching}>
                 {rematching ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+              </Button>
+            )}
+            {!processing && job.status === "ready" && (
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={`/dashboard/jobs/${jobId}/voice-interview`} />}
+                title="AI Voice Interviewer — live spoken mock interview"
+              >
+                <AudioLines className="h-4 w-4" />
+              </Button>
+            )}
+            {!processing && job.status === "ready" && (
+              <Button
+                variant="outline"
+                size="sm"
+                nativeButton={false}
+                render={<Link href={`/dashboard/jobs/${jobId}/avatar-interview`} />}
+                title="AI Avatar Room — face-to-face video interview"
+              >
+                <Video className="h-4 w-4" />
               </Button>
             )}
             {!processing && job.status === "ready" && (

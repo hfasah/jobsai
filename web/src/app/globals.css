@@ -6,9 +6,13 @@
 
 @theme inline {
   --color-desyn-brand: var(--desyn-brand);
+  --color-desyn-brand-foreground: var(--desyn-brand-foreground);
   --color-desyn-accent: var(--desyn-accent);
+  --color-desyn-purple: var(--desyn-purple);
+  --color-desyn-cyan: var(--desyn-cyan);
   --color-desyn-surface: var(--desyn-surface);
   --color-desyn-success: var(--desyn-success);
+  --color-desyn-warning: var(--desyn-warning);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
@@ -57,36 +61,43 @@
 /* Desyn — JobsAI global design tokens (use these across all UI)              */
 /* -------------------------------------------------------------------------- */
 :root {
-  --desyn-brand: oklch(0.42 0.12 250);
+  /* Core brand — royal blue #2563EB */
+  --desyn-brand: oklch(0.55 0.22 264);
   --desyn-brand-foreground: oklch(0.99 0 0);
-  --desyn-accent: oklch(0.62 0.14 175);
-  --desyn-accent-foreground: oklch(0.15 0.02 250);
-  --desyn-surface: oklch(0.985 0.004 250);
+  /* Accent shifted to cyan #06B6D4 to anchor the blue→purple→cyan palette */
+  --desyn-accent: oklch(0.71 0.131 215);
+  --desyn-accent-foreground: oklch(0.18 0.04 264);
+  /* New palette anchors */
+  --desyn-purple: oklch(0.53 0.25 296);   /* #7C3AED */
+  --desyn-cyan: oklch(0.71 0.131 215);    /* #06B6D4 */
+  --desyn-surface: oklch(0.984 0.003 247);  /* #F8FAFC */
   --desyn-surface-elevated: oklch(1 0 0);
-  --desyn-muted: oklch(0.55 0.02 250);
-  --desyn-success: oklch(0.62 0.14 155);
-  --desyn-warning: oklch(0.75 0.15 75);
-  --desyn-gradient-start: oklch(0.42 0.12 250);
-  --desyn-gradient-end: oklch(0.52 0.14 175);
+  --desyn-muted: oklch(0.55 0.03 257);     /* #64748B */
+  --desyn-success: oklch(0.72 0.19 150);   /* #22C55E */
+  --desyn-warning: oklch(0.79 0.16 75);
+  /* Signature gradient: blue → purple → cyan */
+  --desyn-gradient-start: oklch(0.55 0.22 264);
+  --desyn-gradient-mid: oklch(0.53 0.25 296);
+  --desyn-gradient-end: oklch(0.71 0.131 215);
 
   --background: var(--desyn-surface);
-  --foreground: oklch(0.2 0.03 250);
+  --foreground: oklch(0.21 0.04 265);          /* #0F172A slate-900 */
   --card: var(--desyn-surface-elevated);
-  --card-foreground: oklch(0.2 0.03 250);
+  --card-foreground: oklch(0.21 0.04 265);
   --popover: var(--desyn-surface-elevated);
-  --popover-foreground: oklch(0.2 0.03 250);
+  --popover-foreground: oklch(0.21 0.04 265);
   --primary: var(--desyn-brand);
   --primary-foreground: var(--desyn-brand-foreground);
-  --secondary: oklch(0.94 0.01 250);
-  --secondary-foreground: oklch(0.28 0.04 250);
-  --muted: oklch(0.94 0.01 250);
+  --secondary: oklch(0.962 0.006 257);
+  --secondary-foreground: oklch(0.3 0.04 265);
+  --muted: oklch(0.962 0.006 257);
   --muted-foreground: var(--desyn-muted);
-  --accent: oklch(0.93 0.03 175);
+  --accent: oklch(0.95 0.03 215);
   --accent-foreground: var(--desyn-accent-foreground);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.9 0.01 250);
-  --input: oklch(0.9 0.01 250);
-  --ring: var(--desyn-accent);
+  --destructive: oklch(0.62 0.23 25);
+  --border: oklch(0.922 0.006 257);            /* slate-200 */
+  --input: oklch(0.922 0.006 257);
+  --ring: var(--desyn-brand);
   --chart-1: var(--desyn-brand);
   --chart-2: var(--desyn-accent);
   --chart-3: var(--desyn-success);
@@ -104,13 +115,20 @@
 }
 
 .dark {
-  --desyn-brand: oklch(0.68 0.12 250);
-  --desyn-brand-foreground: oklch(0.15 0.03 250);
-  --desyn-accent: oklch(0.72 0.14 175);
-  --desyn-accent-foreground: oklch(0.15 0.03 250);
-  --desyn-surface: oklch(0.16 0.02 250);
-  --desyn-surface-elevated: oklch(0.2 0.025 250);
-  --desyn-muted: oklch(0.65 0.02 250);
+  --desyn-brand: oklch(0.68 0.17 264);
+  --desyn-brand-foreground: oklch(0.16 0.04 264);
+  --desyn-accent: oklch(0.78 0.13 215);
+  --desyn-accent-foreground: oklch(0.16 0.04 264);
+  --desyn-purple: oklch(0.68 0.2 296);
+  --desyn-cyan: oklch(0.78 0.13 215);
+  --desyn-surface: oklch(0.18 0.025 265);
+  --desyn-surface-elevated: oklch(0.22 0.03 265);
+  --desyn-muted: oklch(0.7 0.03 257);
+  --desyn-success: oklch(0.75 0.18 150);
+  --desyn-warning: oklch(0.82 0.16 75);
+  --desyn-gradient-start: oklch(0.68 0.17 264);
+  --desyn-gradient-mid: oklch(0.68 0.2 296);
+  --desyn-gradient-end: oklch(0.78 0.13 215);
 
   --background: var(--desyn-surface);
   --foreground: oklch(0.96 0.01 250);
@@ -167,11 +185,12 @@
   font-optical-sizing: auto;
 }
 
-/* Signature brand→accent gradient text */
+/* Signature blue → purple → cyan gradient text */
 .text-gradient {
   background: linear-gradient(
     100deg,
     var(--desyn-gradient-start),
+    var(--desyn-gradient-mid) 55%,
     var(--desyn-gradient-end)
   );
   -webkit-background-clip: text;
@@ -183,8 +202,8 @@
 .report-surface {
   position: relative;
   background:
-    radial-gradient(120% 80% at 100% 0%, oklch(0.62 0.14 175 / 0.06), transparent 60%),
-    radial-gradient(100% 90% at 0% 0%, oklch(0.42 0.12 250 / 0.05), transparent 55%),
+    radial-gradient(120% 80% at 100% 0%, oklch(0.71 0.131 215 / 0.07), transparent 60%),
+    radial-gradient(100% 90% at 0% 0%, oklch(0.55 0.22 264 / 0.06), transparent 55%),
     var(--card);
 }
 .report-surface::after {
@@ -222,4 +241,183 @@
 
 @media (prefers-reduced-motion: reduce) {
   .reveal, .score-pop { animation: none; opacity: 1; transform: none; }
+}
+
+/* ========================================================================== */
+/* Phase 34 — premium SaaS design system (blue → purple → cyan)               */
+/* ========================================================================== */
+
+/* ── Gradient fills ──────────────────────────────────────────────────────── */
+
+/* Solid blue→purple→cyan gradient (buttons, hero highlights, bars) */
+.bg-gradient-brand {
+  background-image: linear-gradient(
+    100deg,
+    var(--desyn-gradient-start),
+    var(--desyn-gradient-mid) 52%,
+    var(--desyn-gradient-end)
+  );
+}
+
+/* Animated version — slow drift, great for hero CTAs and active surfaces */
+.bg-gradient-brand-animated {
+  background-image: linear-gradient(
+    100deg,
+    var(--desyn-gradient-start),
+    var(--desyn-gradient-mid),
+    var(--desyn-gradient-end),
+    var(--desyn-gradient-mid),
+    var(--desyn-gradient-start)
+  );
+  background-size: 300% 100%;
+  animation: gradient-drift 8s ease infinite;
+}
+@keyframes gradient-drift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* 1px gradient border via padding-box / border-box mask trick */
+.gradient-border {
+  position: relative;
+  background:
+    linear-gradient(var(--card), var(--card)) padding-box,
+    linear-gradient(120deg, var(--desyn-gradient-start), var(--desyn-gradient-mid), var(--desyn-gradient-end)) border-box;
+  border: 1px solid transparent;
+}
+
+/* ── Surfaces ────────────────────────────────────────────────────────────── */
+
+/* Glassmorphism card — frosted, soft, premium */
+.glass-card {
+  background: color-mix(in oklch, var(--card) 70%, transparent);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+  box-shadow:
+    0 1px 2px oklch(0.21 0.04 265 / 0.04),
+    0 8px 24px -12px oklch(0.21 0.04 265 / 0.12);
+}
+
+/* Layered soft shadow for elevated cards */
+.shadow-soft {
+  box-shadow:
+    0 1px 2px oklch(0.21 0.04 265 / 0.05),
+    0 4px 12px -4px oklch(0.21 0.04 265 / 0.08),
+    0 16px 40px -16px oklch(0.21 0.04 265 / 0.12);
+}
+.shadow-glow {
+  box-shadow:
+    0 8px 30px -8px color-mix(in oklch, var(--desyn-brand) 45%, transparent);
+}
+.shadow-glow-purple {
+  box-shadow:
+    0 8px 30px -8px color-mix(in oklch, var(--desyn-purple) 45%, transparent);
+}
+
+/* Hover lift — apply to interactive cards */
+.hover-lift {
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 1px 2px oklch(0.21 0.04 265 / 0.06),
+    0 12px 28px -8px oklch(0.21 0.04 265 / 0.16);
+}
+
+/* ── Ambient backgrounds (the "active" feel) ─────────────────────────────── */
+
+/* Static radial mesh — page / hero backdrop */
+.bg-mesh {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(60% 50% at 15% 0%,  color-mix(in oklch, var(--desyn-brand) 14%, transparent), transparent 60%),
+    radial-gradient(55% 45% at 85% 10%, color-mix(in oklch, var(--desyn-purple) 12%, transparent), transparent 60%),
+    radial-gradient(50% 50% at 50% 100%, color-mix(in oklch, var(--desyn-cyan) 10%, transparent), transparent 65%);
+}
+
+/* Animated blob mesh — slowly breathing, for hero / feature spotlights */
+.bg-mesh-animated {
+  background-color: var(--background);
+  background-image:
+    radial-gradient(40% 40% at 20% 20%, color-mix(in oklch, var(--desyn-brand) 18%, transparent), transparent 60%),
+    radial-gradient(40% 40% at 80% 30%, color-mix(in oklch, var(--desyn-purple) 16%, transparent), transparent 60%),
+    radial-gradient(45% 45% at 50% 90%, color-mix(in oklch, var(--desyn-cyan) 14%, transparent), transparent 65%);
+  background-size: 180% 180%;
+  animation: mesh-float 18s ease-in-out infinite;
+}
+@keyframes mesh-float {
+  0%, 100% { background-position: 0% 0%, 100% 0%, 50% 100%; }
+  50%      { background-position: 20% 10%, 80% 20%, 40% 90%; }
+}
+
+/* Grid pattern overlay — faint dashboard / blueprint texture */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, color-mix(in oklch, var(--border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklch, var(--border) 60%, transparent) 1px, transparent 1px);
+  background-size: 44px 44px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 75%);
+          mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, black 40%, transparent 75%);
+}
+
+/* ── Active-image micro-animations ───────────────────────────────────────── */
+
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+.animate-float { animation: float-y 5s ease-in-out infinite; }
+.animate-float-slow { animation: float-y 7s ease-in-out infinite; }
+
+@keyframes pulse-ring {
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--desyn-brand) 40%, transparent); }
+  70%  { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.animate-pulse-ring { animation: pulse-ring 2.4s ease-out infinite; }
+
+/* Live audio-bar shimmer (voice/interview surfaces) */
+@keyframes bar-bounce {
+  0%, 100% { transform: scaleY(0.35); }
+  50%      { transform: scaleY(1); }
+}
+.animate-bar { transform-origin: center bottom; animation: bar-bounce 1s ease-in-out infinite; }
+
+/* StatRing donut draw-on-mount (vars set inline per instance) */
+@keyframes ring-draw {
+  from { stroke-dashoffset: var(--ring-circ); }
+  to   { stroke-dashoffset: var(--ring-offset); }
+}
+.animate-ring { animation: ring-draw 1s cubic-bezier(0.22, 1, 0.36, 1) forwards; }
+
+/* Shimmer sweep for skeletons / "thinking" states */
+@keyframes shimmer-sweep {
+  100% { transform: translateX(100%); }
+}
+.shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--foreground) 6%, transparent), transparent);
+  animation: shimmer-sweep 1.6s infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bg-gradient-brand-animated,
+  .bg-mesh-animated,
+  .animate-float,
+  .animate-float-slow,
+  .animate-pulse-ring,
+  .animate-bar,
+  .animate-ring,
+  .shimmer::after { animation: none; }
 }
