@@ -54,38 +54,38 @@ export const FEATURE_CONTENT: Record<string, FeatureContent> = {
   "interview-buddy": {
     eyebrow: "Interview Buddy",
     headline: [
-      { t: "Ace every interview with " },
-      { t: "answers", tone: "gradient" },
-      { t: " they " },
-      { t: "can't see", tone: "cta" },
+      { t: "Walk in " },
+      { t: "confident", tone: "gradient" },
+      { t: ", clear & " },
+      { t: "job-ready", tone: "cta" },
     ],
     subtext:
-      "Interview Buddy listens to your interviewer and feeds you tailored answers in real time — right on your desktop, and invisible to Zoom, Meet, and Teams screen sharing.",
-    ctaLabel: "Get Interview Buddy",
+      "A smarter way to practice and ace interviews. Whether it's a mock session or the real thing, Interview Buddy gives you personalized questions, instant feedback, and role-specific guidance — all based on your resume and the job description.",
+    ctaLabel: "Start preparing",
     faqs: [
       {
-        q: "How does Interview Buddy stay invisible during screen sharing?",
-        a: "It runs as a separate desktop overlay that screen-sharing tools like Zoom, Google Meet, and Teams don't capture. Your interviewer sees your normal screen; only you see your private answers.",
+        q: "How does Interview Buddy help me prepare?",
+        a: "It builds personalized practice from your resume and the job description — role-specific questions, instant feedback on every answer, and clear guidance on what to improve before the real thing.",
       },
       {
-        q: "Does it listen to me or to the interviewer?",
-        a: "Only the interviewer. The desktop app captures the system audio of whoever you're talking to and transcribes their questions — it never uses your microphone. (So if you test it alone, it won't pick anything up — that's expected, not a bug.)",
+        q: "Can I run full mock interviews?",
+        a: "Yes — practice in writing, by voice, or face-to-face with a realistic avatar, and get scored feedback on structure, clarity, pace, and confidence.",
       },
       {
-        q: "How fast do the answers appear?",
-        a: "In real time. As the interviewer finishes a question, Interview Buddy transcribes it and surfaces tailored talking points within a second or two — fast enough to glance down and keep the conversation flowing.",
+        q: "Are the questions tailored to my role?",
+        a: "Every question is generated from your resume and the specific job description, so you rehearse what you'll actually be asked — not generic prompts.",
       },
       {
-        q: "Are the answers tailored to my background and the role?",
-        a: "Yes. It builds responses from your resume, the job description, and the company, so the talking points sound like you — not a generic script.",
+        q: "What kind of feedback do I get?",
+        a: "Instant, actionable feedback after each answer: STAR structure, clarity, filler words, and a stronger model answer to learn from.",
       },
       {
-        q: "Which platforms and devices does it work on?",
-        a: "It's a desktop app for macOS and Windows, and works across any video platform — Zoom, Google Meet, Microsoft Teams, and phone or web calls played through your computer.",
+        q: "What's the live interview assist?",
+        a: "An added advantage on top of prep: a desktop app that listens to your interviewer and surfaces tailored talking points in real time during the actual call — and it stays invisible to Zoom, Meet, and Teams screen sharing.",
       },
       {
         q: "How do I get access?",
-        a: "Interview Buddy unlocks on any paid plan. Upgrade, download the macOS or Windows app, sign in, and you're ready for your next call.",
+        a: "Interview Buddy unlocks on any paid plan — practice right in the browser, and download the macOS or Windows app when you want live assist on real calls.",
       },
     ],
   },

@@ -54,7 +54,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     heading: "Interview suite",
     tagline: "From landed interview to signed offer.",
     items: [
-      { slug: "interview-buddy", label: "Interview Buddy", blurb: "Real-time, screen-share-invisible answers during live interviews.", icon: Headphones },
+      { slug: "interview-buddy", label: "Interview Buddy", blurb: "AI interview prep from your resume and the job — personalized questions, instant feedback, and mock sessions, plus optional live assist.", icon: Headphones },
       { slug: "written-coach", label: "AI Written Coach", blurb: "Typed Q&A with instant STAR structure and clarity scoring.", icon: MessageSquareText },
       { slug: "voice-interviewer", label: "AI Voice Interviewer", blurb: "A spoken mock interview that follows up and probes for specifics.", icon: Mic },
       { slug: "avatar-room", label: "AI Avatar Room", blurb: "Face a realistic video interviewer with body-language analysis.", icon: Video },
