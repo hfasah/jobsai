@@ -10,9 +10,9 @@ import {
 import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { cn } from "@/lib/utils";
 
-// Drop a screenshot/demo at /public/marketing/interview-buddy-live.webp, then
-// flip this to true to render it in place of the placeholder.
-const LIVE_ASSIST_IMAGE_READY = false;
+// Image lives at /public/marketing/interview-buddy-live.webp. Flip to false to
+// fall back to the placeholder.
+const LIVE_ASSIST_IMAGE_READY = true;
 
 type Account = { balance: number; plan: string } | null;
 
