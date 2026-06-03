@@ -21,6 +21,7 @@ import { GradientBg } from "@/components/ui/gradient-bg";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
 import { AIImageSlot } from "@/components/ui/ai-image-slot";
+import { publicImageExists } from "@/lib/public-image";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
 import { APP_NAME } from "@/lib/constants";
 
@@ -217,7 +218,8 @@ export default async function Home() {
             {/* AI image slot — wide product overview screenshot */}
             <div className="mb-10">
               <AIImageSlot
-                path="/marketing/product-overview.png"
+                path="/marketing/product-overview.webp"
+                ready={publicImageExists("/marketing/product-overview.webp")}
                 alt="JobsAI dashboard overview"
                 prompt="Dark JobsAI dashboard: auto-apply pipeline, match scores, and an activity feed. Purple/magenta accents, glassy cards."
                 className="shadow-glow-purple"
@@ -331,7 +333,8 @@ export default async function Home() {
             {/* AI image slot — diverse, happy job seekers (community lifestyle) */}
             <div className="mb-10">
               <AIImageSlot
-                path="/marketing/community-lifestyle.png"
+                path="/marketing/community-lifestyle.webp"
+                ready={publicImageExists("/marketing/community-lifestyle.webp")}
                 alt="Job seekers who landed offers with JobsAI"
                 prompt="Wide, bright editorial photo collage of diverse happy young professionals celebrating new jobs — laptops, video calls, confident smiles."
                 ratio="aspect-[21/9]"

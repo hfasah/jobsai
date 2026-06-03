@@ -59,7 +59,7 @@ export function AIImageSlot({
           }}
         >
           <span className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-black/30 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-white/80 backdrop-blur">
-            <Sparkles className="h-3 w-3" /> AI image slot
+            <Sparkles className="h-3 w-3" /> Image slot
           </span>
           <div className="flex items-center gap-1.5 text-sm font-medium text-white/90">
             <ImageIcon className="h-4 w-4" /> {alt}

@@ -10,6 +10,7 @@ import { SectionBadge } from "@/components/ui/section-badge";
 import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
 import { FEATURE_BY_SLUG, FEATURE_GROUPS } from "@/lib/marketing-features";
+import { publicImageExists } from "@/lib/public-image";
 import { APP_NAME } from "@/lib/constants";
 
 // Pre-render every known feature slug.
@@ -87,7 +88,8 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         {/* Product shot — drop a real image at /public/marketing/features/<slug>.png, then set ready */}
         <div className="relative mx-auto mt-14 max-w-4xl">
           <AIImageSlot
-            path={`/marketing/features/${slug}.png`}
+            path={`/marketing/features/${slug}.webp`}
+            ready={publicImageExists(`/marketing/features/${slug}.webp`)}
             alt={`${feature.label} preview`}
             prompt={`Dark, modern SaaS dashboard UI showing "${feature.label}" — ${feature.blurb} Purple/magenta accents, clean cards, no real logos.`}
             className="shadow-glow-purple"
