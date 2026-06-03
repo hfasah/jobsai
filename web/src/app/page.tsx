@@ -16,7 +16,9 @@ import { ShowcaseSlides } from "@/components/marketing/showcase-slides";
 import { SupportWidget } from "@/components/marketing/support-widget";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { FeatureDirectory } from "@/components/marketing/feature-directory";
+import { FeatureStrip } from "@/components/marketing/feature-strip";
 import { SiteFooter } from "@/components/marketing/site-footer";
+import { FEATURE_BY_SLUG } from "@/lib/marketing-features";
 import { GradientBg } from "@/components/ui/gradient-bg";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
@@ -200,6 +202,16 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        {/* ── Explore features strip ───────────────────────────────────────── */}
+        <FeatureStrip
+          heading={<>Everything in the <span className="text-gradient">toolkit</span></>}
+          subtext="A quick look at the tools doing the work — explore the full suite below."
+          items={[
+            "auto-apply", "job-discovery", "resume-tailoring", "ats-scanner",
+            "interview-buddy", "voice-interviewer", "salary-intel", "application-tracker",
+          ].map((s) => FEATURE_BY_SLUG[s])}
+        />
 
         {/* ── See it in action (slides) ────────────────────────────────────── */}
         <section className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
