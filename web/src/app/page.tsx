@@ -15,9 +15,12 @@ import { HeroVisual } from "@/components/marketing/hero-visual";
 import { ShowcaseSlides } from "@/components/marketing/showcase-slides";
 import { SupportWidget } from "@/components/marketing/support-widget";
 import { PricingSection } from "@/components/marketing/pricing-section";
+import { FeatureDirectory } from "@/components/marketing/feature-directory";
+import { SiteFooter } from "@/components/marketing/site-footer";
 import { GradientBg } from "@/components/ui/gradient-bg";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
+import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
 import { APP_NAME } from "@/lib/constants";
 
@@ -210,6 +213,17 @@ export default async function Home() {
                 From applying to interviews booked — here&apos;s what JobsAI does while you get on with your day.
               </p>
             </div>
+
+            {/* AI image slot — wide product overview screenshot */}
+            <div className="mb-10">
+              <AIImageSlot
+                path="/marketing/product-overview.png"
+                alt="JobsAI dashboard overview"
+                prompt="Dark JobsAI dashboard: auto-apply pipeline, match scores, and an activity feed. Purple/magenta accents, glassy cards."
+                className="shadow-glow-purple"
+              />
+            </div>
+
             <ShowcaseSlides />
           </div>
         </section>
@@ -313,6 +327,17 @@ export default async function Home() {
                 Interviews booked. Offers signed.
               </h2>
             </div>
+
+            {/* AI image slot — diverse, happy job seekers (community lifestyle) */}
+            <div className="mb-10">
+              <AIImageSlot
+                path="/marketing/community-lifestyle.png"
+                alt="Job seekers who landed offers with JobsAI"
+                prompt="Wide, bright editorial photo collage of diverse happy young professionals celebrating new jobs — laptops, video calls, confident smiles."
+                ratio="aspect-[21/9]"
+              />
+            </div>
+
             <div className="grid gap-5 md:grid-cols-3">
               {TESTIMONIALS.map(({ quote, name, role, initials }) => (
                 <GlassCard key={name} className="p-6">
@@ -365,6 +390,9 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* ── Full feature directory ───────────────────────────────────────── */}
+        <FeatureDirectory />
+
         {/* ── Final CTA ─────────────────────────────────────────────────────── */}
         <section className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
           <GradientBg variant="animated" />
@@ -390,20 +418,7 @@ export default async function Home() {
         </section>
 
         {/* ── Footer ───────────────────────────────────────────────────────── */}
-        <footer className="border-t border-border bg-card px-4 py-8 sm:px-6">
-          <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 sm:flex-row">
-            <p className="text-sm font-bold">
-              <span className="text-gradient">{APP_NAME}</span>
-            </p>
-            <p className="text-xs text-muted-foreground">
-              © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
-            </p>
-            <div className="flex items-center gap-5 text-xs text-muted-foreground">
-              <Link href="/sign-in" className="transition-colors hover:text-foreground">Sign in</Link>
-              <Link href="/sign-up" className="transition-colors hover:text-foreground">Get started</Link>
-            </div>
-          </div>
-        </footer>
+        <SiteFooter />
       </main>
 
       {/* Floating support: chat + voice (not LLM-connected yet) */}
