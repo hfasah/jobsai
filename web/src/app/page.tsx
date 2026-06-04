@@ -17,6 +17,7 @@ import { SupportWidget } from "@/components/marketing/support-widget";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { FeatureDirectory } from "@/components/marketing/feature-directory";
 import { FeatureStrip } from "@/components/marketing/feature-strip";
+import { TrustedMarquee } from "@/components/marketing/trusted-marquee";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { FEATURE_BY_SLUG } from "@/lib/marketing-features";
 import { GradientBg } from "@/components/ui/gradient-bg";
@@ -302,6 +303,9 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        {/* ── Trusted by (scrolling brand logos) ───────────────────────────── */}
+        <TrustedMarquee />
 
         {/* ── Features ─────────────────────────────────────────────────────── */}
         <section id="features" className="relative overflow-hidden border-t border-border/60 px-4 py-24 sm:px-6">
