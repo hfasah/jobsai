@@ -8,7 +8,7 @@ import {
   LayoutGrid, Zap, Search, ScanSearch, Briefcase, Plus, CheckCircle2, Inbox,
   FileText, Sparkles, Send,
   Mic, MessageSquareText, Video, Headphones,
-  BarChart3, Settings2, CreditCard,
+  BarChart3, LineChart, Settings2, CreditCard,
   Menu, X, ExternalLink, Coins, ChevronDown,
 } from "lucide-react";
 import { NotificationBell } from "@/components/layout/notification-bell";
@@ -55,7 +55,10 @@ const SECTIONS: NavSection[] = [
   },
   {
     heading: "Insights", icon: BarChart3,
-    items: [{ label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 }],
+    items: [
+      { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
+      { label: "Salaries", href: "/dashboard/salaries", icon: LineChart },
+    ],
   },
 ];
 
