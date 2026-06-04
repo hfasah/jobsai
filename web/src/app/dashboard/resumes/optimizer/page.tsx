@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Wand2, Loader2, ArrowLeft, ArrowRight, AlertCircle, Plus, ExternalLink } from "lucide-react";
 import { TailoredOutput } from "@/components/resume/tailored-output";
+import { SaveResumeBar } from "@/components/resume/save-resume-bar";
 import type { TailoredJson, TailorChange } from "@/types/phase3";
 
 type JobItem = { id: string; status: string; parsed: { title: string | null; company: string | null } | null };
@@ -96,6 +97,16 @@ export default function ResumeOptimizerPage() {
                 Open full preview <ExternalLink className="h-3.5 w-3.5" />
               </Link>
             )}
+          </div>
+          <div className="mb-6">
+            <SaveResumeBar
+              tj={result.tailored_json}
+              label={(() => {
+                const j = jobs?.find((x) => x.id === jobId);
+                const t = j?.parsed?.title;
+                return t ? `${t} — tailored` : "Tailored resume";
+              })()}
+            />
           </div>
           <TailoredOutput tj={result.tailored_json} changes={result.changes} />
           {jobId && (

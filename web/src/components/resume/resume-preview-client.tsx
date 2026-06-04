@@ -464,11 +464,11 @@ function ResumeTemplate({ id, data }: { id: TemplateId; data: ResumeData }) {
 // ─── Main client component ────────────────────────────────────────────────────
 
 export function ResumePreviewClient({
-  jobId,
+  backHref = "/dashboard",
   data,
   hideToolbar = false,
 }: {
-  jobId: string;
+  backHref?: string;
   data: ResumeData;
   hideToolbar?: boolean;
 }) {
@@ -480,7 +480,7 @@ export function ResumePreviewClient({
       {!hideToolbar && (
       <div className="no-print fixed inset-x-0 top-0 z-50 flex items-center gap-3 border-b border-border bg-card/95 px-4 py-2 backdrop-blur-sm sm:px-6">
         <Link
-          href={`/dashboard/jobs/${jobId}`}
+          href={backHref}
           className="shrink-0 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Back

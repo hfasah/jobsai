@@ -56,5 +56,5 @@ export default async function ResumePreviewPage({
     skills: tj.skills ?? pj?.skills?.map((s) => s.skill) ?? [],
   };
 
-  return <ResumePreviewClient jobId={jobId} data={data} />;
+  return <ResumePreviewClient backHref={`/dashboard/jobs/${jobId}`} data={data} />;
 }

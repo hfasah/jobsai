@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Sparkles, Loader2, X, Plus, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { TailoredOutput } from "@/components/resume/tailored-output";
+import { SaveResumeBar } from "@/components/resume/save-resume-bar";
 import type { TailoredJson, TailorChange } from "@/types/phase3";
 
 type BuildResult = {
@@ -140,6 +141,11 @@ export default function ResumeBuilderPage() {
               )}
             </div>
           </div>
+
+          <SaveResumeBar
+            tj={result.tailored_json}
+            label={role.trim() ? `${role.trim()} — optimized` : "Skills-optimized resume"}
+          />
 
           <TailoredOutput tj={result.tailored_json} changes={result.changes} />
         </div>

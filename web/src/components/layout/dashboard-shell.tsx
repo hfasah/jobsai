@@ -62,7 +62,7 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-const IMMERSIVE = ["/voice-interview", "/avatar-interview", "/resume-preview"];
+const IMMERSIVE = ["/voice-interview", "/avatar-interview", "/resume-preview", "/resumes/preview"];
 
 // Resolve the single active nav href from the current path (+ ?mode= for prep).
 function computeActive(pathname: string, mode: string | null): string | null {

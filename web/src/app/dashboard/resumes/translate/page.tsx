@@ -253,7 +253,7 @@ export default function TranslatePage() {
               </Button>
             </div>
             <div className="overflow-hidden rounded-2xl border border-border">
-              <ResumePreviewClient jobId="" data={translated} hideToolbar />
+              <ResumePreviewClient data={translated} hideToolbar />
             </div>
           </div>
         )}
