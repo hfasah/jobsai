@@ -5,6 +5,7 @@ import { ResumePreviewClient } from "@/components/resume/resume-preview-client";
 import type { ResumeData } from "@/components/resume/resume-preview-client";
 import type { TailoredJson } from "@/types/phase3";
 import type { ParsedJson } from "@/types/resume";
+import { fillExperienceDates } from "@/lib/resume-dates";
 
 export default async function ResumePreviewPage({
   params,
@@ -36,14 +37,6 @@ export default async function ResumePreviewPage({
 
   const pj = profile?.parsed_json as ParsedJson | undefined;
 
-  function fmtDate(d?: string | null): string {
-    if (!d) return "";
-    const [y, m] = d.split("-");
-    if (!m) return y;
-    const monthName = new Date(`${y}-${m}-01`).toLocaleDateString("en-US", { month: "short" });
-    return `${monthName} ${y}`;
-  }
-
   const links = (profile?.links ?? pj?.links ?? {}) as Record<string, string>;
 
   const data: ResumeData = {
@@ -52,7 +45,7 @@ export default async function ResumePreviewPage({
     summary:      tj.summary  ?? tailored.summary  ?? pj?.summary  ?? "",
     contactParts: [profile?.email ?? pj?.email, profile?.phone ?? pj?.phone, profile?.location ?? pj?.location].filter(Boolean) as string[],
     linkParts:    Object.entries(links).filter(([, v]) => v).map(([k, v]) => ({ label: k, url: v })),
-    experience:   tj.experience ?? [],
+    experience:   fillExperienceDates(tj.experience ?? [], pj?.experience ?? []),
     education:    (pj?.education ?? []).map((e) => ({
       school:       e.school,
       degree:       e.degree,

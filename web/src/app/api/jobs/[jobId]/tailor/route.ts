@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { tailorResume } from "@/lib/ai-content";
+import { fillExperienceDates } from "@/lib/resume-dates";
 
 // GET /api/jobs/[jobId]/tailor — fetch saved tailored resume
 export async function GET(
@@ -45,6 +46,14 @@ export async function POST(
   } catch (err) {
     console.error("Tailoring error:", err);
     return NextResponse.json({ error: "Tailoring failed. Please try again." }, { status: 500 });
+  }
+
+  // Backfill any dates the model dropped from the source resume.
+  if (result.tailored_json?.experience) {
+    result.tailored_json.experience = fillExperienceDates(
+      result.tailored_json.experience,
+      ctx.resumeProfile.experience ?? []
+    );
   }
 
   const { data, error } = await supabaseAdmin
