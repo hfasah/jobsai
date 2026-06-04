@@ -408,6 +408,11 @@ export default function Home() {
                 </details>
               ))}
             </div>
+            <div className="mt-8 text-center">
+              <Link href="/faq" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+                See the full FAQ <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </div>
         </section>
 

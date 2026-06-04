@@ -11,7 +11,7 @@ const NAV = [
   { href: "/#interview", label: "Interview Prep" },
   { href: "/salaries", label: "Salaries" },
   { href: "/#pricing", label: "Pricing" },
-  { href: "/#faq", label: "FAQ" },
+  { href: "/faq", label: "FAQ" },
 ];
 
 // Marketing header (dark). Auth-aware: signed-out visitors get Log In / Get

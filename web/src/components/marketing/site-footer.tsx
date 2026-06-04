@@ -63,7 +63,7 @@ const COLUMNS: FooterCol[] = [
       { label: "How it works", href: "#how" },
       { label: "All features", href: "#all-features" },
       { label: "Pricing", href: "#pricing" },
-      { label: "FAQ", href: "#faq" },
+      { label: "FAQ", href: "/faq" },
       { label: "Chrome Extension", href: featureHref("browser-extension") },
     ],
   },
