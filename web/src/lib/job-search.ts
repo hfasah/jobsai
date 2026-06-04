@@ -1,19 +1,20 @@
-// Interactive multi-region job search. Primary engine is Adzuna (US, Canada, UK,
-// and EU countries — real totals + pagination + location). When Adzuna isn't
-// configured, we fall back to free, key-less sources (RemoteOK + Arbeitnow) so
-// the page is never empty, and the UI shows a "connect Adzuna" banner.
+// Interactive multi-region job search.
+//   • Default engine: Adzuna (US/CA/UK/EU — real totals, location, pagination).
+//   • Job Sites chips (Indeed/LinkedIn/Glassdoor/ZipRecruiter/Google): JSearch,
+//     which exposes the per-listing publisher. Activated only when chips are set,
+//     to conserve JSearch's limited free quota.
+//   • No keys at all: free fallback (RemoteOK + Arbeitnow) so it's never empty.
 
 export type RegionGroup = "USA" | "Canada" | "Britain" | "EU";
 
 export interface SearchCountry {
-  code: string;       // Adzuna country code
+  code: string;
   label: string;
   currency: string;
   region: RegionGroup;
   flag: string;
 }
 
-// Adzuna-supported countries grouped by the four target regions.
 export const SEARCH_COUNTRIES: SearchCountry[] = [
   { code: "us", label: "United States", currency: "USD", region: "USA", flag: "🇺🇸" },
   { code: "ca", label: "Canada", currency: "CAD", region: "Canada", flag: "🇨🇦" },
@@ -30,9 +31,27 @@ export const SEARCH_COUNTRIES: SearchCountry[] = [
 
 const COUNTRY_BY_CODE = new Map(SEARCH_COUNTRIES.map((c) => [c.code, c]));
 
+// Publisher chips (JSearch). id is matched case-insensitively against job_publisher.
+export const JOB_SITES = [
+  { id: "indeed", label: "Indeed" },
+  { id: "linkedin", label: "LinkedIn" },
+  { id: "glassdoor", label: "Glassdoor" },
+  { id: "ziprecruiter", label: "ZipRecruiter" },
+  { id: "google", label: "Google" },
+] as const;
+
+export const EMPLOYMENT_TYPES = [
+  { id: "fulltime", label: "Fulltime" },
+  { id: "internship", label: "Internship" },
+  { id: "contract", label: "Contract" },
+] as const;
+
+export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number]["id"];
+
 export interface SearchJob {
   id: string;
   source: string;
+  publisher: string | null;
   title: string;
   company: string;
   location: string;
@@ -48,6 +67,7 @@ export interface SearchJob {
 }
 
 export type SortKey = "relevance" | "date" | "salary";
+export type Provider = "adzuna" | "jsearch" | "free";
 
 export interface SearchParams {
   what: string;
@@ -56,18 +76,20 @@ export interface SearchParams {
   page?: number;
   sort?: SortKey;
   salaryMin?: number;
-  fullTime?: boolean;
-  contract?: boolean;
+  employmentTypes?: EmploymentType[];
   remote?: boolean;
+  jobSites?: string[];
   maxDaysOld?: number;
 }
 
 export interface SearchResult {
   jobs: SearchJob[];
-  count: number;       // total matches (Adzuna total, or list length for free sources)
+  count: number;
+  totalKnown: boolean;   // Adzuna gives a real grand total; JSearch/free don't
   page: number;
   perPage: number;
-  configured: boolean; // is Adzuna configured?
+  provider: Provider;
+  configured: boolean;   // a real provider (not the free fallback)
   sources: string[];
 }
 
@@ -77,7 +99,7 @@ function stripHtml(s: string | undefined): string {
   return (s ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
-// ─── Adzuna (primary) ─────────────────────────────────────────────────────────
+// ─── Adzuna (default engine) ───────────────────────────────────────────────────
 
 interface AdzunaJob {
   id: string;
@@ -100,6 +122,7 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
 
   const country = COUNTRY_BY_CODE.get(p.country) ?? SEARCH_COUNTRIES[0];
   const page = Math.max(1, p.page ?? 1);
+  const et = new Set(p.employmentTypes ?? []);
 
   const params = new URLSearchParams({
     app_id: appId,
@@ -107,16 +130,16 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
     results_per_page: String(PER_PAGE),
     "content-type": "application/json",
   });
-  const what = p.remote ? `${p.what} remote`.trim() : p.what.trim();
+  let what = p.what.trim();
+  if (et.has("internship")) what = `${what} intern`.trim();
+  if (p.remote) what = `${what} remote`.trim();
   if (what) params.set("what", what);
   if (p.where?.trim()) params.set("where", p.where.trim());
   if (p.salaryMin) params.set("salary_min", String(p.salaryMin));
-  if (p.fullTime) params.set("full_time", "1");
-  if (p.contract) params.set("contract", "1");
+  if (et.has("fulltime")) params.set("full_time", "1");
+  if (et.has("contract")) params.set("contract", "1");
   if (p.maxDaysOld) params.set("max_days_old", String(p.maxDaysOld));
-  if (p.sort === "date") params.set("sort_by", "date");
-  else if (p.sort === "salary") params.set("sort_by", "salary");
-  else params.set("sort_by", "relevance");
+  params.set("sort_by", p.sort === "date" ? "date" : p.sort === "salary" ? "salary" : "relevance");
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country.code}/search/${page}?${params}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(15_000), next: { revalidate: 120 } });
@@ -128,6 +151,7 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
     return {
       id: `adzuna-${j.id}`,
       source: "Adzuna",
+      publisher: null,
       title: j.title ?? "Untitled role",
       company: j.company?.display_name ?? "—",
       location: loc,
@@ -146,14 +170,118 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
   return {
     jobs,
     count: data.count ?? jobs.length,
+    totalKnown: true,
     page,
     perPage: PER_PAGE,
+    provider: "adzuna",
     configured: true,
     sources: ["Adzuna"],
   };
 }
 
-// ─── Free, key-less fallback sources ──────────────────────────────────────────
+// ─── JSearch (publisher / Job Sites engine) ────────────────────────────────────
+
+interface JSearchJob {
+  job_id: string;
+  employer_name?: string;
+  job_title?: string;
+  job_publisher?: string;
+  job_employment_type?: string;
+  job_apply_link?: string;
+  job_description?: string;
+  job_is_remote?: boolean;
+  job_posted_at_datetime_utc?: string;
+  job_city?: string;
+  job_state?: string;
+  job_country?: string;
+  job_min_salary?: number;
+  job_max_salary?: number;
+  job_salary_currency?: string;
+}
+
+const EMP_TO_JSEARCH: Record<EmploymentType, string> = {
+  fulltime: "FULLTIME",
+  internship: "INTERN",
+  contract: "CONTRACTOR",
+};
+
+async function searchJSearch(p: SearchParams): Promise<SearchResult | null> {
+  const key = process.env.JSEARCH_RAPIDAPI_KEY;
+  if (!key) return null;
+
+  const country = COUNTRY_BY_CODE.get(p.country) ?? SEARCH_COUNTRIES[0];
+  const uiPage = Math.max(1, p.page ?? 1);
+  // Each UI page = 2 JSearch pages (~20 results) for cleaner pagination.
+  const jsPage = (uiPage - 1) * 2 + 1;
+
+  const query = [p.what.trim() || "jobs", p.where?.trim() ? `in ${p.where.trim()}` : ""].join(" ").trim();
+  const params = new URLSearchParams({
+    query,
+    page: String(jsPage),
+    num_pages: "2",
+    country: country.code,
+    date_posted: p.maxDaysOld ? "week" : "all",
+  });
+  if (p.remote) params.set("work_from_home", "true");
+  if (p.employmentTypes?.length) {
+    params.set("employment_types", p.employmentTypes.map((e) => EMP_TO_JSEARCH[e]).join(","));
+  }
+
+  const res = await fetch(`https://jsearch.p.rapidapi.com/search?${params}`, {
+    headers: { "x-rapidapi-key": key, "x-rapidapi-host": "jsearch.p.rapidapi.com" },
+    signal: AbortSignal.timeout(15_000),
+    next: { revalidate: 120 },
+  });
+  if (!res.ok) throw new Error(`JSearch ${res.status}`);
+
+  const data = (await res.json()) as { data?: JSearchJob[] };
+  let jobs: SearchJob[] = (data.data ?? []).map((j) => {
+    const loc = [j.job_city, j.job_state, j.job_country].filter(Boolean).join(", ") || (j.job_is_remote ? "Remote" : country.label);
+    return {
+      id: `jsearch-${j.job_id}`,
+      source: "JSearch",
+      publisher: j.job_publisher ?? null,
+      title: j.job_title ?? "Untitled role",
+      company: j.employer_name ?? "—",
+      location: loc,
+      salaryMin: j.job_min_salary ?? null,
+      salaryMax: j.job_max_salary ?? null,
+      currency: j.job_salary_currency ?? country.currency,
+      description: stripHtml(j.job_description).slice(0, 1200),
+      url: j.job_apply_link ?? "",
+      postedAt: j.job_posted_at_datetime_utc ?? null,
+      contractTime: j.job_employment_type ?? null,
+      remote: Boolean(j.job_is_remote),
+      category: null,
+    };
+  });
+
+  // Filter to the selected publishers (Job Sites chips).
+  const sites = (p.jobSites ?? []).map((s) => s.toLowerCase());
+  if (sites.length) {
+    jobs = jobs.filter((j) => {
+      const pub = (j.publisher ?? "").toLowerCase();
+      return sites.some((s) => pub.includes(s));
+    });
+  }
+
+  if (p.sort === "date") {
+    jobs.sort((a, b) => (b.postedAt ? Date.parse(b.postedAt) : 0) - (a.postedAt ? Date.parse(a.postedAt) : 0));
+  }
+
+  return {
+    jobs: jobs.filter((j) => j.url),
+    count: jobs.length,
+    totalKnown: false,
+    page: uiPage,
+    perPage: PER_PAGE,
+    provider: "jsearch",
+    configured: true,
+    sources: ["JSearch"],
+  };
+}
+
+// ─── Free, key-less fallback ───────────────────────────────────────────────────
 
 interface RemoteOKJob {
   id?: string | number; position?: string; company?: string; location?: string;
@@ -172,6 +300,7 @@ async function fetchRemoteOK(): Promise<SearchJob[]> {
   return (raw.filter((j) => typeof j === "object" && j !== null && "position" in j) as RemoteOKJob[]).map((j) => ({
     id: `remoteok-${j.id}`,
     source: "RemoteOK",
+    publisher: "RemoteOK",
     title: j.position ?? "Untitled role",
     company: j.company ?? "—",
     location: j.location || "Remote",
@@ -202,6 +331,7 @@ async function fetchArbeitnow(): Promise<SearchJob[]> {
   return (data.data ?? []).map((j) => ({
     id: `arbeitnow-${j.slug}`,
     source: "Arbeitnow",
+    publisher: "Arbeitnow",
     title: j.title ?? "Untitled role",
     company: j.company_name ?? "—",
     location: j.location || (j.remote ? "Remote" : "Europe"),
@@ -242,8 +372,10 @@ async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
   return {
     jobs: all.slice(start, start + PER_PAGE),
     count: all.length,
+    totalKnown: false,
     page,
     perPage: PER_PAGE,
+    provider: "free",
     configured: false,
     sources,
   };
@@ -252,6 +384,15 @@ async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function searchJobs(p: SearchParams): Promise<SearchResult> {
+  // Job Sites chips need per-publisher data → JSearch.
+  if ((p.jobSites?.length ?? 0) > 0) {
+    try {
+      const js = await searchJSearch(p);
+      if (js) return js;
+    } catch (err) {
+      console.error("JSearch failed, falling back:", err);
+    }
+  }
   try {
     const adzuna = await searchAdzuna(p);
     if (adzuna) return adzuna;

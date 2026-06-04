@@ -7,7 +7,10 @@ import {
   ExternalLink, Download, Check, ChevronLeft, ChevronRight, Wifi, AlertCircle, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SEARCH_COUNTRIES, type SearchJob, type SearchResult, type SortKey } from "@/lib/job-search";
+import {
+  SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES,
+  type SearchJob, type SearchResult, type SortKey, type EmploymentType,
+} from "@/lib/job-search";
 
 const CUR: Record<string, string> = { USD: "$", CAD: "C$", GBP: "£", EUR: "€", PLN: "zł" };
 
@@ -37,12 +40,28 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "salary", label: "Highest salary" },
 ];
 
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+        active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
 export default function JobSearchPage() {
   const [what, setWhat] = useState("");
   const [where, setWhere] = useState("");
   const [country, setCountry] = useState("us");
   const [remote, setRemote] = useState(false);
-  const [fullTime, setFullTime] = useState(false);
+  const [empTypes, setEmpTypes] = useState<EmploymentType[]>([]);
+  const [jobSites, setJobSites] = useState<string[]>([]);
   const [sort, setSort] = useState<SortKey>("relevance");
   const [page, setPage] = useState(1);
 
@@ -53,20 +72,22 @@ export default function JobSearchPage() {
   const [imported, setImported] = useState<Record<string, "loading" | "done" | "error">>({});
   const reqId = useRef(0);
 
+  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, id: string) =>
+    setter((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+
   const run = useCallback(
     async (nextPage: number) => {
       const id = ++reqId.current;
       setLoading(true);
       setError(null);
-      const qs = new URLSearchParams({
-        what, where, country, page: String(nextPage), sort,
-        ...(remote ? { remote: "1" } : {}),
-        ...(fullTime ? { full_time: "1" } : {}),
-      });
+      const qs = new URLSearchParams({ what, where, country, page: String(nextPage), sort });
+      if (remote) qs.set("remote", "1");
+      if (empTypes.length) qs.set("employment_types", empTypes.join(","));
+      if (jobSites.length) qs.set("job_sites", jobSites.join(","));
       try {
         const res = await fetch(`/api/job-search?${qs}`);
         const json = await res.json();
-        if (id !== reqId.current) return; // stale
+        if (id !== reqId.current) return;
         if (!res.ok) throw new Error(json.error || "Search failed");
         const data = json.data as SearchResult;
         setResult(data);
@@ -80,7 +101,7 @@ export default function JobSearchPage() {
         if (id === reqId.current) setLoading(false);
       }
     },
-    [what, where, country, sort, remote, fullTime]
+    [what, where, country, sort, remote, empTypes, jobSites]
   );
 
   // Initial broad search so the board isn't empty on first load.
@@ -108,13 +129,19 @@ export default function JobSearchPage() {
   }
 
   const total = result?.count ?? 0;
-  const totalPages = result ? Math.max(1, Math.ceil(Math.min(total, 1000) / result.perPage)) : 1;
   const startIdx = result ? (result.page - 1) * result.perPage + 1 : 0;
   const endIdx = result ? startIdx + result.jobs.length - 1 : 0;
+  const pagesByCount = result ? Math.max(1, Math.ceil(Math.min(total, 1000) / result.perPage)) : 1;
+  const canPrev = page > 1;
+  const canNext = result
+    ? result.totalKnown || result.provider === "free"
+      ? page < pagesByCount
+      : result.jobs.length >= 10 // jsearch: assume more while a full-ish page comes back
+    : false;
+  const sitesNeedJSearch = !!result && jobSites.length > 0 && result.provider !== "jsearch";
 
   return (
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
-      {/* Header */}
       <h1 className="text-2xl font-bold tracking-tight">Search Jobs</h1>
       <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
         Our internal job board, powered by live listings across the US, Canada, the UK, and the EU.
@@ -161,42 +188,50 @@ export default function JobSearchPage() {
         </button>
       </form>
 
-      {/* Filter row */}
-      <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button
-          onClick={() => { setRemote((v) => !v); }}
-          className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-            remote ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground")}
-        >
-          <Wifi className="h-3.5 w-3.5" /> Remote
-        </button>
-        <button
-          onClick={() => { setFullTime((v) => !v); }}
-          className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-            fullTime ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground")}
-        >
-          <Briefcase className="h-3.5 w-3.5" /> Full-time
-        </button>
-        <div className="ml-auto flex items-center gap-2">
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as SortKey)}
-            className="rounded-full border border-border bg-card px-3 py-1.5 text-xs outline-none"
-            aria-label="Sort"
-          >
-            {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
-          </select>
+      {/* Filters */}
+      <div className="mt-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold text-muted-foreground">Job Sites</span>
+          {JOB_SITES.map((s) => (
+            <Chip key={s.id} active={jobSites.includes(s.id)} onClick={() => toggle(setJobSites, s.id)}>{s.label}</Chip>
+          ))}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-xs font-semibold text-muted-foreground">Job Types</span>
+          {EMPLOYMENT_TYPES.map((t) => (
+            <Chip key={t.id} active={empTypes.includes(t.id)} onClick={() => toggle(setEmpTypes as React.Dispatch<React.SetStateAction<string[]>>, t.id)}>{t.label}</Chip>
+          ))}
+          <Chip active={remote} onClick={() => setRemote((v) => !v)}><Wifi className="h-3.5 w-3.5" /> Remote only</Chip>
+          <div className="ml-auto">
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as SortKey)}
+              className="rounded-full border border-border bg-card px-3 py-1.5 text-xs outline-none"
+              aria-label="Sort"
+            >
+              {SORTS.map((s) => <option key={s.key} value={s.key}>{s.label}</option>)}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Not-configured banner */}
-      {result && !result.configured && (
+      {/* Banners */}
+      {sitesNeedJSearch && (
+        <div className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--cta)]/30 bg-[var(--cta)]/10 p-3 text-sm">
+          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cta)]" />
+          <p className="text-muted-foreground">
+            Filtering by <span className="font-medium text-foreground">Job Sites</span> (Indeed, LinkedIn, Glassdoor…)
+            needs a free <span className="font-medium text-foreground">JSearch / RapidAPI key</span> (JSEARCH_RAPIDAPI_KEY).
+            Showing standard results for now.
+          </p>
+        </div>
+      )}
+      {result && !result.configured && !sitesNeedJSearch && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--cta)]/30 bg-[var(--cta)]/10 p-3 text-sm">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cta)]" />
           <p className="text-muted-foreground">
             Showing a <span className="font-medium text-foreground">limited free sample</span> (remote roles).
-            Add a free <span className="font-medium text-foreground">Adzuna API key</span> (ADZUNA_APP_ID / ADZUNA_APP_KEY)
-            to unlock full US, Canada, UK &amp; EU coverage with location search and real totals.
+            Add a free <span className="font-medium text-foreground">Adzuna API key</span> for full US, Canada, UK &amp; EU coverage.
           </p>
         </div>
       )}
@@ -208,7 +243,9 @@ export default function JobSearchPage() {
           <div className="mb-2 flex items-center justify-between text-xs text-muted-foreground">
             <span>
               {result && result.jobs.length > 0
-                ? <>{startIdx}–{endIdx} of <span className="font-semibold text-foreground">{total.toLocaleString()}</span> jobs</>
+                ? result.totalKnown
+                  ? <>{startIdx}–{endIdx} of <span className="font-semibold text-foreground">{total.toLocaleString()}</span> jobs</>
+                  : <><span className="font-semibold text-foreground">{result.jobs.length}</span> jobs on this page</>
                 : loading ? "Searching…" : "No results"}
             </span>
             {result?.sources?.length ? <span className="hidden sm:inline">via {result.sources.join(", ")}</span> : null}
@@ -223,7 +260,7 @@ export default function JobSearchPage() {
           ) : result && result.jobs.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
               <Briefcase className="mx-auto h-7 w-7 opacity-60" />
-              <p className="mt-2">No jobs match. Try a broader keyword or another country.</p>
+              <p className="mt-2">No jobs match. Try a broader keyword, fewer Job Sites, or another country.</p>
             </div>
           ) : (
             <ul className="space-y-2">
@@ -245,6 +282,9 @@ export default function JobSearchPage() {
                         <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {job.location}</span>
                         {sal && <span className="flex items-center gap-1 text-emerald-400"><DollarSign className="h-3 w-3" /> {sal}</span>}
                         {job.postedAt && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {ago(job.postedAt)}</span>}
+                        {job.publisher && job.publisher !== "Adzuna" && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground/80">{job.publisher}</span>
+                        )}
                       </div>
                     </button>
                   </li>
@@ -253,22 +293,17 @@ export default function JobSearchPage() {
             </ul>
           )}
 
-          {/* Pagination */}
-          {result && result.jobs.length > 0 && totalPages > 1 && (
+          {result && result.jobs.length > 0 && (canPrev || canNext) && (
             <div className="mt-3 flex items-center justify-between">
-              <button
-                disabled={page <= 1 || loading}
-                onClick={() => run(page - 1)}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground enabled:hover:text-foreground disabled:opacity-40"
-              >
+              <button disabled={!canPrev || loading} onClick={() => run(page - 1)}
+                className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground enabled:hover:text-foreground disabled:opacity-40">
                 <ChevronLeft className="h-3.5 w-3.5" /> Prev
               </button>
-              <span className="text-xs text-muted-foreground">Page {page} of {totalPages}</span>
-              <button
-                disabled={page >= totalPages || loading}
-                onClick={() => run(page + 1)}
-                className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground enabled:hover:text-foreground disabled:opacity-40"
-              >
+              <span className="text-xs text-muted-foreground">
+                {result.totalKnown ? <>Page {page} of {pagesByCount}</> : <>Page {page}</>}
+              </span>
+              <button disabled={!canNext || loading} onClick={() => run(page + 1)}
+                className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground enabled:hover:text-foreground disabled:opacity-40">
                 Next <ChevronRight className="h-3.5 w-3.5" />
               </button>
             </div>
@@ -285,22 +320,21 @@ export default function JobSearchPage() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <h2 className="text-xl font-bold tracking-tight">{selected.title}</h2>
-                  <p className="mt-0.5 text-sm text-muted-foreground">{selected.company}</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    {selected.company}{selected.publisher && selected.publisher !== "Adzuna" ? <span className="text-muted-foreground/70"> · via {selected.publisher}</span> : null}
+                  </p>
                 </div>
               </div>
 
               <div className="mt-4 flex flex-wrap gap-2 text-xs">
                 <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-muted-foreground"><MapPin className="h-3 w-3" /> {selected.location}</span>
                 {salaryLabel(selected) && <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-1 text-emerald-400"><DollarSign className="h-3 w-3" /> {salaryLabel(selected)}</span>}
-                {selected.contractTime && <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-muted-foreground"><Briefcase className="h-3 w-3" /> {selected.contractTime.replace("_", " ")}</span>}
+                {selected.contractTime && <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-muted-foreground"><Briefcase className="h-3 w-3" /> {selected.contractTime.replace(/_/g, " ").toLowerCase()}</span>}
                 {selected.postedAt && <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-muted-foreground"><Clock className="h-3 w-3" /> {ago(selected.postedAt)}</span>}
               </div>
 
               <div className="mt-5 flex flex-wrap gap-2">
-                <a
-                  href={selected.url} target="_blank" rel="noopener noreferrer"
-                  className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm"
-                >
+                <a href={selected.url} target="_blank" rel="noopener noreferrer" className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm">
                   Apply <ExternalLink className="h-4 w-4" />
                 </a>
                 <button
