@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { currentUser } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
 import {
   ArrowRight, ChevronDown,
   FileText, Send, Search, BarChart3, Mail,
@@ -84,10 +82,7 @@ const FAQ = [
   { q: "Is my data secure?", a: "All data is encrypted at rest and in transit. We use Supabase (SOC 2 Type II) for storage and never sell your data." },
 ];
 
-export default async function Home() {
-  const user = await currentUser();
-  if (user) redirect("/dashboard");
-
+export default function Home() {
   return (
     <div className="dark bg-background text-foreground">
       <MarketingHeader />
