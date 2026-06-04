@@ -125,11 +125,27 @@ export async function autoApplyIfEnabled(jobId: string, userId: string, matchSco
     .eq("user_id", userId)
     .maybeSingle();
 
+  // Master switch + base match bar.
   if (!prefs?.auto_apply_enabled) return;
-  if (matchScore < (prefs.auto_apply_threshold ?? 75)) return;
+  const threshold = prefs.auto_apply_threshold ?? 75;
+  if (matchScore < threshold) return;
 
-  // Approval queue mode — park the job for user review instead of firing immediately
-  if (prefs.require_approval) {
+  // Application behaviour mode (from the apply profile) decides apply-vs-review.
+  // Falls back to the legacy require_approval flag when no mode is set.
+  //   review  → always queue for approval
+  //   auto    → submit immediately
+  //   hybrid  → submit strong matches; queue the rest for review
+  const { data: profile } = await supabaseAdmin
+    .from("apply_profiles")
+    .select("application_mode")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  const mode = profile?.application_mode ?? (prefs.require_approval ? "review" : "auto");
+  const strongBar = Math.min(95, threshold + 10);
+  const shouldQueue = mode === "review" || (mode === "hybrid" && matchScore < strongBar);
+
+  if (shouldQueue) {
     const { data: job } = await supabaseAdmin
       .from("jobs")
       .select("id")
