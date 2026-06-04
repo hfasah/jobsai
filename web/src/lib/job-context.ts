@@ -72,6 +72,52 @@ export async function loadJobContext(
   };
 }
 
-export function isContextError(c: JobContext | JobContextError): c is JobContextError {
+export interface ResumeContext {
+  resumeProfile: ParsedJson;
+  resumeVersionId: string;
+  resumeRawText: string | null;
+}
+
+/** Loads the user's primary resume active-version profile (no job needed). */
+export async function loadResumeProfile(
+  userId: string
+): Promise<ResumeContext | JobContextError> {
+  const { data: primaryDoc } = await supabaseAdmin
+    .from("resume_documents")
+    .select("active_version_id")
+    .eq("user_id", userId)
+    .eq("is_primary", true)
+    .eq("is_archived", false)
+    .maybeSingle();
+
+  if (!primaryDoc?.active_version_id) {
+    return { error: "No primary resume set. Upload a resume and mark it primary first.", status: 409 };
+  }
+  const resumeVersionId = primaryDoc.active_version_id;
+
+  const { data: profile } = await supabaseAdmin
+    .from("resume_parsed_profile")
+    .select("parsed_json")
+    .eq("version_id", resumeVersionId)
+    .maybeSingle();
+
+  if (!profile?.parsed_json) {
+    return { error: "Primary resume has no parsed data.", status: 409 };
+  }
+
+  const { data: textRow } = await supabaseAdmin
+    .from("resume_texts")
+    .select("plain_text")
+    .eq("version_id", resumeVersionId)
+    .maybeSingle();
+
+  return {
+    resumeProfile: profile.parsed_json as ParsedJson,
+    resumeVersionId,
+    resumeRawText: textRow?.plain_text ?? null,
+  };
+}
+
+export function isContextError(c: JobContext | ResumeContext | JobContextError): c is JobContextError {
   return "error" in c;
 }

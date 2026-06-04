@@ -141,6 +141,61 @@ export async function tailorResume(resume: ParsedJson, job: ParsedJobJson): Prom
   return JSON.parse(content) as TailorResult;
 }
 
+// ─── Resume Builder (optimize against target skills, no specific job) ──────────
+export interface SkillBuildResult {
+  headline: string;
+  summary: string;
+  tailored_json: TailoredJson;
+  changes: TailorChange[];
+  skill_coverage: { covered: string[]; missing: string[] };
+}
+
+const SKILL_BUILD_SYSTEM = `You are an expert resume writer. Optimize the candidate's resume to best surface a
+set of TARGET SKILLS (and an optional target role), truthfully — never invent experience, employers, titles,
+dates, skills, or credentials the candidate doesn't have. You may rephrase, reorder, emphasize relevant work,
+and align wording so genuinely-held target skills are prominent and ATS-friendly. Return ONLY valid JSON — no markdown.
+
+Schema:
+{
+  "headline": "professional headline emphasizing the target skills / role (truthful)",
+  "summary": "2-3 sentence summary foregrounding the target skills the candidate genuinely has",
+  "tailored_json": {
+    "headline": "...",
+    "summary": "...",
+    "experience": [{ "title": "<keep real title>", "company": "<keep real company>", "start_date": "<keep real start_date exactly>", "end_date": "<keep real end_date, or null>", "is_current": <keep real boolean>, "bullets": ["impact-focused bullets that surface the target skills where genuinely applicable"] }],
+    "skills": ["target + real skills, most relevant first"]
+  },
+  "changes": [{ "section": "summary|experience|skills", "before": "original", "after": "optimized", "reason": "why this surfaces a target skill" }],
+  "skill_coverage": { "covered": ["target skills genuinely evidenced in the resume"], "missing": ["target skills NOT evidenced — be honest, do not fabricate"] }
+}
+
+Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source. Only reframe wording.
+A target skill belongs in "covered" only if the resume genuinely supports it; otherwise put it in "missing". Limit changes[] to 4-6 edits.`;
+
+export async function buildSkillResume(
+  resume: ParsedJson,
+  targetSkills: string[],
+  targetRole?: string
+): Promise<SkillBuildResult> {
+  const payload = {
+    resume: resumeSlim(resume),
+    target_skills: targetSkills,
+    target_role: targetRole || undefined,
+  };
+  const res = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: SKILL_BUILD_SYSTEM },
+      { role: "user", content: JSON.stringify(payload) },
+    ],
+    temperature: 0.3,
+    response_format: { type: "json_object" },
+  });
+  const content = res.choices[0]?.message?.content;
+  if (!content) throw new Error("Empty resume-build response");
+  return JSON.parse(content) as SkillBuildResult;
+}
+
 // ─── Cover Letter ────────────────────────────────────────────────────────────
 const LENGTH_GUIDE: Record<CoverLength, string> = {
   short: "around 150 words, 2 short paragraphs",

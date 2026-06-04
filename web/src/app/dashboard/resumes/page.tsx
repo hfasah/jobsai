@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Loader2, Languages } from "lucide-react";
+import { Plus, Loader2, Languages, Sparkles, Wand2, Gauge, ArrowRight } from "lucide-react";
 
 function LinkedInIcon({ className }: { className?: string }) {
   return (
@@ -211,6 +211,30 @@ export default function ResumesPage() {
               </Button>
             </div>
           )}
+        </div>
+
+        {/* Resume tools */}
+        <div className="mt-6 grid gap-3 sm:grid-cols-3">
+          {[
+            { href: "/dashboard/resumes/builder", icon: Sparkles, title: "Resume Builder", body: "Optimize your resume around target skills." },
+            { href: "/dashboard/resumes/optimizer", icon: Wand2, title: "Resume Optimizer", body: "Tailor your resume to a specific job." },
+            { href: "/dashboard/resumes/score", icon: Gauge, title: "Resume Score", body: "ATS score, missing keywords, and fixes." },
+          ].map(({ href, icon: Icon, title, body }) => (
+            <Link
+              key={href}
+              href={href}
+              className="group flex flex-col gap-2 rounded-2xl border border-border bg-card p-4 transition-colors hover:border-primary/40"
+            >
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-gradient-brand group-hover:text-white">
+                <Icon className="h-5 w-5" />
+              </span>
+              <span className="mt-1 flex items-center gap-1 text-sm font-semibold text-foreground">
+                {title}
+                <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
+              </span>
+              <span className="text-xs leading-relaxed text-muted-foreground">{body}</span>
+            </Link>
+          ))}
         </div>
 
         <div className="mt-8 space-y-6">
