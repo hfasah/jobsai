@@ -40,6 +40,15 @@ const SORTS: { key: SortKey; label: string }[] = [
   { key: "salary", label: "Highest salary" },
 ];
 
+// Brand colors per job board — used to tint the Job Sites chips.
+const SITE_BRAND: Record<string, string> = {
+  indeed: "#2557A7",       // Indeed blue
+  linkedin: "#0A66C2",     // LinkedIn blue
+  glassdoor: "#0CAA41",    // Glassdoor green
+  ziprecruiter: "#1F9D55", // ZipRecruiter green
+  google: "#4285F4",       // Google blue
+};
+
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -47,7 +56,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
       onClick={onClick}
       className={cn(
         "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-        active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground"
+        active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-foreground/80 hover:bg-white/5 hover:text-foreground"
       )}
     >
       {children}
@@ -191,13 +200,31 @@ export default function JobSearchPage() {
       {/* Filters */}
       <div className="mt-4 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-semibold text-muted-foreground">Job Sites</span>
-          {JOB_SITES.map((s) => (
-            <Chip key={s.id} active={jobSites.includes(s.id)} onClick={() => toggle(setJobSites, s.id)}>{s.label}</Chip>
-          ))}
+          <span className="mr-1 text-xs font-semibold text-foreground">Job Sites</span>
+          {JOB_SITES.map((s) => {
+            const c = SITE_BRAND[s.id] ?? "#7c3aed";
+            const on = jobSites.includes(s.id);
+            return (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => toggle(setJobSites, s.id)}
+                style={on
+                  ? { backgroundColor: c, borderColor: c, color: "#fff" }
+                  : { borderColor: `${c}80`, backgroundColor: `${c}14` }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-all",
+                  on ? "shadow-sm" : "text-foreground/90 hover:bg-white/5"
+                )}
+              >
+                <span className="h-2 w-2 rounded-full" style={{ backgroundColor: on ? "#fff" : c }} />
+                {s.label}
+              </button>
+            );
+          })}
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs font-semibold text-muted-foreground">Job Types</span>
+          <span className="mr-1 text-xs font-semibold text-foreground">Job Types</span>
           {EMPLOYMENT_TYPES.map((t) => (
             <Chip key={t.id} active={empTypes.includes(t.id)} onClick={() => toggle(setEmpTypes as React.Dispatch<React.SetStateAction<string[]>>, t.id)}>{t.label}</Chip>
           ))}
