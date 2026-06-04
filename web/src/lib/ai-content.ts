@@ -196,6 +196,23 @@ export async function buildSkillResume(
   return JSON.parse(content) as SkillBuildResult;
 }
 
+// ─── Inbox reply draft ────────────────────────────────────────────────────────
+export async function draftInboxReply(
+  incomingSubject: string,
+  incomingBody: string,
+  candidateName: string
+): Promise<string> {
+  const res = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: "You write a concise, warm, professional reply from a job candidate to a recruiter/employer email. 2-4 short sentences. Match the email's intent (thank them, confirm availability for an interview, provide a verification code politely declined if unknown, etc.). Sign off with the candidate's first name only. Output just the reply body — no subject line, no placeholders, no brackets." },
+      { role: "user", content: `Candidate name: ${candidateName}\n\nSubject: ${incomingSubject}\n\nIncoming email:\n${incomingBody.slice(0, 4000)}\n\nWrite the candidate's reply.` },
+    ],
+    temperature: 0.5,
+  });
+  return res.choices[0]?.message?.content?.trim() ?? "";
+}
+
 // ─── Cover Letter ────────────────────────────────────────────────────────────
 const LENGTH_GUIDE: Record<CoverLength, string> = {
   short: "around 150 words, 2 short paragraphs",
