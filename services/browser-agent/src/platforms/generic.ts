@@ -2,6 +2,7 @@ import { Page } from "playwright";
 import type { ApplyProfile } from "../types";
 import { fillIfExists, uploadFile } from "../utils";
 import { handleCaptcha } from "../captcha";
+import { answerLabeledQuestions } from "../answers";
 
 // Heuristic selectors that cover many ATSes
 const NAME_SEL   = 'input[name*="name"]:not([name*="company"]):not([name*="school"]):not([name*="user"]), input[id*="name"]:not([id*="company"])';
@@ -31,6 +32,16 @@ export async function fillGeneric(
 
   await fillIfExists(page, 'input[name*="linkedin"], input[id*="linkedin"]', profile.linkedin_url ?? "");
   await fillIfExists(page, 'input[name*="website"],  input[id*="website"]',  profile.portfolio_url ?? profile.website_url ?? "");
+  await fillIfExists(page, 'input[name*="github"], input[id*="github"]', profile.github_url ?? "");
+
+  // Address
+  await fillIfExists(page, 'input[name*="address"]:not([name*="email"]), input[id*="address"]:not([id*="email"])', profile.address_line1 ?? "");
+  await fillIfExists(page, 'input[name*="city"], input[id*="city"]', profile.city ?? "");
+  await fillIfExists(page, 'input[name*="zip"], input[name*="postal"], input[id*="zip"], input[id*="postal"]', profile.postal_code ?? "");
+  await fillIfExists(page, 'input[name*="school"], input[name*="university"], input[id*="school"]', profile.university ?? "");
+
+  // Eligibility + EEO dropdowns/radios (best-effort, label-matched).
+  await answerLabeledQuestions(page, profile);
 
   // Cover letter in any textarea
   const textareas = page.locator('textarea');
