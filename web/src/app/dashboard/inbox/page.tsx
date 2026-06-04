@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Mail, RefreshCw, Loader2, Send, Sparkles, Inbox as InboxIcon,
-  Reply, Building2, Clock, Plug, AlertCircle, Check,
+  Reply, Building2, Clock, Plug, AlertCircle, Check, Trash2, Filter,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CLASS_LABELS, type InboxClass } from "@/lib/inbox";
@@ -65,6 +65,18 @@ export default function InboxPage() {
     finally { setSyncing(false); }
   }
 
+  async function tidy() {
+    setSyncing(true);
+    try { await fetch("/api/inbox/cleanup", { method: "POST" }); setSelected(null); await load(); }
+    finally { setSyncing(false); }
+  }
+
+  async function del(m: Msg) {
+    await fetch(`/api/inbox/${m.id}`, { method: "DELETE" }).catch(() => {});
+    if (selected?.id === m.id) setSelected(null);
+    setData((d) => d ? { ...d, messages: d.messages.filter((x) => x.id !== m.id) } : d);
+  }
+
   async function select(m: Msg) {
     setSelected(m); setReplyOpen(false); setReplyText(""); setReplyState("idle");
     if (!m.is_read && m.direction === "inbound") {
@@ -118,6 +130,7 @@ export default function InboxPage() {
           <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
             JobsAI reads recruiter replies into this inbox and lets you reply with AI — sent through your own account, so employers see a real email from you.
           </p>
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route, needs a full navigation */}
           <a href="/api/inbox/connect" className="btn-cta mt-5 inline-flex items-center gap-2 rounded-full px-6 py-3 text-sm">
             <Mail className="h-4 w-4" /> Connect Gmail
           </a>
@@ -134,9 +147,14 @@ export default function InboxPage() {
           <h1 className="text-2xl font-bold tracking-tight">Inbox</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{data.email} {data.lastSynced && <>· synced {ago(data.lastSynced)} ago</>}</p>
         </div>
-        <button onClick={sync} disabled={syncing} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
-          {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={tidy} disabled={syncing} title="Remove non-job emails" className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60">
+            <Filter className="h-4 w-4" /> Tidy up
+          </button>
+          <button onClick={sync} disabled={syncing} className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+            {syncing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Refresh
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -189,7 +207,12 @@ export default function InboxPage() {
         <div className="min-w-0">
           {selected ? (
             <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
-              <h2 className="text-lg font-bold tracking-tight">{selected.subject || "(no subject)"}</h2>
+              <div className="flex items-start justify-between gap-3">
+                <h2 className="text-lg font-bold tracking-tight">{selected.subject || "(no subject)"}</h2>
+                <button onClick={() => del(selected)} title="Delete from inbox" className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
               <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" /> {selected.from_name || selected.from_email}</span>
                 <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" /> {new Date(selected.received_at).toLocaleString()}</span>

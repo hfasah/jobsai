@@ -23,10 +23,19 @@ export function classifyEmail(subject: string, body: string): InboxClass {
   return "other";
 }
 
-// Heuristic: does this email look job-application related (worth importing)?
+// Heuristic: is this a genuine job-application reply (worth importing)?
+// Strict on purpose — newsletters and product notifications must NOT match.
 export function looksJobRelated(from: string, subject: string, body: string): boolean {
-  const hay = `${from} ${subject} ${body}`.toLowerCase();
-  const sources = /(greenhouse|lever|ashby|workday|smartrecruiters|bamboohr|icims|myworkday|jobvite|workable|recruit|talent|careers|hiring|no-?reply.*jobs)/;
-  const terms = /(application|applying|applied|interview|position|role|candidate|recruit|job|opening|opportunity)/;
-  return sources.test(hay) || terms.test(`${subject} ${body.slice(0, 400)}`);
+  const f = from.toLowerCase();
+  const head = `${subject} ${body.slice(0, 800)}`.toLowerCase();
+
+  // Strong sender signal: ATS / recruiting domains and mailboxes.
+  const atsSender =
+    /(greenhouse-mail|greenhouse\.io|lever\.co|hire\.lever|ashbyhq|myworkday|workday|smartrecruiters|bamboohr|icims|jobvite|workable|teamtailor|recruitee|ripplematch|jobs\.|@careers|@talent|@recruit(ing)?|@hr[.@]|no-?reply.*(careers|jobs|talent|recruit))/.test(f);
+
+  // Strong content signal: phrases specific to an application's lifecycle.
+  const appPhrase =
+    /\b(your application|application (to|for|has been received|was received|status|update|confirmation)|thank you for (applying|your application|your interest in (the|this|our))|we (have )?received your application|regarding your application|your candidacy|you applied (to|for)|we have reviewed your|for the (position|role) (of|you)|invite you to (an? )?interview|schedule (an?|your) interview|interview (invitation|request)|move forward (with|to)|not (be )?moving forward|not selected for)\b/.test(head);
+
+  return atsSender || appPhrase;
 }

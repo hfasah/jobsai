@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { classifyEmail, looksJobRelated, type InboxClass } from "@/lib/inbox";
+import { classifyEmail, type InboxClass } from "@/lib/inbox";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
@@ -144,12 +144,44 @@ async function getMessage(accessToken: string, id: string): Promise<ParsedEmail 
 
 // ─── Sync ─────────────────────────────────────────────────────────────────────
 
+// Companies in the user's JobsAI pipeline — we only ingest emails about these.
+export async function getTrackedCompanies(userId: string): Promise<string[]> {
+  const { data } = await supabaseAdmin
+    .from("jobs")
+    .select("parsed:job_parsed(parsed_json)")
+    .eq("user_id", userId)
+    .limit(500);
+  const set = new Set<string>();
+  for (const r of data ?? []) {
+    const rel = (r as { parsed?: unknown }).parsed;
+    const pj = (Array.isArray(rel) ? (rel[0] as { parsed_json?: { company?: string } })?.parsed_json : (rel as { parsed_json?: { company?: string } })?.parsed_json);
+    const c = String(pj?.company ?? "").toLowerCase().trim();
+    if (c.length > 2) set.add(c);
+  }
+  return [...set];
+}
+
+export function mentionsCompany(text: string, companies: string[]): boolean {
+  const t = text.toLowerCase();
+  for (const c of companies) {
+    if (t.includes(c)) return true;
+    const token = c.split(/[\s,.]+/)[0];
+    if (token.length > 3 && new RegExp(`\\b${token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(t)) return true;
+  }
+  return false;
+}
+
 export async function syncInbox(userId: string): Promise<{ imported: number }> {
   const token = await getValidAccessToken(userId);
   if (!token) return { imported: 0 };
 
-  const q = encodeURIComponent("newer_than:45d -from:me");
-  const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=60`, {
+  // Only pull emails about companies the user is actually pursuing in JobsAI.
+  const companies = await getTrackedCompanies(userId);
+  if (!companies.length) return { imported: 0 };
+
+  const orq = companies.slice(0, 25).map((c) => `"${c.replace(/"/g, "")}"`).join(" OR ");
+  const q = encodeURIComponent(`(${orq}) newer_than:90d -from:me`);
+  const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=100`, {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!listRes.ok) return { imported: 0 };
@@ -170,7 +202,8 @@ export async function syncInbox(userId: string): Promise<{ imported: number }> {
     if (have.has(id)) continue;
     const msg = await getMessage(token, id);
     if (!msg) continue;
-    if (!looksJobRelated(`${msg.from.name} ${msg.from.email}`, msg.subject, msg.text)) continue;
+    // Confirm it genuinely mentions a tracked company (Gmail OR can be loose).
+    if (!mentionsCompany(`${msg.from.name} ${msg.from.email} ${msg.subject} ${msg.text}`, companies)) continue;
 
     const classification: InboxClass = classifyEmail(msg.subject, msg.text);
     const { error } = await supabaseAdmin.from("inbox_messages").insert({
