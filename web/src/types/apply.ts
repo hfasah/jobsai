@@ -13,6 +13,37 @@ export interface ApplyProfile {
   country: string | null;
   authorized_to_work: boolean;
   requires_sponsorship: boolean;
+  // Role & experience
+  employment_status: string | null;
+  target_experience_level: string | null;
+  industry: string | null;
+  willing_to_relocate: boolean;
+  available_from: string | null;
+  // Personal / address
+  address_line1: string | null;
+  address_line2: string | null;
+  postal_code: string | null;
+  date_of_birth: string | null;
+  // Eligibility
+  work_auth_us: string | null;
+  work_auth_canada: string | null;
+  security_clearance: string | null;
+  has_drivers_license: boolean;
+  // Education & certifications
+  highest_education: string | null;
+  university: string | null;
+  certifications: string[];
+  // Voluntary self-identification (EEO)
+  race_ethnicity: string | null;
+  nationality: string | null;
+  gender_identity: string | null;
+  sexual_orientation: string | null;
+  transgender: string | null;
+  disability_status: string | null;
+  veteran_status: string | null;
+  // Application behaviour
+  cc_email: string | null;
+  application_mode: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -62,19 +62,53 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });
 
+  const s = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   const update: ApplyProfileUpdate = {
-    first_name:          body.first_name ?? null,
-    last_name:           body.last_name  ?? null,
-    email:               body.email      ?? null,
-    phone:               body.phone      ?? null,
-    linkedin_url:        body.linkedin_url  ?? null,
-    github_url:          body.github_url    ?? null,
-    portfolio_url:       body.portfolio_url ?? null,
-    website_url:         body.website_url   ?? null,
-    city:                body.city    ?? null,
-    country:             body.country ?? null,
+    first_name:          s(body.first_name),
+    last_name:           s(body.last_name),
+    email:               s(body.email),
+    phone:               s(body.phone),
+    linkedin_url:        s(body.linkedin_url),
+    github_url:          s(body.github_url),
+    portfolio_url:       s(body.portfolio_url),
+    website_url:         s(body.website_url),
+    city:                s(body.city),
+    country:             s(body.country),
     authorized_to_work:  body.authorized_to_work  !== false,
     requires_sponsorship: body.requires_sponsorship === true,
+    // Role & experience
+    employment_status:        s(body.employment_status),
+    target_experience_level:  s(body.target_experience_level),
+    industry:                 s(body.industry),
+    willing_to_relocate:      body.willing_to_relocate === true,
+    available_from:           s(body.available_from),
+    // Personal / address
+    address_line1:            s(body.address_line1),
+    address_line2:            s(body.address_line2),
+    postal_code:              s(body.postal_code),
+    date_of_birth:            s(body.date_of_birth),
+    // Eligibility
+    work_auth_us:             s(body.work_auth_us),
+    work_auth_canada:         s(body.work_auth_canada),
+    security_clearance:       s(body.security_clearance),
+    has_drivers_license:      body.has_drivers_license === true,
+    // Education & certifications
+    highest_education:        s(body.highest_education),
+    university:               s(body.university),
+    certifications:           Array.isArray(body.certifications)
+      ? body.certifications.map((c: unknown) => String(c).trim()).filter(Boolean)
+      : [],
+    // Voluntary self-identification
+    race_ethnicity:           s(body.race_ethnicity),
+    nationality:              s(body.nationality),
+    gender_identity:          s(body.gender_identity),
+    sexual_orientation:       s(body.sexual_orientation),
+    transgender:              s(body.transgender),
+    disability_status:        s(body.disability_status),
+    veteran_status:           s(body.veteran_status),
+    // Application behaviour
+    cc_email:                 s(body.cc_email),
+    application_mode:         s(body.application_mode) ?? "review",
   };
 
   const { data, error } = await supabaseAdmin
