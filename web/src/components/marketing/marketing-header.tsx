@@ -3,12 +3,12 @@ import { ArrowRight } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 
 const NAV = [
-  { href: "#home", label: "Home" },
-  { href: "#how", label: "How it works" },
-  { href: "#features", label: "Features" },
-  { href: "#interview", label: "Interview Prep" },
-  { href: "#pricing", label: "Pricing" },
-  { href: "#faq", label: "FAQ" },
+  { href: "/#how", label: "How it works" },
+  { href: "/#features", label: "Features" },
+  { href: "/#interview", label: "Interview Prep" },
+  { href: "/salaries", label: "Salaries" },
+  { href: "/#pricing", label: "Pricing" },
+  { href: "/#faq", label: "FAQ" },
 ];
 
 // Landing-only header (dark). Signed-in users are redirected to /dashboard before
