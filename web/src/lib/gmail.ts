@@ -172,23 +172,25 @@ export function mentionsCompany(text: string, companies: string[]): boolean {
   return false;
 }
 
-export async function syncInbox(userId: string): Promise<{ imported: number }> {
+export interface SyncInterview { id: string; subject: string; body: string; fromName: string; fromEmail: string }
+
+export async function syncInbox(userId: string): Promise<{ imported: number; interviews: SyncInterview[] }> {
   const token = await getValidAccessToken(userId);
-  if (!token) return { imported: 0 };
+  if (!token) return { imported: 0, interviews: [] };
 
   // Only pull emails about companies the user is actually pursuing in JobsAI.
   const companies = await getTrackedCompanies(userId);
-  if (!companies.length) return { imported: 0 };
+  if (!companies.length) return { imported: 0, interviews: [] };
 
   const orq = companies.slice(0, 25).map((c) => `"${c.replace(/"/g, "")}"`).join(" OR ");
   const q = encodeURIComponent(`(${orq}) newer_than:90d -from:me`);
   const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=100`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!listRes.ok) return { imported: 0 };
+  if (!listRes.ok) return { imported: 0, interviews: [] };
   const list = (await listRes.json()) as { messages?: { id: string }[] };
   const ids = (list.messages ?? []).map((x) => x.id);
-  if (!ids.length) return { imported: 0 };
+  if (!ids.length) return { imported: 0, interviews: [] };
 
   // Skip ones we already have.
   const { data: existing } = await supabaseAdmin
@@ -199,6 +201,7 @@ export async function syncInbox(userId: string): Promise<{ imported: number }> {
   const have = new Set((existing ?? []).map((e) => e.provider_message_id));
 
   let imported = 0;
+  const interviews: SyncInterview[] = [];
   for (const id of ids) {
     if (have.has(id)) continue;
     const msg = await getMessage(token, id);
@@ -207,7 +210,7 @@ export async function syncInbox(userId: string): Promise<{ imported: number }> {
     if (!mentionsCompany(`${msg.from.name} ${msg.from.email} ${msg.subject} ${msg.text}`, companies)) continue;
 
     const classification: InboxClass = classifyEmail(msg.subject, msg.text);
-    const { error } = await supabaseAdmin.from("inbox_messages").insert({
+    const { data: inserted, error } = await supabaseAdmin.from("inbox_messages").insert({
       user_id: userId,
       direction: "inbound",
       from_email: msg.from.email,
@@ -220,12 +223,17 @@ export async function syncInbox(userId: string): Promise<{ imported: number }> {
       provider_thread_id: msg.threadId,
       rfc_message_id: msg.rfcMessageId,
       received_at: msg.date ? new Date(msg.date).toISOString() : new Date().toISOString(),
-    });
-    if (!error) imported++;
+    }).select("id").single();
+    if (!error) {
+      imported++;
+      if (inserted && classification === "interview") {
+        interviews.push({ id: inserted.id, subject: msg.subject, body: msg.text, fromName: msg.from.name, fromEmail: msg.from.email });
+      }
+    }
   }
 
   await supabaseAdmin.from("email_accounts").update({ last_synced_at: new Date().toISOString() }).eq("user_id", userId);
-  return { imported };
+  return { imported, interviews };
 }
 
 // ─── Send (reply as the user) ─────────────────────────────────────────────────

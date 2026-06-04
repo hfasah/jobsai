@@ -6,7 +6,8 @@ export type NotificationType =
   | "high_match"
   | "discovery_summary"
   | "plan_upgraded"
-  | "pending_approval";
+  | "pending_approval"
+  | "interview";
 
 // Fire-and-forget — never throws, never blocks the caller
 export async function createNotification(
