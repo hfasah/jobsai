@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MatchDetail } from "@/components/job/match-score";
+import { ResumeUsedBadge } from "@/components/job/resume-used-badge";
 import { JobTabs } from "@/components/job/job-tabs";
 import type { TabKey } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
@@ -177,6 +178,7 @@ export default function JobDetailPage({
               {parsed?.seniority && (
                 <span className="flex items-center gap-1 capitalize"><Briefcase className="h-4 w-4" />{parsed.seniority}</span>
               )}
+              {!processing && <ResumeUsedBadge jobId={jobId} />}
             </div>
             {parsed?.compensation && (
               <p className="mt-1 text-sm font-medium text-desyn-success">{parsed.compensation}</p>
