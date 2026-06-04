@@ -99,10 +99,10 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
                       <ArrowRight className="h-5 w-5" />
                     </Link>
                     <Link
-                      href="/#pricing"
+                      href="/sign-in?redirect_url=/onboarding"
                       className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-card/60 px-6 py-3 text-base font-semibold text-foreground backdrop-blur transition-colors hover:bg-white/5"
                     >
-                      See pricing
+                      Upload Resume
                     </Link>
                   </div>
                 </div>
@@ -153,10 +153,10 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
                   <ArrowRight className="h-5 w-5" />
                 </Link>
                 <Link
-                  href="/#pricing"
+                  href="/sign-in?redirect_url=/onboarding"
                   className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-card/60 px-6 py-3 text-sm font-semibold text-foreground backdrop-blur transition-colors hover:bg-white/5"
                 >
-                  See pricing
+                  Upload Resume
                 </Link>
               </div>
 
