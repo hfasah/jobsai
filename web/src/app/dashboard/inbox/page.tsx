@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Mail, RefreshCw, Loader2, Send, Sparkles, Inbox as InboxIcon,
-  Reply, Building2, Clock, Plug, AlertCircle, Check, Trash2, Filter,
+  Reply, Building2, Clock, Plug, AlertCircle, Check, Trash2, Filter, CalendarPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CLASS_LABELS, type InboxClass } from "@/lib/inbox";
@@ -46,6 +46,8 @@ export default function InboxPage() {
   const [replyText, setReplyText] = useState("");
   const [replyState, setReplyState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [aiLoading, setAiLoading] = useState(false);
+  const [schedState, setSchedState] = useState<"idle" | "loading" | "added" | "none" | "error">("idle");
+  const [schedLink, setSchedLink] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     const res = await fetch("/api/inbox");
@@ -77,8 +79,20 @@ export default function InboxPage() {
     setData((d) => d ? { ...d, messages: d.messages.filter((x) => x.id !== m.id) } : d);
   }
 
+  async function schedule() {
+    if (!selected) return;
+    setSchedState("loading"); setSchedLink(null);
+    try {
+      const res = await fetch(`/api/inbox/${selected.id}/schedule`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok) { setSchedState("error"); return; }
+      if (json.data?.found) { setSchedState("added"); setSchedLink(json.data.htmlLink ?? null); }
+      else setSchedState("none");
+    } catch { setSchedState("error"); }
+  }
+
   async function select(m: Msg) {
-    setSelected(m); setReplyOpen(false); setReplyText(""); setReplyState("idle");
+    setSelected(m); setReplyOpen(false); setReplyText(""); setReplyState("idle"); setSchedState("idle"); setSchedLink(null);
     if (!m.is_read && m.direction === "inbound") {
       fetch(`/api/inbox/${m.id}/read`, { method: "POST" }).catch(() => {});
       setData((d) => d ? { ...d, messages: d.messages.map((x) => x.id === m.id ? { ...x, is_read: true } : x), unread: Math.max(0, d.unread - 1) } : d);
@@ -148,6 +162,10 @@ export default function InboxPage() {
           <p className="mt-0.5 text-sm text-muted-foreground">{data.email} {data.lastSynced && <>· synced {ago(data.lastSynced)} ago</>}</p>
         </div>
         <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages -- API route, needs a full navigation */}
+          <a href="/api/inbox/connect" title="Re-grant access (e.g. to enable Calendar)" className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <Plug className="h-4 w-4" /> Reconnect
+          </a>
           <button onClick={tidy} disabled={syncing} title="Remove non-job emails" className="inline-flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60">
             <Filter className="h-4 w-4" /> Tidy up
           </button>
@@ -224,9 +242,22 @@ export default function InboxPage() {
               {selected.direction === "inbound" && selected.from_email && (
                 <div className="mt-6 border-t border-border pt-5">
                   {!replyOpen ? (
-                    <button onClick={() => setReplyOpen(true)} className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm">
-                      <Reply className="h-4 w-4" /> Reply
-                    </button>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <button onClick={() => setReplyOpen(true)} className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm">
+                        <Reply className="h-4 w-4" /> Reply
+                      </button>
+                      <button onClick={schedule} disabled={schedState === "loading"}
+                        className="inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2.5 text-sm font-medium text-foreground hover:bg-muted disabled:opacity-60">
+                        {schedState === "loading" ? <><Loader2 className="h-4 w-4 animate-spin" /> Checking…</> : <><CalendarPlus className="h-4 w-4" /> Add to calendar</>}
+                      </button>
+                      {schedState === "added" && (
+                        <a href={schedLink ?? "#"} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 hover:underline">
+                          <Check className="h-3.5 w-3.5" /> Added — view event
+                        </a>
+                      )}
+                      {schedState === "none" && <span className="text-xs text-muted-foreground">No specific time found in this email.</span>}
+                      {schedState === "error" && <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5" /> Couldn&apos;t add</span>}
+                    </div>
                   ) : (
                     <div>
                       <div className="mb-2 flex items-center justify-between">

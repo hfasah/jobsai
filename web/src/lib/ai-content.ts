@@ -196,6 +196,43 @@ export async function buildSkillResume(
   return JSON.parse(content) as SkillBuildResult;
 }
 
+// ─── Interview-time extraction (for calendar) ─────────────────────────────────
+export interface InterviewEvent {
+  found: boolean;
+  summary: string;
+  startISO: string | null;   // ISO 8601, include the timezone offset when known
+  endISO: string | null;
+  timeZone: string | null;   // IANA zone if mentioned, else null
+  location: string | null;   // video link / phone / address
+  notes: string | null;
+}
+
+export async function extractInterviewEvent(
+  subject: string,
+  body: string,
+  todayISO: string
+): Promise<InterviewEvent> {
+  const sys = `You extract a concrete interview/call time from a recruiter email so it can be added to a calendar. Return ONLY valid JSON.
+Today is ${todayISO}. Resolve relative dates (e.g. "this Tuesday at 2pm ET") to a concrete ISO 8601 datetime WITH a timezone offset. If a timezone like ET/PT is given, use the correct offset for that date.
+If no single concrete date AND time is stated, set found=false. If only a date with no time, found=false.
+Default the meeting length to 45 minutes when an end time isn't given.
+Schema:
+{ "found": <bool>, "summary": "Interview — <company/role if known>", "startISO": "<ISO8601 with offset, or null>", "endISO": "<ISO8601 with offset, or null>", "timeZone": "<IANA zone or null>", "location": "<video link / phone / address, or null>", "notes": "<short context, or null>" }`;
+
+  const res = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: sys },
+      { role: "user", content: `Subject: ${subject}\n\n${body.slice(0, 5000)}` },
+    ],
+    temperature: 0,
+    response_format: { type: "json_object" },
+  });
+  const content = res.choices[0]?.message?.content;
+  if (!content) return { found: false, summary: "", startISO: null, endISO: null, timeZone: null, location: null, notes: null };
+  return JSON.parse(content) as InterviewEvent;
+}
+
 // ─── Inbox reply draft ────────────────────────────────────────────────────────
 export async function draftInboxReply(
   incomingSubject: string,
