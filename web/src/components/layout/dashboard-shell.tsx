@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import {
-  LayoutGrid, Zap, Search, Briefcase, Plus, CheckCircle2, Inbox,
+  LayoutGrid, Zap, Search, ScanSearch, Briefcase, Plus, CheckCircle2, Inbox,
   FileText, Sparkles, Send,
   Mic, MessageSquareText, Video, Headphones,
   BarChart3, Settings2, CreditCard,
@@ -28,6 +28,7 @@ const SECTIONS: NavSection[] = [
   {
     heading: "Auto Apply", icon: Zap,
     items: [
+      { label: "Job Search", href: "/dashboard/job-search", icon: ScanSearch },
       { label: "Discover Jobs", href: "/dashboard/discover", icon: Search },
       { label: "My Jobs", href: "/dashboard/jobs", icon: Briefcase },
       { label: "Import a Job", href: "/dashboard/jobs/import", icon: Plus },
