@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Search, MapPin, Loader2, Briefcase, Building2, DollarSign, Clock,
-  ExternalLink, Download, Check, ChevronLeft, ChevronRight, Wifi, AlertCircle, Zap,
+  ExternalLink, ChevronLeft, ChevronRight, Wifi, AlertCircle, Zap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -78,8 +79,9 @@ export default function JobSearchPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SearchJob | null>(null);
-  const [imported, setImported] = useState<Record<string, "loading" | "done" | "error">>({});
+  const [acting, setActing] = useState<Record<string, "loading" | "error" | "upgrade">>({});
   const reqId = useRef(0);
+  const router = useRouter();
 
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, id: string) =>
     setter((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
@@ -122,18 +124,25 @@ export default function JobSearchPage() {
 
   const onSubmit = (e: React.FormEvent) => { e.preventDefault(); run(1); };
 
-  async function importJob(job: SearchJob) {
+  // Apply inside JobsAI: import the job, then drop the user on the in-app job
+  // page where tailoring + auto-apply happen. No external redirect.
+  async function applyInternal(job: SearchJob) {
     if (!job.url) return;
-    setImported((m) => ({ ...m, [job.id]: "loading" }));
+    setActing((m) => ({ ...m, [job.id]: "loading" }));
     try {
       const res = await fetch("/api/jobs/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: job.url }),
       });
-      setImported((m) => ({ ...m, [job.id]: res.ok ? "done" : "error" }));
+      const json = await res.json().catch(() => ({}));
+      if (res.ok && json.job_id) {
+        router.push(`/dashboard/jobs/${json.job_id}`);
+        return;
+      }
+      setActing((m) => ({ ...m, [job.id]: res.status === 402 ? "upgrade" : "error" }));
     } catch {
-      setImported((m) => ({ ...m, [job.id]: "error" }));
+      setActing((m) => ({ ...m, [job.id]: "error" }));
     }
   }
 
@@ -360,24 +369,31 @@ export default function JobSearchPage() {
                 {selected.postedAt && <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-muted-foreground"><Clock className="h-3 w-3" /> {ago(selected.postedAt)}</span>}
               </div>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                <a href={selected.url} target="_blank" rel="noopener noreferrer" className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm">
-                  Apply <ExternalLink className="h-4 w-4" />
-                </a>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button
-                  onClick={() => importJob(selected)}
-                  disabled={imported[selected.id] === "loading" || imported[selected.id] === "done"}
-                  className="inline-flex items-center gap-2 rounded-lg border border-border px-5 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+                  onClick={() => applyInternal(selected)}
+                  disabled={acting[selected.id] === "loading"}
+                  className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm disabled:opacity-70"
                 >
-                  {imported[selected.id] === "loading" ? <><Loader2 className="h-4 w-4 animate-spin" /> Importing…</>
-                    : imported[selected.id] === "done" ? <><Check className="h-4 w-4 text-emerald-400" /> Imported</>
-                    : imported[selected.id] === "error" ? <><AlertCircle className="h-4 w-4 text-destructive" /> Try again</>
-                    : <><Download className="h-4 w-4" /> Import to tailor</>}
+                  {acting[selected.id] === "loading"
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Preparing…</>
+                    : <><Zap className="h-4 w-4" /> Apply with JobsAI</>}
                 </button>
-                {imported[selected.id] === "done" && (
-                  <Link href="/dashboard/jobs" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2.5 text-sm font-medium text-primary hover:underline">
-                    <Zap className="h-4 w-4" /> Go to My Jobs
+                <a
+                  href={selected.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                >
+                  View original posting <ExternalLink className="h-3.5 w-3.5" />
+                </a>
+                {acting[selected.id] === "upgrade" && (
+                  <Link href="/dashboard/billing" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
+                    Upgrade to apply
                   </Link>
+                )}
+                {acting[selected.id] === "error" && (
+                  <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5" /> Couldn&apos;t import — try again.</span>
                 )}
               </div>
 
