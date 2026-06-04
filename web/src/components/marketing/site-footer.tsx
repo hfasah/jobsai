@@ -59,6 +59,7 @@ const COLUMNS: FooterCol[] = [
   {
     heading: "Resources",
     links: [
+      { label: "Salaries", href: "/salaries" },
       { label: "How it works", href: "#how" },
       { label: "All features", href: "#all-features" },
       { label: "Pricing", href: "#pricing" },
