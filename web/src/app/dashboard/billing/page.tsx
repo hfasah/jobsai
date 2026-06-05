@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Loader2, CheckCircle2, Zap, Crown, Rocket, Mic,
-  ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins,
+  ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins, X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -95,6 +95,224 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
   );
 }
 
+// ─── Cancel modal ─────────────────────────────────────────────────────────────
+
+const CANCEL_REASONS: { group: string; items: string[] }[] = [
+  {
+    group: "Price",
+    items: [
+      "Too expensive for the value I got",
+      "Too expensive for my budget",
+      "Found a cheaper alternative",
+    ],
+  },
+  {
+    group: "Results",
+    items: [
+      "Didn't land interviews as expected",
+      "Auto-apply volume wasn't enough",
+      "Application quality wasn't good enough",
+    ],
+  },
+  {
+    group: "Usage",
+    items: [
+      "Didn't use JobsAI enough",
+      "Changed my job search strategy",
+      "Already landed a job 🎉",
+    ],
+  },
+  {
+    group: "Other",
+    items: [
+      "Technical issues with JobsAI",
+      "Missing features I need",
+      "Switching to a different tool",
+    ],
+  },
+];
+
+const OFFER_PLANS: { plan: PaidPlan; label: string; monthly: number }[] = [
+  { plan: "pro",         label: "Pro",              monthly: 29  },
+  { plan: "premium",     label: "Premium",          monthly: 79  },
+  { plan: "accelerator", label: "Career Accelerator", monthly: 199 },
+];
+
+function CancelModal({ currentPlan, onGoToPortal, onClose }: {
+  currentPlan: Plan; onGoToPortal: () => void; onClose: () => void;
+}) {
+  const [step, setStep] = useState<"survey" | "offer" | "wait_sent" | "claimed">("survey");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState<"cancel" | "wait" | "claim" | null>(null);
+
+  const toggle = (item: string) =>
+    setSelected((s) => { const n = new Set(s); if (n.has(item)) { n.delete(item); } else { n.add(item); } return n; });
+
+  const sendFeedback = async (wait: boolean) => {
+    setSubmitting(wait ? "wait" : "cancel");
+    try {
+      await fetch("/api/billing/cancel-feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reasons: [...selected], comment, wait }),
+      });
+    } catch (_) { void _; }
+    setSubmitting(null);
+    setStep(wait ? "wait_sent" : "offer");
+  };
+
+  const claimDiscount = async () => {
+    setSubmitting("claim");
+    try {
+      await fetch("/api/billing/retention-offer", { method: "POST" });
+    } catch (_) { void _; }
+    setSubmitting(null);
+    setStep("claimed");
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-lg overflow-y-auto rounded-2xl border border-border bg-card shadow-xl max-h-[90vh]">
+        <button onClick={onClose} className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground">
+          <X className="h-5 w-5" />
+        </button>
+
+        {/* ── Survey ── */}
+        {step === "survey" && (
+          <div className="p-6">
+            <h2 className="text-lg font-bold text-foreground">Cancel Subscription</h2>
+            <p className="mt-1 text-sm text-muted-foreground">Help us improve — what&apos;s the main reason you&apos;re cancelling?</p>
+            <div className="mt-5 space-y-5">
+              {CANCEL_REASONS.map(({ group, items }) => (
+                <div key={group}>
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group}</p>
+                  <div className="space-y-1.5">
+                    {items.map((item) => (
+                      <label key={item} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/50">
+                        <input type="checkbox" checked={selected.has(item)} onChange={() => toggle(item)} className="h-4 w-4 rounded border-border accent-primary" />
+                        <span className="text-sm text-foreground">{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mt-5">
+              <label className="mb-1.5 block text-sm font-medium text-foreground">
+                What&apos;s the main reason you&apos;re cancelling? <span className="text-muted-foreground">(Required)</span>
+              </label>
+              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Tell us more…"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">We&apos;ll notify you if we make any changes based on your feedback.</p>
+            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
+              <button onClick={() => sendFeedback(false)} disabled={submitting !== null || !comment.trim()}
+                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50">
+                {submitting === "cancel" && <Loader2 className="h-4 w-4 animate-spin" />}
+                Continue to Cancellation
+              </button>
+              <button onClick={() => sendFeedback(true)} disabled={submitting !== null || !comment.trim()}
+                className="btn-cta inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
+                {submitting === "wait" && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send to Team &amp; Wait
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Retention offer ── */}
+        {step === "offer" && (
+          <div className="p-6">
+            <h2 className="text-lg font-bold text-foreground">Cancel Subscription</h2>
+            <p className="mt-3 text-sm font-semibold text-foreground">Before You Go — Here&apos;s a Better Option</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Stay with JobsAI and keep access to Auto Apply, Resume Tailoring, and all your unused tokens — without losing progress.
+            </p>
+            <p className="mt-3 text-sm font-semibold text-cta">
+              Instead of cancelling, enjoy 30% off for the next 3 months on any plan.
+            </p>
+
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {OFFER_PLANS.map(({ plan, label, monthly }) => {
+                const discounted = Math.round(monthly * 0.7 * 100) / 100;
+                const save = Math.round((monthly - discounted) * 100) / 100;
+                const isCurrent = plan === currentPlan;
+                return (
+                  <div key={plan} className={cn(
+                    "rounded-xl border p-3 text-center transition-colors",
+                    isCurrent ? "border-cta bg-cta text-cta-foreground" : "border-border bg-card"
+                  )}>
+                    <p className={cn("text-xs font-semibold", isCurrent ? "text-cta-foreground" : "text-foreground")}>{label}</p>
+                    <p className={cn("mt-1 text-xl font-bold", isCurrent ? "text-cta-foreground" : "text-foreground")}>
+                      ${discounted}<span className="text-xs font-normal">/mo</span>
+                    </p>
+                    <p className={cn("mt-0.5 text-xs line-through", isCurrent ? "text-cta-foreground/60" : "text-muted-foreground")}>
+                      ${monthly} /mo for 3 months
+                    </p>
+                    <p className={cn("mt-1 text-xs font-medium", isCurrent ? "text-cta-foreground/80" : "text-muted-foreground")}>
+                      Save ${save}/month
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+
+            <p className="mt-3 text-center text-xs text-muted-foreground">(Billed monthly — You save 30%)</p>
+
+            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+              <button onClick={onGoToPortal}
+                className="inline-flex flex-1 items-center justify-center rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
+                Continue to Cancellation
+              </button>
+              <button onClick={claimDiscount} disabled={submitting === "claim"}
+                className="btn-cta inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+                {submitting === "claim" && <Loader2 className="h-4 w-4 animate-spin" />}
+                Claim 30% Off &amp; Keep Subscription
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Success: wait sent ── */}
+        {step === "wait_sent" && (
+          <div className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-desyn-success/15">
+              <CheckCircle2 className="h-7 w-7 text-desyn-success" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-foreground">Got it — we&apos;re on it.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your feedback has been sent to the team. We&apos;ll reach out if we ship something that addresses your concern. Your subscription is still active.
+              </p>
+            </div>
+            <button onClick={onClose} className="mt-2 inline-flex items-center justify-center rounded-xl bg-gradient-brand px-6 py-2.5 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90">
+              Back to billing
+            </button>
+          </div>
+        )}
+
+        {/* ── Success: discount claimed ── */}
+        {step === "claimed" && (
+          <div className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cta/15">
+              <CheckCircle2 className="h-7 w-7 text-cta" />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-foreground">30% off applied! 🎉</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Your discount is active for the next 3 months. Keep applying — your next interview is closer than you think.
+              </p>
+            </div>
+            <button onClick={onClose} className="mt-2 btn-cta inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-semibold">
+              Back to billing
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function BillingPage() {
@@ -107,9 +325,11 @@ function BillingContent() {
   const [tokens, setTokens] = useState<TokenData | null>(null);
   const [loading, setLoading] = useState(true);
   const [interval, setInterval] = useState<BillingInterval>("yearly");
+  const [currency, setCurrency] = useState("usd");
   const [upgrading, setUpgrading] = useState<string | null>(null);
   const [buyingPack, setBuyingPack] = useState<string | null>(null);
   const [portaling, setPortaling] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
@@ -151,7 +371,7 @@ function BillingContent() {
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval }),
+        body: JSON.stringify({ plan, interval, currency }),
       });
       const json = await res.json();
       if (json.url) window.location.href = json.url;
@@ -172,13 +392,17 @@ function BillingContent() {
     } catch { setBuyingPack(null); }
   };
 
-  const manageSubscription = async () => {
+  const openPortal = async () => {
     setPortaling(true);
     try {
       const res = await fetch("/api/billing/portal", { method: "POST" });
       const json = await res.json();
       if (json.url) window.location.href = json.url;
     } finally { setPortaling(false); }
+  };
+
+  const manageSubscription = (currentPlan: string) => {
+    if (currentPlan !== "free") { setShowCancelModal(true); } else { openPortal(); }
   };
 
   if (loading) {
@@ -233,7 +457,7 @@ function BillingContent() {
                   <p className="font-semibold">{meta.label} plan</p>
                 </div>
                 {isPaid && (
-                  <Button variant="outline" size="sm" onClick={manageSubscription} disabled={portaling}>
+                  <Button variant="outline" size="sm" onClick={() => manageSubscription(plan)} disabled={portaling}>
                     {portaling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-1.5 h-3.5 w-3.5" />}
                     Manage
                   </Button>
@@ -292,18 +516,29 @@ function BillingContent() {
 
           {/* Upgrade tiers */}
           <section>
-            <div className="mb-4 flex items-center justify-between">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold">{isPaid ? "Change plan" : "Upgrade your plan"}</h2>
-              {/* interval toggle */}
-              <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs">
-                <button onClick={() => setInterval("monthly")}
-                  className={cn("rounded-full px-3 py-1 font-medium transition-colors", interval === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
-                  Monthly
-                </button>
-                <button onClick={() => setInterval("yearly")}
-                  className={cn("flex items-center gap-1 rounded-full px-3 py-1 font-medium transition-colors", interval === "yearly" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
-                  Yearly <span className="rounded-full bg-desyn-success/15 px-1 text-[10px] font-bold text-desyn-success">−20%</span>
-                </button>
+              <div className="flex items-center gap-2">
+                {/* currency selector */}
+                <div className="inline-flex items-center gap-0.5 rounded-full border border-border bg-card p-1 text-xs">
+                  {(["usd", "cad", "gbp", "eur"] as const).map((c) => (
+                    <button key={c} onClick={() => setCurrency(c)}
+                      className={cn("rounded-full px-2.5 py-1 font-medium uppercase transition-colors", currency === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                {/* interval toggle */}
+                <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs">
+                  <button onClick={() => setInterval("monthly")}
+                    className={cn("rounded-full px-3 py-1 font-medium transition-colors", interval === "monthly" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+                    Monthly
+                  </button>
+                  <button onClick={() => setInterval("yearly")}
+                    className={cn("flex items-center gap-1 rounded-full px-3 py-1 font-medium transition-colors", interval === "yearly" ? "bg-primary text-primary-foreground" : "text-muted-foreground")}>
+                    Yearly <span className="rounded-full bg-desyn-success/15 px-1 text-[10px] font-bold text-desyn-success">−20%</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -338,7 +573,7 @@ function BillingContent() {
                       variant={popular ? "default" : "outline"}
                       className="mt-5 w-full"
                       disabled={upgrading !== null || current}
-                      onClick={() => (isPaid ? manageSubscription() : upgrade(tier))}
+                      onClick={() => (isPaid ? openPortal() : upgrade(tier))}
                     >
                       {upgrading === tier ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                       {current ? "Current plan" : isPaid ? "Switch" : <>Choose {PLAN_META[tier].label} <ArrowRight className="ml-1 h-4 w-4" /></>}
@@ -378,6 +613,14 @@ function BillingContent() {
           </section>
         </div>
       </main>
+
+      {showCancelModal && (
+        <CancelModal
+          currentPlan={plan}
+          onGoToPortal={() => { setShowCancelModal(false); openPortal(); }}
+          onClose={() => setShowCancelModal(false)}
+        />
+      )}
     </>
   );
 }
