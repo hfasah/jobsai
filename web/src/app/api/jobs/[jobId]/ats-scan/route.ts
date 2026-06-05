@@ -55,6 +55,7 @@ export async function POST(
         job_id: jobId,
         resume_version_id: ctx.resumeVersionId,
         score: result.score,
+        summary: result.summary ?? null,
         breakdown: result.breakdown,
         weaknesses: result.weaknesses ?? [],
         formatting_issues: result.formatting_issues ?? [],

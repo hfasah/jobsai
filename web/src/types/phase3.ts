@@ -5,6 +5,7 @@ export interface AtsScan {
   job_id: string;
   resume_version_id: string;
   score: number;
+  summary?: string;
   breakdown: AtsBreakdown;
   weaknesses: AtsWeakness[];
   formatting_issues: AtsFormattingIssue[];
@@ -16,11 +17,16 @@ export interface AtsScan {
 }
 
 export interface AtsBreakdown {
-  keyword_alignment?: number;   // /40
-  experience_relevance?: number; // /25
-  formatting?: number;          // /20
-  readability?: number;         // /10
-  buzzwords_penalty?: number;   // -5..0
+  keyword_alignment?: number;
+  keyword_alignment_reason?: string;
+  experience_relevance?: number;
+  experience_relevance_reason?: string;
+  formatting?: number;
+  formatting_reason?: string;
+  readability?: number;
+  readability_reason?: string;
+  buzzwords_penalty?: number;
+  buzzwords_penalty_reason?: string;
 }
 
 export interface AtsWeakness {

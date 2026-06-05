@@ -39,6 +39,7 @@ function jobSlim(job: ParsedJobJson) {
 // ─── ATS Scan ────────────────────────────────────────────────────────────────
 export interface AtsResult {
   score: number;
+  summary?: string;
   breakdown: AtsBreakdown;
   weaknesses: AtsWeakness[];
   formatting_issues: AtsFormattingIssue[];
@@ -48,29 +49,45 @@ export interface AtsResult {
   ats_risks: string[];
 }
 
-const ATS_SYSTEM = `You are an ATS (Applicant Tracking System) resume analyzer.
+const ATS_SYSTEM = `You are an expert ATS (Applicant Tracking System) resume analyzer.
 Evaluate the resume against the target job and return ONLY valid JSON — no markdown.
 
-Scoring (components sum to the total, 0-100):
-- keyword_alignment: 0-40 (how well resume keywords match required job skills)
-- experience_relevance: 0-25 (relevance of work history to the role)
-- formatting: 0-20 (ATS-parseable structure, clear sections, standard headings)
-- readability: 0-10 (clarity, concision, quantified impact)
-- buzzwords_penalty: -5 to 0 (deduct for empty buzzwords without evidence)
+Scoring (components, 0-100 total):
+- keyword_alignment: 0-40 (match rate between resume keywords and required/preferred job skills)
+- experience_relevance: 0-25 (how directly the work history maps to the role's responsibilities)
+- formatting: 0-20 (ATS-parseable structure, standard section headings, no tables/columns/graphics)
+- readability: 0-10 (clarity, concision, quantified achievements, active verbs)
+- buzzwords_penalty: -5 to 0 (deduct for vague buzzwords unsupported by evidence)
 
 Schema:
 {
-  "score": <sum of components, floor 0>,
-  "breakdown": { "keyword_alignment": n, "experience_relevance": n, "formatting": n, "readability": n, "buzzwords_penalty": n },
-  "keyword_coverage": { "required": ["job's key skills"], "missing": ["required but absent in resume"], "matched": ["present in both"] },
-  "weaknesses": [{ "section": "experience|skills|summary|education", "issue": "specific", "severity": "low|medium|high" }],
-  "formatting_issues": [{ "type": "tables|columns|headers|graphics|length", "detail": "specific" }],
-  "buzzwords": [{ "phrase": "results-driven", "suggestion": "replace with quantified outcome" }],
-  "fixes": [{ "section": "...", "suggestion": "concrete actionable fix", "severity": "low|medium|high" }],
-  "ats_risks": ["high-level risks to ATS parsing"]
+  "score": <sum of all components, floor 0, ceil 100>,
+  "summary": "2-sentence overall verdict: what is strong and the single most important thing to fix",
+  "breakdown": {
+    "keyword_alignment": n,
+    "keyword_alignment_reason": "1-sentence reason for this score",
+    "experience_relevance": n,
+    "experience_relevance_reason": "1-sentence reason",
+    "formatting": n,
+    "formatting_reason": "1-sentence reason",
+    "readability": n,
+    "readability_reason": "1-sentence reason",
+    "buzzwords_penalty": n,
+    "buzzwords_penalty_reason": "1-sentence reason or null if penalty is 0"
+  },
+  "keyword_coverage": {
+    "required": ["job's key required skills"],
+    "missing": ["required skills absent from resume"],
+    "matched": ["skills present in both resume and job"]
+  },
+  "weaknesses": [{ "section": "experience|skills|summary|education", "issue": "specific issue", "severity": "low|medium|high" }],
+  "formatting_issues": [{ "type": "tables|columns|headers|graphics|length|other", "detail": "specific" }],
+  "buzzwords": [{ "phrase": "the buzzword used", "suggestion": "replace with specific quantified outcome" }],
+  "fixes": [{ "section": "...", "suggestion": "concrete, actionable 1-2 sentence fix", "severity": "low|medium|high" }],
+  "ats_risks": ["specific risk that could cause ATS rejection or downranking"]
 }
 
-Be specific and honest. Prioritize the most impactful fixes.`;
+Sort fixes by severity (high first). Be specific, honest, and critical. Avoid generic advice.`;
 
 export async function scanATS(resume: ParsedJson, job: ParsedJobJson, rawResumeText?: string): Promise<AtsResult> {
   const payload = {

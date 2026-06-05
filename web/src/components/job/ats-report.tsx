@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import React from "react";
 import {
   ShieldCheck, AlertTriangle, Sparkles, Loader2, RefreshCw,
   CheckCircle2, CircleAlert, CircleX,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import type { AtsScan, AtsBreakdown } from "@/types/phase3";
+import type { AtsScan } from "@/types/phase3";
 
-const BREAKDOWN_META: { key: keyof AtsBreakdown; label: string; max: number }[] = [
+type NumericBreakdownKey = "keyword_alignment" | "experience_relevance" | "formatting" | "readability" | "buzzwords_penalty";
+const BREAKDOWN_META: { key: NumericBreakdownKey; label: string; max: number }[] = [
   { key: "keyword_alignment", label: "Keyword alignment", max: 40 },
   { key: "experience_relevance", label: "Experience relevance", max: 25 },
   { key: "formatting", label: "Formatting", max: 20 },
