@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import {
   Upload, User, Target, Zap,
   CheckCircle2, Loader2, ArrowRight,
@@ -396,6 +397,13 @@ function StepLaunch({ onDone }: { onDone: () => void }) {
   const [enabled, setEnabled] = useState(false);
   const [threshold, setThreshold] = useState(75);
   const [saving, setSaving] = useState(false);
+  const [plan, setPlan] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/billing").then((r) => r.json()).then((j) => setPlan(j.plan ?? "free")).catch(() => setPlan("free"));
+  }, []);
+
+  const isPaid = plan !== null && plan !== "free";
 
   const launch = async () => {
     setSaving(true);
@@ -403,7 +411,10 @@ function StepLaunch({ onDone }: { onDone: () => void }) {
       await fetch("/api/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ auto_apply_enabled: enabled, auto_apply_threshold: threshold }),
+        body: JSON.stringify({
+          auto_apply_enabled: isPaid ? enabled : false,
+          auto_apply_threshold: threshold,
+        }),
       });
       onDone();
     } finally {
@@ -413,49 +424,54 @@ function StepLaunch({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-5">
-      <div className="rounded-xl border border-border p-4">
+      <div className={cn("rounded-xl border p-4", !isPaid && "opacity-60")}>
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-medium">Enable auto-apply</p>
+            <div className="flex items-center gap-2">
+              <p className="font-medium">Enable auto-apply</p>
+              {!isPaid && (
+                <span className="rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-white">
+                  PRO
+                </span>
+              )}
+            </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              We'll automatically submit applications as matching jobs are discovered.
+              {isPaid
+                ? "We'll automatically submit applications as matching jobs are discovered."
+                : "Automatically apply to matching jobs — available on Pro and above."}
             </p>
           </div>
           <button
             type="button"
             role="switch"
-            aria-checked={enabled}
-            onClick={() => setEnabled((v) => !v)}
+            aria-checked={isPaid && enabled}
+            disabled={!isPaid}
+            onClick={() => isPaid && setEnabled((v) => !v)}
             className={cn(
-              "relative h-6 w-11 shrink-0 rounded-full border-2 transition-colors cursor-pointer",
-              enabled ? "border-primary bg-primary" : "border-border bg-muted"
+              "relative h-6 w-11 shrink-0 rounded-full border-2 transition-colors",
+              isPaid ? "cursor-pointer" : "cursor-not-allowed",
+              isPaid && enabled ? "border-primary bg-primary" : "border-border bg-muted"
             )}
           >
             <span className={cn(
               "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-              enabled ? "translate-x-5" : "translate-x-0.5"
+              isPaid && enabled ? "translate-x-5" : "translate-x-0.5"
             )} />
           </button>
         </div>
 
-        {enabled && (
+        {isPaid && enabled && (
           <div className="mt-4 border-t border-border pt-4">
             <label className="mb-2 block text-sm font-medium">
               Minimum match score to auto-apply
             </label>
             <div className="flex items-center gap-4">
               <input
-                type="range"
-                min={50}
-                max={100}
-                step={5}
-                value={threshold}
+                type="range" min={50} max={100} step={5} value={threshold}
                 onChange={(e) => setThreshold(Number(e.target.value))}
                 className="flex-1 cursor-pointer"
               />
-              <span className="w-12 text-right text-sm font-bold tabular-nums">
-                {threshold}%
-              </span>
+              <span className="w-12 text-right text-sm font-bold tabular-nums">{threshold}%</span>
             </div>
             <div className="mt-1 flex justify-between text-xs text-muted-foreground">
               <span>50 — cast wide net</span>
@@ -465,13 +481,27 @@ function StepLaunch({ onDone }: { onDone: () => void }) {
         )}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        You can change this at any time in Preferences. Auto-apply only works for platforms we can submit to directly (Lever, Ashby). Others will be flagged for your review.
-      </p>
+      {!isPaid && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+          <p className="font-semibold text-foreground">Unlock Auto-Apply with Pro</p>
+          <p className="mt-0.5 text-muted-foreground">
+            Auto-apply, unlimited job imports, ATS scanning and resume tailoring — from $29/mo.
+          </p>
+          <Link href="/dashboard/billing" className="btn-cta mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold">
+            <Zap className="h-3.5 w-3.5" /> Upgrade to Pro
+          </Link>
+        </div>
+      )}
+
+      {isPaid && (
+        <p className="text-xs text-muted-foreground">
+          You can change this at any time in Preferences. Auto-apply only works for platforms we can submit to directly (Lever, Ashby). Others will be flagged for your review.
+        </p>
+      )}
 
       <Button className="w-full" size="lg" onClick={launch} disabled={saving}>
         {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
-        Launch my dashboard
+        Go to my dashboard
       </Button>
     </div>
   );
