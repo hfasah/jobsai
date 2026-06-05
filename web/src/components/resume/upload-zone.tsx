@@ -136,38 +136,62 @@ interface UploadProgressProps {
   onCancel?: () => void;
 }
 
-export function UploadProgress({ state, progress, onCancel }: UploadProgressProps) {
-  return (
-    <div className="rounded-xl border border-border bg-card p-6 space-y-4">
-      <div className="flex items-center gap-3">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <div>
-          <p className="font-medium">
-            {state === "uploading" ? "Uploading…" : "Parsing resume…"}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {state === "uploading"
-              ? `${progress ?? 0}% uploaded`
-              : "Extracting your profile — typically 10–20 seconds"}
-          </p>
-        </div>
-      </div>
+function uploadStatusMessage(progress: number): string {
+  if (progress < 20) return "Reading your file…";
+  if (progress < 50) return "Uploading your resume…";
+  if (progress < 80) return "Almost there…";
+  if (progress < 100) return "Almost done — calculating your score!";
+  return "Finalising upload…";
+}
 
-      {state === "uploading" && (
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+export function UploadProgress({ state, progress, onCancel }: UploadProgressProps) {
+  const pct = progress ?? 0;
+  const isUploading = state === "uploading";
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-background/95 backdrop-blur-sm px-6">
+      <h1 className="text-3xl font-bold tracking-tight text-foreground">
+        {isUploading ? "Uploading Resume" : "Analysing Resume"}
+      </h1>
+
+      <p className="mt-3 text-sm text-muted-foreground">
+        {isUploading
+          ? uploadStatusMessage(pct)
+          : "Extracting your profile — usually 10–20 seconds"}
+      </p>
+
+      <div className="relative mt-8 w-full max-w-sm">
+        {/* track */}
+        <div className="h-10 w-full overflow-hidden rounded-full bg-muted">
+          {/* fill */}
           <div
-            className="h-full rounded-full bg-primary transition-all duration-300"
-            style={{ width: `${progress ?? 0}%` }}
+            className="h-full rounded-full transition-all duration-500"
+            style={{
+              width: isUploading ? `${pct}%` : "100%",
+              background: "linear-gradient(90deg, oklch(0.53 0.25 296), oklch(0.68 0.2 296))",
+              animation: isUploading ? "none" : "pulse 1.5s ease-in-out infinite",
+            }}
             role="progressbar"
-            aria-valuenow={progress ?? 0}
+            aria-valuenow={isUploading ? pct : undefined}
             aria-valuemin={0}
             aria-valuemax={100}
           />
         </div>
-      )}
+        {/* percentage label */}
+        {isUploading && (
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-white mix-blend-difference">
+            {pct}%
+          </span>
+        )}
+        {!isUploading && (
+          <span className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-bold text-white">
+            <Loader2 className="h-4 w-4 animate-spin" /> Processing…
+          </span>
+        )}
+      </div>
 
-      {state === "uploading" && onCancel && (
-        <Button variant="outline" size="sm" onClick={onCancel}>
+      {isUploading && onCancel && (
+        <Button variant="outline" size="sm" className="mt-6" onClick={onCancel}>
           Cancel
         </Button>
       )}
