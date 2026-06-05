@@ -174,23 +174,36 @@ export function mentionsCompany(text: string, companies: string[]): boolean {
 
 export interface SyncInterview { id: string; subject: string; body: string; fromName: string; fromEmail: string }
 
-export async function syncInbox(userId: string): Promise<{ imported: number; interviews: SyncInterview[] }> {
+// A freshly-imported inbound message the auto-confirm reply feature may answer.
+export interface SyncReplyable {
+  id: string; classification: InboxClass;
+  subject: string; body: string; fromName: string; fromEmail: string;
+  threadId?: string; rfcMessageId?: string;
+}
+
+// Classes JobsAI may auto-reply to. OTP (security), rejections, and plain
+// confirmations are deliberately excluded.
+const AUTO_REPLY_CLASSES: ReadonlySet<InboxClass> = new Set<InboxClass>(["interview", "update"]);
+
+export async function syncInbox(
+  userId: string
+): Promise<{ imported: number; interviews: SyncInterview[]; replyable: SyncReplyable[] }> {
   const token = await getValidAccessToken(userId);
-  if (!token) return { imported: 0, interviews: [] };
+  if (!token) return { imported: 0, interviews: [], replyable: [] };
 
   // Only pull emails about companies the user is actually pursuing in JobsAI.
   const companies = await getTrackedCompanies(userId);
-  if (!companies.length) return { imported: 0, interviews: [] };
+  if (!companies.length) return { imported: 0, interviews: [], replyable: [] };
 
   const orq = companies.slice(0, 25).map((c) => `"${c.replace(/"/g, "")}"`).join(" OR ");
   const q = encodeURIComponent(`(${orq}) newer_than:90d -from:me`);
   const listRes = await fetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${q}&maxResults=100`, {
     headers: { Authorization: `Bearer ${token}` },
   });
-  if (!listRes.ok) return { imported: 0, interviews: [] };
+  if (!listRes.ok) return { imported: 0, interviews: [], replyable: [] };
   const list = (await listRes.json()) as { messages?: { id: string }[] };
   const ids = (list.messages ?? []).map((x) => x.id);
-  if (!ids.length) return { imported: 0, interviews: [] };
+  if (!ids.length) return { imported: 0, interviews: [], replyable: [] };
 
   // Skip ones we already have.
   const { data: existing } = await supabaseAdmin
@@ -202,6 +215,7 @@ export async function syncInbox(userId: string): Promise<{ imported: number; int
 
   let imported = 0;
   const interviews: SyncInterview[] = [];
+  const replyable: SyncReplyable[] = [];
   for (const id of ids) {
     if (have.has(id)) continue;
     const msg = await getMessage(token, id);
@@ -224,16 +238,23 @@ export async function syncInbox(userId: string): Promise<{ imported: number; int
       rfc_message_id: msg.rfcMessageId,
       received_at: msg.date ? new Date(msg.date).toISOString() : new Date().toISOString(),
     }).select("id").single();
-    if (!error) {
+    if (!error && inserted) {
       imported++;
-      if (inserted && classification === "interview") {
+      if (classification === "interview") {
         interviews.push({ id: inserted.id, subject: msg.subject, body: msg.text, fromName: msg.from.name, fromEmail: msg.from.email });
+      }
+      if (AUTO_REPLY_CLASSES.has(classification)) {
+        replyable.push({
+          id: inserted.id, classification,
+          subject: msg.subject, body: msg.text, fromName: msg.from.name, fromEmail: msg.from.email,
+          threadId: msg.threadId, rfcMessageId: msg.rfcMessageId,
+        });
       }
     }
   }
 
   await supabaseAdmin.from("email_accounts").update({ last_synced_at: new Date().toISOString() }).eq("user_id", userId);
-  return { imported, interviews };
+  return { imported, interviews, replyable };
 }
 
 // ─── Send (reply as the user) ─────────────────────────────────────────────────

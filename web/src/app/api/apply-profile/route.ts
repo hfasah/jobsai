@@ -109,6 +109,7 @@ export async function PUT(req: NextRequest) {
     // Application behaviour
     cc_email:                 s(body.cc_email),
     application_mode:         s(body.application_mode) ?? "review",
+    auto_reply:               body.auto_reply === true,
   };
 
   const { data, error } = await supabaseAdmin

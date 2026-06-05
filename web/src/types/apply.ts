@@ -44,6 +44,7 @@ export interface ApplyProfile {
   // Application behaviour
   cc_email: string | null;
   application_mode: string | null;
+  auto_reply: boolean;
   created_at: string;
   updated_at: string;
 }

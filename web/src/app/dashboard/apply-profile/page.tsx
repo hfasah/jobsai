@@ -19,7 +19,7 @@ const EMPTY: ApplyProfileUpdate = {
   highest_education: null, university: null, certifications: [],
   race_ethnicity: null, nationality: null, gender_identity: null, sexual_orientation: null,
   transgender: null, disability_status: null, veteran_status: null,
-  cc_email: null, application_mode: "review",
+  cc_email: null, application_mode: "review", auto_reply: false,
 };
 
 // ─── Option lists ─────────────────────────────────────────────────────────────
@@ -258,6 +258,12 @@ export default function ApplyProfilePage() {
           </div>
           <div className="mt-4">
             <Field label="CC a copy of applications to (optional)" type="email" value={str(form.cc_email)} onChange={(v) => set("cc_email", v)} placeholder="you@personal.com" />
+          </div>
+          <div className="mt-4 border-t border-border pt-4">
+            <Toggle label="Auto-confirm replies to interview & application-update emails" checked={!!form.auto_reply} onChange={(v) => set("auto_reply", v)} />
+            <p className="ml-7 mt-1 text-xs text-muted-foreground">
+              When on, JobsAI drafts and sends a reply on your behalf — from your own mailbox — to interview and application-update emails as they arrive. Off by default; verification codes and rejections are never auto-replied.
+            </p>
           </div>
         </SectionCard>
 
