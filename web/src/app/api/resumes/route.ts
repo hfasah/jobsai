@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 
+export const maxDuration = 60; // seconds — extend for OpenAI parsing
+
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 import { parseResumeText } from "@/lib/resume-parser";
@@ -196,8 +198,11 @@ export async function POST(req: NextRequest) {
       .eq("id", documentId);
   }
 
-  // Respond immediately with 202 — parse runs in the background
-  const response = NextResponse.json(
+  // Parse synchronously so it completes within the serverless function lifetime.
+  // Vercel terminates fire-and-forget work after the response is sent on Hobby.
+  await parseInBackground(version.id, documentId, buffer, file.type).catch(console.error);
+
+  return NextResponse.json(
     {
       resume_version_id: version.id,
       resume_document_id: documentId,
@@ -205,11 +210,6 @@ export async function POST(req: NextRequest) {
     },
     { status: 202 }
   );
-
-  // Kick off parsing asynchronously (fire-and-forget with error logging)
-  parseInBackground(version.id, documentId, buffer, file.type).catch(console.error);
-
-  return response;
 }
 
 async function parseInBackground(

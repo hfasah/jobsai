@@ -89,7 +89,7 @@ function Stepper({ current }: { current: Step }) {
 
 // ─── Step 1 — Resume upload ───────────────────────────────────────────────────
 
-function StepResume({ onDone }: { onDone: () => void }) {
+function StepResume({ onDone, onSkip }: { onDone: () => void; onSkip: () => void }) {
   const [state, setState] = useState<UploadState>({ type: "idle" });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -169,7 +169,17 @@ function StepResume({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="space-y-4">
-      {state.type === "idle" && <UploadZone onFileSelected={handleFile} />}
+      {state.type === "idle" && (
+        <>
+          <UploadZone onFileSelected={handleFile} />
+          <button
+            onClick={onSkip}
+            className="w-full text-center text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Skip for now — I&apos;ll upload later
+          </button>
+        </>
+      )}
       {(state.type === "uploading") && (
         <UploadProgress
           state="uploading"
@@ -182,9 +192,14 @@ function StepResume({ onDone }: { onDone: () => void }) {
         <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
           <p className="font-medium text-destructive">Upload failed</p>
           <p className="mt-0.5 text-muted-foreground">{state.message}</p>
-          <Button variant="outline" size="sm" className="mt-3" onClick={() => setState({ type: "idle" })}>
-            Try again
-          </Button>
+          <div className="mt-3 flex gap-2">
+            <Button variant="outline" size="sm" onClick={() => setState({ type: "idle" })}>
+              Try again
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onSkip}>
+              Skip for now
+            </Button>
+          </div>
         </div>
       )}
     </div>
@@ -529,7 +544,7 @@ export default function OnboardPage() {
             </div>
 
             <div className="mt-8">
-              {step === 1 && <StepResume onDone={next} />}
+              {step === 1 && <StepResume onDone={next} onSkip={goToDashboard} />}
               {step === 2 && <StepProfile prefill={prefill} onDone={next} onSkip={next} />}
               {step === 3 && <StepTargets onDone={next} onSkip={next} />}
               {step === 4 && <StepLaunch onDone={goToDashboard} />}
