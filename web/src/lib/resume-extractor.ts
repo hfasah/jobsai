@@ -1,4 +1,4 @@
-import { PDFParse } from "pdf-parse";
+import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 
 export async function extractText(
@@ -6,24 +6,18 @@ export async function extractText(
   mimeType: string
 ): Promise<{ text: string; pages: number | null; ocrUsed: boolean }> {
   if (mimeType === "application/pdf") {
-    let parser: PDFParse | null = null;
     try {
-      // pdf-parse v2: class-based API — getText() returns { pages, text, total }
-      parser = new PDFParse({ data: new Uint8Array(buffer) });
-      const data = await parser.getText();
+      const data = await pdfParse(buffer);
       const text = data.text?.trim() ?? "";
-      const pages = data.total ?? null;
+      const pages = data.numpages ?? null;
 
       if (text.length < 50) {
-        // Likely a scanned/image-only PDF — no OCR fallback yet, return warning
         return { text: "", pages, ocrUsed: false };
       }
 
       return { text, pages, ocrUsed: false };
     } catch {
       throw new Error("PDF_PARSE_FAILED");
-    } finally {
-      await parser?.destroy().catch(() => {});
     }
   }
 
