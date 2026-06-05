@@ -1,4 +1,3 @@
-import pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 
 export async function extractText(
@@ -7,6 +6,9 @@ export async function extractText(
 ): Promise<{ text: string; pages: number | null; ocrUsed: boolean }> {
   if (mimeType === "application/pdf") {
     try {
+      // Dynamic import avoids pdf-parse reading its test file at module load time,
+      // which crashes Next.js static build (ENOENT ./test/data/05-versions-space.pdf)
+      const { default: pdfParse } = await import("pdf-parse");
       const data = await pdfParse(buffer);
       const text = data.text?.trim() ?? "";
       const pages = data.numpages ?? null;
