@@ -153,7 +153,7 @@ export default function ApplyProfilePage() {
 
   return (
     <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
-      <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">Application passport</p>
+      <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent-text">Application passport</p>
       <h1 className="mt-1 text-2xl font-bold tracking-tight">Apply Profile</h1>
       <p className="mt-1 text-sm text-muted-foreground">
         Filled once, used to complete every auto-apply form. Most fields are optional — add what you&apos;re comfortable sharing.

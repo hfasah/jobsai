@@ -8,6 +8,7 @@
   --color-desyn-brand: var(--desyn-brand);
   --color-desyn-brand-foreground: var(--desyn-brand-foreground);
   --color-desyn-accent: var(--desyn-accent);
+  --color-desyn-accent-text: var(--desyn-accent-text);
   --color-desyn-purple: var(--desyn-purple);
   --color-desyn-cyan: var(--desyn-cyan);
   --color-desyn-surface: var(--desyn-surface);
@@ -69,12 +70,13 @@
   /* Accent shifted to cyan #06B6D4 to anchor the blue→purple→cyan palette */
   --desyn-accent: oklch(0.71 0.131 215);
   --desyn-accent-foreground: oklch(0.18 0.04 264);
+  --desyn-accent-text: oklch(0.44 0.13 215);     /* darker cyan for text on light bg — 4.5:1+ */
   /* New palette anchors */
   --desyn-purple: oklch(0.53 0.25 296);   /* #7C3AED */
   --desyn-cyan: oklch(0.71 0.131 215);    /* #06B6D4 */
   --desyn-surface: oklch(0.984 0.003 247);  /* #F8FAFC */
   --desyn-surface-elevated: oklch(1 0 0);
-  --desyn-muted: oklch(0.55 0.03 257);     /* #64748B */
+  --desyn-muted: oklch(0.44 0.03 257);     /* slate-600 — improved contrast for small text */
   --desyn-success: oklch(0.72 0.19 150);   /* #22C55E */
   --desyn-warning: oklch(0.79 0.16 75);
   /* Conversion CTA — warm gold (RoboApply-style) */
@@ -124,6 +126,7 @@
   --desyn-brand-foreground: oklch(0.16 0.04 264);
   --desyn-accent: oklch(0.78 0.13 215);
   --desyn-accent-foreground: oklch(0.16 0.04 264);
+  --desyn-accent-text: oklch(0.78 0.13 215);     /* on dark bg accent text = same as accent */
   --desyn-purple: oklch(0.68 0.2 296);
   --desyn-cyan: oklch(0.78 0.13 215);
   --desyn-surface: oklch(0.18 0.025 265);

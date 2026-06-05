@@ -10,7 +10,9 @@ import {
   Mic, MessageSquareText, Video, Headphones,
   BarChart3, LineChart, Settings2, CreditCard,
   Menu, X, ExternalLink, Coins, ChevronDown,
+  Sun, Moon, Monitor,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -148,6 +150,34 @@ function NavLink({ item, active, onNavigate, sub }: { item: NavItem; active: boo
   );
 }
 
+function ThemeToggle() {
+  const { theme, setTheme } = useTheme();
+  const opts = [
+    { v: "light", icon: Sun, label: "Light" },
+    { v: "system", icon: Monitor, label: "System" },
+    { v: "dark", icon: Moon, label: "Dark" },
+  ] as const;
+  return (
+    <div className="flex items-center gap-0.5 rounded-lg border border-border bg-muted/50 p-0.5">
+      {opts.map(({ v, icon: Icon, label }) => (
+        <button
+          key={v}
+          onClick={() => setTheme(v)}
+          title={label}
+          className={cn(
+            "flex flex-1 items-center justify-center rounded-md p-1.5 transition-colors",
+            theme === v
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground"
+          )}
+        >
+          <Icon className="h-3.5 w-3.5" />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode: string | null; onNavigate?: () => void }) {
   const active = computeActive(pathname, mode);
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
@@ -210,6 +240,9 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
             <ExternalLink className="h-4 w-4 shrink-0" /> Home page
           </Link>
         </div>
+        <div className="mt-3 px-1">
+          <ThemeToggle />
+        </div>
         <div className="mt-2 flex items-center justify-between px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
           <NotificationBell />
@@ -230,7 +263,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="dark flex min-h-screen bg-background text-foreground">
+    <div className="flex min-h-screen bg-background text-foreground">
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 border-r border-border bg-card md:block">
         <div className="sticky top-0 h-screen">
