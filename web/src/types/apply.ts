@@ -60,7 +60,7 @@ export type ApplyPlatform =
   | "icims"
   | "unknown";
 
-export type ApplyStatus = "pending" | "submitted" | "failed" | "manual_required";
+export type ApplyStatus = "pending" | "submitted" | "failed" | "manual_required" | "blocked";
 
 export interface ApplyAttempt {
   id: string;

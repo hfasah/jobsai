@@ -64,6 +64,7 @@ export interface SearchJob {
   contractTime: string | null;
   remote: boolean;
   category: string | null;
+  blocked?: boolean;
 }
 
 export type SortKey = "relevance" | "date" | "salary";

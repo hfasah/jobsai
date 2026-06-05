@@ -321,6 +321,9 @@ export default function JobSearchPage() {
                         {job.publisher && job.publisher !== "Adzuna" && (
                           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground/80">{job.publisher}</span>
                         )}
+                        {job.blocked && (
+                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">Blocked</span>
+                        )}
                       </div>
                     </button>
                   </li>
@@ -369,13 +372,21 @@ export default function JobSearchPage() {
                 {selected.postedAt && <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-muted-foreground"><Clock className="h-3 w-3" /> {ago(selected.postedAt)}</span>}
               </div>
 
+              {selected.blocked && (
+                <div className="mt-5 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                  This company is on your block list — JobsAI won&apos;t apply here. Remove it in Preferences to enable applying.
+                </div>
+              )}
               <div className="mt-5 flex flex-wrap items-center gap-3">
                 <button
                   onClick={() => applyInternal(selected)}
-                  disabled={acting[selected.id] === "loading"}
-                  className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm disabled:opacity-70"
+                  disabled={acting[selected.id] === "loading" || !!selected.blocked}
+                  className="btn-cta inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm disabled:opacity-70 disabled:cursor-not-allowed"
                 >
-                  {acting[selected.id] === "loading"
+                  {selected.blocked
+                    ? <><Zap className="h-4 w-4" /> Blocked</>
+                    : acting[selected.id] === "loading"
                     ? <><Loader2 className="h-4 w-4 animate-spin" /> Preparing…</>
                     : <><Zap className="h-4 w-4" /> Apply with JobsAI</>}
                 </button>

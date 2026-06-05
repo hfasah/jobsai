@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { searchJobs, type SortKey, type EmploymentType } from "@/lib/job-search";
+import { supabaseAdmin } from "@/lib/supabase";
+import { isBlockedJob } from "@/lib/blocklist";
 
 const EMP_VALUES: EmploymentType[] = ["fulltime", "internship", "contract"];
 
@@ -26,6 +28,18 @@ export async function GET(req: NextRequest) {
       jobSites: csv("job_sites"),
       maxDaysOld: Number(sp.get("max_days_old")) || undefined,
     });
+
+    // Flag results that are on the user's block list (don't drop — show them marked).
+    const { data: prefs } = await supabaseAdmin
+      .from("user_preferences")
+      .select("excluded_companies, blocked_domains")
+      .eq("user_id", userId)
+      .maybeSingle();
+    const excluded = prefs?.excluded_companies ?? [];
+    const blockedDomains = prefs?.blocked_domains ?? [];
+    if (excluded.length || blockedDomains.length) {
+      result.jobs = result.jobs.map((j) => ({ ...j, blocked: isBlockedJob(j.company, j.url, excluded, blockedDomains) }));
+    }
 
     return NextResponse.json({ data: result });
   } catch (err) {

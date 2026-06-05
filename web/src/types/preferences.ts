@@ -38,6 +38,7 @@ export interface UserPreferences {
   employment_types: EmploymentType[];
   seniority_levels: SeniorityLevel[];
   excluded_companies: string[];
+  blocked_domains: string[];
   auto_apply_enabled: boolean;
   auto_apply_threshold: number;
   require_approval: boolean;
@@ -59,6 +60,7 @@ export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   employment_types: [],
   seniority_levels: [],
   excluded_companies: [],
+  blocked_domains: [],
   auto_apply_enabled: false,
   auto_apply_threshold: 75,
   require_approval: false,

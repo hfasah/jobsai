@@ -1,5 +1,6 @@
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
+import { isBlockedJob } from "@/lib/blocklist";
 import { generateCoverLetter } from "@/lib/ai-content";
 import { sendApplySubmitted, sendManualRequired } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
@@ -115,6 +116,16 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
 
   const sourceUrl = jobRow?.source_url ?? "";
   const platform = detectPlatform(sourceUrl);
+
+  // 3b. Block list — never apply to a company/domain the user has blocked.
+  const { data: prefs } = await supabaseAdmin
+    .from("user_preferences")
+    .select("excluded_companies, blocked_domains")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (isBlockedJob(ctx.jobParsed.company, sourceUrl, prefs?.excluded_companies ?? [], prefs?.blocked_domains ?? [])) {
+    return logAttempt(userId, jobId, platform, "blocked", "On your block list — not applied.");
+  }
 
   // 4. Generate cover letter (always — needed for Lever comments and manual apply)
   let coverLetter = "";
@@ -261,7 +272,7 @@ async function logAttempt(
   userId: string,
   jobId: string,
   platform: ApplyPlatform,
-  status: "submitted" | "failed" | "manual_required",
+  status: "submitted" | "failed" | "manual_required" | "blocked",
   errorMsg?: string
 ): Promise<ApplyResult> {
   const { data } = await supabaseAdmin

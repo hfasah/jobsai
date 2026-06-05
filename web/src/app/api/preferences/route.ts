@@ -35,6 +35,7 @@ export async function PUT(req: NextRequest) {
     employment_types:     Array.isArray(body.employment_types)   ? body.employment_types   : undefined,
     seniority_levels:     Array.isArray(body.seniority_levels)   ? body.seniority_levels   : undefined,
     excluded_companies:   Array.isArray(body.excluded_companies) ? body.excluded_companies : undefined,
+    blocked_domains:      Array.isArray(body.blocked_domains) ? body.blocked_domains : undefined,
     auto_apply_enabled:   typeof body.auto_apply_enabled === "boolean" ? body.auto_apply_enabled : undefined,
     auto_apply_threshold: body.auto_apply_threshold != null ? Number(body.auto_apply_threshold) : undefined,
     require_approval:     typeof body.require_approval === "boolean" ? body.require_approval : undefined,

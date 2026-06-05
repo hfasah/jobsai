@@ -116,7 +116,7 @@ export default function PreferencesPage() {
         </p>
         <h1 className="mt-1 text-2xl font-bold tracking-tight">Preferences</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Tell the system what you're looking for. This drives auto job discovery and auto-apply in the next phases.
+          Tell the system what you&apos;re looking for. This drives auto job discovery and auto-apply in the next phases.
         </p>
 
         <div className="mt-8 space-y-10">
@@ -261,13 +261,20 @@ export default function PreferencesPage() {
           {/* ── Exclusions ── */}
           <section className="rounded-2xl border border-border bg-card p-6">
             <SectionHeader
-              title="Companies to skip"
-              description="Jobs from these companies will be filtered out automatically."
+              title="Block list"
+              description="Never auto-apply to these — e.g. a current or former employer. Blocked jobs are flagged in Job Search too, not just skipped."
             />
+            <p className="mb-1.5 text-sm font-medium">Companies</p>
             <TagInput
               value={prefs.excluded_companies}
               onChange={(v) => set("excluded_companies", v)}
               placeholder="e.g. Acme Corp"
+            />
+            <p className="mb-1.5 mt-4 text-sm font-medium">Domains</p>
+            <TagInput
+              value={prefs.blocked_domains}
+              onChange={(v) => set("blocked_domains", v)}
+              placeholder="e.g. acme.com"
             />
           </section>
 
@@ -282,7 +289,7 @@ export default function PreferencesPage() {
                 <div>
                   <p className="font-medium">Enable auto-apply</p>
                   <p className="text-sm text-muted-foreground">
-                    Automatically apply to matching jobs as they're discovered.
+                    Automatically apply to matching jobs as they&apos;re discovered.
                   </p>
                 </div>
                 <button

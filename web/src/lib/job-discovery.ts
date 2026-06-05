@@ -1,4 +1,5 @@
 import type { UserPreferences } from "@/types/preferences";
+import { isBlockedJob } from "@/lib/blocklist";
 
 export interface DiscoveredJob {
   id: string;
@@ -19,9 +20,8 @@ export interface DiscoveredJob {
 // ─── Shared filter ────────────────────────────────────────────────────────────
 
 function passesFilters(job: DiscoveredJob, prefs: UserPreferences): boolean {
-  // Excluded companies
-  const company = job.company.toLowerCase();
-  if (prefs.excluded_companies.some((c) => company.includes(c.toLowerCase()))) return false;
+  // Block list — excluded companies + blocked domains.
+  if (isBlockedJob(job.company, job.url, prefs.excluded_companies, prefs.blocked_domains ?? [])) return false;
 
   // Salary floor (only filter if job has a salary_max)
   if (
