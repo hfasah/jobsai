@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, Sparkles, Send, Zap, Rocket, ShieldCheck, ArrowRight,
+  Building2, Users, BarChart3, Plug, Lock, Headphones, Globe, Layers,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
@@ -81,6 +82,93 @@ const TIERS: Tier[] = [
     ],
   },
 ];
+
+const ENTERPRISE_FEATURES: { icon: React.ElementType; label: string; detail: string }[] = [
+  { icon: Users,      label: "Unlimited team seats",         detail: "Recruiters, sourcers & HR — all in one workspace" },
+  { icon: Layers,     label: "Bulk candidate screening",     detail: "AI match scores across every applicant, instantly" },
+  { icon: Plug,       label: "ATS integrations",             detail: "Greenhouse, Lever, Workday, Ashby & more out of the box" },
+  { icon: Globe,      label: "White-label candidate portal", detail: "Your brand, your domain — powered by JobsAI" },
+  { icon: BarChart3,  label: "Advanced analytics",           detail: "Pipeline health, time-to-hire, source quality & more" },
+  { icon: Lock,       label: "SSO / SAML & audit logs",      detail: "Enterprise security, compliance & access controls" },
+  { icon: Headphones, label: "Dedicated account manager",    detail: "Onboarding, custom workflows & priority SLA" },
+  { icon: Zap,        label: "Custom AI & API access",       detail: "Fine-tune matching models for your roles & industries" },
+];
+
+function EnterpriseCard() {
+  return (
+    <div className="gradient-border mt-8 overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded-[calc(1rem-1px)] bg-card p-8 lg:p-10">
+        {/* mesh glow */}
+        <div className="pointer-events-none absolute -right-32 -top-32 h-72 w-72 rounded-full bg-desyn-purple/10 blur-3xl" />
+        <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-desyn-brand/10 blur-3xl" />
+
+        <div className="relative flex flex-col gap-10 lg:flex-row lg:items-center lg:gap-16">
+          {/* left — feature grid */}
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-brand shadow-glow">
+                <Building2 className="h-5 w-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-foreground">Enterprise</h3>
+                <p className="text-xs text-muted-foreground">For recruiters, agencies &amp; HR teams</p>
+              </div>
+            </div>
+
+            <div className="mt-7 grid gap-4 sm:grid-cols-2">
+              {ENTERPRISE_FEATURES.map(({ icon: Icon, label, detail }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10">
+                    <Icon className="h-3.5 w-3.5 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">{detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* right — pitch + CTA */}
+          <div className="flex w-full shrink-0 flex-col items-start gap-6 rounded-2xl border border-border bg-background/60 p-7 lg:w-80">
+            <div>
+              <span className="rounded-full bg-desyn-purple/15 px-3 py-1 text-xs font-semibold text-desyn-purple">
+                Custom pricing
+              </span>
+              <p className="mt-3 text-2xl font-bold leading-tight text-foreground">
+                Hire smarter.<br />
+                <span className="text-gradient">At any scale.</span>
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                Replace weeks of manual screening with AI that matches, ranks, and engages candidates before your team even logs in.
+              </p>
+            </div>
+
+            <ul className="w-full space-y-2 text-sm text-muted-foreground">
+              {["Volume pricing per seat", "Custom SLA & onboarding", "Free proof-of-concept"].map((item) => (
+                <li key={item} className="flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4 shrink-0 text-desyn-success" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+
+            <a
+              href="mailto:enterprise@jobsai.co"
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90"
+            >
+              Talk to sales <ArrowRight className="h-4 w-4" />
+            </a>
+            <p className="w-full text-center text-xs text-muted-foreground">
+              Usually responds within one business day
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function priceFor(monthly: number, yearly: boolean) {
   if (monthly === 0) return { big: "$0", sub: "forever free" };
@@ -193,6 +281,9 @@ export function PricingSection() {
             );
           })}
         </div>
+
+        {/* Enterprise */}
+        <EnterpriseCard />
 
         {/* token top-up note */}
         <p className="mt-6 text-center text-sm text-muted-foreground">
