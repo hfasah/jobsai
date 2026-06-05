@@ -21,6 +21,8 @@ const fraunces = Fraunces({
   axes: ["opsz", "SOFT"],
 });
 
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
+
 export const metadata: Metadata = {
   title: {
     default: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
@@ -28,6 +30,36 @@ export const metadata: Metadata = {
   },
   description:
     "JobsAI auto-applies to thousands of jobs and reaches recruiters directly for you — so you stop grinding applications and start landing interviews, guaranteed. Plus AI interview prep built from your resume and the role.",
+  metadataBase: new URL(APP_URL),
+  openGraph: {
+    type: "website",
+    url: APP_URL,
+    siteName: "JobsAI",
+    title: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
+    description:
+      "Stop grinding applications. JobsAI auto-applies to thousands of jobs, tailors your resume, and preps you for interviews — guaranteed.",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1024,
+        height: 1024,
+        alt: "JobsAI — Automatic Job Application Agent",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
+    description:
+      "Stop grinding applications. JobsAI auto-applies to thousands of jobs, tailors your resume, and preps you for interviews — guaranteed.",
+    images: ["/og-image.png"],
+  },
+  icons: {
+    icon: [
+      { url: "/logo.png", type: "image/png" },
+    ],
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
