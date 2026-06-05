@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Upload, User, Target, Zap,
+  Upload, User, Target, Zap, X,
   CheckCircle2, Loader2, ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -391,6 +391,94 @@ function StepTargets({ onDone, onSkip }: { onDone: () => void; onSkip: () => voi
   );
 }
 
+// ─── Upgrade gate modal ───────────────────────────────────────────────────────
+
+const GATE_PLANS = [
+  { key: "pro",         label: "Pro",              price: 29,  highlight: false },
+  { key: "premium",     label: "Premium",          price: 79,  highlight: true  },
+  { key: "accelerator", label: "Career Accelerator", price: 199, highlight: false },
+];
+const GATE_PACKS = [
+  { key: "pack_5k",  label: "5,000 credits",  price: "$9"  },
+  { key: "pack_20k", label: "20,000 credits", price: "$29" },
+];
+
+function AutoApplyGateModal({ onClose }: { onClose: () => void }) {
+  const [loading, setLoading] = useState<string | null>(null);
+
+  const checkout = async (body: Record<string, string>) => {
+    setLoading(body.plan ?? body.pack);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const json = await res.json();
+      if (json.url) window.location.href = json.url;
+    } catch { setLoading(null); }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl">
+        <button onClick={onClose} className="absolute right-4 top-4 rounded-md p-1 text-muted-foreground hover:bg-muted">
+          <X className="h-4 w-4" />
+        </button>
+
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-glow">
+          <Zap className="h-5 w-5" />
+        </div>
+        <h2 className="mt-3 text-lg font-bold">Unlock Auto-Apply</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Choose a plan to start auto-applying, or top up credits to pay as you go.
+        </p>
+
+        {/* Plans */}
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          {GATE_PLANS.map((p) => (
+            <button key={p.key} onClick={() => checkout({ plan: p.key, interval: "monthly" })}
+              disabled={loading !== null}
+              className={cn(
+                "flex flex-col items-center rounded-xl border p-3 text-center transition-colors hover:border-primary disabled:opacity-60",
+                p.highlight ? "border-primary bg-primary/5" : "border-border"
+              )}>
+              {p.highlight && <span className="mb-1 rounded-full bg-gradient-brand px-2 py-0.5 text-[9px] font-bold text-white">POPULAR</span>}
+              <span className="text-xs font-semibold text-foreground">{p.label}</span>
+              <span className="mt-1 text-lg font-bold text-foreground">${p.price}</span>
+              <span className="text-[10px] text-muted-foreground">/month</span>
+              {loading === p.key && <Loader2 className="mt-1 h-3 w-3 animate-spin" />}
+            </button>
+          ))}
+        </div>
+
+        <div className="my-4 flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex-1 border-t border-border" />
+          or top up credits
+          <div className="flex-1 border-t border-border" />
+        </div>
+
+        {/* Credit packs */}
+        <div className="grid grid-cols-2 gap-2">
+          {GATE_PACKS.map((p) => (
+            <button key={p.key} onClick={() => checkout({ pack: p.key })}
+              disabled={loading !== null}
+              className="flex flex-col items-center rounded-xl border border-border p-3 text-center transition-colors hover:border-primary disabled:opacity-60">
+              <span className="text-xs font-semibold text-foreground">{p.label}</span>
+              <span className="mt-1 text-lg font-bold text-foreground">{p.price}</span>
+              <span className="text-[10px] text-muted-foreground">one-time</span>
+              {loading === p.key && <Loader2 className="mt-1 h-3 w-3 animate-spin" />}
+            </button>
+          ))}
+        </div>
+
+        <p className="mt-4 text-center text-xs text-muted-foreground">
+          Cancel anytime · Secure checkout via Stripe
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Step 4 — Auto-apply ──────────────────────────────────────────────────────
 
 function StepLaunch({ onDone }: { onDone: () => void }) {
@@ -398,6 +486,7 @@ function StepLaunch({ onDone }: { onDone: () => void }) {
   const [threshold, setThreshold] = useState(75);
   const [saving, setSaving] = useState(false);
   const [plan, setPlan] = useState<string | null>(null);
+  const [showGate, setShowGate] = useState(false);
 
   useEffect(() => {
     fetch("/api/billing").then((r) => r.json()).then((j) => setPlan(j.plan ?? "free")).catch(() => setPlan("free"));
@@ -405,105 +494,78 @@ function StepLaunch({ onDone }: { onDone: () => void }) {
 
   const isPaid = plan !== null && plan !== "free";
 
+  const handleToggle = () => {
+    if (!isPaid && !enabled) { setShowGate(true); return; }
+    setEnabled((v) => !v);
+  };
+
   const launch = async () => {
     setSaving(true);
     try {
       await fetch("/api/preferences", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        method: "PUT", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           auto_apply_enabled: isPaid ? enabled : false,
           auto_apply_threshold: threshold,
         }),
       });
       onDone();
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   };
 
   return (
-    <div className="space-y-5">
-      <div className={cn("rounded-xl border p-4", !isPaid && "opacity-60")}>
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
+    <>
+      {showGate && <AutoApplyGateModal onClose={() => setShowGate(false)} />}
+
+      <div className="space-y-5">
+        <div className="rounded-xl border border-border p-4">
+          <div className="flex items-center justify-between">
+            <div>
               <p className="font-medium">Enable auto-apply</p>
-              {!isPaid && (
-                <span className="rounded-full bg-gradient-brand px-2 py-0.5 text-[10px] font-bold text-white">
-                  PRO
-                </span>
-              )}
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                We'll automatically submit applications as matching jobs are discovered.
+              </p>
             </div>
-            <p className="mt-0.5 text-sm text-muted-foreground">
-              {isPaid
-                ? "We'll automatically submit applications as matching jobs are discovered."
-                : "Automatically apply to matching jobs — available on Pro and above."}
-            </p>
+            <button type="button" role="switch" aria-checked={enabled}
+              onClick={handleToggle}
+              className={cn(
+                "relative h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 transition-colors",
+                enabled ? "border-primary bg-primary" : "border-border bg-muted"
+              )}>
+              <span className={cn(
+                "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                enabled ? "translate-x-5" : "translate-x-0.5"
+              )} />
+            </button>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={isPaid && enabled}
-            disabled={!isPaid}
-            onClick={() => isPaid && setEnabled((v) => !v)}
-            className={cn(
-              "relative h-6 w-11 shrink-0 rounded-full border-2 transition-colors",
-              isPaid ? "cursor-pointer" : "cursor-not-allowed",
-              isPaid && enabled ? "border-primary bg-primary" : "border-border bg-muted"
-            )}
-          >
-            <span className={cn(
-              "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-              isPaid && enabled ? "translate-x-5" : "translate-x-0.5"
-            )} />
-          </button>
+
+          {enabled && isPaid && (
+            <div className="mt-4 border-t border-border pt-4">
+              <label className="mb-2 block text-sm font-medium">Minimum match score to auto-apply</label>
+              <div className="flex items-center gap-4">
+                <input type="range" min={50} max={100} step={5} value={threshold}
+                  onChange={(e) => setThreshold(Number(e.target.value))}
+                  className="flex-1 cursor-pointer" />
+                <span className="w-12 text-right text-sm font-bold tabular-nums">{threshold}%</span>
+              </div>
+              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                <span>50 — cast wide net</span>
+                <span>100 — perfect match only</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {isPaid && enabled && (
-          <div className="mt-4 border-t border-border pt-4">
-            <label className="mb-2 block text-sm font-medium">
-              Minimum match score to auto-apply
-            </label>
-            <div className="flex items-center gap-4">
-              <input
-                type="range" min={50} max={100} step={5} value={threshold}
-                onChange={(e) => setThreshold(Number(e.target.value))}
-                className="flex-1 cursor-pointer"
-              />
-              <span className="w-12 text-right text-sm font-bold tabular-nums">{threshold}%</span>
-            </div>
-            <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-              <span>50 — cast wide net</span>
-              <span>100 — perfect match only</span>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {!isPaid && (
-        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
-          <p className="font-semibold text-foreground">Unlock Auto-Apply with Pro</p>
-          <p className="mt-0.5 text-muted-foreground">
-            Auto-apply, unlimited job imports, ATS scanning and resume tailoring — from $29/mo.
-          </p>
-          <Link href="/dashboard/billing" className="btn-cta mt-3 inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold">
-            <Zap className="h-3.5 w-3.5" /> Upgrade to Pro
-          </Link>
-        </div>
-      )}
-
-      {isPaid && (
         <p className="text-xs text-muted-foreground">
-          You can change this at any time in Preferences. Auto-apply only works for platforms we can submit to directly (Lever, Ashby). Others will be flagged for your review.
+          Auto-apply only works for platforms we can submit to directly (Lever, Ashby). Others will be flagged for your review. You can change this in Preferences anytime.
         </p>
-      )}
 
-      <Button className="w-full" size="lg" onClick={launch} disabled={saving}>
-        {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
-        Go to my dashboard
-      </Button>
-    </div>
+        <Button className="w-full" size="lg" onClick={launch} disabled={saving}>
+          {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Zap className="mr-1.5 h-4 w-4" />}
+          Go to my dashboard
+        </Button>
+      </div>
+    </>
   );
 }
 
