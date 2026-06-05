@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
@@ -252,7 +252,7 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
   );
 }
 
-export function DashboardShell({ children }: { children: React.ReactNode }) {
+function DashboardShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const mode = searchParams.get("mode");
@@ -299,5 +299,13 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
         {children}
       </div>
     </div>
+  );
+}
+
+export function DashboardShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<div className="flex min-h-screen bg-background" />}>
+      <DashboardShellInner>{children}</DashboardShellInner>
+    </Suspense>
   );
 }

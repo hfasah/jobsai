@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -28,7 +28,7 @@ function hrefFor(jobId: string, mode: Mode) {
   return `/dashboard/jobs/${jobId}`; // written coach lives on the job's Mock tab
 }
 
-export default function InterviewLauncher() {
+function InterviewLauncherInner() {
   const search = useSearchParams();
   const selected = (search.get("mode") as Mode) ?? null;
 
@@ -126,5 +126,13 @@ export default function InterviewLauncher() {
         )}
       </div>
     </main>
+  );
+}
+
+export default function InterviewLauncher() {
+  return (
+    <Suspense fallback={<main className="flex-1 px-4 py-8" />}>
+      <InterviewLauncherInner />
+    </Suspense>
   );
 }
