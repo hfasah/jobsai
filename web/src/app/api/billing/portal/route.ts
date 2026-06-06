@@ -4,7 +4,14 @@ import { getStripe } from "@/lib/stripe";
 import { getUserBilling } from "@/lib/billing";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+function getAppUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL;
+  if (explicit && !explicit.includes("localhost")) return explicit.replace(/\/$/, "");
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return explicit ?? "http://localhost:3000";
+}
+const APP_URL = getAppUrl();
 
 // POST /api/billing/portal — create a Stripe customer portal session
 export async function POST() {

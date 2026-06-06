@@ -8,7 +8,15 @@ import {
 import { TOKEN_PACKS } from "@/lib/tokens";
 import { supabaseAdmin } from "@/lib/supabase";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+// Prefer explicit env; fall back to Vercel's auto URL; last resort: localhost
+function getAppUrl(): string {
+  const explicit = process.env.NEXT_PUBLIC_APP_URL;
+  if (explicit && !explicit.includes("localhost")) return explicit.replace(/\/$/, "");
+  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  if (process.env.VERCEL_URL) return `https://${process.env.VERCEL_URL}`;
+  return explicit ?? "http://localhost:3000";
+}
+const APP_URL = getAppUrl();
 const PAID_PLANS: PaidPlan[] = ["pro", "premium", "accelerator"];
 
 // Supported presentment currencies. Stripe Adaptive Pricing must be enabled in

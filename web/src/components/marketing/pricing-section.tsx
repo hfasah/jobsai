@@ -201,7 +201,16 @@ export function PricingSection() {
         body: JSON.stringify({ plan: planKey, interval: yearly ? "yearly" : "monthly" }),
       });
       const json = await res.json();
-      if (json.url) window.location.href = json.url;
+      if (json.url) {
+        window.location.href = json.url;
+      } else {
+        // Surface the error then send to billing page so they can retry
+        alert(json.error ?? "Checkout failed — please try from the billing page.");
+        window.location.href = "/dashboard/billing";
+      }
+    } catch {
+      alert("Could not reach the server. Please try again from the billing page.");
+      window.location.href = "/dashboard/billing";
     } finally {
       setLoading(null);
     }
