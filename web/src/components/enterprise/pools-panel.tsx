@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
   Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
-  Move, Check, Settings2, X,
+  Move, Check, Settings2, X, CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, EnterprisePool } from "@/types/enterprise";
@@ -19,12 +19,13 @@ const QTYPE_COLOR: Record<string, string> = {
 };
 
 function CandidateRow({
-  app, pools, onMove, onReport,
+  app, pools, onMove, onReport, onPreboard,
 }: {
   app: EnterpriseApplication;
   pools: EnterprisePool[];
   onMove: (appId: string, poolId: string) => void;
   onReport: (app: EnterpriseApplication) => void;
+  onPreboard: (app: EnterpriseApplication) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
@@ -93,6 +94,12 @@ function CandidateRow({
               className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
               <ClipboardList className="h-3 w-3" /> Reports
             </button>
+            {(app.stage === "offer" || app.stage === "hired") && (
+              <button onClick={() => onPreboard(app)}
+                className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20">
+                <CalendarClock className="h-3 w-3" /> Pre-boarding
+              </button>
+            )}
             <div className="relative">
               <button onClick={() => setMoveOpen((m) => !m)}
                 className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground">
@@ -118,13 +125,14 @@ function CandidateRow({
 }
 
 function PoolColumn({
-  pool, apps, allPools, onMove, onReport, jobId, onPoolUpdate,
+  pool, apps, allPools, onMove, onReport, onPreboard, jobId, onPoolUpdate,
 }: {
   pool: EnterprisePool;
   apps: EnterpriseApplication[];
   allPools: EnterprisePool[];
   onMove: (appId: string, poolId: string) => void;
   onReport: (app: EnterpriseApplication) => void;
+  onPreboard: (app: EnterpriseApplication) => void;
   jobId: string;
   onPoolUpdate: (p: EnterprisePool) => void;
 }) {
@@ -213,7 +221,7 @@ function PoolColumn({
       {/* Candidates */}
       <div className="space-y-2">
         {apps.map((app) => (
-          <CandidateRow key={app.id} app={app} pools={allPools} onMove={onMove} onReport={onReport} />
+          <CandidateRow key={app.id} app={app} pools={allPools} onMove={onMove} onReport={onReport} onPreboard={onPreboard} />
         ))}
         {apps.length === 0 && (
           <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
@@ -225,7 +233,7 @@ function PoolColumn({
   );
 }
 
-export function PoolsPanel({ jobId, onReport }: { jobId: string; onReport: (app: EnterpriseApplication) => void }) {
+export function PoolsPanel({ jobId, onReport, onPreboard }: { jobId: string; onReport: (app: EnterpriseApplication) => void; onPreboard: (app: EnterpriseApplication) => void }) {
   const [pools, setPools] = useState<EnterprisePool[]>([]);
   const [apps, setApps] = useState<EnterpriseApplication[]>([]);
   const [loading, setLoading] = useState(true);
@@ -274,7 +282,7 @@ export function PoolsPanel({ jobId, onReport }: { jobId: string; onReport: (app:
         {sorted.map((pool) => (
           <PoolColumn key={pool.id} pool={pool}
             apps={apps.filter((a) => a.pool_id === pool.id)}
-            allPools={pools} onMove={move} onReport={onReport}
+            allPools={pools} onMove={move} onReport={onReport} onPreboard={onPreboard}
             jobId={jobId} onPoolUpdate={updatePool} />
         ))}
 

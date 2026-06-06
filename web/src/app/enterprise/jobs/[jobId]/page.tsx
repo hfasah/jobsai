@@ -17,6 +17,7 @@ import type { CompetencyFramework, RoleType } from "@/types/interview-intelligen
 import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
+import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -755,6 +756,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews">("pools");
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
+  const [preboardApp, setPreboardApp] = useState<EnterpriseApplication | null>(null);
 
   const load = useCallback(async () => {
     const [jRes, aRes, fRes] = await Promise.all([
@@ -928,7 +930,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
 
       {/* Pools — primary workspace */}
       {activeTab === "pools" && (
-        <PoolsPanel jobId={jobId} onReport={setReportApp} />
+        <PoolsPanel jobId={jobId} onReport={setReportApp} onPreboard={setPreboardApp} />
       )}
 
       {/* ATS Score grouping */}
@@ -1091,6 +1093,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           hasFramework={!!framework}
           onClose={() => setReportApp(null)}
         />
+      )}
+
+      {/* Pre-boarding modal */}
+      {preboardApp && (
+        <PreboardingModal app={preboardApp} onClose={() => setPreboardApp(null)} />
       )}
     </main>
   );
