@@ -83,7 +83,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Desktop sidebar */}
-      <aside className="hidden w-56 shrink-0 border-r border-border bg-card md:block">
+      <aside className="hidden w-56 shrink-0 border-r border-border bg-card md:block print:!hidden">
         <div className="sticky top-0 h-screen">
           <Sidebar org={org} />
         </div>
@@ -105,7 +105,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
 
       {/* Content */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur md:hidden">
+        <header className="flex h-14 items-center gap-3 border-b border-border bg-card/80 px-4 backdrop-blur md:hidden print:!hidden">
           <button onClick={() => setMobileOpen(true)} className="rounded-md p-1 text-foreground hover:bg-muted">
             <Menu className="h-5 w-5" />
           </button>

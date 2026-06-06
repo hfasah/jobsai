@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Download, Filter, Briefcase, Users, TrendingUp, Clock,
   Target, CheckCircle2, ShieldCheck, BarChart3, Calendar, FileSpreadsheet,
+  Printer, Mail, X, Send, Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,7 +62,7 @@ function Section({ title, onExport, children }: { title: string; onExport?: () =
       <div className="flex items-center justify-between border-b border-border px-5 py-3.5">
         <h2 className="font-semibold">{title}</h2>
         {onExport && (
-          <button onClick={onExport} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+          <button onClick={onExport} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors print:hidden">
             <Download className="h-3.5 w-3.5" /> CSV
           </button>
         )}
@@ -78,6 +79,7 @@ export default function ReportsPage() {
   const [to, setTo] = useState("");
   const [job, setJob] = useState("");
   const [dept, setDept] = useState("");
+  const [emailOpen, setEmailOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,13 +139,21 @@ export default function ReportsPage() {
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><BarChart3 className="h-6 w-6 text-primary" /> Reports</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">Pull hiring statistics and export them.</p>
           </div>
-          <button onClick={exportFull} className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
-            <FileSpreadsheet className="h-4 w-4" /> Export full report
-          </button>
+          <div className="flex flex-wrap items-center gap-2 print:hidden">
+            <button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <Printer className="h-4 w-4" /> Print / PDF
+            </button>
+            <button onClick={() => setEmailOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <Mail className="h-4 w-4" /> Email
+            </button>
+            <button onClick={exportFull} className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
+              <FileSpreadsheet className="h-4 w-4" /> CSV
+            </button>
+          </div>
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-3 print:hidden">
           <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground"><Filter className="h-3.5 w-3.5" /> Filters</span>
           <div className="flex items-center gap-1.5">
             <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
@@ -336,6 +346,92 @@ export default function ReportsPage() {
           </Section>
         )}
       </div>
+
+      {emailOpen && <EmailReportModal filters={{ from, to, job, department: dept }} onClose={() => setEmailOpen(false)} />}
     </main>
+  );
+}
+
+// ── Email report modal ────────────────────────────────────────────────────────
+function EmailReportModal({ filters, onClose }: { filters: { from: string; to: string; job: string; department: string }; onClose: () => void }) {
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [input, setInput] = useState("");
+  const [note, setNote] = useState("");
+  const [sending, setSending] = useState(false);
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
+
+  const addEmail = () => {
+    const e = input.trim();
+    if (e && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !recipients.includes(e)) {
+      setRecipients((r) => [...r, e]); setInput("");
+    }
+  };
+
+  const send = async () => {
+    const all = [...recipients, ...(input.trim() ? [input.trim()] : [])];
+    const valid = all.filter((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e));
+    if (!valid.length) { setError("Add at least one valid email."); return; }
+    setSending(true); setError("");
+    const res = await fetch("/api/enterprise/reports/email", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ recipients: valid, note, filters }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setError(json.error ?? "Failed to send."); setSending(false); return; }
+    setSent(true); setSending(false);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        {sent ? (
+          <div className="text-center">
+            <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-green-400" />
+            <h2 className="font-semibold">Report sent!</h2>
+            <p className="mt-1 text-sm text-muted-foreground">The hiring report is on its way.</p>
+            <button onClick={onClose} className="btn-cta mt-4 rounded-xl px-5 py-2 text-sm font-semibold">Done</button>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-semibold"><Mail className="h-4 w-4 text-primary" /> Email report</h2>
+              <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">Sends the current report (with active filters) to hiring managers or anyone you choose.</p>
+
+            <label className="mb-1.5 block text-sm font-medium">Recipients</label>
+            <div className="flex gap-2">
+              <input value={input} onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEmail(); } }}
+                type="email" placeholder="manager@company.com"
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <button onClick={addEmail} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
+            </div>
+            {recipients.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {recipients.map((e) => (
+                  <span key={e} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                    {e}<button onClick={() => setRecipients((r) => r.filter((x) => x !== e))}><X className="h-3 w-3" /></button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <label className="mb-1.5 mt-4 block text-sm font-medium">Note (optional)</label>
+            <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={3}
+              placeholder="Here's this week's hiring report…"
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+
+            {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+
+            <button onClick={send} disabled={sending}
+              className="btn-cta mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60">
+              {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send report
+            </button>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
