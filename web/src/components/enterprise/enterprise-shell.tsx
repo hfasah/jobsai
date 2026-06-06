@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
+import { AskAI } from "@/components/enterprise/ask-ai";
 
 const NAV = [
   { href: "/enterprise/dashboard", icon: LayoutGrid,       label: "Dashboard" },
@@ -114,6 +115,9 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
         </header>
         {children}
       </div>
+
+      {/* Global AI assistant — available on every enterprise page */}
+      <AskAI />
     </div>
   );
 }
