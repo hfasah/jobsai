@@ -99,6 +99,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   // Token allowance is granted lazily by getTokenAccount on the next read (it
   // detects the plan change). Just announce the upgrade here.
   createNotification(userId, "plan_upgraded", `Welcome to ${planLabel}!`, `Your plan has been upgraded to ${planLabel}. Your monthly tokens and features are now unlocked.`, { plan }).catch(console.error);
+
+  // Affiliate conversion
+  const affiliateId = session.metadata?.affiliate_id;
+  if (affiliateId) {
+    await recordAffiliateConversion(affiliateId, session.metadata?.ref_code ?? "", userId, plan, (session.amount_total ?? 0) / 100);
+  }
+}
+
+async function recordAffiliateConversion(affiliateId: string, refCode: string, userId: string, plan: string, amount: number) {
+  const { data: aff } = await supabaseAdmin.from("affiliates").select("conversions").eq("id", affiliateId).maybeSingle();
+  if (!aff) return;
+  await Promise.all([
+    supabaseAdmin.from("affiliates").update({ conversions: (aff.conversions ?? 0) + 1 }).eq("id", affiliateId),
+    supabaseAdmin.from("affiliate_referrals").insert({ affiliate_id: affiliateId, ref_code: refCode, user_id: userId, event: "conversion", plan, amount }),
+  ]);
 }
 
 async function handleSubscriptionChange(sub: Stripe.Subscription) {

@@ -4,6 +4,7 @@ import { Inter, Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google
 import { ThemeProvider } from "@/components/theme-provider";
 import { MarketingPopups } from "@/components/marketing/marketing-popups";
 import { SupportWidget } from "@/components/marketing/support-widget";
+import { AffiliateTracker } from "@/components/affiliate-tracker";
 import "./globals.css";
 
 // Body — Notion's primary font: clean, highly legible, modern
@@ -93,6 +94,7 @@ export default function RootLayout({
             {children}
             <MarketingPopups />
             <SupportWidget />
+            <AffiliateTracker />
           </ThemeProvider>
         </body>
       </html>

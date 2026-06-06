@@ -72,6 +72,7 @@ const COLUMNS: FooterCol[] = [
     links: [
       { label: "About", href: "/about" },
       { label: "Blog", href: "/blog" },
+      { label: "Affiliates", href: "/affiliate" },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
       { label: "Contact", href: "/contact" },

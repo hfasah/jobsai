@@ -99,6 +99,12 @@ export async function POST(req: NextRequest) {
   }
 
   const customerId = await ensureCustomer(userId);
+
+  // Affiliate referral → 15% off via a reusable coupon
+  const refCode = req.cookies.get("jobsai_ref")?.value;
+  const affiliate = refCode ? await getAffiliateByCode(refCode) : null;
+  const discounts = affiliate ? [{ coupon: await getAffiliateCoupon(stripe, affiliate.discount_pct) }] : undefined;
+
   const session = await stripe.checkout.sessions.create({
     customer: customerId,
     mode: "subscription",
@@ -106,8 +112,28 @@ export async function POST(req: NextRequest) {
     ...(currency ? { currency } : {}),
     success_url: `${APP_URL}/onboarding/success`,
     cancel_url: `${APP_URL}/dashboard/billing?canceled=true`,
-    allow_promotion_codes: true,
-    metadata: { clerk_user_id: userId, plan, interval },
+    // promotion codes and discounts are mutually exclusive in Stripe checkout
+    ...(discounts ? { discounts } : { allow_promotion_codes: true }),
+    metadata: { clerk_user_id: userId, plan, interval, ...(affiliate ? { affiliate_id: affiliate.id, ref_code: refCode } : {}) },
   });
   return NextResponse.json({ url: session.url });
+}
+
+async function getAffiliateByCode(code: string): Promise<{ id: string; discount_pct: number } | null> {
+  const { data } = await supabaseAdmin.from("affiliates").select("id, discount_pct").eq("code", code).maybeSingle();
+  return data ?? null;
+}
+
+// Reusable forever-recurring coupon per discount %; created once, then reused.
+const _coupons = new Map<number, string>();
+async function getAffiliateCoupon(stripe: ReturnType<typeof getStripe>, pct: number): Promise<string> {
+  if (_coupons.has(pct)) return _coupons.get(pct)!;
+  const id = `affiliate_${pct}pct`;
+  try {
+    await stripe.coupons.retrieve(id);
+  } catch {
+    await stripe.coupons.create({ id, percent_off: pct, duration: "forever", name: `Affiliate ${pct}% off` });
+  }
+  _coupons.set(pct, id);
+  return id;
 }
