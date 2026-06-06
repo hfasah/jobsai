@@ -186,123 +186,6 @@ function OutreachGenerator() {
   );
 }
 
-// ── Team Management ───────────────────────────────────────────────────────────
-interface Member { id: string; user_id: string; role: string; name: string; email: string; image_url: string | null; created_at: string }
-interface Invitation { id: string; email: string; role: string; created_at: string }
-
-function TeamSettings() {
-  const [members, setMembers] = useState<Member[]>([]);
-  const [invitations, setInvitations] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [inviteForm, setInviteForm] = useState({ email: "", role: "recruiter" });
-  const [inviting, setInviting] = useState(false);
-
-  useEffect(() => {
-    fetch("/api/enterprise/team").then((r) => r.json()).then((j) => {
-      setMembers(j.data?.members ?? []);
-      setInvitations(j.data?.invitations ?? []);
-    }).finally(() => setLoading(false));
-  }, []);
-
-  const invite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setInviting(true);
-    const res = await fetch("/api/enterprise/team", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(inviteForm),
-    });
-    const json = await res.json();
-    if (json.data) setInvitations((i) => [json.data, ...i]);
-    setInviteForm({ email: "", role: "recruiter" });
-    setInviting(false);
-  };
-
-  const changeRole = async (memberId: string, role: string) => {
-    await fetch(`/api/enterprise/team/${memberId}`, {
-      method: "PUT", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ role }),
-    });
-    setMembers((m) => m.map((x) => x.id === memberId ? { ...x, role } : x));
-  };
-
-  const removeMember = async (memberId: string) => {
-    await fetch(`/api/enterprise/team/${memberId}`, { method: "DELETE" });
-    setMembers((m) => m.filter((x) => x.id !== memberId));
-  };
-
-  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-
-  return (
-    <div className="space-y-5">
-      {/* Current members */}
-      <div className="rounded-2xl border border-border bg-card overflow-hidden">
-        <div className="border-b border-border px-5 py-4">
-          <h2 className="font-semibold">Team members</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">Manage roles and access for your recruiting team.</p>
-        </div>
-        <div className="divide-y divide-border">
-          {members.map((m) => (
-            <div key={m.id} className="flex items-center justify-between px-5 py-3.5">
-              <div className="flex items-center gap-3">
-                {m.image_url
-                  ? <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded-full" />
-                  : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
-                      {m.name.charAt(0).toUpperCase()}
-                    </div>
-                }
-                <div>
-                  <p className="text-sm font-medium">{m.name || m.email}</p>
-                  <p className="text-xs text-muted-foreground">{m.email}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)}
-                  className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary">
-                  {["owner", "admin", "recruiter"].map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
-                </select>
-                <button onClick={() => removeMember(m.id)}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Invite form */}
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <h2 className="mb-3 font-semibold">Invite a team member</h2>
-        <form onSubmit={invite} className="flex flex-wrap gap-3">
-          <input value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
-            type="email" required placeholder="colleague@company.com"
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-          <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))}
-            className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-            {["admin", "recruiter"].map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
-          </select>
-          <button type="submit" disabled={inviting}
-            className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
-            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Send invite
-          </button>
-        </form>
-        {invitations.length > 0 && (
-          <div className="mt-4 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pending invitations</p>
-            {invitations.map((inv) => (
-              <div key={inv.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                <p className="text-sm">{inv.email} <span className="text-muted-foreground">— {inv.role}</span></p>
-                <span className="text-[10px] text-amber-400">Pending</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 // ── ATS Integrations ──────────────────────────────────────────────────────────
 const PROVIDERS = [
   { id: "greenhouse",  label: "Greenhouse",  logo: "🌿", hint: "Harvest API key from Settings → API Credential Management" },
@@ -625,12 +508,11 @@ function DataPrivacySettings() {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-type Tab = "copilot" | "outreach" | "team" | "integrations" | "emails" | "data";
+type Tab = "copilot" | "outreach" | "integrations" | "emails" | "data";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "copilot",      label: "Copilot",      icon: Bot },
   { id: "outreach",     label: "Outreach",     icon: Sparkles },
-  { id: "team",         label: "Team",         icon: Users },
   { id: "integrations", label: "Integrations", icon: Link2 },
   { id: "emails",       label: "Emails",       icon: Mail },
   { id: "data",         label: "Data & Privacy", icon: Shield },
@@ -661,7 +543,6 @@ export default function SettingsPage() {
 
         {tab === "copilot"      && <RecruiterCopilot />}
         {tab === "outreach"     && <OutreachGenerator />}
-        {tab === "team"         && <TeamSettings />}
         {tab === "integrations" && <IntegrationsSettings />}
         {tab === "emails"       && <EmailTemplatesSettings />}
         {tab === "data"         && <DataPrivacySettings />}

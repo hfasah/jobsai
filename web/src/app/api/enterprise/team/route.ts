@@ -45,7 +45,8 @@ export async function GET() {
     })
   );
 
-  return NextResponse.json({ data: { members: enriched, invitations: invitations ?? [] } });
+  const myRole = (members ?? []).find((m) => m.user_id === userId)?.role ?? "recruiter";
+  return NextResponse.json({ data: { members: enriched, invitations: invitations ?? [], my_role: myRole, my_user_id: userId } });
 }
 
 // POST — invite a new team member
