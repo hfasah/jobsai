@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowRight } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { featureHref } from "@/lib/marketing-features";
@@ -148,8 +149,9 @@ export function SiteFooter() {
         <div className="mx-auto grid max-w-6xl gap-10 sm:grid-cols-2 lg:grid-cols-6">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Link href="/" className="text-lg font-bold tracking-tight">
-              <span className="text-gradient">{APP_NAME}</span>
+            <Link href="/" className="inline-flex items-center gap-3">
+              <Image src="/logo.png" alt="JobsAI logo" width={48} height={48} className="rounded-xl" />
+              <span className="text-lg font-bold tracking-tight text-gradient">{APP_NAME}</span>
             </Link>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
               The AI that applies to thousands of jobs for you — and preps you to win the interviews,
