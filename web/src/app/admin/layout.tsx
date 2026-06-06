@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, CreditCard, Building2,
-  MessageSquareWarning, ShieldCheck, LogOut,
+  MessageSquareWarning, ShieldCheck, LogOut, Inbox,
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 
@@ -21,6 +21,7 @@ const NAV = [
   { href: "/admin/subscribers", label: "Subscribers",  icon: CreditCard },
   { href: "/admin/enterprise",  label: "Enterprise",   icon: Building2 },
   { href: "/admin/churn",       label: "Churn",        icon: MessageSquareWarning },
+  { href: "/admin/support",     label: "Support Inbox", icon: Inbox },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
