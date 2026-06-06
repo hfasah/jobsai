@@ -41,7 +41,7 @@ const TIERS: Tier[] = [
     name: "Pro",
     icon: Send,
     monthly: 29,
-    tagline: "Auto-apply on autopilot",
+    tagline: "Best for students and early-career professionals.",
     cta: "Start Pro",
     features: [
       "Automatic applying, every day",
@@ -55,7 +55,7 @@ const TIERS: Tier[] = [
     name: "Premium",
     icon: Zap,
     monthly: 79,
-    tagline: "More volume, more interviews",
+    tagline: "Best for active mid-to-senior job seekers.",
     highlight: true,
     badge: "Most Popular",
     cta: "Start Premium",
@@ -71,7 +71,7 @@ const TIERS: Tier[] = [
     name: "Career Accelerator",
     icon: Rocket,
     monthly: 199,
-    tagline: "Maximum volume + coaching",
+    tagline: "Best for executive candidates and career changers.",
     cta: "Go all-in",
     features: [
       "Everything in Premium",
