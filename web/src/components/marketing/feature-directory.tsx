@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { GradientBg } from "@/components/ui/gradient-bg";
 import { SectionBadge } from "@/components/ui/section-badge";
 import { FEATURE_GROUPS, featureHref } from "@/lib/marketing-features";
@@ -40,10 +39,7 @@ export function FeatureDirectory() {
                       <Icon className="h-5 w-5" />
                     </span>
                     <span className="min-w-0">
-                      <span className="flex items-center gap-1 text-sm font-semibold text-foreground">
-                        {label}
-                        <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
-                      </span>
+                      <span className="text-sm font-semibold text-foreground">{label}</span>
                       <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{blurb}</span>
                     </span>
                   </Link>

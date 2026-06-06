@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import type { ReactNode } from "react";
 import type { FeatureItem } from "@/lib/marketing-features";
 import { featureHref } from "@/lib/marketing-features";
@@ -32,7 +31,7 @@ export function FeatureStrip({
             href={viewAllHref}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
           >
-            View all features <ArrowRight className="h-4 w-4" />
+            View all features
           </Link>
         </div>
 
@@ -46,10 +45,7 @@ export function FeatureStrip({
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-gradient-brand group-hover:text-white">
                 <ItemIcon className="h-5 w-5" />
               </span>
-              <span className="mt-1 flex items-center gap-1 text-sm font-semibold text-foreground">
-                {label}
-                <ArrowRight className="h-3.5 w-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" />
-              </span>
+              <span className="mt-1 text-sm font-semibold text-foreground">{label}</span>
               <span className="text-xs leading-relaxed text-muted-foreground">{blurb}</span>
             </Link>
           ))}

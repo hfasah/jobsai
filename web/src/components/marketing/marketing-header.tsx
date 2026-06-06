@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { APP_NAME } from "@/lib/constants";
 
@@ -43,10 +42,9 @@ export function MarketingHeader() {
             <>
               <Link
                 href="/dashboard"
-                className="btn-cta inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm"
+                className="btn-cta inline-flex items-center rounded-full px-4 py-2 text-sm"
               >
                 Dashboard
-                <ArrowRight className="h-4 w-4" />
               </Link>
               <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
             </>
@@ -54,10 +52,9 @@ export function MarketingHeader() {
             <>
               <Link
                 href="/sign-up"
-                className="btn-cta inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm"
+                className="btn-cta inline-flex items-center rounded-full px-4 py-2 text-sm"
               >
                 Get started
-                <ArrowRight className="h-4 w-4" />
               </Link>
               <Link
                 href="/sign-in"
