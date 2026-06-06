@@ -1062,8 +1062,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
       {reportApp && (
         <CandidateReportModal
           jobId={jobId}
-          appId={reportApp.id}
-          candidateName={reportApp.candidate_name}
+          app={reportApp}
           hasFramework={!!framework}
           onClose={() => setReportApp(null)}
         />

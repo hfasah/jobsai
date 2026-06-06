@@ -4,14 +4,24 @@ import { useState, useEffect, useCallback } from "react";
 import {
   X, Loader2, Sparkles, FileText, ClipboardList, CheckCircle2,
   AlertCircle, Copy, Check, ChevronDown, UserCheck, Mic,
+  Mail, Phone, Globe, FileUser, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { InterviewReport, CompetencyScore } from "@/types/interview-intelligence";
 import { RECOMMENDATION_META } from "@/types/interview-intelligence";
-import type { AIRecommendation } from "@/types/enterprise";
+import type { AIRecommendation, EnterpriseApplication } from "@/types/enterprise";
 
 const SCORE_COLOR = (n: number) => n >= 75 ? "text-green-400" : n >= 50 ? "text-amber-400" : "text-red-400";
 const BAR_COLOR = (n: number) => n >= 75 ? "bg-green-500" : n >= 50 ? "bg-amber-500" : "bg-red-500";
+
+function ScorePill({ label, value, muted }: { label: string; value: number; muted?: boolean }) {
+  return (
+    <div className={cn("rounded-lg border border-border px-2.5 py-1", muted && "opacity-70")}>
+      <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={cn("ml-1.5 text-sm font-bold tabular-nums", SCORE_COLOR(value))}>{value}</span>
+    </div>
+  );
+}
 
 function CompetencyBar({ c }: { c: CompetencyScore }) {
   return (
@@ -129,15 +139,18 @@ ${report.concerns.map((s) => `• ${s}`).join("\n")}`;
 }
 
 export function CandidateReportModal({
-  jobId, appId, candidateName, hasFramework, onClose,
+  jobId, app, hasFramework, onClose,
 }: {
-  jobId: string; appId: string; candidateName: string; hasFramework: boolean; onClose: () => void;
+  jobId: string; app: EnterpriseApplication; hasFramework: boolean; onClose: () => void;
 }) {
+  const appId = app.id;
+  const candidateName = app.candidate_name;
   const [reports, setReports] = useState<InterviewReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<"pre" | "post" | null>(null);
   const [error, setError] = useState("");
   const [showTranscript, setShowTranscript] = useState(false);
+  const [showResume, setShowResume] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [roundName, setRoundName] = useState("");
 
@@ -193,6 +206,46 @@ export function CandidateReportModal({
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
+          {/* Candidate snapshot: contact + scores + resume */}
+          <div className="rounded-xl border border-border bg-background/40 p-4">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+              <a href={`mailto:${app.candidate_email}`} className="flex items-center gap-1 hover:text-foreground"><Mail className="h-3.5 w-3.5" />{app.candidate_email}</a>
+              {app.candidate_phone && <span className="flex items-center gap-1"><Phone className="h-3.5 w-3.5" />{app.candidate_phone}</span>}
+              {app.linkedin_url && <a href={app.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><ExternalLink className="h-3.5 w-3.5" />LinkedIn</a>}
+              {app.portfolio_url && <a href={app.portfolio_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><Globe className="h-3.5 w-3.5" />Portfolio</a>}
+            </div>
+
+            {/* Scores */}
+            <div className="mt-3 flex flex-wrap gap-3">
+              {app.match_score !== null && (
+                <ScorePill label="Match" value={app.match_score} />
+              )}
+              {app.ats_score !== null && app.ats_score !== undefined && (
+                <ScorePill label="ATS" value={app.ats_score} />
+              )}
+              {app.skills_score !== null && <ScorePill label="Skills" value={app.skills_score} muted />}
+              {app.experience_score !== null && <ScorePill label="Experience" value={app.experience_score} muted />}
+            </div>
+            {app.ai_summary && <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">{app.ai_summary}</p>}
+
+            {/* Resume */}
+            {(app.resume_text || app.resume_url) && (
+              <div className="mt-3">
+                <button onClick={() => setShowResume((s) => !s)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
+                  <FileUser className="h-3.5 w-3.5" />
+                  {showResume ? "Hide resume" : "View resume"}
+                  {app.resume_url && <span className="text-muted-foreground">· <a href={app.resume_url} target="_blank" rel="noopener noreferrer" className="underline">download file</a></span>}
+                </button>
+                {showResume && app.resume_text && (
+                  <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-xs leading-relaxed text-foreground font-sans">
+                    {app.resume_text}
+                  </pre>
+                )}
+              </div>
+            )}
+          </div>
+
           {!hasFramework && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-400">
               Generate the competency scorecard on the job&apos;s <strong>Scorecard</strong> tab first — reports score against it.
