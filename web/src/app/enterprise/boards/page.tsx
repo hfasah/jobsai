@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   Loader2, Globe, Copy, Check, CheckCircle2, ExternalLink, Rss, Sparkles, Zap,
+  KeyRound, Plus, Trash2, Download, Upload, RotateCw, X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -157,11 +158,154 @@ export default function JobBoardsPage() {
           })}
         </div>
 
+        {/* Bring your own credentials */}
+        <BoardCredentials />
+
         <div className="rounded-2xl border border-border bg-card p-5">
           <p className="flex items-center gap-2 text-sm font-medium"><Sparkles className="h-4 w-4 text-primary" /> Need polished copy for manual posts?</p>
           <p className="mt-1 text-sm text-muted-foreground">Open any job → <strong>Distribution</strong> tab to get AI-written, platform-optimized versions for LinkedIn, Indeed, Twitter/X, email, and Google — with tracking links.</p>
         </div>
       </div>
     </main>
+  );
+}
+
+// ── Bring-your-own-credentials connections ────────────────────────────────────
+interface Cred {
+  id: string; board: string; label: string; direction: "post" | "pull" | "both";
+  api_key: string | null; account_id: string | null; feed_url: string | null;
+  enabled: boolean; last_sync: string | null; jobs_imported: number;
+}
+
+const DIR_META: Record<string, { label: string; icon: React.ElementType; color: string }> = {
+  post: { label: "Post", icon: Upload, color: "text-green-400" },
+  pull: { label: "Pull", icon: Download, color: "text-blue-400" },
+  both: { label: "Post + Pull", icon: RotateCw, color: "text-purple-400" },
+};
+
+function BoardCredentials() {
+  const [creds, setCreds] = useState<Cred[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ board: "", label: "", direction: "post", api_key: "", account_id: "", feed_url: "" });
+  const [saving, setSaving] = useState(false);
+  const [pulling, setPulling] = useState<string | null>(null);
+  const [pullMsg, setPullMsg] = useState<Record<string, string>>({});
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch("/api/enterprise/board-credentials").then((r) => r.json()).then((j) => setCreds(j.data ?? [])).finally(() => setLoading(false));
+  }, []);
+
+  const add = async () => {
+    if (!form.board.trim()) { setError("Board name is required."); return; }
+    setSaving(true); setError("");
+    const res = await fetch("/api/enterprise/board-credentials", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
+    });
+    const json = await res.json();
+    if (!res.ok) { setError(json.error ?? "Failed."); setSaving(false); return; }
+    setCreds((c) => [...c, json.data]);
+    setForm({ board: "", label: "", direction: "post", api_key: "", account_id: "", feed_url: "" });
+    setShowForm(false); setSaving(false);
+  };
+
+  const remove = async (id: string) => {
+    setCreds((c) => c.filter((x) => x.id !== id));
+    await fetch(`/api/enterprise/board-credentials/${id}`, { method: "DELETE" });
+  };
+
+  const pull = async (id: string) => {
+    setPulling(id); setPullMsg((m) => ({ ...m, [id]: "" }));
+    const res = await fetch(`/api/enterprise/board-credentials/${id}/pull`, { method: "POST" });
+    const json = await res.json();
+    setPullMsg((m) => ({ ...m, [id]: res.ok ? `Imported ${json.imported} of ${json.found} jobs` : (json.error ?? "Pull failed") }));
+    if (res.ok) setCreds((c) => c.map((x) => x.id === id ? { ...x, last_sync: new Date().toISOString(), jobs_imported: x.jobs_imported + json.imported } : x));
+    setPulling(null);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="mb-1 flex items-center justify-between">
+        <h2 className="flex items-center gap-2 font-semibold"><KeyRound className="h-4 w-4 text-primary" /> Your own board credentials</h2>
+        {!showForm && (
+          <button onClick={() => setShowForm(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+            <Plus className="h-3.5 w-3.5" /> Connect a board
+          </button>
+        )}
+      </div>
+      <p className="mb-3 text-sm text-muted-foreground">
+        Partners can plug in their own API credentials or feed URLs to <strong>post to</strong> or <strong>pull jobs from</strong> any board — however they see fit.
+      </p>
+
+      {showForm && (
+        <div className="mb-4 rounded-xl border border-border bg-background/40 p-4 space-y-3">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <input value={form.board} onChange={(e) => setForm((f) => ({ ...f, board: e.target.value }))} placeholder="Board (e.g. ZipRecruiter)"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <select value={form.direction} onChange={(e) => setForm((f) => ({ ...f, direction: e.target.value }))}
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="post">Post jobs to this board</option>
+              <option value="pull">Pull jobs from this board</option>
+              <option value="both">Both</option>
+            </select>
+            <input value={form.api_key} onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))} placeholder="API key / token (if any)" type="password"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <input value={form.account_id} onChange={(e) => setForm((f) => ({ ...f, account_id: e.target.value }))} placeholder="Publisher / account ID (if any)"
+              className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          {(form.direction === "pull" || form.direction === "both") && (
+            <input value={form.feed_url} onChange={(e) => setForm((f) => ({ ...f, feed_url: e.target.value }))} placeholder="Feed URL to pull jobs from (XML/RSS)"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          )}
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={add} disabled={saving} className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60">
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Save connection
+            </button>
+            <button onClick={() => { setShowForm(false); setError(""); }} className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : creds.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No custom connections yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {creds.map((c) => {
+            const dir = DIR_META[c.direction];
+            const DirIcon = dir.icon;
+            const canPull = c.direction === "pull" || c.direction === "both";
+            return (
+              <div key={c.id} className="rounded-xl border border-border p-3">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-sm font-medium">{c.label || c.board}</span>
+                    <span className={cn("inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium", dir.color)}>
+                      <DirIcon className="h-2.5 w-2.5" /> {dir.label}
+                    </span>
+                    {c.api_key && <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-[10px] text-green-400">key set</span>}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {canPull && (
+                      <button onClick={() => pull(c.id)} disabled={pulling === c.id}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted disabled:opacity-50">
+                        {pulling === c.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />} Pull now
+                      </button>
+                    )}
+                    <button onClick={() => remove(c.id)} className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"><Trash2 className="h-3.5 w-3.5" /></button>
+                  </div>
+                </div>
+                {(c.last_sync || pullMsg[c.id]) && (
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {pullMsg[c.id] || (c.last_sync ? `Last pull: ${new Date(c.last_sync).toLocaleString()} · ${c.jobs_imported} imported` : "")}
+                  </p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
