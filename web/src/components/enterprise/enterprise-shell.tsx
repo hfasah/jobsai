@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import {
-  LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound,
+  LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe,
   Menu, X, Building2, ChevronRight, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/enterprise/dashboard", icon: LayoutGrid,       label: "Dashboard" },
   { href: "/enterprise/inbox",     icon: Inbox,            label: "Inbox" },
   { href: "/enterprise/jobs",      icon: Briefcase,        label: "Jobs" },
+  { href: "/enterprise/boards",    icon: Globe,            label: "Job Boards" },
   { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },
   { href: "/enterprise/analytics", icon: BarChart3,        label: "Analytics" },
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports" },

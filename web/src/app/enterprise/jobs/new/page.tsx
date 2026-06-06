@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2, Globe } from "lucide-react";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const DEPARTMENTS = ["Engineering", "Product", "Design", "Marketing", "Sales", "Operations", "Finance", "HR", "Legal", "Customer Success", "Other"];
@@ -196,17 +197,23 @@ export default function NewJobPage() {
           {error && <p className="text-sm text-destructive">{error}</p>}
 
           {/* Actions */}
-          <div className="flex items-center gap-3 pb-6">
-            <button onClick={() => save(false)} disabled={saving}
-              className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-              Save draft
-            </button>
-            <button onClick={() => save(true)} disabled={saving}
-              className="btn-cta inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
-              Publish job
-            </button>
+          <div className="pb-6">
+            <div className="flex items-center gap-3">
+              <button onClick={() => save(false)} disabled={saving}
+                className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50 transition-colors">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                Save draft
+              </button>
+              <button onClick={() => save(true)} disabled={saving}
+                className="btn-cta inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold disabled:opacity-60">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
+                Publish job
+              </button>
+            </div>
+            <p className="mt-2.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Globe className="h-3.5 w-3.5" />
+              Publishing distributes this role to Google for Jobs and every job board connected on the <Link href="/enterprise/boards" className="text-primary hover:underline">Job Boards</Link> page.
+            </p>
           </div>
         </div>
       </div>
