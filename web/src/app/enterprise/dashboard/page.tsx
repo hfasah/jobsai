@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Briefcase, Users, CheckCircle2, Clock, Plus, ArrowRight, Loader2, TrendingUp } from "lucide-react";
+import { Briefcase, Users, CheckCircle2, Clock, Plus, ArrowRight, Loader2, TrendingUp, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication } from "@/types/enterprise";
-import { STAGE_COLORS, STAGE_LABELS } from "@/types/enterprise";
+import { STAGE_COLORS, STAGE_LABELS, ATS_TIERS, atsTier } from "@/types/enterprise";
 
 export default function EnterpriseDashboard() {
   const [jobs, setJobs] = useState<EnterpriseJob[]>([]);
   const [recentApps, setRecentApps] = useState<EnterpriseApplication[]>([]);
+  const [recentAll, setRecentAll] = useState<EnterpriseApplication[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -18,16 +19,15 @@ export default function EnterpriseDashboard() {
     ]).then(([j]) => {
       const jobList: EnterpriseJob[] = j.data ?? [];
       setJobs(jobList);
-      // Fetch recent applications for active jobs
-      const activeIds = jobList.filter((j) => j.status === "active").map((j) => j.id).slice(0, 3);
+      // Fetch applications for active jobs
+      const activeIds = jobList.filter((j) => j.status === "active").map((j) => j.id).slice(0, 5);
       return Promise.all(activeIds.map((id) =>
         fetch(`/api/enterprise/jobs/${id}/applications`).then((r) => r.json())
       ));
     }).then((results) => {
-      const all = results.flatMap((r) => r.data ?? []);
-      all.sort((a: EnterpriseApplication, b: EnterpriseApplication) =>
-        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
+      const all: EnterpriseApplication[] = results.flatMap((r) => r.data ?? []);
+      all.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setRecentAll(all);
       setRecentApps(all.slice(0, 8));
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
@@ -121,8 +121,10 @@ export default function EnterpriseDashboard() {
                     <p className="truncate text-xs text-muted-foreground">{app.candidate_email}</p>
                   </div>
                   <div className="flex items-center gap-2 ml-2">
-                    {app.match_score !== null && (
-                      <span className="text-xs font-semibold tabular-nums text-desyn-accent">{app.match_score}%</span>
+                    {app.ats_score !== null && app.ats_score !== undefined && (
+                      <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", atsTier(app.ats_score)?.color)}>
+                        ATS {app.ats_score}
+                      </span>
                     )}
                     <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-semibold", STAGE_COLORS[app.stage])}>
                       {STAGE_LABELS[app.stage]}
@@ -138,7 +140,52 @@ export default function EnterpriseDashboard() {
             </div>
           </section>
         </div>
+
+        {/* ATS score distribution across all candidates */}
+        <AtsDistribution apps={recentAll} />
       </div>
     </main>
+  );
+}
+
+function AtsDistribution({ apps }: { apps: EnterpriseApplication[] }) {
+  const scored = apps.filter((a) => a.ats_score !== null && a.ats_score !== undefined);
+  if (scored.length === 0) return null;
+
+  return (
+    <section className="mt-6 rounded-2xl border border-border bg-card p-5">
+      <div className="mb-4 flex items-center gap-2">
+        <Target className="h-4 w-4 text-primary" />
+        <h2 className="font-semibold">ATS score distribution</h2>
+        <span className="text-xs text-muted-foreground">· {scored.length} screened candidates</span>
+      </div>
+
+      {/* stacked bar */}
+      <div className="mb-4 flex h-3 w-full overflow-hidden rounded-full bg-muted">
+        {ATS_TIERS.map((tier) => {
+          const count = scored.filter((a) => atsTier(a.ats_score)?.id === tier.id).length;
+          const pct = Math.round((count / scored.length) * 100);
+          if (pct === 0) return null;
+          return <div key={tier.id} className={tier.dot} style={{ width: `${pct}%` }} title={`${tier.label}: ${count}`} />;
+        })}
+      </div>
+
+      {/* tier counts */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {ATS_TIERS.map((tier) => {
+          const count = scored.filter((a) => atsTier(a.ats_score)?.id === tier.id).length;
+          return (
+            <div key={tier.id} className="rounded-xl border border-border p-3">
+              <div className="flex items-center gap-1.5">
+                <span className={cn("h-2 w-2 rounded-full", tier.dot)} />
+                <span className="text-xs font-medium">{tier.label}</span>
+              </div>
+              <p className="mt-1.5 text-2xl font-bold tabular-nums">{count}</p>
+              <p className="text-[10px] text-muted-foreground">ATS {tier.range}</p>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

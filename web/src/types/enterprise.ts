@@ -66,6 +66,10 @@ export interface EnterpriseApplication {
   skills_score: number | null;
   experience_score: number | null;
   culture_score: number | null;
+  ats_score: number | null;
+  ats_keywords_matched: string[];
+  ats_keywords_missing: string[];
+  ats_summary: string | null;
   risk_flags: string[];
   ai_summary: string | null;
   ai_recommendation: AIRecommendation | null;
@@ -117,3 +121,28 @@ export const STAGE_COLORS: Record<AppStage, string> = {
   hired:     "bg-green-500/15 text-green-400 border-green-500/30",
   rejected:  "bg-red-500/15 text-red-400 border-red-500/30",
 };
+
+// ── ATS score tiers ───────────────────────────────────────────────────────────
+export type AtsTier = "top" | "strong" | "possible" | "low" | "unscored";
+
+export interface AtsTierMeta {
+  id: AtsTier;
+  label: string;
+  range: string;
+  color: string;        // badge classes
+  dot: string;          // dot/bar bg
+  min: number;
+  max: number;
+}
+
+export const ATS_TIERS: AtsTierMeta[] = [
+  { id: "top",      label: "Top Match",  range: "85-100", color: "bg-green-500/15 text-green-400 border-green-500/30",  dot: "bg-green-500",  min: 85, max: 100 },
+  { id: "strong",   label: "Strong",     range: "70-84",  color: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",      dot: "bg-cyan-500",   min: 70, max: 84 },
+  { id: "possible", label: "Possible",   range: "50-69",  color: "bg-amber-500/15 text-amber-400 border-amber-500/30",   dot: "bg-amber-500",  min: 50, max: 69 },
+  { id: "low",      label: "Low Match",  range: "0-49",   color: "bg-red-500/15 text-red-400 border-red-500/30",         dot: "bg-red-500",    min: 0,  max: 49 },
+];
+
+export function atsTier(score: number | null | undefined): AtsTierMeta | null {
+  if (score === null || score === undefined) return null;
+  return ATS_TIERS.find((t) => score >= t.min && score <= t.max) ?? ATS_TIERS[ATS_TIERS.length - 1];
+}

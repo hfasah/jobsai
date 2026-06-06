@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
+import { ATS_TIERS, atsTier } from "@/types/enterprise";
 import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
@@ -96,10 +97,21 @@ function CandidateCard({
           )}
           {(app.match_score !== null) && (
             <div className="space-y-2">
+              <ScoreBar label="ATS keyword match" value={app.ats_score} />
               <ScoreBar label="Match" value={app.match_score} />
               <ScoreBar label="Skills" value={app.skills_score} />
               <ScoreBar label="Experience" value={app.experience_score} />
               <ScoreBar label="Culture" value={app.culture_score} />
+            </div>
+          )}
+          {app.ats_keywords_missing?.length > 0 && (
+            <div>
+              <p className="text-[11px] font-semibold text-red-400 mb-1">Missing ATS keywords</p>
+              <div className="flex flex-wrap gap-1">
+                {app.ats_keywords_missing.slice(0, 6).map((k) => (
+                  <span key={k} className="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-400">{k}</span>
+                ))}
+              </div>
             </div>
           )}
           {app.risk_flags.length > 0 && (
@@ -150,6 +162,126 @@ function CandidateCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── ATS Score Panel ───────────────────────────────────────────────────────────
+function AtsScorePanel({
+  apps, onScreen, screeningIds, onScreenAll,
+}: {
+  apps: EnterpriseApplication[];
+  onScreen: (id: string) => void;
+  screeningIds: Set<string>;
+  onScreenAll: () => void;
+}) {
+  const unscored = apps.filter((a) => a.ats_score === null || a.ats_score === undefined);
+  const scored = apps.filter((a) => a.ats_score !== null && a.ats_score !== undefined);
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-5xl">
+        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">ATS score against this job description</h2>
+            <p className="text-sm text-muted-foreground">
+              Candidates grouped by how well their resume matches the role&apos;s required keywords.
+            </p>
+          </div>
+          {unscored.length > 0 && (
+            <button onClick={onScreenAll}
+              className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white shadow-glow">
+              <Sparkles className="h-3.5 w-3.5" /> Score {unscored.length} unscored
+            </button>
+          )}
+        </div>
+
+        {scored.length > 0 && (
+          <div className="mb-6 flex h-3 w-full overflow-hidden rounded-full bg-muted">
+            {ATS_TIERS.map((tier) => {
+              const count = scored.filter((a) => atsTier(a.ats_score)?.id === tier.id).length;
+              const pct = Math.round((count / scored.length) * 100);
+              if (pct === 0) return null;
+              return <div key={tier.id} className={tier.dot} style={{ width: `${pct}%` }} title={`${tier.label}: ${count}`} />;
+            })}
+          </div>
+        )}
+
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          {ATS_TIERS.map((tier) => {
+            const tierApps = scored
+              .filter((a) => atsTier(a.ats_score)?.id === tier.id)
+              .sort((a, b) => (b.ats_score ?? 0) - (a.ats_score ?? 0));
+            return (
+              <div key={tier.id} className="rounded-2xl border border-border bg-card/40 p-3">
+                <div className="mb-3 flex items-center justify-between px-1">
+                  <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold", tier.color)}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", tier.dot)} />
+                    {tier.label}
+                  </span>
+                  <span className="text-xs text-muted-foreground tabular-nums">{tierApps.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {tierApps.map((app) => (
+                    <div key={app.id} className="rounded-xl border border-border bg-card p-3">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-semibold">{app.candidate_name}</p>
+                        <span className={cn("shrink-0 text-sm font-bold tabular-nums",
+                          (app.ats_score ?? 0) >= 70 ? "text-green-400" : (app.ats_score ?? 0) >= 50 ? "text-amber-400" : "text-red-400")}>
+                          {app.ats_score}
+                        </span>
+                      </div>
+                      <p className="truncate text-[11px] text-muted-foreground">{app.candidate_email}</p>
+                      {(app.ats_keywords_matched?.length || app.ats_keywords_missing?.length) ? (
+                        <div className="mt-2 space-y-1">
+                          {app.ats_keywords_matched?.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {app.ats_keywords_matched.slice(0, 4).map((k) => (
+                                <span key={k} className="rounded bg-green-500/10 px-1.5 py-0.5 text-[10px] text-green-400">{k}</span>
+                              ))}
+                            </div>
+                          )}
+                          {app.ats_keywords_missing?.length > 0 && (
+                            <div className="flex flex-wrap gap-1">
+                              {app.ats_keywords_missing.slice(0, 3).map((k) => (
+                                <span key={k} className="rounded bg-red-500/10 px-1.5 py-0.5 text-[10px] text-red-400 line-through">{k}</span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
+                  {tierApps.length === 0 && (
+                    <p className="px-1 py-4 text-center text-xs text-muted-foreground/50">None</p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {unscored.length > 0 && (
+          <div className="mt-6 rounded-2xl border border-dashed border-border p-4">
+            <p className="mb-3 text-sm font-medium text-muted-foreground">{unscored.length} candidates not yet ATS-scored</p>
+            <div className="flex flex-wrap gap-2">
+              {unscored.map((app) => (
+                <button key={app.id} onClick={() => onScreen(app.id)} disabled={screeningIds.has(app.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs hover:bg-muted disabled:opacity-50">
+                  {screeningIds.has(app.id) ? <Loader2 className="h-3 w-3 animate-spin" /> : <Sparkles className="h-3 w-3 text-primary" />}
+                  {app.candidate_name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {apps.length === 0 && (
+          <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
+            No applications yet. ATS scores appear here as candidates apply and are screened.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -520,7 +652,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pipeline" | "all" | "distribute" | "analytics" | "interviews">("pipeline");
+  const [activeTab, setActiveTab] = useState<"pipeline" | "ats" | "all" | "distribute" | "analytics" | "interviews">("pipeline");
 
   const load = useCallback(async () => {
     const [jRes, aRes] = await Promise.all([
@@ -632,6 +764,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           <div className="mt-3 flex flex-wrap gap-1">
             {([
               { key: "pipeline",   label: "Pipeline" },
+              { key: "ats",        label: "ATS Score" },
               { key: "all",        label: `All (${apps.length})` },
               { key: "distribute", label: "Distribution" },
               { key: "analytics",  label: "Analytics" },
@@ -667,6 +800,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             </button>
           </div>
         </div>
+      )}
+
+      {/* ATS Score grouping */}
+      {activeTab === "ats" && (
+        <AtsScorePanel apps={apps} onScreen={screenApp} screeningIds={screeningIds} onScreenAll={screenAll} />
       )}
 
       {/* Pipeline */}

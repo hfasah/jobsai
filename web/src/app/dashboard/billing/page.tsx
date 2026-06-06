@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Loader2, CheckCircle2, Zap, Crown, Rocket, Mic,
-  ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins, X,
+  ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins, X, Building2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -333,6 +333,7 @@ function BillingContent() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [regenerating, setRegenerating] = useState(false);
+  const [isEnterprise, setIsEnterprise] = useState(false);
 
   const justUpgraded = searchParams.get("success") === "true";
   const toppedUp = searchParams.get("topup") === "true";
@@ -343,10 +344,12 @@ function BillingContent() {
       fetch("/api/billing").then((r) => r.json()),
       fetch("/api/tokens").then((r) => r.json()),
       fetch("/api/user/api-key").then((r) => r.json()),
-    ]).then(([b, t, k]) => {
+      fetch("/api/enterprise/org").then((r) => r.json()),
+    ]).then(([b, t, k, e]) => {
       setBilling(b.data);
       setTokens(t.data);
       setApiKey(k.api_key ?? null);
+      setIsEnterprise(!!e.data);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -417,6 +420,35 @@ function BillingContent() {
     );
   }
   if (!billing) return null;
+
+  // Enterprise users are billed via contract — hide all Stripe flows
+  if (isEnterprise) {
+    return (
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-10 sm:px-6">
+        <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">Account</p>
+        <h1 className="mt-1 text-2xl font-bold tracking-tight">Billing &amp; Plan</h1>
+        <div className="mt-8 rounded-2xl border border-primary/30 bg-primary/5 p-8">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand shadow-glow">
+              <Building2 className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <p className="text-lg font-bold">Enterprise Plan</p>
+              <p className="text-sm text-muted-foreground">Your account is on a custom enterprise contract.</p>
+            </div>
+          </div>
+          <p className="mt-4 text-sm text-muted-foreground">
+            Billing, seat management, and plan changes are handled directly with your account manager.
+            For billing enquiries contact <a href="mailto:enterprise@jobsai.work" className="text-primary hover:underline">enterprise@jobsai.work</a>.
+          </p>
+          <a href="/enterprise/dashboard"
+            className="btn-cta mt-6 inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold">
+            Go to Enterprise Dashboard →
+          </a>
+        </div>
+      </main>
+    );
+  }
 
   const { plan, usage } = billing;
   const meta = PLAN_META[plan];
