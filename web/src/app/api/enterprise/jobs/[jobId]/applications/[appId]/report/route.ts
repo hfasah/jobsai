@@ -11,6 +11,17 @@ const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
+// Coerce any AI output to one of the four valid recommendation enums
+function normalizeRec(raw: unknown): "strong_yes" | "yes" | "maybe" | "no" | null {
+  if (typeof raw !== "string") return null;
+  const s = raw.toLowerCase();
+  if (s.includes("strong")) return "strong_yes";
+  if (s.includes("no") && !s.includes("now")) return "no";
+  if (s.includes("maybe")) return "maybe";
+  if (s.includes("yes") || s.includes("recommend") || s.includes("proceed") || s.includes("advance")) return "yes";
+  return null;
+}
+
 export async function GET(_req: NextRequest, { params }: Ctx) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -94,7 +105,7 @@ Include one competency_scores entry per competency above, using the SAME names a
         competency_scores: parsed.competency_scores ?? [],
         strengths: parsed.strengths ?? [],
         concerns: parsed.concerns ?? [],
-        recommendation: parsed.recommendation ?? null,
+        recommendation: normalizeRec(parsed.recommendation),
         summary: parsed.summary ?? null,
         generated_by: userId,
       }).select("*").single();
@@ -143,7 +154,7 @@ One competency_scores entry per competency, SAME names and weights. Be specific 
       competency_scores: parsed.competency_scores ?? [],
       strengths: parsed.strengths ?? [],
       concerns: parsed.concerns ?? [],
-      recommendation: parsed.recommendation ?? null,
+      recommendation: normalizeRec(parsed.recommendation),
       summary: parsed.summary ?? null,
       generated_by: userId,
     }).select("*").single();
@@ -153,7 +164,7 @@ One competency_scores entry per competency, SAME names and weights. Be specific 
     // Update the candidate's overall match score from interview performance if higher
     if (parsed.overall_score && (!app.match_score || parsed.overall_score > app.match_score)) {
       await supabaseAdmin.from("enterprise_applications")
-        .update({ match_score: parsed.overall_score, ai_recommendation: parsed.recommendation ?? app.ai_recommendation })
+        .update({ match_score: parsed.overall_score, ai_recommendation: normalizeRec(parsed.recommendation) ?? app.ai_recommendation })
         .eq("id", appId);
     }
 
