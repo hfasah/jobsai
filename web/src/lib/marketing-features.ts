@@ -44,7 +44,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     tagline: "Know where you stand on every job.",
     items: [
       { slug: "job-matching", label: "Job Match Scoring", blurb: "Every role scored against your skills, experience, and targets.", icon: Target },
-      { slug: "keyword-gaps", label: "Keyword Gaps", blurb: "See exactly which keywords you're missing — and how to add them.", icon: ListChecks },
+      { slug: "keyword-gaps", label: "Keyword Gaps", blurb: "See exactly which keywords you're missing, and how to add them.", icon: ListChecks },
       { slug: "salary-intel", label: "Salary Intelligence", blurb: "Range estimates and negotiation tips for every posting.", icon: DollarSign },
       { slug: "skills-gap", label: "Skills Gap Analysis", blurb: "Spot the skills to learn next across all your saved jobs.", icon: TrendingUp },
       { slug: "company-research", label: "Company Research", blurb: "Culture, interview style, and the questions you'll likely face.", icon: Building2 },
@@ -54,7 +54,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     heading: "Interview suite",
     tagline: "From landed interview to signed offer.",
     items: [
-      { slug: "interview-buddy", label: "Interview Buddy", blurb: "AI interview prep from your resume and the job — personalized questions, instant feedback, and mock sessions, plus optional live assist.", icon: Headphones },
+      { slug: "interview-buddy", label: "Interview Buddy", blurb: "AI interview prep from your resume and the job, personalized questions, instant feedback, and mock sessions, plus optional live assist.", icon: Headphones },
       { slug: "written-coach", label: "AI Written Coach", blurb: "Typed Q&A with instant STAR structure and clarity scoring.", icon: MessageSquareText },
       { slug: "voice-interviewer", label: "AI Voice Interviewer", blurb: "A spoken mock interview that follows up and probes for specifics.", icon: Mic },
       { slug: "avatar-room", label: "AI Avatar Room", blurb: "Face a realistic video interviewer with body-language analysis.", icon: Video },

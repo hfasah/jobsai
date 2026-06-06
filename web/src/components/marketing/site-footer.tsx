@@ -103,7 +103,7 @@ export function SiteFooter() {
       {/* Community + newsletter band */}
       <div className="border-b border-border/60 px-4 py-12 sm:px-6">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-7 text-center">
-          {/* Avatar collage — replace with AI-generated portraits later */}
+          {/* Avatar collage, replace with AI-generated portraits later */}
           <div className="flex flex-wrap items-center justify-center gap-2">
             {AVATARS.map((a, i) => (
               <span
@@ -120,7 +120,7 @@ export function SiteFooter() {
               Join <span className="text-gradient">thousands</span> landing interviews on autopilot
             </h3>
             <p className="mx-auto mt-2 max-w-xl text-sm text-muted-foreground">
-              Get product updates, hiring trends, and interview tips. No spam — unsubscribe anytime.
+              Get product updates, hiring trends, and interview tips. No spam, unsubscribe anytime.
             </p>
           </div>
 
@@ -152,7 +152,7 @@ export function SiteFooter() {
               <span className="text-lg font-bold tracking-tight text-gradient">{APP_NAME}</span>
             </Link>
             <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              The AI that applies to thousands of jobs for you — and preps you to win the interviews,
+              The AI that applies to thousands of jobs for you, and preps you to win the interviews,
               guaranteed.
             </p>
             <div className="mt-5 flex items-center gap-2">

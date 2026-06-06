@@ -207,7 +207,7 @@ export function SupportWidget() {
                     {speaking ? "Speaking…" : listening ? "Listening…" : voiceLine}
                   </p>
                   <p className="text-[11px] text-muted-foreground/70">
-                    Voice support runs in your browser — no recording leaves this page.
+                    Voice support runs in your browser, no recording leaves this page.
                   </p>
                 </>
               ) : (

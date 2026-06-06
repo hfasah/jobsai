@@ -31,14 +31,14 @@ const LEVELS = [
     level: "Level 1",
     icon: MessageSquareText,
     title: "AI Written Coach",
-    body: "Practice behavioral, technical, and leadership questions in writing. Get instant feedback on STAR structure, clarity, and confidence — plus an improved model answer.",
+    body: "Practice behavioral, technical, and leadership questions in writing. Get instant feedback on STAR structure, clarity, and confidence, plus an improved model answer.",
     best: "Mastering your answers & STAR stories",
   },
   {
     level: "Level 2",
     icon: Mic,
     title: "AI Voice Interviewer",
-    body: "Have a real spoken interview. The AI asks, follows up, and probes for specifics — then scores your speaking pace, filler words, and confidence.",
+    body: "Have a real spoken interview. The AI asks, follows up, and probes for specifics, then scores your speaking pace, filler words, and confidence.",
     best: "Phone screens & recruiter calls",
   },
   {
@@ -51,41 +51,41 @@ const LEVELS = [
 ];
 
 const STEPS = [
-  { n: "01", icon: FileText, title: "Upload your resume", body: "We parse your skills, experience, and target roles in seconds — once." },
+  { n: "01", icon: FileText, title: "Upload your resume", body: "We parse your skills, experience, and target roles in seconds, once." },
   { n: "02", icon: Search, title: "We find & match jobs", body: "Our AI scans thousands of boards daily and surfaces the roles you're most likely to land." },
-  { n: "03", icon: Send, title: "We auto-apply for you", body: "A tailored resume and cover letter are submitted to each role — and we reach recruiters directly." },
-  { n: "04", icon: Briefcase, title: "You land interviews — guaranteed", body: "Interviews start hitting your inbox. We even prep you for each one before you walk in." },
+  { n: "03", icon: Send, title: "We auto-apply for you", body: "A tailored resume and cover letter are submitted to each role, and we reach recruiters directly." },
+  { n: "04", icon: Briefcase, title: "You land interviews, guaranteed", body: "Interviews start hitting your inbox. We even prep you for each one before you walk in." },
 ];
 
 const FEATURES = [
   { icon: Search, title: "AI Job Discovery", body: "We scan thousands of boards daily and surface roles that match your profile." },
   { icon: Send, title: "Auto-Apply", body: "Automatic submission to Lever, Ashby, Greenhouse, Workday, and more." },
   { icon: FileText, title: "Resume Tailoring", body: "Every application gets a resume rewritten to match the exact job description." },
-  { icon: BarChart3, title: "ATS Scanner", body: "See your ATS score before applying — with actionable fixes to pass screening." },
+  { icon: BarChart3, title: "ATS Scanner", body: "See your ATS score before applying, with actionable fixes to pass screening." },
   { icon: Mail, title: "Cover Letters", body: "Personalised cover letters in your tone, aligned to the company's voice." },
-  { icon: Building2, title: "Company Research", body: "Culture, interview style, and likely questions — researched for you." },
+  { icon: Building2, title: "Company Research", body: "Culture, interview style, and likely questions, researched for you." },
   { icon: DollarSign, title: "Salary Intelligence", body: "Range estimates and negotiation tips so you never leave money on the table." },
-  { icon: TrendingUp, title: "Interview Prep", body: "Once you land an interview, practice it first — written, voice, or avatar — with scored feedback." },
+  { icon: TrendingUp, title: "Interview Prep", body: "Once you land an interview, practice it first, written, voice, or avatar, with scored feedback." },
 ];
 
 const TESTIMONIALS = [
   { quote: "JobsAI auto-applied to 80+ roles in my first week. I had 6 interviews booked before I'd finished my coffee.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
-  { quote: "I stopped spending nights on applications — the interviews just started showing up. The prep tools got me the offer.", name: "Priya S.", role: "VP Product", initials: "PS" },
+  { quote: "I stopped spending nights on applications, the interviews just started showing up. The prep tools got me the offer.", name: "Priya S.", role: "VP Product", initials: "PS" },
   { quote: "Five interviews in two weeks without me lifting a finger on applications. This is the whole job search, automated.", name: "Daniel R.", role: "Data Scientist", initials: "DR" },
 ];
 
 const FAQ = [
-  { q: "What is JobsAI and how does it work?", a: "JobsAI is your AI job-search co-pilot — it takes you from a rough resume to interviews booked. It parses your background, tailors a resume and cover letter to each role, scores them against the ATS, finds matching jobs across the US, Canada, UK, and EU, and can auto-apply for you. When interviews land, it preps you to win them." },
-  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description — the right keywords to clear Applicant Tracking Systems — and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. We back it with a 90-day interview guarantee." },
-  { q: "What's included — what can JobsAI do?", a: "One workflow covers it all: AI Resume Builder, Optimizer & ATS Score, Cover Letter Generator, a live Job Search board, Auto-Apply, Salary Explorer, Resume Translator (68+ languages), and a full interview suite — written coach, voice and avatar mock rounds, and the real-time Interview Buddy." },
-  { q: "Do I need an existing resume to start?", a: "No. Upload a PDF or DOCX, import your LinkedIn profile, or start from scratch — JobsAI structures it into an editable profile and builds from there." },
+  { q: "What is JobsAI and how does it work?", a: "JobsAI is your AI job-search co-pilot, it takes you from a rough resume to interviews booked. It parses your background, tailors a resume and cover letter to each role, scores them against the ATS, finds matching jobs across the US, Canada, UK, and EU, and can auto-apply for you. When interviews land, it preps you to win them." },
+  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. We back it with a 90-day interview guarantee." },
+  { q: "What's included, what can JobsAI do?", a: "One workflow covers it all: AI Resume Builder, Optimizer & ATS Score, Cover Letter Generator, a live Job Search board, Auto-Apply, Salary Explorer, Resume Translator (68+ languages), and a full interview suite, written coach, voice and avatar mock rounds, and the real-time Interview Buddy." },
+  { q: "Do I need an existing resume to start?", a: "No. Upload a PDF or DOCX, import your LinkedIn profile, or start from scratch, JobsAI structures it into an editable profile and builds from there." },
   { q: "Will my resume be ATS-friendly?", a: "Yes. The templates use clean, parseable structure, and tailoring weaves in the right keywords naturally. The ATS Scanner then gives you a 0–100 score with specific fixes before you apply." },
-  { q: "Won't AI make my resume sound generic — and can employers tell?", a: "No. Every line is built from your real accomplishments and the specific job, and you stay in full control to edit or regenerate anything. The result reads like strong professional writing, not a template." },
-  { q: "Does JobsAI really apply to jobs for me — from inside the app?", a: "Yes. Auto-Apply submits tailored applications directly through employer systems like Lever, Ashby, Greenhouse, and Workday — inside JobsAI, not by bouncing you to external sites. Prefer to stay hands-on? Turn on the Approval Queue and review each one before it's sent." },
-  { q: "Is there a free plan, and how does pricing work?", a: "You can start free and explore the core tools and job board. Paid plans unlock unlimited resumes and matches, Auto-Apply, and the full interview suite, billed monthly or yearly — cancel anytime." },
-  { q: "What are tokens?", a: "Your plan includes a monthly token allowance that meters the most expensive AI features — like voice and avatar interview prep. Core tools and auto-apply run within your plan; tokens just cover the heavy extras, and you can top up anytime." },
-  { q: "Can I cancel or get a refund?", a: "Cancel anytime from your billing settings — it stops future renewals. If something isn't working, contact us first; we review refund requests case by case and often offer a prorated refund or credit." },
-  { q: "Does JobsAI prep me for interviews?", a: "Thoroughly. Practice with a written coach, a spoken voice interviewer, and a realistic on-camera avatar — all built from your resume and the exact role, with scored feedback. Interview Buddy can even assist live during the real call." },
+  { q: "Won't AI make my resume sound generic, and can employers tell?", a: "No. Every line is built from your real accomplishments and the specific job, and you stay in full control to edit or regenerate anything. The result reads like strong professional writing, not a template." },
+  { q: "Does JobsAI really apply to jobs for me, from inside the app?", a: "Yes. Auto-Apply submits tailored applications directly through employer systems like Lever, Ashby, Greenhouse, and Workday, inside JobsAI, not by bouncing you to external sites. Prefer to stay hands-on? Turn on the Approval Queue and review each one before it's sent." },
+  { q: "Is there a free plan, and how does pricing work?", a: "You can start free and explore the core tools and job board. Paid plans unlock unlimited resumes and matches, Auto-Apply, and the full interview suite, billed monthly or yearly, cancel anytime." },
+  { q: "What are tokens?", a: "Your plan includes a monthly token allowance that meters the most expensive AI features, like voice and avatar interview prep. Core tools and auto-apply run within your plan; tokens just cover the heavy extras, and you can top up anytime." },
+  { q: "Can I cancel or get a refund?", a: "Cancel anytime from your billing settings, it stops future renewals. If something isn't working, contact us first; we review refund requests case by case and often offer a prorated refund or credit." },
+  { q: "Does JobsAI prep me for interviews?", a: "Thoroughly. Practice with a written coach, a spoken voice interviewer, and a realistic on-camera avatar, all built from your resume and the exact role, with scored feedback. Interview Buddy can even assist live during the real call." },
   { q: "Is my data safe and private?", a: "Yes. Your data is encrypted in transit and at rest, stored with Supabase (SOC 2 Type II). We never sell your data and only use it to deliver the features you ask for. See our Privacy Policy for details." },
 ];
 
@@ -208,7 +208,7 @@ export default function Home() {
         {/* ── Explore features strip ───────────────────────────────────────── */}
         <FeatureStrip
           heading={<>Everything in the <span className="text-gradient">toolkit</span></>}
-          subtext="A quick look at the tools doing the work — explore the full suite below."
+          subtext="A quick look at the tools doing the work, explore the full suite below."
           items={[
             "auto-apply", "job-discovery", "resume-tailoring", "ats-scanner",
             "interview-buddy", "voice-interviewer", "salary-intel", "application-tracker",
@@ -225,11 +225,11 @@ export default function Home() {
                 Your job search, <span className="text-gradient">running itself</span>
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-                From applying to interviews booked — here&apos;s what JobsAI does while you get on with your day.
+                From applying to interviews booked, here&apos;s what JobsAI does while you get on with your day.
               </p>
             </div>
 
-            {/* AI image slot — wide product overview screenshot */}
+            {/* AI image slot, wide product overview screenshot */}
             <div className="mb-10">
               <AIImageSlot
                 path="/marketing/product-overview.webp"
@@ -255,7 +255,7 @@ export default function Home() {
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
                 Every interview we land comes with practice built from your resume and the exact
-                role — typed, spoken, or face-to-face with a realistic avatar.
+                role, typed, spoken, or face-to-face with a realistic avatar.
               </p>
             </div>
 
@@ -318,7 +318,7 @@ export default function Home() {
                 Apply less, <span className="text-gradient">interview more</span>
               </h2>
               <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-                The entire job search, automated end to end — discovery, tailoring, and applying —
+                The entire job search, automated end to end, discovery, tailoring, and applying.
                 so interviews land while you do nothing.
               </p>
             </div>
@@ -347,13 +347,13 @@ export default function Home() {
               </h2>
             </div>
 
-            {/* AI image slot — diverse, happy job seekers (community lifestyle) */}
+            {/* AI image slot, diverse, happy job seekers (community lifestyle) */}
             <div className="mb-10">
               <AIImageSlot
                 path="/marketing/community-lifestyle.webp"
                 ready={publicImageExists("/marketing/community-lifestyle.webp")}
                 alt="Job seekers who landed offers with JobsAI"
-                prompt="Wide, bright editorial photo collage of diverse happy young professionals celebrating new jobs — laptops, video calls, confident smiles."
+                prompt="Wide, bright editorial photo collage of diverse happy young professionals celebrating new jobs, laptops, video calls, confident smiles."
                 ratio="aspect-[21/9]"
               />
             </div>

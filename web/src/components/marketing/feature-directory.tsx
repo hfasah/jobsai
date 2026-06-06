@@ -16,7 +16,7 @@ export function FeatureDirectory() {
             The complete <span className="text-gradient">job-search toolkit</span>
           </h2>
           <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-            Discovery, applying, documents, intelligence, and interview prep — every tool JobsAI
+            Discovery, applying, documents, intelligence, and interview prep, every tool JobsAI
             ships, all under one login.
           </p>
         </div>

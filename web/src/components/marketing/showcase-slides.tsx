@@ -57,9 +57,9 @@ function AutoApplyVisual() {
 
 function OutreachVisual() {
   const notes = [
-    { to: "Recruiter · Stripe", txt: "Hi Dana — I'd love to be considered for the Senior PM role…", t: "now" },
+    { to: "Recruiter · Stripe", txt: "Hi Dana, I'd love to be considered for the Senior PM role…", t: "now" },
     { to: "Hiring Manager · Ramp", txt: "Sharing a tailored resume for the Data Scientist opening.", t: "2m" },
-    { to: "Recruiter · Notion", txt: "Following up on the Growth Lead position — keen to chat.", t: "1h" },
+    { to: "Recruiter · Notion", txt: "Following up on the Growth Lead position, keen to chat.", t: "1h" },
   ];
   return (
     <div className="w-full space-y-2.5">
@@ -103,7 +103,7 @@ function InterviewsVisual() {
         ))}
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Building2 className="h-3.5 w-3.5" /> 3 interviews this week — guaranteed within 90 days.
+        <Building2 className="h-3.5 w-3.5" /> 3 interviews this week, guaranteed within 90 days.
       </p>
     </div>
   );
@@ -130,8 +130,8 @@ function PrepVisual() {
 
 const SLIDES: Slide[] = [
   { key: "apply", tag: "Auto-apply", title: "We apply, all day", body: "Tailored resume and cover letter submitted to every matching role across Lever, Greenhouse, Ashby, and Workday.", visual: <AutoApplyVisual /> },
-  { key: "outreach", tag: "Outreach", title: "Straight to recruiters", body: "We reach the people who actually book interviews — not just the application portal.", visual: <OutreachVisual /> },
-  { key: "interviews", tag: "Results", title: "Interviews land for you", body: "Watch your week fill with interviews — backed by our 90-day guarantee.", visual: <InterviewsVisual /> },
+  { key: "outreach", tag: "Outreach", title: "Straight to recruiters", body: "We reach the people who actually book interviews, not just the application portal.", visual: <OutreachVisual /> },
+  { key: "interviews", tag: "Results", title: "Interviews land for you", body: "Watch your week fill with interviews, backed by our 90-day guarantee.", visual: <InterviewsVisual /> },
   { key: "prep", tag: "Bonus", title: "Then we get you ready", body: "Practice the exact interview with written, voice, and avatar rounds and scored feedback.", visual: <PrepVisual /> },
 ];
 

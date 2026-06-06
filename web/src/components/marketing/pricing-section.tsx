@@ -44,7 +44,7 @@ const TIERS: Tier[] = [
     tagline: "Auto-apply on autopilot",
     cta: "Start Pro",
     features: [
-      "Automatic applying — every day",
+      "Automatic applying, every day",
       "Unlimited jobs, resumes & tailoring",
       "Recruiter outreach + cover letters",
       "90-day interview guarantee",
@@ -84,10 +84,10 @@ const TIERS: Tier[] = [
 ];
 
 const ENTERPRISE_FEATURES: { icon: React.ElementType; label: string; detail: string }[] = [
-  { icon: Users,      label: "Unlimited team seats",         detail: "Recruiters, sourcers & HR — all in one workspace" },
+  { icon: Users,      label: "Unlimited team seats",         detail: "Recruiters, sourcers & HR, all in one workspace" },
   { icon: Layers,     label: "Bulk candidate screening",     detail: "AI match scores across every applicant, instantly" },
   { icon: Plug,       label: "ATS integrations",             detail: "Greenhouse, Lever, Workday, Ashby & more out of the box" },
-  { icon: Globe,      label: "White-label candidate portal", detail: "Your brand, your domain — powered by JobsAI" },
+  { icon: Globe,      label: "White-label candidate portal", detail: "Your brand, your domain, powered by JobsAI" },
   { icon: BarChart3,  label: "Advanced analytics",           detail: "Pipeline health, time-to-hire, source quality & more" },
   { icon: Lock,       label: "SSO / SAML & audit logs",      detail: "Enterprise security, compliance & access controls" },
   { icon: Headphones, label: "Dedicated account manager",    detail: "Onboarding, custom workflows & priority SLA" },
@@ -103,7 +103,7 @@ function EnterpriseCard() {
         <div className="pointer-events-none absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-desyn-brand/10 blur-3xl" />
 
         <div className="relative flex flex-col gap-10 lg:flex-row lg:items-center lg:gap-16">
-          {/* left — feature grid */}
+          {/* left, feature grid */}
           <div className="flex-1">
             <div className="flex items-center gap-3">
               <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-brand shadow-glow">
@@ -130,7 +130,7 @@ function EnterpriseCard() {
             </div>
           </div>
 
-          {/* right — pitch + CTA */}
+          {/* right, pitch + CTA */}
           <div className="flex w-full shrink-0 flex-col items-start gap-6 rounded-2xl border border-border bg-background/60 p-7 lg:w-80">
             <div>
               <span className="rounded-full bg-desyn-purple/15 px-3 py-1 text-xs font-semibold text-desyn-purple">
@@ -192,7 +192,7 @@ export function PricingSection() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             Start free, then upgrade to auto-apply at higher volume and reach recruiters
-            directly. Every paid plan is backed by our 90-day interview guarantee —
+            directly. Every paid plan is backed by our 90-day interview guarantee.
             interview prep included.
           </p>
 
@@ -288,7 +288,7 @@ export function PricingSection() {
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Need more in a crunch?{" "}
           <span className="font-medium text-foreground">
-            Top up tokens anytime — 5k / $9, 20k / $29, 60k / $69.
+            Top up tokens anytime, 5k / $9, 20k / $29, 60k / $69.
           </span>
         </p>
 
@@ -301,7 +301,7 @@ export function PricingSection() {
             <div>
               <p className="font-bold text-foreground">90-day interview guarantee</p>
               <p className="text-sm text-muted-foreground">
-                Land an interview within 90 days or your money back — no questions asked.
+                Land an interview within 90 days or your money back, no questions asked.
               </p>
             </div>
           </div>
