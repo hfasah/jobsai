@@ -68,10 +68,12 @@ export function AskAI() {
 
   return (
     <>
-      {/* Launcher — top-right, clear of the support chat widget (bottom-right) */}
-      <button onClick={() => setOpen(true)}
-        className="fixed top-4 right-5 z-[55] inline-flex items-center gap-2 rounded-full bg-gradient-brand px-4 py-3 text-sm font-semibold text-white shadow-glow-purple transition-transform hover:scale-105 print:hidden">
-        <Sparkles className="h-4 w-4" /> Ask AI
+      {/* Launcher — top-right, clear of the support chat widget (bottom-right).
+          Compact icon on mobile (fits the top header bar), full pill on desktop. */}
+      <button onClick={() => setOpen(true)} aria-label="Ask AI"
+        className="fixed right-3 top-2.5 z-[55] inline-flex items-center gap-2 rounded-full bg-gradient-brand px-2.5 py-2.5 text-sm font-semibold text-white shadow-glow-purple transition-transform hover:scale-105 md:right-5 md:top-4 md:px-4 md:py-3 print:hidden">
+        <Sparkles className="h-4 w-4" />
+        <span className="hidden md:inline">Ask AI</span>
       </button>
 
       {open && (
