@@ -68,9 +68,9 @@ export function AskAI() {
 
   return (
     <>
-      {/* Launcher */}
+      {/* Launcher — stacked above the support chat widget (which sits at bottom-5 right-5) */}
       <button onClick={() => setOpen(true)}
-        className="fixed bottom-5 right-5 z-[55] inline-flex items-center gap-2 rounded-full bg-gradient-brand px-4 py-3 text-sm font-semibold text-white shadow-glow-purple transition-transform hover:scale-105 print:hidden">
+        className="fixed bottom-24 right-5 z-[55] inline-flex items-center gap-2 rounded-full bg-gradient-brand px-4 py-3 text-sm font-semibold text-white shadow-glow-purple transition-transform hover:scale-105 print:hidden">
         <Sparkles className="h-4 w-4" /> Ask AI
       </button>
 
