@@ -6,6 +6,7 @@ import {
   ArrowLeft, Users, Sparkles, Loader2, ChevronRight,
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
+  Share2, BarChart3, Copy, Check, TrendingUp,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
@@ -40,7 +41,7 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
 }
 
 function CandidateCard({
-  app, selected, onSelect, onMove, onScreen, screening,
+  app, selected, onSelect, onMove, onScreen, screening, onAddToPool,
 }: {
   app: EnterpriseApplication;
   selected: boolean;
@@ -48,6 +49,7 @@ function CandidateCard({
   onMove: (id: string, stage: AppStage) => void;
   onScreen: (id: string) => void;
   screening: boolean;
+  onAddToPool: (id: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -120,6 +122,12 @@ function CandidateCard({
                 Screen with AI
               </button>
             )}
+            {(app.match_score ?? 0) >= 50 && (
+              <button onClick={() => onAddToPool(app.id)}
+                className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2.5 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20">
+                + Talent pool
+              </button>
+            )}
             {app.linkedin_url && (
               <a href={app.linkedin_url} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1 text-[11px] text-muted-foreground hover:text-foreground">
@@ -146,6 +154,233 @@ function CandidateCard({
   );
 }
 
+// ── Distribution Panel ────────────────────────────────────────────────────────
+const PLATFORM_META: Record<string, { label: string; color: string; icon: string }> = {
+  linkedin:    { label: "LinkedIn",     color: "text-blue-400",   icon: "in" },
+  indeed:      { label: "Indeed",       color: "text-indigo-400", icon: "id" },
+  twitter:     { label: "Twitter / X",  color: "text-sky-400",    icon: "x" },
+  email:       { label: "Email blast",  color: "text-green-400",  icon: "em" },
+  google_jobs: { label: "Google Jobs",  color: "text-amber-400",  icon: "g" },
+};
+
+function DistributePanel({ jobId }: { jobId: string }) {
+  const [distributions, setDistributions] = useState<Record<string, string>>({});
+  const [generating, setGenerating] = useState(false);
+  const [copied, setCopied] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<string | null>("linkedin");
+
+  useEffect(() => {
+    fetch(`/api/enterprise/jobs/${jobId}/distribute`)
+      .then((r) => r.json())
+      .then((j) => {
+        const map: Record<string, string> = {};
+        for (const d of j.data ?? []) map[d.platform] = d.content;
+        setDistributions(map);
+      });
+  }, [jobId]);
+
+  const generate = async () => {
+    setGenerating(true);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/distribute`, { method: "POST" });
+    const json = await res.json();
+    const map: Record<string, string> = {};
+    for (const d of json.data ?? []) map[d.platform] = d.content;
+    setDistributions(map);
+    setGenerating(false);
+  };
+
+  const copyContent = (platform: string) => {
+    navigator.clipboard.writeText(distributions[platform] ?? "");
+    setCopied(platform);
+    setTimeout(() => setCopied(null), 2000);
+  };
+
+  const hasContent = Object.keys(distributions).length > 0;
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-5 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">Multi-platform distribution</h2>
+            <p className="text-sm text-muted-foreground">AI generates optimised copy for each platform. Copy, paste, and post.</p>
+          </div>
+          <button onClick={generate} disabled={generating}
+            className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow disabled:opacity-60">
+            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {generating ? "Generating…" : hasContent ? "Regenerate all" : "Generate all"}
+          </button>
+        </div>
+
+        {generating && (
+          <div className="mb-4 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm text-primary">
+            <Sparkles className="h-4 w-4 animate-pulse" />
+            Generating optimised content for all platforms…
+          </div>
+        )}
+
+        {!hasContent && !generating && (
+          <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
+            Click "Generate all" to create platform-optimised job posts with AI tracking links.
+          </div>
+        )}
+
+        <div className="space-y-3">
+          {Object.entries(PLATFORM_META).map(([platform, meta]) => {
+            const content = distributions[platform];
+            if (!content) return null;
+            const isOpen = expanded === platform;
+            return (
+              <div key={platform} className="rounded-2xl border border-border bg-card overflow-hidden">
+                <button onClick={() => setExpanded(isOpen ? null : platform)}
+                  className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/30">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-bold uppercase", meta.color)}>
+                      {meta.icon}
+                    </div>
+                    <p className="font-medium">{meta.label}</p>
+                    <CheckCircle2 className="h-4 w-4 text-green-400" />
+                  </div>
+                  <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+                </button>
+                {isOpen && (
+                  <div className="border-t border-border px-5 pb-4">
+                    <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-background/60 px-4 py-3 text-xs leading-relaxed text-foreground font-sans">
+                      {content}
+                    </pre>
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => copyContent(platform)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                        {copied === platform ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                        {copied === platform ? "Copied!" : "Copy"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Analytics Panel ───────────────────────────────────────────────────────────
+interface SourceRow {
+  source: string; views: number; clicks: number; applicants: number;
+  hired: number; avg_match_score: number | null; conversion_rate: number | null;
+}
+
+function AnalyticsPanel({ jobId }: { jobId: string }) {
+  const [data, setData] = useState<{ by_source: SourceRow[]; totals: { views: number; applicants: number; hired: number } } | null>(null);
+  const [recommendation, setRecommendation] = useState<string | null>(null);
+  const [loadingRec, setLoadingRec] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/enterprise/jobs/${jobId}/analytics`)
+      .then((r) => r.json())
+      .then((j) => setData(j.data));
+  }, [jobId]);
+
+  const getRecommendation = async () => {
+    setLoadingRec(true);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/analytics`, { method: "POST" });
+    const json = await res.json();
+    setRecommendation(json.recommendation);
+    setLoadingRec(false);
+  };
+
+  const SOURCE_LABELS: Record<string, string> = {
+    direct: "Direct / Apply link", linkedin: "LinkedIn", indeed: "Indeed",
+    twitter: "Twitter / X", email: "Email blast", referral: "Referral", jobsai: "JobsAI",
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-4xl space-y-6">
+        {/* Totals */}
+        {data && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { label: "Total views",      value: data.totals.views },
+              { label: "Total applicants", value: data.totals.applicants },
+              { label: "Total hired",      value: data.totals.hired },
+            ].map(({ label, value }) => (
+              <div key={label} className="rounded-2xl border border-border bg-card p-5">
+                <p className="text-sm text-muted-foreground">{label}</p>
+                <p className="mt-2 text-3xl font-bold tabular-nums">{value}</p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Source table */}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="font-semibold">Performance by source</h2>
+          </div>
+          {!data || data.by_source.length === 0 ? (
+            <p className="px-5 py-8 text-center text-sm text-muted-foreground">
+              No tracking data yet. Share your tracked links from the Distribution tab.
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="border-b border-border bg-muted/30">
+                <tr>
+                  {["Source","Views","Applicants","Conv. rate","Avg score","Hired"].map((h) => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {data.by_source.map((row) => (
+                  <tr key={row.source} className="hover:bg-muted/20">
+                    <td className="px-4 py-3 font-medium capitalize">{SOURCE_LABELS[row.source] ?? row.source}</td>
+                    <td className="px-4 py-3 tabular-nums">{row.views}</td>
+                    <td className="px-4 py-3 tabular-nums">{row.applicants}</td>
+                    <td className="px-4 py-3 tabular-nums">{row.conversion_rate !== null ? `${row.conversion_rate}%` : "—"}</td>
+                    <td className="px-4 py-3">
+                      {row.avg_match_score !== null
+                        ? <span className={cn("font-bold tabular-nums", row.avg_match_score >= 70 ? "text-green-400" : row.avg_match_score >= 50 ? "text-amber-400" : "text-red-400")}>
+                            {row.avg_match_score}%
+                          </span>
+                        : "—"}
+                    </td>
+                    <td className="px-4 py-3 tabular-nums">{row.hired}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* AI Budget Recommendation */}
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h2 className="font-semibold">AI budget recommendation</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Where should you focus your recruiting spend?</p>
+            </div>
+            <button onClick={getRecommendation} disabled={loadingRec || !data?.by_source.length}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white shadow-glow disabled:opacity-50">
+              {loadingRec ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {loadingRec ? "Analysing…" : "Analyse"}
+            </button>
+          </div>
+          {recommendation ? (
+            <div className="rounded-xl bg-background/60 px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap">
+              {recommendation}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">Click "Analyse" to get AI recommendations on where to allocate your recruiting budget based on source performance.</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function JobDetailPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
   const [job, setJob] = useState<EnterpriseJob | null>(null);
@@ -154,7 +389,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pipeline" | "all">("pipeline");
+  const [activeTab, setActiveTab] = useState<"pipeline" | "all" | "distribute" | "analytics">("pipeline");
 
   const load = useCallback(async () => {
     const [jRes, aRes] = await Promise.all([
@@ -183,6 +418,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
       body: JSON.stringify({ stage, send_email: true }),
     });
     if (res.ok) setApps((a) => a.map((x) => x.id === id ? { ...x, stage, stage_updated_at: new Date().toISOString() } : x));
+  };
+
+  const addToPool = async (id: string) => {
+    await fetch("/api/enterprise/talent-pool", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ application_id: id }),
+    });
   };
 
   const screenApp = async (id: string) => {
@@ -255,12 +498,17 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           </div>
 
           {/* Tabs */}
-          <div className="mt-3 flex gap-1">
-            {(["pipeline", "all"] as const).map((t) => (
-              <button key={t} onClick={() => setActiveTab(t)}
-                className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors",
-                  activeTab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
-                {t === "all" ? `All (${apps.length})` : "Pipeline"}
+          <div className="mt-3 flex flex-wrap gap-1">
+            {([
+              { key: "pipeline",   label: "Pipeline" },
+              { key: "all",        label: `All (${apps.length})` },
+              { key: "distribute", label: "Distribution" },
+              { key: "analytics",  label: "Analytics" },
+            ] as const).map(({ key, label }) => (
+              <button key={key} onClick={() => setActiveTab(key)}
+                className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                  activeTab === key ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
+                {label}
               </button>
             ))}
           </div>
@@ -313,6 +561,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                         onMove={moveApp}
                         onScreen={screenApp}
                         screening={screeningIds.has(app.id)}
+                        onAddToPool={addToPool}
                       />
                     ))}
                     {stageApps.length === 0 && (
@@ -340,6 +589,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                     onSelect={toggleSelect}
                     onMove={moveApp}
                     onScreen={screenApp}
+                    onAddToPool={addToPool}
                     screening={screeningIds.has(app.id)}
                   />
                 ))}
@@ -347,6 +597,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             </div>
           </div>
         </div>
+      )}
+
+      {/* Distribution tab */}
+      {activeTab === "distribute" && (
+        <DistributePanel jobId={jobId} />
+      )}
+
+      {/* Analytics tab */}
+      {activeTab === "analytics" && (
+        <AnalyticsPanel jobId={jobId} />
       )}
 
       {/* All candidates table */}

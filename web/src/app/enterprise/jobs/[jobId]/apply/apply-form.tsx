@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { CheckCircle2, Loader2, MapPin, Briefcase } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { CheckCircle2, Loader2, MapPin, Briefcase, MessageCircle, X, Send, Bot } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface JobInfo {
   id: string; title: string; department: string | null;
@@ -9,6 +10,105 @@ interface JobInfo {
   description: string | null; responsibilities: string | null;
   qualifications: string | null; salary_min: number | null;
   salary_max: number | null; salary_currency: string;
+}
+
+// ── AI Concierge Widget ───────────────────────────────────────────────────────
+function ConciergeWidget({ jobId }: { jobId: string }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<{ role: "user" | "bot"; text: string }[]>([
+    { role: "bot", text: "Hi! I'm the recruiting assistant for this role. Ask me anything about the position, salary, remote work, or the hiring process." },
+  ]);
+  const [input, setInput] = useState("");
+  const [thinking, setThinking] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, open]);
+
+  const send = async (text?: string) => {
+    const q = (text ?? input).trim();
+    if (!q) return;
+    setInput("");
+    const next = [...messages, { role: "user" as const, text: q }];
+    setMessages(next);
+    setThinking(true);
+    try {
+      const res = await fetch("/api/enterprise/concierge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jobId,
+          messages: next.map((m) => ({ role: m.role === "bot" ? "assistant" : "user", content: m.text })),
+        }),
+      });
+      const json = await res.json();
+      setMessages((m) => [...m, { role: "bot", text: json.reply ?? "I'm not sure — please email the hiring team directly." }]);
+    } finally {
+      setThinking(false);
+    }
+  };
+
+  const SUGGESTED = ["What's the salary range?", "Is this role remote?", "What does the interview process look like?"];
+
+  return (
+    <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end">
+      {open && (
+        <div className="mb-3 flex h-[26rem] w-80 flex-col overflow-hidden rounded-2xl border border-white/10 bg-gray-900 text-white shadow-2xl">
+          <div className="flex items-center justify-between bg-gradient-to-r from-blue-600 to-purple-600 px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              <p className="text-sm font-semibold">Recruiting Concierge</p>
+            </div>
+            <button onClick={() => setOpen(false)} className="rounded-md p-0.5 hover:bg-white/15">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
+            {messages.map((m, i) => (
+              <div key={i} className={cn("flex", m.role === "user" ? "justify-end" : "justify-start")}>
+                <div className={cn("max-w-[85%] rounded-2xl px-3 py-2 text-sm", m.role === "user" ? "rounded-br-sm bg-blue-600" : "rounded-bl-sm bg-white/10")}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+            {thinking && (
+              <div className="flex justify-start">
+                <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-white/10 px-3 py-2 text-sm text-white/60">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking…
+                </div>
+              </div>
+            )}
+            {messages.length <= 1 && !thinking && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {SUGGESTED.map((s) => (
+                  <button key={s} onClick={() => send(s)}
+                    className="rounded-full border border-white/20 px-2.5 py-1 text-xs text-white/70 hover:bg-white/10 transition-colors">
+                    {s}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 border-t border-white/10 p-2">
+            <input value={input} onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask about the role…"
+              className="flex-1 rounded-xl bg-white/10 px-3 py-2 text-sm outline-none placeholder:text-white/40"
+              disabled={thinking} />
+            <button type="submit" disabled={thinking || !input.trim()}
+              className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 disabled:opacity-40">
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
+      )}
+      <button onClick={() => setOpen((o) => !o)}
+        className="flex h-13 w-13 items-center justify-center rounded-full bg-gradient-to-r from-blue-600 to-purple-600 p-3.5 shadow-lg hover:shadow-xl transition-shadow"
+        aria-label="Ask about this role">
+        {open ? <X className="h-5 w-5 text-white" /> : <MessageCircle className="h-5 w-5 text-white" />}
+      </button>
+    </div>
+  );
 }
 
 export default function ApplyForm({ job, orgName }: { job: JobInfo; orgName: string }) {
@@ -49,6 +149,7 @@ export default function ApplyForm({ job, orgName }: { job: JobInfo; orgName: str
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <ConciergeWidget jobId={job.id} />
       {/* Job header */}
       <div className="border-b border-border bg-card px-4 py-8 text-center sm:px-6">
         <p className="text-sm font-semibold text-primary">{orgName}</p>
