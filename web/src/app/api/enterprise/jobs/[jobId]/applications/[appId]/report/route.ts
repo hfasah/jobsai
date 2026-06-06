@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 45;
 
@@ -95,6 +96,7 @@ Include one competency_scores entry per competency above, using the SAME names a
         model: "gpt-4o-mini", max_tokens: 1400, response_format: { type: "json_object" },
         messages: [{ role: "user", content: prompt }],
       });
+      recordUsage({ orgId: org.id, userId, feature: "report", model: "gpt-4o-mini", usage: completion.usage });
       const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
 
       const { data, error } = await supabaseAdmin.from("enterprise_interview_reports").insert({
@@ -143,6 +145,7 @@ One competency_scores entry per competency, SAME names and weights. Be specific 
       model: "gpt-4o-mini", max_tokens: 1800, response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
+    recordUsage({ orgId: org.id, userId, feature: "report", model: "gpt-4o-mini", usage: completion.usage });
     const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
 
     const { data, error } = await supabaseAdmin.from("enterprise_interview_reports").insert({

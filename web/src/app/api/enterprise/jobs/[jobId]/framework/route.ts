@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 30;
 
@@ -85,6 +86,7 @@ Generate the custom weighted interview scorecard.`;
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
     });
 
+    recordUsage({ orgId: org.id, userId, feature: "framework", model: "gpt-4o-mini", usage: completion.usage });
     const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
 
     // Normalise weights to sum to 100

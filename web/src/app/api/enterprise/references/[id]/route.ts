@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { recordUsage } from "@/lib/llm-usage";
 import { resend } from "@/lib/resend";
 
 export const maxDuration = 30;
@@ -48,6 +49,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
         model: "gpt-4o-mini", max_tokens: 500, response_format: { type: "json_object" },
         messages: [{ role: "user", content: `Summarize this reference check from ${ref.referee_name} (${ref.relationship ?? "reference"}).\n${text}\nReturn JSON: {summary: "3-4 sentences", sentiment: "positive|mixed|negative", recommendation: "strong_yes|yes|maybe|no"}` }],
       });
+      recordUsage({ orgId: org.id, userId, feature: "references", model: "gpt-4o-mini", usage: completion.usage });
       const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
       update.ai_summary = parsed.summary ?? null;
       update.ai_sentiment = ["positive", "mixed", "negative"].includes(parsed.sentiment) ? parsed.sentiment : null;

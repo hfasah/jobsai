@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { getMyOrg } from "@/lib/enterprise";
+import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 30;
 
@@ -47,6 +48,7 @@ Make the language inclusive, compelling, and SEO-optimized. Be specific and real
       messages: [{ role: "user", content: prompt }],
     });
 
+    recordUsage({ orgId: org.id, userId, feature: "job_description", model: "gpt-4o-mini", usage: completion.usage });
     const raw = completion.choices[0]?.message?.content ?? "{}";
     const result = JSON.parse(raw);
     return NextResponse.json({ data: result });

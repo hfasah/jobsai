@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 45;
 
@@ -76,6 +77,7 @@ Total: 9 questions. Make them specific to this role, not generic.`;
       messages: [{ role: "user", content: prompt }],
     });
 
+    recordUsage({ orgId: org.id, userId, feature: "interview_kit", model: "gpt-4o-mini", usage: completion.usage });
     const { questions } = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
 
     const { data, error } = await supabaseAdmin

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { assignToPool } from "@/lib/enterprise-pools";
+import { recordUsage } from "@/lib/llm-usage";
 import type { ScreenResult } from "@/types/enterprise";
 
 export const maxDuration = 30;
@@ -85,6 +86,8 @@ Return JSON with:
       response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
+
+    recordUsage({ orgId, feature: "screening", model: "gpt-4o-mini", usage: completion.usage });
 
     const result: ScreenResult & {
       ats_score?: number; ats_keywords_matched?: string[];

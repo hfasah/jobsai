@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 45;
 
@@ -47,6 +48,7 @@ Rules:
       model: "gpt-4o-mini", max_tokens: 1200,
       messages: [{ role: "system", content: system }, { role: "user", content: userMsg }],
     });
+    recordUsage({ orgId: org.id, userId, feature: "ask_ai", model: "gpt-4o-mini", usage: completion.usage });
     const output = completion.choices[0]?.message?.content?.trim() ?? "";
 
     // bump prompt usage if a saved template was used
