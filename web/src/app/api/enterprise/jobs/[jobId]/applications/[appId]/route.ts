@@ -91,7 +91,7 @@ async function sendStageEmail(app: Record<string, unknown>, stage: AppStage) {
       <h2 style="color:#2563eb">Application Update</h2>
       <p>Hi ${name},</p>
       ${bodyHtml}
-      <p style="color:#888;font-size:13px">Powered by JobsAI Enterprise</p>
+      <p style="color:#888;font-size:13px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
     </div>`,
   }).catch(console.error);
 }

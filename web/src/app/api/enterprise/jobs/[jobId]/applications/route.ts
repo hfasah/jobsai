@@ -128,7 +128,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
       ${bodyHtml}
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
-      <p style="color:#888;font-size:12px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI Enterprise</a></p>
+      <p style="color:#888;font-size:12px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
     </div>`,
   }).catch(console.error);
 

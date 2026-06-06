@@ -165,6 +165,6 @@ export function reportEmailHtml(orgName: string, report: ReportData, note?: stri
       ${report.by_source.map((s2) => `<tr>${cell(s2.source)}${cell(s2.applicants)}${cell(s2.hired)}${cell(s2.conversion + "%")}</tr>`).join("")}
     </table>
 
-    <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:12px">Powered by JobsAI Enterprise</p>
+    <p style="color:#888;font-size:12px;border-top:1px solid #eee;padding-top:12px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
   </div>`;
 }

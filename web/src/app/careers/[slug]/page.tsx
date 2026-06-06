@@ -95,7 +95,9 @@ export default async function CareersPage({ params }: { params: Promise<{ slug: 
           </a>
         )}
         {org.show_powered_by !== false && (
-          <p className="mt-2 text-xs text-slate-400">Powered by JobsAI</p>
+          <p className="mt-2 text-xs text-slate-400">
+            Powered by <a href="https://jobsai.work" target="_blank" rel="noopener noreferrer" className="hover:underline">JobsAI.Work</a>
+          </p>
         )}
       </footer>
     </div>

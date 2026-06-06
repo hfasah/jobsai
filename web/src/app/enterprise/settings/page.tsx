@@ -577,7 +577,7 @@ function BrandingSettings() {
         <label className="mt-4 flex cursor-pointer items-center gap-2.5">
           <input type="checkbox" checked={form.show_powered_by} onChange={(e) => setForm((f) => ({ ...f, show_powered_by: e.target.checked }))}
             className="h-4 w-4 rounded border-border accent-primary" />
-          <span className="text-sm">Show &quot;Powered by JobsAI&quot; on candidate pages</span>
+          <span className="text-sm">Show &quot;Powered by JobsAI.Work&quot; on candidate pages</span>
         </label>
 
         <button onClick={save} disabled={saving}

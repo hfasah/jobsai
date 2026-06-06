@@ -264,7 +264,9 @@ export default function ApplyForm({ job, orgName, branding }: { job: JobInfo; or
             </a>
           )}
           {branding?.show_powered_by !== false && (
-            <p className="mt-2 text-xs text-muted-foreground">Powered by JobsAI</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Powered by <a href="https://jobsai.work" target="_blank" rel="noopener noreferrer" className="hover:underline">JobsAI.Work</a>
+            </p>
           )}
         </div>
       </div>
