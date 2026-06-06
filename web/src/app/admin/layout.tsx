@@ -1,10 +1,12 @@
+"use server";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, CreditCard, Building2,
-  MessageSquareWarning, ShieldCheck,
+  MessageSquareWarning, ShieldCheck, LogOut,
 } from "lucide-react";
+import { SignOutButton } from "@clerk/nextjs";
 
 async function checkAdmin() {
   const { userId } = await auth();
@@ -41,10 +43,15 @@ export default async function AdminLayout({ children }: { children: React.ReactN
             </Link>
           ))}
         </nav>
-        <div className="border-t border-border p-3">
-          <Link href="/dashboard" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+        <div className="border-t border-border p-3 space-y-1">
+          <Link href="/dashboard" className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
             ← Back to dashboard
           </Link>
+          <SignOutButton redirectUrl="/sign-in">
+            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
+              <LogOut className="h-3.5 w-3.5" /> Sign out
+            </button>
+          </SignOutButton>
         </div>
       </aside>
 
