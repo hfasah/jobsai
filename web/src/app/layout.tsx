@@ -3,6 +3,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import { MarketingPopups } from "@/components/marketing/marketing-popups";
+import { SupportWidget } from "@/components/marketing/support-widget";
 import "./globals.css";
 
 // Body — Notion's primary font: clean, highly legible, modern
@@ -91,6 +92,7 @@ export default function RootLayout({
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
             {children}
             <MarketingPopups />
+            <SupportWidget />
           </ThemeProvider>
         </body>
       </html>

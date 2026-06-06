@@ -27,6 +27,8 @@ export interface ApplyProfile {
   // Eligibility
   work_auth_us: string | null;
   work_auth_canada: string | null;
+  work_auth_countries: Array<{ country: string; status: string }>;
+  languages: Array<{ language: string; proficiency: string }>;
   security_clearance: string | null;
   has_drivers_license: boolean;
   // Education & certifications

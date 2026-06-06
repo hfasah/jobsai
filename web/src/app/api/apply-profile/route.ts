@@ -90,6 +90,16 @@ export async function PUT(req: NextRequest) {
     // Eligibility
     work_auth_us:             s(body.work_auth_us),
     work_auth_canada:         s(body.work_auth_canada),
+    work_auth_countries:      Array.isArray(body.work_auth_countries)
+      ? body.work_auth_countries.filter(
+          (e: unknown) => e && typeof (e as Record<string, unknown>).country === "string" && typeof (e as Record<string, unknown>).status === "string"
+        )
+      : [],
+    languages:                Array.isArray(body.languages)
+      ? body.languages.filter(
+          (e: unknown) => e && typeof (e as Record<string, unknown>).language === "string" && typeof (e as Record<string, unknown>).proficiency === "string"
+        )
+      : [],
     security_clearance:       s(body.security_clearance),
     has_drivers_license:      body.has_drivers_license === true,
     // Education & certifications

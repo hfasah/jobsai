@@ -11,7 +11,6 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { HeroOrb } from "@/components/marketing/hero-orb";
 import { HeroVisual } from "@/components/marketing/hero-visual";
 import { ShowcaseSlides } from "@/components/marketing/showcase-slides";
-import { SupportWidget } from "@/components/marketing/support-widget";
 import { PricingSection } from "@/components/marketing/pricing-section";
 import { FeatureDirectory } from "@/components/marketing/feature-directory";
 import { FeatureStrip } from "@/components/marketing/feature-strip";
@@ -445,8 +444,6 @@ export default function Home() {
         <SiteFooter />
       </main>
 
-      {/* Floating support: chat + voice (not LLM-connected yet) */}
-      <SupportWidget />
     </div>
   );
 }

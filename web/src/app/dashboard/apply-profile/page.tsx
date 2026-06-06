@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   Loader2, Save, Check, User, Link2, MapPin, ShieldCheck,
   Briefcase, GraduationCap, UsersRound, SlidersHorizontal,
+  Plus, Trash2, Languages,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ApplyProfileUpdate } from "@/types/apply";
@@ -15,7 +16,9 @@ const EMPTY: ApplyProfileUpdate = {
   employment_status: null, target_experience_level: null, industry: null,
   willing_to_relocate: false, available_from: null,
   address_line1: null, address_line2: null, postal_code: null, date_of_birth: null,
-  work_auth_us: null, work_auth_canada: null, security_clearance: null, has_drivers_license: false,
+  work_auth_us: null, work_auth_canada: null,
+  work_auth_countries: [], languages: [],
+  security_clearance: null, has_drivers_license: false,
   highest_education: null, university: null, certifications: [],
   race_ethnicity: null, nationality: null, gender_identity: null, sexual_orientation: null,
   transgender: null, disability_status: null, veteran_status: null,
@@ -28,6 +31,30 @@ const EXPERIENCE_LEVELS = ["Entry", "Mid", "Senior", "Lead", "Principal / Staff"
 const EDUCATION_LEVELS = ["High school", "Associate", "Bachelor's", "Master's", "MBA", "Doctorate / PhD", "Other"];
 const WORK_AUTH = ["Citizen", "Permanent resident", "Authorized (work visa)", "Need sponsorship", "Not authorized", "Not applicable"];
 const CLEARANCE = ["None", "Eligible", "Active — Confidential", "Active — Secret", "Active — Top Secret"];
+
+const COUNTRIES = [
+  // North America
+  "United States", "Canada", "Mexico",
+  // Europe
+  "United Kingdom", "Ireland", "Germany", "France", "Spain", "Italy",
+  "Netherlands", "Belgium", "Switzerland", "Austria", "Sweden", "Norway",
+  "Denmark", "Finland", "Poland", "Portugal", "Czech Republic", "Romania",
+  "Hungary", "Greece", "Croatia", "Slovakia", "Slovenia", "Estonia",
+  "Latvia", "Lithuania", "Luxembourg", "Malta", "Cyprus",
+];
+
+const LANGUAGE_OPTIONS = [
+  "English", "French", "Spanish", "German", "Portuguese", "Italian",
+  "Dutch", "Polish", "Swedish", "Norwegian", "Danish", "Finnish",
+  "Romanian", "Czech", "Greek", "Hungarian",
+];
+
+const PROFICIENCY_LEVELS = [
+  "Native / Bilingual",
+  "Fluent (C1-C2)",
+  "Conversational (B1-B2)",
+  "Basic (A1-A2)",
+];
 const RACE = ["Prefer not to say", "American Indian / Alaska Native", "Asian", "Black / African American", "Hispanic / Latino", "Native Hawaiian / Pacific Islander", "White", "Two or more races", "Other"];
 const GENDER = ["Prefer not to say", "Male", "Female", "Non-binary", "Other"];
 const ORIENTATION = ["Prefer not to say", "Heterosexual", "Gay / Lesbian", "Bisexual", "Other"];
@@ -218,15 +245,126 @@ export default function ApplyProfilePage() {
 
         {/* Eligibility */}
         <SectionCard icon={<ShieldCheck className="h-4 w-4" />} title="Eligibility">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Select label="Work authorization — United States" value={str(form.work_auth_us)} onChange={(v) => set("work_auth_us", v)} options={WORK_AUTH} />
-            <Select label="Work authorization — Canada" value={str(form.work_auth_canada)} onChange={(v) => set("work_auth_canada", v)} options={WORK_AUTH} />
+          {/* Work authorization by country */}
+          <div className="space-y-3">
+            <p className="text-sm font-medium">Work authorization</p>
+            {(form.work_auth_countries ?? []).map((entry, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <select
+                  value={entry.country}
+                  onChange={(e) => {
+                    const next = [...(form.work_auth_countries ?? [])];
+                    next[i] = { ...next[i], country: e.target.value };
+                    setSaved(false);
+                    setForm((f) => ({ ...f, work_auth_countries: next }));
+                  }}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select country…</option>
+                  {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select
+                  value={entry.status}
+                  onChange={(e) => {
+                    const next = [...(form.work_auth_countries ?? [])];
+                    next[i] = { ...next[i], status: e.target.value };
+                    setSaved(false);
+                    setForm((f) => ({ ...f, work_auth_countries: next }));
+                  }}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Status…</option>
+                  {WORK_AUTH.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = (form.work_auth_countries ?? []).filter((_, j) => j !== i);
+                    setSaved(false);
+                    setForm((f) => ({ ...f, work_auth_countries: next }));
+                  }}
+                  className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setSaved(false);
+                setForm((f) => ({ ...f, work_auth_countries: [...(f.work_auth_countries ?? []), { country: "", status: "" }] }));
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add country
+            </button>
+          </div>
+
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
             <Select label="Security clearance" value={str(form.security_clearance)} onChange={(v) => set("security_clearance", v)} options={CLEARANCE} />
           </div>
           <div className="mt-4 space-y-3">
             <Toggle label="I am authorized to work in my target country" checked={form.authorized_to_work !== false} onChange={(v) => set("authorized_to_work", v)} />
             <Toggle label="I require visa sponsorship" checked={!!form.requires_sponsorship} onChange={(v) => set("requires_sponsorship", v)} />
             <Toggle label="I have a current driver's license" checked={!!form.has_drivers_license} onChange={(v) => set("has_drivers_license", v)} />
+          </div>
+        </SectionCard>
+
+        {/* Languages */}
+        <SectionCard icon={<Languages className="h-4 w-4" />} title="Languages" subtitle="Optional — helps match bilingual roles and fill language fields on applications.">
+          <div className="space-y-3">
+            {(form.languages ?? []).map((entry, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <select
+                  value={entry.language}
+                  onChange={(e) => {
+                    const next = [...(form.languages ?? [])];
+                    next[i] = { ...next[i], language: e.target.value };
+                    setSaved(false);
+                    setForm((f) => ({ ...f, languages: next }));
+                  }}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Select language…</option>
+                  {LANGUAGE_OPTIONS.map((l) => <option key={l} value={l}>{l}</option>)}
+                </select>
+                <select
+                  value={entry.proficiency}
+                  onChange={(e) => {
+                    const next = [...(form.languages ?? [])];
+                    next[i] = { ...next[i], proficiency: e.target.value };
+                    setSaved(false);
+                    setForm((f) => ({ ...f, languages: next }));
+                  }}
+                  className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                >
+                  <option value="">Proficiency…</option>
+                  {PROFICIENCY_LEVELS.map((p) => <option key={p} value={p}>{p}</option>)}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = (form.languages ?? []).filter((_, j) => j !== i);
+                    setSaved(false);
+                    setForm((f) => ({ ...f, languages: next }));
+                  }}
+                  className="rounded-lg p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => {
+                setSaved(false);
+                setForm((f) => ({ ...f, languages: [...(f.languages ?? []), { language: "", proficiency: "" }] }));
+              }}
+              className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2 text-sm text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+            >
+              <Plus className="h-3.5 w-3.5" /> Add language
+            </button>
           </div>
         </SectionCard>
 

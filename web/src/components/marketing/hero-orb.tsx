@@ -32,13 +32,13 @@ export function HeroOrb() {
         <span className="orb-dot h-2.5 w-2.5 rounded-full bg-white [animation-delay:400ms]" />
       </span>
 
-      {/* Tap to Talk */}
+      {/* CTA */}
       <Link
         href="/sign-up"
         className="absolute -bottom-2 inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/40 px-4 py-2 text-sm font-medium text-white backdrop-blur-md transition-colors hover:bg-black/60"
       >
         <Mic className="h-4 w-4" />
-        Tap to Talk
+        Start for free
       </Link>
     </div>
   );

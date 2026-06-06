@@ -1,231 +1,304 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircle, Mic, X, Send, Bot, Headphones, Square } from "lucide-react";
+import { MessageCircle, X, Send, Bot, Loader2, Paperclip, ImageIcon, ChevronRight, ExternalLink } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
-import { botAnswer, botGreeting, SUGGESTED } from "@/lib/support-bot";
 
-type Mode = "chat" | "voice";
-type Msg = { role: "bot" | "user"; text: string };
+type Msg = { role: "bot" | "user"; text: string; imageDataUrl?: string };
 
-// Minimal Web Speech typings (Chrome/Edge). Avoids `any`.
-interface SpeechRecognitionResultLike { 0: { transcript: string }; isFinal: boolean }
-interface SpeechRecognitionEventLike { results: ArrayLike<SpeechRecognitionResultLike> }
-interface SpeechRecognitionLike {
-  lang: string; interimResults: boolean; continuous: boolean;
-  onresult: ((e: SpeechRecognitionEventLike) => void) | null;
-  onend: (() => void) | null; onerror: (() => void) | null;
-  start: () => void; stop: () => void;
-}
-type SpeechRecognitionCtor = new () => SpeechRecognitionLike;
+const SUGGESTED = [
+  "How does auto-apply work?",
+  "What's the interview guarantee?",
+  "How much does it cost?",
+  "Is there a free plan?",
+  "How do I cancel?",
+  "My application failed",
+];
 
-function getRecognitionCtor(): SpeechRecognitionCtor | null {
-  if (typeof window === "undefined") return null;
-  const w = window as unknown as {
-    SpeechRecognition?: SpeechRecognitionCtor;
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
+// ── Minimal markdown renderer ─────────────────────────────────────────────────
+// Handles: **bold**, [text](url), numbered lists, bullet lists, plain links
+function MarkdownText({ text }: { text: string }) {
+  const lines = text.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: React.ReactNode[] = [];
+  let listType: "ol" | "ul" | null = null;
+
+  const flushList = () => {
+    if (!listItems.length) return;
+    const Tag = listType === "ol" ? "ol" : "ul";
+    elements.push(
+      <Tag key={`list-${elements.length}`} className={cn("mt-1.5 space-y-0.5 pl-4 text-sm", listType === "ol" ? "list-decimal" : "list-disc")}>
+        {listItems}
+      </Tag>
+    );
+    listItems = [];
+    listType = null;
   };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+
+  const renderInline = (s: string): React.ReactNode[] => {
+    // Process **bold** and [text](url) together
+    const parts: React.ReactNode[] = [];
+    const re = /\*\*(.+?)\*\*|\[([^\]]+)\]\((https?:\/\/[^\)]+)\)|(https?:\/\/\S+)/g;
+    let last = 0, m: RegExpExecArray | null;
+    while ((m = re.exec(s)) !== null) {
+      if (m.index > last) parts.push(s.slice(last, m.index));
+      if (m[1]) parts.push(<strong key={m.index}>{m[1]}</strong>);
+      else if (m[2] && m[3]) parts.push(<a key={m.index} href={m[3]} className="text-primary underline underline-offset-2 hover:opacity-80" target="_blank" rel="noopener noreferrer">{m[2]}</a>);
+      else if (m[4]) parts.push(<a key={m.index} href={m[4]} className="text-primary underline underline-offset-2 hover:opacity-80" target="_blank" rel="noopener noreferrer">{m[4]}</a>);
+      last = m.index + m[0].length;
+    }
+    if (last < s.length) parts.push(s.slice(last));
+    return parts;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const olMatch = /^(\d+)\.\s+(.+)/.exec(line);
+    const ulMatch = /^[-•*]\s+(.+)/.exec(line);
+
+    if (olMatch) {
+      if (listType !== "ol") { flushList(); listType = "ol"; }
+      listItems.push(<li key={i}>{renderInline(olMatch[2])}</li>);
+    } else if (ulMatch) {
+      if (listType !== "ul") { flushList(); listType = "ul"; }
+      listItems.push(<li key={i}>{renderInline(ulMatch[1])}</li>);
+    } else {
+      flushList();
+      if (line.trim()) {
+        elements.push(<p key={i} className="text-sm leading-relaxed">{renderInline(line)}</p>);
+      } else if (elements.length > 0) {
+        elements.push(<div key={`gap-${i}`} className="h-1.5" />);
+      }
+    }
+  }
+  flushList();
+
+  return <div className="space-y-1">{elements}</div>;
 }
 
 export function SupportWidget() {
+  const { user, isSignedIn } = useUser();
+  const firstName = user?.firstName ?? null;
+
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("chat");
-  const [messages, setMessages] = useState<Msg[]>([{ role: "bot", text: botGreeting() }]);
+  const [messages, setMessages] = useState<Msg[]>([]);
   const [input, setInput] = useState("");
-
-  // voice state
-  const [listening, setListening] = useState(false);
-  const [speaking, setSpeaking] = useState(false);
-  const [voiceLine, setVoiceLine] = useState<string>("Tap the mic and ask a question.");
-  const [voiceSupported, setVoiceSupported] = useState(() => getRecognitionCtor() !== null);
-  const recogRef = useRef<SpeechRecognitionLike | null>(null);
-
+  const [thinking, setThinking] = useState(false);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const conversationRef = useRef<Msg[]>([]);
+  conversationRef.current = messages;
+
+  // Build greeting once user data is available
+  const greeting = firstName
+    ? `Hi ${firstName}! I'm the JobsAI assistant. What can I help you with?`
+    : "Hi! I'm the JobsAI assistant. Ask me about auto-apply, pricing, the 90-day interview guarantee, or getting started.";
+
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, open, mode]);
+  }, [messages, open, thinking]);
 
-  const pushAnswer = useCallback((question: string) => {
-    const reply = botAnswer(question);
-    setMessages((m) => [...m, { role: "user", text: question }, { role: "bot", text: reply }]);
-    return reply;
+  // ── AI call ───────────────────────────────────────────────────────────────────
+  const askAI = useCallback(async (userText: string, imageDataUrl?: string): Promise<string> => {
+    const history = conversationRef.current.map((m) => ({
+      role: m.role === "bot" ? "assistant" : "user",
+      content: m.text,
+      ...(m.imageDataUrl ? { imageDataUrl: m.imageDataUrl } : {}),
+    }));
+    history.push({ role: "user", content: userText, ...(imageDataUrl ? { imageDataUrl } : {}) });
+
+    const res = await fetch("/api/support", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ messages: history }),
+    });
+    const json = await res.json().catch(() => ({}));
+    return json.reply ?? "I couldn't reach the server. Please email support@jobsai.work.";
   }, []);
 
-  const sendChat = (text?: string) => {
+  // ── Send message ──────────────────────────────────────────────────────────────
+  const sendChat = useCallback(async (text?: string, img?: string | null) => {
     const q = (text ?? input).trim();
-    if (!q) return;
+    const image = img ?? pendingImage ?? undefined;
+    if (!q && !image) return;
     setInput("");
-    pushAnswer(q);
+    setPendingImage(null);
+    const userMsg: Msg = { role: "user", text: q || "(screenshot)", ...(image ? { imageDataUrl: image } : {}) };
+    setMessages((m) => [...m, userMsg]);
+    setThinking(true);
+    try {
+      const reply = await askAI(q || "(screenshot shared)", image ?? undefined);
+      setMessages((m) => [...m, { role: "bot", text: reply }]);
+    } catch {
+      setMessages((m) => [...m, { role: "bot", text: "Something went wrong. Please email [support@jobsai.work](mailto:support@jobsai.work)." }]);
+    } finally {
+      setThinking(false);
+    }
+  }, [input, pendingImage, askAI]);
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPendingImage(reader.result as string);
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
-  // ── Voice ────────────────────────────────────────────────────────────────
-  const speak = useCallback((text: string) => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.02;
-    u.onend = () => setSpeaking(false);
-    setSpeaking(true);
-    window.speechSynthesis.speak(u);
-  }, []);
-
-  const startListening = useCallback(() => {
-    const Ctor = getRecognitionCtor();
-    if (!Ctor) { setVoiceSupported(false); return; }
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setSpeaking(false);
-    const r = new Ctor();
-    r.lang = "en-US";
-    r.interimResults = true;
-    r.continuous = false;
-    r.onresult = (e) => {
-      const last = e.results[e.results.length - 1];
-      const text = last[0].transcript;
-      setVoiceLine(text);
-      if (last.isFinal) {
-        const reply = pushAnswer(text);
-        setVoiceLine(text);
-        speak(reply);
-      }
-    };
-    r.onend = () => setListening(false);
-    r.onerror = () => setListening(false);
-    recogRef.current = r;
-    setListening(true);
-    r.start();
-  }, [pushAnswer, speak]);
-
-  const stopVoice = useCallback(() => {
-    recogRef.current?.stop();
-    setListening(false);
-    if (typeof window !== "undefined") window.speechSynthesis?.cancel();
-    setSpeaking(false);
-  }, []);
+  const isEmpty = messages.length === 0;
 
   return (
     <div className="dark fixed bottom-5 right-5 z-[60] flex flex-col items-end">
       {open && (
-        <div className="mb-3 flex h-[30rem] w-[22rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-card text-foreground shadow-glow-purple">
-          {/* header */}
+        <div className="mb-3 flex w-[23rem] max-w-[calc(100vw-2.5rem)] flex-col overflow-hidden rounded-2xl border border-white/10 bg-card text-foreground shadow-glow-purple"
+          style={{ height: "34rem" }}>
+
+          {/* ── header ── */}
           <div className="flex items-center justify-between bg-gradient-brand px-4 py-3 text-white">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               <Bot className="h-5 w-5" />
               <div className="leading-tight">
-                <p className="text-sm font-semibold">JobsAI Assistant</p>
-                <p className="text-[11px] opacity-80">Typically replies instantly</p>
+                <p className="text-sm font-semibold">JobsAI Support</p>
+                <p className="text-[11px] opacity-80">
+                  {isSignedIn ? "Signed in · AI-powered" : "AI-powered · replies instantly"}
+                </p>
               </div>
             </div>
-            <button onClick={() => setOpen(false)} aria-label="Close support" className="rounded-md p-1 hover:bg-white/15">
+            <button onClick={() => setOpen(false)} aria-label="Close" className="rounded-md p-1 hover:bg-white/15">
               <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* mode tabs */}
-          <div className="flex border-b border-border">
-            {([["chat", MessageCircle, "Chat"], ["voice", Headphones, "Voice"]] as const).map(
-              ([m, Icon, label]) => (
-                <button
-                  key={m}
-                  onClick={() => setMode(m)}
-                  className={cn(
-                    "flex flex-1 items-center justify-center gap-1.5 py-2.5 text-sm font-medium transition-colors",
-                    mode === m ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <Icon className="h-4 w-4" /> {label}
-                </button>
-              )
-            )}
-          </div>
+          {/* ── home screen (no messages yet) ── */}
+          {isEmpty ? (
+            <div className="flex flex-1 flex-col overflow-y-auto">
+              {/* greeting */}
+              <div className="px-4 pb-2 pt-5">
+                <p className="text-xl font-bold leading-snug">{greeting}</p>
+              </div>
 
-          {/* chat mode */}
-          {mode === "chat" && (
-            <>
-              <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
-                {messages.map((msg, i) => (
-                  <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
-                    <div
-                      className={cn(
-                        "max-w-[85%] rounded-2xl px-3 py-2 text-sm",
-                        msg.role === "user"
-                          ? "rounded-br-sm bg-primary text-primary-foreground"
-                          : "rounded-bl-sm bg-muted text-foreground"
-                      )}
-                    >
-                      {msg.text}
-                    </div>
-                  </div>
-                ))}
-                {messages.length <= 1 && (
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    {SUGGESTED.map((s) => (
-                      <button
-                        key={s}
-                        onClick={() => sendChat(s)}
-                        className="rounded-full border border-border px-2.5 py-1 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                      >
-                        {s}
-                      </button>
+              {/* quick links (signed-in users) */}
+              {isSignedIn && (
+                <div className="px-4 pb-2">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick links</p>
+                  <div className="space-y-1">
+                    {[
+                      { label: "Job Search", href: "/dashboard/job-search" },
+                      { label: "My Applications", href: "/dashboard/applications" },
+                      { label: "Billing & Tokens", href: "/dashboard/billing" },
+                    ].map(({ label, href }) => (
+                      <a key={href} href={href}
+                        className="flex items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                        {label}
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                      </a>
                     ))}
                   </div>
-                )}
-              </div>
-              <form
-                onSubmit={(e) => { e.preventDefault(); sendChat(); }}
-                className="flex items-center gap-2 border-t border-border p-2"
-              >
-                <input
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  placeholder="Ask about auto-apply, pricing…"
-                  className="h-10 flex-1 rounded-xl bg-background/60 px-3 text-sm outline-none placeholder:text-muted-foreground"
-                />
-                <button type="submit" className="btn-cta flex h-10 w-10 items-center justify-center rounded-xl" aria-label="Send">
-                  <Send className="h-4 w-4" />
-                </button>
-              </form>
-            </>
-          )}
+                </div>
+              )}
 
-          {/* voice mode */}
-          {mode === "voice" && (
-            <div className="flex flex-1 flex-col items-center justify-center gap-5 p-5 text-center">
-              {voiceSupported ? (
-                <>
-                  <button
-                    onClick={listening ? stopVoice : startListening}
-                    className={cn(
-                      "relative flex h-24 w-24 items-center justify-center rounded-full text-white transition-transform",
-                      listening ? "bg-destructive animate-pulse-ring" : "bg-gradient-brand shadow-glow-purple hover:scale-105"
+              {/* suggested questions */}
+              <div className="px-4 pb-4">
+                <p className="mb-2 mt-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Common questions</p>
+                <div className="space-y-1">
+                  {SUGGESTED.map((s) => (
+                    <button key={s} onClick={() => sendChat(s)}
+                      className="flex w-full items-center justify-between rounded-xl border border-border bg-background/40 px-3 py-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-muted">
+                      {s}
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* contact fallback */}
+              <div className="mt-auto border-t border-border px-4 py-3">
+                <a href="/contact"
+                  className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <ExternalLink className="h-3.5 w-3.5" /> Send us a detailed message via the contact page
+                </a>
+              </div>
+            </div>
+          ) : (
+            /* ── conversation ── */
+            <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-3">
+              {messages.map((msg, i) => (
+                <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                  {msg.role === "bot" && (
+                    <div className="mr-2 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-brand">
+                      <Bot className="h-3.5 w-3.5 text-white" />
+                    </div>
+                  )}
+                  <div className={cn(
+                    "max-w-[82%] rounded-2xl px-3 py-2.5",
+                    msg.role === "user" ? "rounded-br-sm bg-primary text-primary-foreground" : "rounded-bl-sm bg-muted"
+                  )}>
+                    {msg.imageDataUrl && (
+                      <img src={msg.imageDataUrl} alt="screenshot" className="mb-1.5 max-h-32 rounded-lg object-contain" />
                     )}
-                    aria-label={listening ? "Stop" : "Tap to talk"}
-                  >
-                    {listening ? <Square className="h-7 w-7" /> : <Mic className="h-8 w-8" />}
-                  </button>
-                  <p className="min-h-[2.5rem] px-2 text-sm text-muted-foreground">
-                    {speaking ? "Speaking…" : listening ? "Listening…" : voiceLine}
-                  </p>
-                  <p className="text-[11px] text-muted-foreground/70">
-                    Voice support runs in your browser, no recording leaves this page.
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Voice support needs Chrome or Edge. Please use the Chat tab instead.
-                </p>
+                    {msg.role === "bot"
+                      ? <MarkdownText text={msg.text} />
+                      : <p className="text-sm">{msg.text}</p>
+                    }
+                  </div>
+                </div>
+              ))}
+              {thinking && (
+                <div className="flex justify-start">
+                  <div className="mr-2 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-brand">
+                    <Bot className="h-3.5 w-3.5 text-white" />
+                  </div>
+                  <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-muted px-3 py-2.5 text-sm text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Thinking…
+                  </div>
+                </div>
               )}
             </div>
           )}
+
+          {/* ── image preview ── */}
+          {pendingImage && (
+            <div className="flex items-center gap-2 border-t border-border px-3 py-2">
+              <ImageIcon className="h-4 w-4 shrink-0 text-primary" />
+              <img src={pendingImage} alt="attachment" className="h-9 w-9 rounded object-cover" />
+              <p className="flex-1 truncate text-xs text-muted-foreground">Screenshot ready</p>
+              <button onClick={() => setPendingImage(null)} className="text-muted-foreground hover:text-destructive">
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* ── input ── */}
+          <form onSubmit={(e) => { e.preventDefault(); sendChat(); }}
+            className="flex items-center gap-1.5 border-t border-border p-2">
+            <input type="file" accept="image/*" ref={fileInputRef} onChange={onFileChange} className="hidden" />
+            <button type="button" onClick={() => fileInputRef.current?.click()}
+              className="flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Attach screenshot" title="Attach screenshot">
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <input
+              value={input} onChange={(e) => setInput(e.target.value)}
+              placeholder={isEmpty ? "Ask a question…" : "Reply…"}
+              className="h-10 flex-1 rounded-xl bg-background/60 px-3 text-sm outline-none placeholder:text-muted-foreground"
+              disabled={thinking}
+            />
+            <button type="submit"
+              disabled={thinking || (!input.trim() && !pendingImage)}
+              className="btn-cta flex h-10 w-10 items-center justify-center rounded-xl disabled:opacity-40"
+              aria-label="Send">
+              <Send className="h-4 w-4" />
+            </button>
+          </form>
         </div>
       )}
 
-      {/* launcher */}
-      <button
-        onClick={() => setOpen((o) => !o)}
+      {/* ── launcher ── */}
+      <button onClick={() => setOpen((o) => !o)}
         className="btn-cta flex h-14 w-14 items-center justify-center rounded-full shadow-glow-purple"
-        aria-label={open ? "Close support" : "Open support"}
-      >
+        aria-label={open ? "Close support" : "Open support"}>
         {open ? <X className="h-6 w-6" /> : <MessageCircle className="h-6 w-6" />}
       </button>
     </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 import { Mail, MessageSquare, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { GradientBg } from "@/components/ui/gradient-bg";
 
 const CATEGORIES = [
   { value: "general",  label: "General enquiry" },
@@ -37,19 +38,26 @@ export default function ContactPage() {
   };
 
   return (
-    <>
+    <div className="dark bg-background text-foreground flex flex-col min-h-screen">
       <MarketingHeader />
-      <main className="flex-1 bg-background">
+      <main className="flex-1">
 
         {/* Hero */}
-        <section className="relative overflow-hidden border-b border-border/60 px-4 py-20 text-center sm:px-6">
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-primary/5 to-transparent" />
+        <section className="relative overflow-hidden border-b border-white/10 px-4 py-20 text-center sm:px-6">
+          <div
+            className="pointer-events-none absolute inset-0"
+            style={{
+              background:
+                "radial-gradient(70% 55% at 50% 0%, color-mix(in oklch, var(--desyn-purple) 28%, transparent), transparent 70%), radial-gradient(50% 40% at 15% 20%, color-mix(in oklch, var(--desyn-brand) 18%, transparent), transparent 65%), radial-gradient(45% 40% at 85% 20%, color-mix(in oklch, var(--desyn-cyan) 14%, transparent), transparent 60%)",
+            }}
+          />
+          <GradientBg variant="grid" className="opacity-20" />
           <div className="relative mx-auto max-w-2xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--cta)]/40 bg-[var(--cta)]/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[var(--cta)]">
               <MessageSquare className="h-3 w-3" /> Support
             </span>
-            <h1 className="mt-4 text-4xl font-bold tracking-tight sm:text-5xl">
-              We&apos;re here to help
+            <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
+              We&apos;re <span className="text-gradient">here to help</span>
             </h1>
             <p className="mt-4 text-lg text-muted-foreground">
               Have a question, issue, or idea? Send us a message and we&apos;ll get back to you within one business day.
@@ -61,7 +69,7 @@ export default function ContactPage() {
 
           {/* Info column */}
           <div className="space-y-6">
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="rounded-2xl border border-white/10 bg-card/80 p-6 backdrop-blur">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                 <Mail className="h-5 w-5 text-primary" />
               </div>
@@ -72,7 +80,7 @@ export default function ContactPage() {
               </a>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="rounded-2xl border border-white/10 bg-card/80 p-6 backdrop-blur">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                 <Clock className="h-5 w-5 text-primary" />
               </div>
@@ -82,7 +90,7 @@ export default function ContactPage() {
               </p>
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="rounded-2xl border border-white/10 bg-card/80 p-6 backdrop-blur">
               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
                 <CheckCircle2 className="h-5 w-5 text-primary" />
               </div>
@@ -111,7 +119,7 @@ export default function ContactPage() {
                 </Link>
               </div>
             ) : (
-              <form onSubmit={submit} className="rounded-2xl border border-border bg-card p-8 space-y-5">
+              <form onSubmit={submit} className="rounded-2xl border border-white/10 bg-card/80 p-8 space-y-5 backdrop-blur">
                 <h2 className="text-xl font-bold">Send a message</h2>
 
                 <div className="grid gap-4 sm:grid-cols-2">
@@ -119,13 +127,13 @@ export default function ContactPage() {
                     <label className="block text-sm font-medium text-foreground mb-1.5">Name</label>
                     <input required value={form.name} onChange={(e) => set("name", e.target.value)}
                       placeholder="Your name"
-                      className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground" />
+                      className="h-11 w-full rounded-xl border border-white/10 bg-background/60 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
                     <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)}
                       placeholder="you@email.com"
-                      className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground" />
+                      className="h-11 w-full rounded-xl border border-white/10 bg-background/60 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground" />
                   </div>
                 </div>
 
@@ -133,7 +141,7 @@ export default function ContactPage() {
                   <div>
                     <label className="block text-sm font-medium text-foreground mb-1.5">Category</label>
                     <select value={form.category} onChange={(e) => set("category", e.target.value)}
-                      className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50">
+                      className="h-11 w-full rounded-xl border border-white/10 bg-background/60 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50">
                       {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </div>
@@ -141,7 +149,7 @@ export default function ContactPage() {
                     <label className="block text-sm font-medium text-foreground mb-1.5">Subject</label>
                     <input value={form.subject} onChange={(e) => set("subject", e.target.value)}
                       placeholder="Brief description"
-                      className="h-11 w-full rounded-xl border border-border bg-background px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground" />
+                      className="h-11 w-full rounded-xl border border-white/10 bg-background/60 px-4 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground" />
                   </div>
                 </div>
 
@@ -150,7 +158,7 @@ export default function ContactPage() {
                   <textarea required value={form.message} onChange={(e) => set("message", e.target.value)}
                     placeholder="Describe your question or issue in detail..."
                     rows={6}
-                    className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground resize-none" />
+                    className="w-full rounded-xl border border-white/10 bg-background/60 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-primary/50 placeholder:text-muted-foreground resize-none" />
                 </div>
 
                 {state === "error" && (
@@ -172,6 +180,6 @@ export default function ContactPage() {
         </section>
       </main>
       <SiteFooter />
-    </>
+    </div>
   );
 }
