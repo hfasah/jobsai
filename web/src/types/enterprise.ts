@@ -1,0 +1,119 @@
+export type OrgSize = "1-10" | "11-50" | "51-200" | "201-500" | "500+";
+export type MemberRole = "owner" | "admin" | "recruiter";
+export type JobStatus = "draft" | "active" | "paused" | "closed";
+export type EmploymentType = "full-time" | "part-time" | "contract" | "internship";
+export type AppStage = "applied" | "screened" | "interview" | "offer" | "hired" | "rejected";
+export type AIRecommendation = "strong_yes" | "yes" | "maybe" | "no";
+
+export interface EnterpriseOrg {
+  id: string;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  industry: string | null;
+  size: OrgSize | null;
+  website: string | null;
+  created_by: string;
+  created_at: string;
+}
+
+export interface EnterpriseMember {
+  id: string;
+  org_id: string;
+  user_id: string;
+  role: MemberRole;
+  created_at: string;
+}
+
+export interface EnterpriseJob {
+  id: string;
+  org_id: string;
+  title: string;
+  department: string | null;
+  location: string | null;
+  employment_type: EmploymentType;
+  description: string | null;
+  responsibilities: string | null;
+  qualifications: string | null;
+  nice_to_have: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  salary_currency: string;
+  status: JobStatus;
+  created_by: string;
+  created_at: string;
+  published_at: string | null;
+  closes_at: string | null;
+  // computed
+  application_count?: number;
+}
+
+export interface EnterpriseApplication {
+  id: string;
+  job_id: string;
+  org_id: string;
+  candidate_name: string;
+  candidate_email: string;
+  candidate_phone: string | null;
+  resume_url: string | null;
+  resume_text: string | null;
+  cover_letter: string | null;
+  linkedin_url: string | null;
+  portfolio_url: string | null;
+  source: string;
+  stage: AppStage;
+  match_score: number | null;
+  skills_score: number | null;
+  experience_score: number | null;
+  culture_score: number | null;
+  risk_flags: string[];
+  ai_summary: string | null;
+  ai_recommendation: AIRecommendation | null;
+  tags: string[];
+  notes: string | null;
+  duplicate_of: string | null;
+  is_duplicate: boolean;
+  screened_at: string | null;
+  stage_updated_at: string;
+  status_email_sent: boolean;
+  created_at: string;
+}
+
+export interface GenerateJDInput {
+  title: string;
+  department?: string;
+  location?: string;
+  employment_type?: string;
+  company_name?: string;
+  extra_context?: string;
+}
+
+export interface ScreenResult {
+  match_score: number;
+  skills_score: number;
+  experience_score: number;
+  culture_score: number;
+  risk_flags: string[];
+  ai_summary: string;
+  ai_recommendation: AIRecommendation;
+}
+
+export const STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired", "rejected"];
+
+export const STAGE_LABELS: Record<AppStage, string> = {
+  applied:   "Applied",
+  screened:  "Screened",
+  interview: "Interview",
+  offer:     "Offer",
+  hired:     "Hired",
+  rejected:  "Rejected",
+};
+
+export const STAGE_COLORS: Record<AppStage, string> = {
+  applied:   "bg-blue-500/15 text-blue-400 border-blue-500/30",
+  screened:  "bg-purple-500/15 text-purple-400 border-purple-500/30",
+  interview: "bg-amber-500/15 text-amber-400 border-amber-500/30",
+  offer:     "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+  hired:     "bg-green-500/15 text-green-400 border-green-500/30",
+  rejected:  "bg-red-500/15 text-red-400 border-red-500/30",
+};
