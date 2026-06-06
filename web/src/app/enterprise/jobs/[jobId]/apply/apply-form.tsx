@@ -111,7 +111,16 @@ function ConciergeWidget({ jobId }: { jobId: string }) {
   );
 }
 
-export default function ApplyForm({ job, orgName }: { job: JobInfo; orgName: string }) {
+interface Branding {
+  logo_url: string | null;
+  brand_color: string;
+  tagline: string | null;
+  show_powered_by: boolean;
+  slug: string | null;
+}
+
+export default function ApplyForm({ job, orgName, branding }: { job: JobInfo; orgName: string; branding?: Branding }) {
+  const brand = branding?.brand_color ?? "#2563eb";
   const [form, setForm] = useState({ candidate_name: "", candidate_email: "", candidate_phone: "", linkedin_url: "", portfolio_url: "", cover_letter: "" });
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
@@ -151,8 +160,13 @@ export default function ApplyForm({ job, orgName }: { job: JobInfo; orgName: str
     <div className="min-h-screen bg-background text-foreground">
       <ConciergeWidget jobId={job.id} />
       {/* Job header */}
-      <div className="border-b border-border bg-card px-4 py-8 text-center sm:px-6">
-        <p className="text-sm font-semibold text-primary">{orgName}</p>
+      <div className="border-b border-border bg-card px-4 py-8 text-center sm:px-6"
+        style={{ background: `linear-gradient(180deg, ${brand}14, transparent)` }}>
+        {branding?.logo_url ? (
+          <img src={branding.logo_url} alt={orgName} className="mx-auto mb-3 h-12 object-contain" />
+        ) : null}
+        <p className="text-sm font-semibold" style={{ color: brand }}>{orgName}</p>
+        {branding?.tagline && <p className="mt-0.5 text-xs text-muted-foreground">{branding.tagline}</p>}
         <h1 className="mt-2 text-2xl font-bold tracking-tight">{job.title}</h1>
         <div className="mt-2 flex flex-wrap items-center justify-center gap-3 text-sm text-muted-foreground">
           {job.location && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{job.location}</span>}
@@ -233,12 +247,25 @@ export default function ApplyForm({ job, orgName }: { job: JobInfo; orgName: str
               {error && <p className="text-sm text-destructive">{error}</p>}
 
               <button type="submit" disabled={submitting}
-                className="btn-cta flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:opacity-60">
+                className="flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60"
+                style={{ background: brand }}>
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 {submitting ? "Submitting…" : "Submit application"}
               </button>
             </form>
           </div>
+        </div>
+
+        {/* Branded footer */}
+        <div className="mt-10 border-t border-border pt-6 text-center">
+          {branding?.slug && (
+            <a href={`/careers/${branding.slug}`} className="text-sm font-medium hover:underline" style={{ color: brand }}>
+              View all {orgName} openings →
+            </a>
+          )}
+          {branding?.show_powered_by !== false && (
+            <p className="mt-2 text-xs text-muted-foreground">Powered by JobsAI</p>
+          )}
         </div>
       </div>
     </div>

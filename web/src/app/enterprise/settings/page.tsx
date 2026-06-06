@@ -5,6 +5,7 @@ import {
   Bot, Send, Loader2, Sparkles, Copy, Check, RefreshCw,
   Users, Plus, Trash2, Link2, Download, Shield, Mail,
   CheckCircle2, AlertCircle, RotateCcw, Clock,
+  Palette, Code2, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -507,12 +508,181 @@ function DataPrivacySettings() {
   );
 }
 
+// ── White-label Branding ──────────────────────────────────────────────────────
+function BrandingSettings() {
+  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", tagline: "", careers_intro: "", show_powered_by: true, website: "" });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/enterprise/branding").then((r) => r.json()).then((j) => {
+      if (j.data) setForm((f) => ({ ...f, ...j.data, logo_url: j.data.logo_url ?? "", tagline: j.data.tagline ?? "", careers_intro: j.data.careers_intro ?? "", website: j.data.website ?? "" }));
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setSaving(true); setSaved(false);
+    await fetch("/api/enterprise/branding", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    setSaved(true); setSaving(false);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
+  const careersUrl = typeof window !== "undefined" ? `${window.location.origin}/careers/${form.slug}` : "";
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="mb-1 font-semibold">White-label branding</h2>
+        <p className="mb-4 text-sm text-muted-foreground">Your logo and colors appear on the careers portal and every candidate-facing page.</p>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Logo URL</label>
+            <input value={form.logo_url} onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))}
+              placeholder="https://yourcompany.com/logo.png"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Brand color</label>
+            <div className="flex items-center gap-2">
+              <input type="color" value={form.brand_color} onChange={(e) => setForm((f) => ({ ...f, brand_color: e.target.value }))}
+                className="h-9 w-12 rounded border border-border bg-background" />
+              <input value={form.brand_color} onChange={(e) => setForm((f) => ({ ...f, brand_color: e.target.value }))}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            </div>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Website</label>
+            <input value={form.website} onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))}
+              placeholder="https://yourcompany.com"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Tagline</label>
+            <input value={form.tagline} onChange={(e) => setForm((f) => ({ ...f, tagline: e.target.value }))}
+              placeholder="Building the future of…"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Careers page intro</label>
+            <textarea value={form.careers_intro} onChange={(e) => setForm((f) => ({ ...f, careers_intro: e.target.value }))} rows={2}
+              placeholder="A sentence inviting candidates to apply…"
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+        </div>
+
+        <label className="mt-4 flex cursor-pointer items-center gap-2.5">
+          <input type="checkbox" checked={form.show_powered_by} onChange={(e) => setForm((f) => ({ ...f, show_powered_by: e.target.checked }))}
+            className="h-4 w-4 rounded border-border accent-primary" />
+          <span className="text-sm">Show &quot;Powered by JobsAI&quot; on candidate pages</span>
+        </label>
+
+        <button onClick={save} disabled={saving}
+          className="btn-cta mt-4 inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : null}
+          {saved ? "Saved" : "Save branding"}
+        </button>
+      </div>
+
+      {/* Careers portal link */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="mb-1 font-semibold">Branded careers portal</h2>
+        <p className="mb-3 text-sm text-muted-foreground">A public, branded page listing all your active jobs. Share this link or embed it on your site.</p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-background px-3 py-2 text-xs">{careersUrl}</code>
+          <a href={`/careers/${form.slug}`} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-xs font-medium hover:bg-muted">
+            <ExternalLink className="h-3.5 w-3.5" /> Open
+          </a>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">Want a custom domain (careers.yourcompany.com)? Point a CNAME to our servers — contact your account manager.</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Enterprise API ────────────────────────────────────────────────────────────
+function ApiSettings() {
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [rotating, setRotating] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/enterprise/api-key").then((r) => r.json()).then((j) => setApiKey(j.data?.api_key ?? null)).finally(() => setLoading(false));
+  }, []);
+
+  const rotate = async () => {
+    setRotating(true);
+    const res = await fetch("/api/enterprise/api-key", { method: "POST" });
+    const json = await res.json();
+    if (json.data) setApiKey(json.data.api_key);
+    setRotating(false);
+  };
+
+  const base = typeof window !== "undefined" ? window.location.origin : "https://jobsai.work";
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="mb-1 font-semibold">API key</h2>
+        <p className="mb-4 text-sm text-muted-foreground">Authenticate requests with <code className="rounded bg-muted px-1.5 py-0.5 text-xs">Authorization: Bearer &lt;key&gt;</code>. Owner only.</p>
+        {loading ? <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /> : apiKey ? (
+          <div className="flex items-center gap-2">
+            <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs">{apiKey}</code>
+            <button onClick={() => { navigator.clipboard.writeText(apiKey); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+              className="rounded-lg border border-border p-2 hover:bg-muted">{copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}</button>
+            <button onClick={rotate} disabled={rotating} className="rounded-lg border border-border p-2 hover:bg-muted">{rotating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}</button>
+          </div>
+        ) : (
+          <button onClick={rotate} disabled={rotating} className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+            {rotating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Generate API key
+          </button>
+        )}
+        {apiKey && <p className="mt-2 text-xs text-amber-400">Rotating invalidates the old key immediately.</p>}
+      </div>
+
+      {/* Docs */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <h2 className="mb-3 font-semibold">Endpoints</h2>
+        <div className="space-y-3 text-xs">
+          {[
+            { m: "GET", p: "/api/v1/enterprise/jobs", d: "List jobs (?status=active)" },
+            { m: "POST", p: "/api/v1/enterprise/jobs", d: "Create a job" },
+            { m: "GET", p: "/api/v1/enterprise/jobs/{jobId}/applications", d: "List applications with AI scores" },
+            { m: "POST", p: "/api/v1/enterprise/jobs/{jobId}/applications", d: "Push a candidate (auto-screens)" },
+            { m: "GET", p: "/api/v1/enterprise/candidates/{appId}", d: "Full candidate record + scores" },
+            { m: "PATCH", p: "/api/v1/enterprise/candidates/{appId}", d: "Update stage" },
+          ].map((e) => (
+            <div key={e.m + e.p} className="flex items-center gap-2.5">
+              <span className={cn("w-12 shrink-0 rounded px-1.5 py-0.5 text-center font-mono font-bold",
+                e.m === "GET" ? "bg-blue-500/15 text-blue-400" : e.m === "POST" ? "bg-green-500/15 text-green-400" : "bg-amber-500/15 text-amber-400")}>{e.m}</span>
+              <code className="shrink-0 text-foreground">{e.p}</code>
+              <span className="truncate text-muted-foreground">{e.d}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 rounded-lg bg-background/60 p-3">
+          <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Example</p>
+          <pre className="overflow-x-auto text-[11px] leading-relaxed text-muted-foreground">{`curl ${base}/api/v1/enterprise/jobs \\
+  -H "Authorization: Bearer YOUR_API_KEY"`}</pre>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
-type Tab = "copilot" | "outreach" | "integrations" | "emails" | "data";
+type Tab = "copilot" | "outreach" | "branding" | "api" | "integrations" | "emails" | "data";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "copilot",      label: "Copilot",      icon: Bot },
   { id: "outreach",     label: "Outreach",     icon: Sparkles },
+  { id: "branding",     label: "Branding",     icon: Palette },
+  { id: "api",          label: "API",          icon: Code2 },
   { id: "integrations", label: "Integrations", icon: Link2 },
   { id: "emails",       label: "Emails",       icon: Mail },
   { id: "data",         label: "Data & Privacy", icon: Shield },
@@ -543,6 +713,8 @@ export default function SettingsPage() {
 
         {tab === "copilot"      && <RecruiterCopilot />}
         {tab === "outreach"     && <OutreachGenerator />}
+        {tab === "branding"     && <BrandingSettings />}
+        {tab === "api"          && <ApiSettings />}
         {tab === "integrations" && <IntegrationsSettings />}
         {tab === "emails"       && <EmailTemplatesSettings />}
         {tab === "data"         && <DataPrivacySettings />}

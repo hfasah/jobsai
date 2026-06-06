@@ -16,9 +16,21 @@ export default async function PublicApplyPage({ params }: { params: Promise<{ jo
 
   const { data: org } = await supabaseAdmin
     .from("enterprise_orgs")
-    .select("name")
+    .select("name, logo_url, brand_color, tagline, show_powered_by, slug")
     .eq("id", job.org_id)
     .maybeSingle();
 
-  return <ApplyForm job={job} orgName={org?.name ?? "the company"} />;
+  return (
+    <ApplyForm
+      job={job}
+      orgName={org?.name ?? "the company"}
+      branding={{
+        logo_url: org?.logo_url ?? null,
+        brand_color: org?.brand_color ?? "#2563eb",
+        tagline: org?.tagline ?? null,
+        show_powered_by: org?.show_powered_by ?? true,
+        slug: org?.slug ?? null,
+      }}
+    />
+  );
 }
