@@ -6,7 +6,7 @@ import {
   ArrowLeft, Users, Sparkles, Loader2, ChevronRight,
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
-  Share2, BarChart3, Copy, Check, TrendingUp,
+  Share2, BarChart3, Copy, Check, TrendingUp, Mic, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
@@ -150,6 +150,137 @@ function CandidateCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Interview Kit Panel ───────────────────────────────────────────────────────
+interface KitQuestion { id: string; type: string; question: string; rubric: string; max_score: number }
+
+function InterviewKitPanel({ jobId, apps }: { jobId: string; apps: EnterpriseApplication[] }) {
+  const [kit, setKit] = useState<{ questions: KitQuestion[] } | null>(null);
+  const [generating, setGenerating] = useState(false);
+  const [inviting, setInviting] = useState<string | null>(null);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  const [inviteUrls, setInviteUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    fetch(`/api/enterprise/jobs/${jobId}/interview-kit`)
+      .then((r) => r.json())
+      .then((j) => { if (j.data) setKit(j.data); });
+  }, [jobId]);
+
+  const generate = async () => {
+    setGenerating(true);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/interview-kit`, { method: "POST" });
+    const json = await res.json();
+    if (json.data) setKit(json.data);
+    setGenerating(false);
+  };
+
+  const invite = async (appId: string) => {
+    setInviting(appId);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/applications/${appId}/invite-interview`, { method: "POST" });
+    const json = await res.json();
+    if (json.data) {
+      setInvitedIds((s) => new Set(s).add(appId));
+      if (json.interviewUrl) setInviteUrls((m) => ({ ...m, [appId]: json.interviewUrl }));
+    }
+    setInviting(null);
+  };
+
+  const eligibleApps = apps.filter((a) => ["screened", "interview"].includes(a.stage));
+  const TYPE_COLORS: Record<string, string> = {
+    behavioral: "bg-blue-500/15 text-blue-400", technical: "bg-purple-500/15 text-purple-400",
+    leadership: "bg-amber-500/15 text-amber-400", situational: "bg-cyan-500/15 text-cyan-400",
+    culture: "bg-green-500/15 text-green-400",
+  };
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-3xl space-y-6">
+        {/* Kit generator */}
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="font-semibold">AI Interview Kit</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">9 role-specific questions with scoring rubrics.</p>
+            </div>
+            <button onClick={generate} disabled={generating}
+              className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow disabled:opacity-60">
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {generating ? "Generating…" : kit ? "Regenerate" : "Generate kit"}
+            </button>
+          </div>
+
+          {!kit && !generating && (
+            <div className="rounded-xl border border-dashed border-border py-10 text-center text-sm text-muted-foreground">
+              Click "Generate kit" to create 9 tailored interview questions with AI scoring rubrics.
+            </div>
+          )}
+
+          {kit && (
+            <div className="space-y-3">
+              {kit.questions.map((q, i) => (
+                <div key={q.id} className="rounded-xl border border-border p-4">
+                  <div className="flex items-start gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <span className={cn("rounded-full px-2 py-0.5 text-xs font-medium capitalize", TYPE_COLORS[q.type] ?? TYPE_COLORS.behavioral)}>
+                          {q.type}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{q.max_score} pts</span>
+                      </div>
+                      <p className="text-sm font-medium">{q.question}</p>
+                      <p className="mt-1.5 text-xs text-muted-foreground italic">{q.rubric}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Send invitations */}
+        {kit && (
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <h2 className="mb-1 font-semibold">Send interview invitations</h2>
+            <p className="mb-4 text-sm text-muted-foreground">Candidates in "Screened" or "Interview" stage receive a unique link valid for 7 days.</p>
+            {eligibleApps.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No candidates in "Screened" or "Interview" stage yet.</p>
+            ) : (
+              <div className="divide-y divide-border">
+                {eligibleApps.map((app) => (
+                  <div key={app.id} className="flex items-center justify-between py-3">
+                    <div>
+                      <p className="text-sm font-medium">{app.candidate_name}</p>
+                      <p className="text-xs text-muted-foreground">{app.candidate_email}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {inviteUrls[app.id] && (
+                        <button onClick={() => { navigator.clipboard.writeText(inviteUrls[app.id]); }}
+                          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                          <Copy className="h-3.5 w-3.5" /> Copy link
+                        </button>
+                      )}
+                      {invitedIds.has(app.id) ? (
+                        <span className="flex items-center gap-1 text-xs text-green-400"><CheckCircle2 className="h-3.5 w-3.5" /> Invited</span>
+                      ) : (
+                        <button onClick={() => invite(app.id)} disabled={inviting === app.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50">
+                          {inviting === app.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                          Invite
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -389,7 +520,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pipeline" | "all" | "distribute" | "analytics">("pipeline");
+  const [activeTab, setActiveTab] = useState<"pipeline" | "all" | "distribute" | "analytics" | "interviews">("pipeline");
 
   const load = useCallback(async () => {
     const [jRes, aRes] = await Promise.all([
@@ -504,6 +635,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               { key: "all",        label: `All (${apps.length})` },
               { key: "distribute", label: "Distribution" },
               { key: "analytics",  label: "Analytics" },
+            { key: "interviews", label: "Interview Kit" },
             ] as const).map(({ key, label }) => (
               <button key={key} onClick={() => setActiveTab(key)}
                 className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
@@ -597,6 +729,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             </div>
           </div>
         </div>
+      )}
+
+      {/* Interview Kit tab */}
+      {activeTab === "interviews" && (
+        <InterviewKitPanel jobId={jobId} apps={apps} />
       )}
 
       {/* Distribution tab */}
