@@ -5,19 +5,20 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { UserButton } from "@clerk/nextjs";
 import {
-  LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox,
+  LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet,
   Menu, X, Building2, ChevronRight, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
 
 const NAV = [
-  { href: "/enterprise/dashboard", icon: LayoutGrid, label: "Dashboard" },
-  { href: "/enterprise/inbox",     icon: Inbox,      label: "Inbox" },
-  { href: "/enterprise/jobs",      icon: Briefcase,  label: "Jobs" },
-  { href: "/enterprise/candidates",icon: Users,      label: "Candidates" },
-  { href: "/enterprise/analytics", icon: BarChart3,  label: "Analytics" },
-  { href: "/enterprise/settings",  icon: Settings,   label: "Settings" },
+  { href: "/enterprise/dashboard", icon: LayoutGrid,       label: "Dashboard" },
+  { href: "/enterprise/inbox",     icon: Inbox,            label: "Inbox" },
+  { href: "/enterprise/jobs",      icon: Briefcase,        label: "Jobs" },
+  { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },
+  { href: "/enterprise/analytics", icon: BarChart3,        label: "Analytics" },
+  { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports" },
+  { href: "/enterprise/settings",  icon: Settings,         label: "Settings" },
 ];
 
 function Sidebar({ org, onNavigate }: { org: EnterpriseOrg | null; onNavigate?: () => void }) {
