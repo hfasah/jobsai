@@ -7,11 +7,15 @@ import {
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
   Share2, BarChart3, Copy, Check, TrendingUp, Mic, Send,
+  ClipboardList, Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
 import { ATS_TIERS, atsTier } from "@/types/enterprise";
 import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
+import type { CompetencyFramework, RoleType } from "@/types/interview-intelligence";
+import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
+import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -42,7 +46,7 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
 }
 
 function CandidateCard({
-  app, selected, onSelect, onMove, onScreen, screening, onAddToPool,
+  app, selected, onSelect, onMove, onScreen, screening, onAddToPool, onReport,
 }: {
   app: EnterpriseApplication;
   selected: boolean;
@@ -51,6 +55,7 @@ function CandidateCard({
   onScreen: (id: string) => void;
   screening: boolean;
   onAddToPool: (id: string) => void;
+  onReport: (app: EnterpriseApplication) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -134,6 +139,10 @@ function CandidateCard({
                 Screen with AI
               </button>
             )}
+            <button onClick={() => onReport(app)}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
+              <ClipboardList className="h-3 w-3" /> Reports
+            </button>
             {(app.match_score ?? 0) >= 50 && (
               <button onClick={() => onAddToPool(app.id)}
                 className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2.5 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20">
@@ -162,6 +171,96 @@ function CandidateCard({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Competency Scorecard Panel ────────────────────────────────────────────────
+function ScorecardPanel({
+  jobId, framework, onChange,
+}: {
+  jobId: string;
+  framework: CompetencyFramework | null;
+  onChange: (f: CompetencyFramework) => void;
+}) {
+  const [generating, setGenerating] = useState(false);
+  const [companyValues, setCompanyValues] = useState(framework?.company_values ?? "");
+  const [error, setError] = useState("");
+
+  const generate = async () => {
+    setGenerating(true); setError("");
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/framework`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ company_values: companyValues }),
+    });
+    const json = await res.json();
+    if (!res.ok) setError(json.error ?? "Failed to generate."); else onChange(json.data);
+    setGenerating(false);
+  };
+
+  const roleType = (framework?.role_type ?? "general") as RoleType;
+
+  return (
+    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-3xl space-y-5">
+        <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">AI Competency Scorecard</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                The AI identifies the role type and builds a weighted scorecard. Interview reports score candidates against it.
+              </p>
+            </div>
+            <button onClick={generate} disabled={generating}
+              className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow disabled:opacity-60">
+              {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {generating ? "Generating…" : framework ? "Regenerate" : "Generate scorecard"}
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-1.5 block text-sm font-medium">Company values (optional — shapes culture-fit competencies)</label>
+            <input value={companyValues} onChange={(e) => setCompanyValues(e.target.value)}
+              placeholder="e.g. Customer obsession, ownership, bias for action"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          {error && <p className="mt-2 text-sm text-destructive">{error}</p>}
+        </div>
+
+        {!framework ? (
+          <div className="rounded-2xl border border-dashed border-border py-16 text-center text-sm text-muted-foreground">
+            <Scale className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+            No scorecard yet. Generate one to unlock interview reports for this role.
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-border bg-card p-6">
+            <div className="mb-4 flex items-center gap-2">
+              <span className={cn("rounded-full border px-2.5 py-0.5 text-xs font-semibold", ROLE_TYPE_COLORS[roleType])}>
+                {framework.role_type_label ?? ROLE_TYPE_LABELS[roleType]}
+              </span>
+              <span className="text-xs text-muted-foreground">{framework.competencies.length} competencies · weights sum to 100%</span>
+            </div>
+
+            <div className="space-y-4">
+              {framework.competencies.map((c, i) => (
+                <div key={i}>
+                  <div className="mb-1 flex items-center justify-between">
+                    <p className="text-sm font-semibold">{c.name}</p>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-bold text-primary tabular-nums">{c.weight}%</span>
+                  </div>
+                  <div className="mb-1.5 h-1.5 w-full rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-gradient-brand" style={{ width: `${c.weight}%` }} />
+                  </div>
+                  <p className="text-xs text-muted-foreground">{c.description}</p>
+                  {c.what_to_look_for && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground/80 italic">Look for: {c.what_to_look_for}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -652,15 +751,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pipeline" | "ats" | "all" | "distribute" | "analytics" | "interviews">("pipeline");
+  const [activeTab, setActiveTab] = useState<"pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews">("pipeline");
+  const [framework, setFramework] = useState<CompetencyFramework | null>(null);
+  const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
 
   const load = useCallback(async () => {
-    const [jRes, aRes] = await Promise.all([
+    const [jRes, aRes, fRes] = await Promise.all([
       fetch(`/api/enterprise/jobs/${jobId}`).then((r) => r.json()),
       fetch(`/api/enterprise/jobs/${jobId}/applications`).then((r) => r.json()),
+      fetch(`/api/enterprise/jobs/${jobId}/framework`).then((r) => r.json()),
     ]);
     setJob(jRes.data);
     setApps(aRes.data ?? []);
+    setFramework(fRes.data ?? null);
     setLoading(false);
   }, [jobId]);
 
@@ -765,6 +868,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             {([
               { key: "pipeline",   label: "Pipeline" },
               { key: "ats",        label: "ATS Score" },
+              { key: "scorecard",  label: "Scorecard" },
               { key: "all",        label: `All (${apps.length})` },
               { key: "distribute", label: "Distribution" },
               { key: "analytics",  label: "Analytics" },
@@ -807,6 +911,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
         <AtsScorePanel apps={apps} onScreen={screenApp} screeningIds={screeningIds} onScreenAll={screenAll} />
       )}
 
+      {/* Competency scorecard */}
+      {activeTab === "scorecard" && (
+        <ScorecardPanel jobId={jobId} framework={framework} onChange={setFramework} />
+      )}
+
       {/* Pipeline */}
       {activeTab === "pipeline" && (
         <div className="flex-1 overflow-x-auto">
@@ -832,6 +941,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                         onScreen={screenApp}
                         screening={screeningIds.has(app.id)}
                         onAddToPool={addToPool}
+                        onReport={setReportApp}
                       />
                     ))}
                     {stageApps.length === 0 && (
@@ -860,6 +970,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                     onMove={moveApp}
                     onScreen={screenApp}
                     onAddToPool={addToPool}
+                    onReport={setReportApp}
                     screening={screeningIds.has(app.id)}
                   />
                 ))}
@@ -945,6 +1056,17 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             </div>
           </div>
         </div>
+      )}
+
+      {/* Candidate report modal */}
+      {reportApp && (
+        <CandidateReportModal
+          jobId={jobId}
+          appId={reportApp.id}
+          candidateName={reportApp.candidate_name}
+          hasFramework={!!framework}
+          onClose={() => setReportApp(null)}
+        />
       )}
     </main>
   );
