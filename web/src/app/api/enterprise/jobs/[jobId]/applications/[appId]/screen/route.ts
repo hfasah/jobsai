@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { assignToPool } from "@/lib/enterprise-pools";
 import type { ScreenResult } from "@/types/enterprise";
 
 export const maxDuration = 30;
@@ -112,7 +113,15 @@ Return JSON with:
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ data: updated });
+
+    // Auto-triage into the matching pool (removes from inbox)
+    const triageScore = result.ats_score ?? result.match_score ?? 0;
+    await assignToPool(orgId, jobId, appId, triageScore);
+
+    const { data: finalApp } = await supabaseAdmin
+      .from("enterprise_applications").select("*").eq("id", appId).maybeSingle();
+
+    return NextResponse.json({ data: finalApp ?? updated });
   } catch (err) {
     console.error("Screening error:", err);
     return NextResponse.json({ error: "AI screening failed." }, { status: 500 });

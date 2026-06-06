@@ -14,6 +14,10 @@ export async function GET(req: NextRequest) {
   const url = new URL(req.url);
   const jobFilter = url.searchParams.get("job");
 
+  // Inbox = untriaged arrivals only. Once screened, candidates move into a pool
+  // and leave the inbox. ?all=1 returns everything (used by some views).
+  const showAll = url.searchParams.get("all") === "1";
+
   let query = supabaseAdmin
     .from("enterprise_applications")
     .select("*, job:enterprise_jobs(id, title, department)")
@@ -21,6 +25,7 @@ export async function GET(req: NextRequest) {
     .order("created_at", { ascending: false })
     .limit(500);
 
+  if (!showAll) query = query.eq("triaged", false);
   if (jobFilter) query = query.eq("job_id", jobFilter);
 
   const { data, error } = await query;

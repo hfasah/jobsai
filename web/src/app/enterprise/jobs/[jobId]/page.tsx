@@ -7,7 +7,7 @@ import {
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
   Share2, BarChart3, Copy, Check, TrendingUp, Mic, Send,
-  ClipboardList, Scale,
+  ClipboardList, Scale, FileText, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
@@ -16,6 +16,7 @@ import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
 import type { CompetencyFramework, RoleType } from "@/types/interview-intelligence";
 import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
+import { PoolsPanel } from "@/components/enterprise/pools-panel";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -751,7 +752,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews">("pipeline");
+  const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews">("pools");
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
 
@@ -846,7 +847,25 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {[job.department, job.location, job.employment_type].filter(Boolean).join(" · ")}
+                {job.salary_min && job.salary_max ? ` · $${job.salary_min.toLocaleString()}–$${job.salary_max.toLocaleString()}` : ""}
               </p>
+              {(job.description || job.qualifications) && (
+                <details className="mt-1.5 group">
+                  <summary className="flex cursor-pointer list-none items-center gap-1 text-xs font-medium text-primary hover:underline">
+                    <FileText className="h-3.5 w-3.5" /> View job description
+                    <ChevronDown className="h-3 w-3 transition-transform group-open:rotate-180" />
+                  </summary>
+                  <div className="mt-2 max-w-3xl space-y-2.5 rounded-xl border border-border bg-card/60 p-4 text-sm">
+                    {job.description && <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Overview</p><p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{job.description}</p></div>}
+                    {job.responsibilities && <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Responsibilities</p><p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{job.responsibilities}</p></div>}
+                    {job.qualifications && <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Required criteria</p><p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{job.qualifications}</p></div>}
+                    {job.nice_to_have && <div><p className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Nice to have</p><p className="whitespace-pre-wrap text-muted-foreground leading-relaxed">{job.nice_to_have}</p></div>}
+                    <Link href={`/enterprise/jobs/${jobId}/apply`} target="_blank" className="inline-flex items-center gap-1 pt-1 text-xs text-primary hover:underline">
+                      <ExternalLink className="h-3 w-3" /> Public application page
+                    </Link>
+                  </div>
+                </details>
+              )}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <div className="flex items-center gap-1.5 text-sm font-semibold">
@@ -866,6 +885,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           {/* Tabs */}
           <div className="mt-3 flex flex-wrap gap-1">
             {([
+              { key: "pools",      label: "Pools" },
               { key: "pipeline",   label: "Pipeline" },
               { key: "ats",        label: "ATS Score" },
               { key: "scorecard",  label: "Scorecard" },
@@ -904,6 +924,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             </button>
           </div>
         </div>
+      )}
+
+      {/* Pools — primary workspace */}
+      {activeTab === "pools" && (
+        <PoolsPanel jobId={jobId} onReport={setReportApp} />
       )}
 
       {/* ATS Score grouping */}

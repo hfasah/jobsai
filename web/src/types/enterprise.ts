@@ -80,8 +80,41 @@ export interface EnterpriseApplication {
   screened_at: string | null;
   stage_updated_at: string;
   status_email_sent: boolean;
+  pool_id: string | null;
+  triaged: boolean;
   created_at: string;
 }
+
+export interface PoolQuestion {
+  id: string;
+  type: string;
+  question: string;
+}
+
+export interface EnterprisePool {
+  id: string;
+  org_id: string;
+  job_id: string | null;
+  name: string;
+  description: string | null;
+  type: "auto_top" | "auto_strong" | "auto_possible" | "auto_low" | "custom";
+  color: string;
+  criteria: string | null;
+  question_set: PoolQuestion[];
+  additional_context: string | null;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export const POOL_COLORS: Record<string, string> = {
+  green:  "border-green-500/30 bg-green-500/5 text-green-400",
+  cyan:   "border-cyan-500/30 bg-cyan-500/5 text-cyan-400",
+  amber:  "border-amber-500/30 bg-amber-500/5 text-amber-400",
+  red:    "border-red-500/30 bg-red-500/5 text-red-400",
+  purple: "border-purple-500/30 bg-purple-500/5 text-purple-400",
+  slate:  "border-border bg-muted/20 text-muted-foreground",
+};
 
 export interface GenerateJDInput {
   title: string;
