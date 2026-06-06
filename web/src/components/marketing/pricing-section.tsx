@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useUser } from "@clerk/nextjs";
 import {
   CheckCircle2, Sparkles, Send, Zap, Rocket, ShieldCheck,
   Building2, Users, BarChart3, Plug, Lock, Headphones, Globe, Layers,
@@ -13,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 type Tier = {
   name: string;
+  planKey: string;
   icon: React.ElementType;
   monthly: number;
   tagline: string;
@@ -25,6 +27,7 @@ type Tier = {
 const TIERS: Tier[] = [
   {
     name: "Free",
+    planKey: "free",
     icon: Sparkles,
     monthly: 0,
     tagline: "Try the tools, no card",
@@ -39,6 +42,7 @@ const TIERS: Tier[] = [
   },
   {
     name: "Pro",
+    planKey: "pro",
     icon: Send,
     monthly: 29,
     tagline: "Best for students and early-career professionals.",
@@ -53,6 +57,7 @@ const TIERS: Tier[] = [
   },
   {
     name: "Premium",
+    planKey: "premium",
     icon: Zap,
     monthly: 79,
     tagline: "Best for active mid-to-senior job seekers.",
@@ -69,6 +74,7 @@ const TIERS: Tier[] = [
   },
   {
     name: "Career Accelerator",
+    planKey: "accelerator",
     icon: Rocket,
     monthly: 199,
     tagline: "Best for executive candidates and career changers.",
@@ -181,6 +187,25 @@ function priceFor(monthly: number, yearly: boolean) {
 
 export function PricingSection() {
   const [yearly, setYearly] = useState(true);
+  const [loading, setLoading] = useState<string | null>(null);
+  const { isSignedIn } = useUser();
+
+  const handlePlanClick = useCallback(async (planKey: string, e: React.MouseEvent) => {
+    if (!isSignedIn) return; // let the Link navigate to sign-up
+    e.preventDefault();
+    setLoading(planKey);
+    try {
+      const res = await fetch("/api/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan: planKey, interval: yearly ? "yearly" : "monthly" }),
+      });
+      const json = await res.json();
+      if (json.url) window.location.href = json.url;
+    } finally {
+      setLoading(null);
+    }
+  }, [isSignedIn, yearly]);
 
   return (
     <section id="pricing" className="relative overflow-hidden px-4 py-24 sm:px-6">
@@ -257,15 +282,17 @@ export function PricingSection() {
                 </div>
 
                 <Link
-                  href="/sign-up"
+                  href={isSignedIn ? "#" : (t.monthly === 0 ? "/sign-up" : `/sign-up?plan=${t.planKey}`)}
+                  onClick={(e) => t.monthly > 0 ? handlePlanClick(t.planKey, e) : undefined}
                   className={cn(
                     "mt-5 w-full",
                     t.highlight
                       ? gradientButtonVariants({ size: "default" })
-                      : "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+                      : "inline-flex h-11 items-center justify-center gap-2 rounded-xl border border-border bg-card px-6 text-sm font-semibold text-foreground transition-colors hover:bg-muted",
+                    loading === t.planKey && "opacity-60 pointer-events-none"
                   )}
                 >
-                  {t.cta}
+                  {loading === t.planKey ? "Redirecting…" : t.cta}
                 </Link>
 
                 <ul className="mt-6 space-y-2.5 text-sm text-muted-foreground">
