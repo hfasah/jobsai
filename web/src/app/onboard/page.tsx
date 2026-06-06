@@ -607,10 +607,13 @@ export default function OnboardPage() {
     <div className="flex min-h-screen flex-col bg-background">
       {/* minimal header */}
       <header className="border-b border-border bg-card/80 px-4 sm:px-6">
-        <div className="mx-auto flex h-14 max-w-xl items-center">
+        <div className="mx-auto flex h-14 max-w-xl items-center justify-between">
           <span className="text-lg font-semibold">
             <span className="text-desyn-brand">{APP_NAME}</span>
           </span>
+          <Link href="/dashboard" className="text-sm text-muted-foreground transition-colors hover:text-foreground">
+            Skip setup → Dashboard
+          </Link>
         </div>
       </header>
 

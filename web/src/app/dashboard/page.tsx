@@ -127,7 +127,7 @@ export default async function DashboardPage() {
     .eq("is_archived", false)
     .limit(1);
 
-  if (!resumes || resumes.length === 0) redirect("/onboard");
+  const hasResume = (resumes?.length ?? 0) > 0;
 
   const [d, tokenAccount] = await Promise.all([
     getDashboardData(user.id),
@@ -144,7 +144,7 @@ export default async function DashboardPage() {
   const jobHref = (suffix: string) => (d.practiceJobId ? `/dashboard/jobs/${d.practiceJobId}${suffix}` : "/dashboard/jobs/import");
 
   const journey: JourneyStep[] = [
-    { key: "resume",   label: "Resume",    sub: "done",        icon: FileText,          href: "/dashboard/resumes",          done: true },
+    { key: "resume",   label: "Resume",    sub: hasResume ? "done" : "upload",  icon: FileText,  href: "/dashboard/resumes", done: hasResume },
     { key: "written",  label: "Written",   sub: "practice now", icon: MessageSquareText, href: jobHref(""),                   done: ps.written > 0 },
     { key: "voice",    label: "Voice",     sub: "try it",       icon: Mic,               href: jobHref("/voice-interview"),   done: ps.voice > 0 },
     { key: "avatar",   label: "Avatar",    sub: "go live",      icon: Video,             href: jobHref("/avatar-interview"),  done: ps.avatar > 0 },
@@ -174,6 +174,21 @@ export default async function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* Resume upload prompt for new users who skipped onboarding */}
+        {!hasResume && (
+          <Link href="/dashboard/resumes"
+            className="flex items-center justify-between gap-4 rounded-2xl border border-primary/40 bg-primary/5 px-5 py-4 transition-colors hover:bg-primary/10">
+            <div className="flex items-center gap-3">
+              <FileText className="h-5 w-5 shrink-0 text-primary" />
+              <div>
+                <p className="font-semibold text-foreground">Upload your resume to get started</p>
+                <p className="text-sm text-muted-foreground">JobsAI tailors applications and scores your resume against each job.</p>
+              </div>
+            </div>
+            <span className="btn-cta shrink-0 rounded-xl px-4 py-2 text-sm font-semibold">Upload now →</span>
+          </Link>
+        )}
 
         {/* Journey */}
         <GlassCard className="relative overflow-hidden p-6">
