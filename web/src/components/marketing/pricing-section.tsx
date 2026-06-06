@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
-  CheckCircle2, Sparkles, Send, Zap, Rocket, ShieldCheck, ArrowRight,
+  CheckCircle2, Sparkles, Send, Zap, Rocket, ShieldCheck,
   Building2, Users, BarChart3, Plug, Lock, Headphones, Globe, Layers,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -158,7 +158,7 @@ function EnterpriseCard() {
               href="mailto:enterprise@jobsai.co"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90"
             >
-              Talk to sales <ArrowRight className="h-4 w-4" />
+              Talk to sales
             </a>
             <p className="w-full text-center text-xs text-muted-foreground">
               Usually responds within one business day
@@ -266,7 +266,6 @@ export function PricingSection() {
                   )}
                 >
                   {t.cta}
-                  {t.highlight && <ArrowRight className="h-4 w-4" />}
                 </Link>
 
                 <ul className="mt-6 space-y-2.5 text-sm text-muted-foreground">

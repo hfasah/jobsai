@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight } from "lucide-react";
 import { APP_NAME } from "@/lib/constants";
 import { featureHref } from "@/lib/marketing-features";
 
@@ -136,9 +135,8 @@ export function SiteFooter() {
               placeholder="you@email.com"
               className="h-11 flex-1 rounded-xl border border-border bg-background/60 px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/50"
             />
-            <button type="submit" className="btn-cta inline-flex h-11 items-center justify-center gap-1.5 rounded-xl px-5 text-sm">
+            <button type="submit" className="btn-cta inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm">
               Subscribe
-              <ArrowRight className="h-4 w-4" />
             </button>
           </form>
         </div>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import {
-  ArrowRight, ChevronDown,
+  ChevronDown,
   FileText, Send, Search, BarChart3, Mail,
   Mic, Video, MessageSquareText,
   Building2, DollarSign, TrendingUp, Briefcase, PlayCircle,
@@ -118,8 +118,8 @@ export default function Home() {
 
             <p className="reveal reveal-3 mt-6 max-w-2xl text-lg text-muted-foreground">
               {APP_NAME} auto-applies to thousands of jobs and reaches recruiters directly for
-              you — so you stop grinding applications and start landing interviews, guaranteed.
-              (And when they come in, we prep you to win them.)
+              you, so you stop grinding applications and start landing interviews, guaranteed.
+              When they come in, we prep you to win them.
             </p>
 
             {/* Voice orb */}
@@ -177,9 +177,8 @@ export default function Home() {
 
             {/* Dual CTAs */}
             <div className="reveal reveal-5 mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/sign-up" className="btn-cta inline-flex items-center gap-2 rounded-full px-7 py-3 text-base">
-                Start auto applying
-                <ArrowRight className="h-5 w-5" />
+              <Link href="/sign-up" className="btn-cta inline-flex items-center rounded-full px-7 py-3 text-base">
+                Get started
               </Link>
               <Link
                 href="#how"
@@ -410,7 +409,7 @@ export default function Home() {
             </div>
             <div className="mt-8 text-center">
               <Link href="/faq" className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline">
-                See the full FAQ <ArrowRight className="h-4 w-4" />
+                See the full FAQ
               </Link>
             </div>
           </div>
@@ -428,13 +427,12 @@ export default function Home() {
               <span className="text-gradient">Start interviewing.</span>
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
-              Let {APP_NAME} apply to thousands of jobs for you and land the interviews —
-              guaranteed, or your money back.
+              Let {APP_NAME} apply to thousands of jobs for you and land the interviews.
+              Guaranteed, or your money back.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <Link href="/sign-up" className={gradientButtonVariants({ size: "xl" })}>
                 Start auto applying
-                <ArrowRight className="h-5 w-5" />
               </Link>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">

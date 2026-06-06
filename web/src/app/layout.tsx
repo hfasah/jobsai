@@ -1,12 +1,22 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Geist, Geist_Mono, Fraunces } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Body — Notion's primary font: clean, highly legible, modern
+const inter = Inter({
+  variable: "--font-sans",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// Display headings — geometric grotesque, close to Apple SF Pro Display on web
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-display-sans",
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["400", "500", "600", "700", "800"],
 });
 
 const geistMono = Geist_Mono({
@@ -14,7 +24,7 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-// Editorial display serif for AI-output surfaces (scores, report headers)
+// Editorial serif for AI-output surfaces (scores, report headers)
 const fraunces = Fraunces({
   variable: "--font-display",
   subsets: ["latin"],
@@ -73,7 +83,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html
         lang="en"
-        className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
+        className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
         suppressHydrationWarning
       >
         <body className="min-h-full flex flex-col" suppressHydrationWarning>
