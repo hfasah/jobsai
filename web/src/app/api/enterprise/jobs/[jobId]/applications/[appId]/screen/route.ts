@@ -12,17 +12,33 @@ const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
-export async function POST(_req: NextRequest, { params }: Ctx) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const org = await getMyOrg(userId);
-  if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
+export async function POST(req: NextRequest, { params }: Ctx) {
+  const isAutoScreen = req.headers.get("x-internal-auto-screen") === "1";
   const { jobId, appId } = await params;
+
+  let orgId: string | null = null;
+
+  if (isAutoScreen) {
+    // Internal call — look up org_id directly from the application
+    const { data: appLookup } = await supabaseAdmin
+      .from("enterprise_applications")
+      .select("org_id")
+      .eq("id", appId)
+      .maybeSingle();
+    orgId = appLookup?.org_id ?? null;
+    if (!orgId) return NextResponse.json({ error: "App not found." }, { status: 404 });
+  } else {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const org = await getMyOrg(userId);
+    if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
+    orgId = org.id;
+  }
 
   // Load application + job
   const [{ data: app }, { data: job }] = await Promise.all([
-    supabaseAdmin.from("enterprise_applications").select("*").eq("id", appId).eq("org_id", org.id).maybeSingle(),
-    supabaseAdmin.from("enterprise_jobs").select("*").eq("id", jobId).eq("org_id", org.id).maybeSingle(),
+    supabaseAdmin.from("enterprise_applications").select("*").eq("id", appId).eq("org_id", orgId).maybeSingle(),
+    supabaseAdmin.from("enterprise_jobs").select("*").eq("id", jobId).eq("org_id", orgId).maybeSingle(),
   ]);
 
   if (!app) return NextResponse.json({ error: "Application not found." }, { status: 404 });
@@ -32,7 +48,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 
   const prompt = `You are a senior recruiter. Evaluate this candidate for the job below.
 
-JOB: ${job.title} at ${org.name}
+JOB: ${job.title}
 ${job.description ? `Overview: ${job.description.slice(0, 400)}` : ""}
 ${job.qualifications ? `Required: ${job.qualifications.slice(0, 400)}` : ""}
 

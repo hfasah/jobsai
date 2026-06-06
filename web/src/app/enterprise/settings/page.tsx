@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Bot, Send, Loader2, Sparkles, Copy, Check, RefreshCw } from "lucide-react";
+import {
+  Bot, Send, Loader2, Sparkles, Copy, Check, RefreshCw,
+  Users, Plus, Trash2, Link2, Download, Shield, Mail,
+  CheckCircle2, AlertCircle, RotateCcw, Clock,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Recruiter Copilot ─────────────────────────────────────────────────────────
@@ -10,12 +14,10 @@ function RecruiterCopilot() {
   const [input, setInput] = useState("");
   const [thinking, setThinking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-
   const SUGGESTED = [
     "Find candidates with a match score above 70%",
     "Compare the top 3 candidates for any open role",
     "Which source is generating the best quality applicants?",
-    "Show me all candidates in the interview stage",
     "Who should we advance to offer stage?",
   ];
 
@@ -27,17 +29,16 @@ function RecruiterCopilot() {
     const q = (text ?? input).trim();
     if (!q) return;
     setInput("");
-    const newMessages = [...messages, { role: "user" as const, content: q }];
-    setMessages(newMessages);
+    const next = [...messages, { role: "user" as const, content: q }];
+    setMessages(next);
     setThinking(true);
     try {
       const res = await fetch("/api/enterprise/copilot", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: q, history: messages }),
       });
       const json = await res.json();
-      setMessages([...newMessages, { role: "assistant", content: json.reply ?? "I couldn't find an answer." }]);
+      setMessages([...next, { role: "assistant", content: json.reply ?? "I couldn't find an answer." }]);
     } finally { setThinking(false); }
   };
 
@@ -50,19 +51,16 @@ function RecruiterCopilot() {
           <p className="text-xs text-white/70">Ask anything about your candidates, pipeline, or hiring data</p>
         </div>
       </div>
-
-      <div ref={scrollRef} className="h-80 overflow-y-auto p-4 space-y-3">
+      <div ref={scrollRef} className="h-72 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
-          <div>
-            <p className="mb-3 text-sm text-muted-foreground">Try asking:</p>
-            <div className="flex flex-col gap-1.5">
-              {SUGGESTED.map((s) => (
-                <button key={s} onClick={() => send(s)}
-                  className="rounded-xl border border-border px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-                  {s}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-col gap-1.5">
+            <p className="mb-2 text-sm text-muted-foreground">Try asking:</p>
+            {SUGGESTED.map((s) => (
+              <button key={s} onClick={() => send(s)}
+                className="rounded-xl border border-border px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                {s}
+              </button>
+            ))}
           </div>
         )}
         {messages.map((m, i) => (
@@ -72,7 +70,7 @@ function RecruiterCopilot() {
                 <Bot className="h-3.5 w-3.5 text-white" />
               </div>
             )}
-            <div className={cn("max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap leading-relaxed",
+            <div className={cn("max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm whitespace-pre-wrap",
               m.role === "user" ? "rounded-br-sm bg-primary text-primary-foreground" : "rounded-bl-sm bg-muted")}>
               {m.content}
             </div>
@@ -80,20 +78,17 @@ function RecruiterCopilot() {
         ))}
         {thinking && (
           <div className="flex justify-start">
-            <div className="mr-2 mt-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gradient-brand">
+            <div className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-gradient-brand">
               <Bot className="h-3.5 w-3.5 text-white" />
             </div>
-            <div className="flex items-center gap-1.5 rounded-2xl rounded-bl-sm bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching candidates…
+            <div className="flex items-center gap-1.5 rounded-2xl bg-muted px-3.5 py-2.5 text-sm text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Searching…
             </div>
           </div>
         )}
       </div>
-
-      <form onSubmit={(e) => { e.preventDefault(); send(); }}
-        className="flex gap-2 border-t border-border p-3">
-        <input value={input} onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about candidates, pipeline, or hiring data…"
+      <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 border-t border-border p-3">
+        <input value={input} onChange={(e) => setInput(e.target.value)} placeholder="Ask about candidates or hiring data…"
           className="h-10 flex-1 rounded-xl border border-border bg-background px-3 text-sm outline-none placeholder:text-muted-foreground focus:ring-2 focus:ring-primary"
           disabled={thinking} />
         <button type="submit" disabled={thinking || !input.trim()}
@@ -107,11 +102,11 @@ function RecruiterCopilot() {
 
 // ── AI Outreach Generator ─────────────────────────────────────────────────────
 const OUTREACH_TYPES = [
-  { value: "offer_letter",      label: "Offer letter" },
-  { value: "rejection",         label: "Rejection email" },
-  { value: "interview_invite",  label: "Interview invitation" },
-  { value: "outreach",          label: "Proactive outreach" },
-  { value: "counter_offer",     label: "Counter-offer response" },
+  { value: "offer_letter", label: "Offer letter" },
+  { value: "rejection", label: "Rejection email" },
+  { value: "interview_invite", label: "Interview invitation" },
+  { value: "outreach", label: "Proactive outreach" },
+  { value: "counter_offer", label: "Counter-offer response" },
   { value: "reference_request", label: "Reference request" },
 ];
 
@@ -125,29 +120,23 @@ function OutreachGenerator() {
   const generate = async () => {
     setGenerating(true);
     const res = await fetch("/api/enterprise/outreach", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ type, ...form }),
     });
-    const json = await res.json();
-    setResult(json.data);
+    setResult((await res.json()).data);
     setGenerating(false);
   };
 
   const copy = () => {
     if (!result) return;
     navigator.clipboard.writeText(`Subject: ${result.subject}\n\n${result.body}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
   };
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6">
-      <div className="mb-5">
-        <h2 className="font-semibold">AI Outreach Generator</h2>
-        <p className="mt-0.5 text-sm text-muted-foreground">Generate professional recruiting emails and letters in seconds.</p>
-      </div>
-
+      <h2 className="mb-1 font-semibold">AI Outreach Generator</h2>
+      <p className="mb-4 text-sm text-muted-foreground">Professional recruiting emails written in seconds.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
           <label className="mb-1.5 block text-sm font-medium">Email type</label>
@@ -159,44 +148,37 @@ function OutreachGenerator() {
         <div>
           <label className="mb-1.5 block text-sm font-medium">Candidate name</label>
           <input value={form.candidate_name} onChange={(e) => setForm((f) => ({ ...f, candidate_name: e.target.value }))}
-            placeholder="Jane Smith"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            placeholder="Jane Smith" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div>
           <label className="mb-1.5 block text-sm font-medium">Role</label>
           <input value={form.job_title} onChange={(e) => setForm((f) => ({ ...f, job_title: e.target.value }))}
-            placeholder="Senior Full-Stack Engineer"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            placeholder="Senior Engineer" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <div>
-          <label className="mb-1.5 block text-sm font-medium">Extra context</label>
+          <label className="mb-1.5 block text-sm font-medium">Context (optional)</label>
           <input value={form.extra_context} onChange={(e) => setForm((f) => ({ ...f, extra_context: e.target.value }))}
-            placeholder="Salary $120k, start Jan 15…"
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            placeholder="Salary $120k, start Jan 15" className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
       </div>
-
       <button onClick={generate} disabled={generating}
         className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow disabled:opacity-60">
         {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
         {generating ? "Generating…" : "Generate email"}
       </button>
-
       {result && (
-        <div className="mt-5 rounded-xl border border-border bg-background/60 p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Generated email</p>
+        <div className="mt-4 rounded-xl border border-border bg-background/60 p-4">
+          <div className="mb-2 flex justify-between">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Generated</p>
             <div className="flex gap-2">
-              <button onClick={() => setResult(null)} className="rounded p-1 text-muted-foreground hover:text-foreground">
-                <RefreshCw className="h-3.5 w-3.5" />
-              </button>
-              <button onClick={copy} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted transition-colors">
+              <button onClick={() => setResult(null)} className="rounded p-1 text-muted-foreground hover:text-foreground"><RefreshCw className="h-3.5 w-3.5" /></button>
+              <button onClick={copy} className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted">
                 {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                 {copied ? "Copied!" : "Copy"}
               </button>
             </div>
           </div>
-          <p className="mb-3 text-sm font-semibold">Subject: {result.subject}</p>
+          <p className="mb-2 text-sm font-semibold">Subject: {result.subject}</p>
           <p className="text-sm text-muted-foreground whitespace-pre-wrap leading-relaxed">{result.body}</p>
         </div>
       )}
@@ -204,17 +186,485 @@ function OutreachGenerator() {
   );
 }
 
+// ── Team Management ───────────────────────────────────────────────────────────
+interface Member { id: string; user_id: string; role: string; name: string; email: string; image_url: string | null; created_at: string }
+interface Invitation { id: string; email: string; role: string; created_at: string }
+
+function TeamSettings() {
+  const [members, setMembers] = useState<Member[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [inviteForm, setInviteForm] = useState({ email: "", role: "recruiter" });
+  const [inviting, setInviting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/enterprise/team").then((r) => r.json()).then((j) => {
+      setMembers(j.data?.members ?? []);
+      setInvitations(j.data?.invitations ?? []);
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const invite = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInviting(true);
+    const res = await fetch("/api/enterprise/team", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(inviteForm),
+    });
+    const json = await res.json();
+    if (json.data) setInvitations((i) => [json.data, ...i]);
+    setInviteForm({ email: "", role: "recruiter" });
+    setInviting(false);
+  };
+
+  const changeRole = async (memberId: string, role: string) => {
+    await fetch(`/api/enterprise/team/${memberId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ role }),
+    });
+    setMembers((m) => m.map((x) => x.id === memberId ? { ...x, role } : x));
+  };
+
+  const removeMember = async (memberId: string) => {
+    await fetch(`/api/enterprise/team/${memberId}`, { method: "DELETE" });
+    setMembers((m) => m.filter((x) => x.id !== memberId));
+  };
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-5">
+      {/* Current members */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="border-b border-border px-5 py-4">
+          <h2 className="font-semibold">Team members</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Manage roles and access for your recruiting team.</p>
+        </div>
+        <div className="divide-y divide-border">
+          {members.map((m) => (
+            <div key={m.id} className="flex items-center justify-between px-5 py-3.5">
+              <div className="flex items-center gap-3">
+                {m.image_url
+                  ? <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded-full" />
+                  : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+                      {m.name.charAt(0).toUpperCase()}
+                    </div>
+                }
+                <div>
+                  <p className="text-sm font-medium">{m.name || m.email}</p>
+                  <p className="text-xs text-muted-foreground">{m.email}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)}
+                  className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary">
+                  {["owner", "admin", "recruiter"].map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+                </select>
+                <button onClick={() => removeMember(m.id)}
+                  className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Invite form */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <h2 className="mb-3 font-semibold">Invite a team member</h2>
+        <form onSubmit={invite} className="flex flex-wrap gap-3">
+          <input value={inviteForm.email} onChange={(e) => setInviteForm((f) => ({ ...f, email: e.target.value }))}
+            type="email" required placeholder="colleague@company.com"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            {["admin", "recruiter"].map((r) => <option key={r} value={r} className="capitalize">{r}</option>)}
+          </select>
+          <button type="submit" disabled={inviting}
+            className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+            {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Send invite
+          </button>
+        </form>
+        {invitations.length > 0 && (
+          <div className="mt-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Pending invitations</p>
+            {invitations.map((inv) => (
+              <div key={inv.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
+                <p className="text-sm">{inv.email} <span className="text-muted-foreground">— {inv.role}</span></p>
+                <span className="text-[10px] text-amber-400">Pending</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── ATS Integrations ──────────────────────────────────────────────────────────
+const PROVIDERS = [
+  { id: "greenhouse",  label: "Greenhouse",  logo: "🌿", hint: "Harvest API key from Settings → API Credential Management" },
+  { id: "lever",       label: "Lever",       logo: "⚙️", hint: "API key from Settings → Integrations → API Credentials" },
+  { id: "ashby",       label: "Ashby",       logo: "🔷", hint: "API key from Settings → Integrations" },
+  { id: "bamboohr",    label: "BambooHR",    logo: "🎋", hint: "API key from your BambooHR profile → API Keys. Also enter your subdomain." },
+  { id: "workday",     label: "Workday",     logo: "🔵", hint: "Contact your Workday admin for API credentials. Custom integration available on request." },
+];
+
+interface Integration { id: string; provider: string; enabled: boolean; last_sync: string | null }
+
+function IntegrationsSettings() {
+  const [integrations, setIntegrations] = useState<Integration[]>([]);
+  const [connecting, setConnecting] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
+  const [form, setForm] = useState<Record<string, { api_key: string; subdomain: string }>>({});
+  const [syncResults, setSyncResults] = useState<Record<string, { imported: number }>>({});
+
+  useEffect(() => {
+    fetch("/api/enterprise/integrations").then((r) => r.json()).then((j) => setIntegrations(j.data ?? []));
+  }, []);
+
+  const connect = async (provider: string) => {
+    const f = form[provider] ?? {};
+    if (!f.api_key?.trim()) return;
+    setConnecting(provider);
+    const res = await fetch("/api/enterprise/integrations", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, api_key: f.api_key, subdomain: f.subdomain }),
+    });
+    const json = await res.json();
+    if (json.data) setIntegrations((i) => [...i.filter((x) => x.provider !== provider), json.data]);
+    setConnecting(null);
+  };
+
+  const sync = async (provider: string) => {
+    setSyncing(provider);
+    const res = await fetch("/api/enterprise/integrations/sync", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+    const json = await res.json();
+    if (json.imported !== undefined) setSyncResults((r) => ({ ...r, [provider]: { imported: json.imported } }));
+    setIntegrations((i) => i.map((x) => x.provider === provider ? { ...x, last_sync: new Date().toISOString() } : x));
+    setSyncing(null);
+  };
+
+  const disconnect = async (provider: string) => {
+    await fetch("/api/enterprise/integrations", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider }),
+    });
+    setIntegrations((i) => i.filter((x) => x.provider !== provider));
+  };
+
+  return (
+    <div className="space-y-4">
+      {PROVIDERS.map((p) => {
+        const connected = integrations.find((i) => i.provider === p.id);
+        const f = form[p.id] ?? { api_key: "", subdomain: "" };
+        const syncResult = syncResults[p.id];
+        return (
+          <div key={p.id} className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{p.logo}</span>
+                <div>
+                  <p className="font-semibold">{p.label}</p>
+                  <p className="text-xs text-muted-foreground">{p.hint}</p>
+                </div>
+              </div>
+              {connected && (
+                <span className="flex items-center gap-1 rounded-full bg-green-500/15 px-2.5 py-1 text-xs font-medium text-green-400">
+                  <CheckCircle2 className="h-3 w-3" /> Connected
+                </span>
+              )}
+            </div>
+            {connected ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {connected.last_sync && (
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Clock className="h-3 w-3" /> Last sync: {new Date(connected.last_sync).toLocaleDateString()}
+                  </span>
+                )}
+                {syncResult && <span className="text-xs text-green-400">✓ {syncResult.imported} jobs imported</span>}
+                <button onClick={() => sync(p.id)} disabled={syncing === p.id}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted transition-colors disabled:opacity-50">
+                  {syncing === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+                  Sync jobs
+                </button>
+                <button onClick={() => disconnect(p.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors">
+                  <Trash2 className="h-3.5 w-3.5" /> Disconnect
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                <input value={f.api_key} onChange={(e) => setForm((fm) => ({ ...fm, [p.id]: { ...f, api_key: e.target.value } }))}
+                  placeholder="API key" type="password"
+                  className="flex-1 min-w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                {p.id === "bamboohr" && (
+                  <input value={f.subdomain} onChange={(e) => setForm((fm) => ({ ...fm, [p.id]: { ...f, subdomain: e.target.value } }))}
+                    placeholder="Subdomain (e.g. acme)"
+                    className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                )}
+                <button onClick={() => connect(p.id)} disabled={connecting === p.id || !f.api_key.trim()}
+                  className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+                  {connecting === p.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />}
+                  Connect
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Email Templates ───────────────────────────────────────────────────────────
+interface EmailTemplate { trigger: string; subject: string; body: string; active: boolean }
+
+const TRIGGER_LABELS: Record<string, string> = {
+  application_received: "Application received (auto-sent on apply)",
+  interview_invited:    "Interview invitation",
+  offer_sent:           "Offer extended",
+  rejected:             "Rejection",
+};
+
+function EmailTemplatesSettings() {
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/enterprise/email-templates").then((r) => r.json()).then((j) => setTemplates(j.data ?? []));
+  }, []);
+
+  const save = async (t: EmailTemplate) => {
+    setSaving(true);
+    await fetch("/api/enterprise/email-templates", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ trigger: t.trigger, subject: t.subject, body: t.body, active: t.active }),
+    });
+    setSaved(t.trigger);
+    setTimeout(() => setSaved(null), 2000);
+    setSaving(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Customise the emails sent to candidates at each stage. Use <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{"{{candidate_name}}"}</code>, <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{"{{job_title}}"}</code>, <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{"{{org_name}}"}</code>, <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{"{{interview_link}}"}</code> as variables.
+      </p>
+      {templates.map((t) => (
+        <div key={t.trigger} className="rounded-2xl border border-border bg-card overflow-hidden">
+          <button onClick={() => setEditing(editing === t.trigger ? null : t.trigger)}
+            className="flex w-full items-center justify-between px-5 py-4 hover:bg-muted/30 transition-colors">
+            <div className="flex items-center gap-3">
+              <Mail className="h-4 w-4 text-primary" />
+              <div className="text-left">
+                <p className="text-sm font-medium">{TRIGGER_LABELS[t.trigger] ?? t.trigger}</p>
+                <p className="text-xs text-muted-foreground truncate max-w-xs">{t.subject}</p>
+              </div>
+            </div>
+            {saved === t.trigger && <span className="text-xs text-green-400 flex items-center gap-1"><CheckCircle2 className="h-3.5 w-3.5" /> Saved</span>}
+          </button>
+          {editing === t.trigger && (
+            <div className="border-t border-border px-5 pb-5 pt-4 space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Subject</label>
+                <input value={t.subject}
+                  onChange={(e) => setTemplates((ts) => ts.map((x) => x.trigger === t.trigger ? { ...x, subject: e.target.value } : x))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Body</label>
+                <textarea value={t.body} rows={6}
+                  onChange={(e) => setTemplates((ts) => ts.map((x) => x.trigger === t.trigger ? { ...x, body: e.target.value } : x))}
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <button onClick={() => save(t)} disabled={saving}
+                className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                Save template
+              </button>
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Data & Privacy ────────────────────────────────────────────────────────────
+function DataPrivacySettings() {
+  const [auditLogs, setAuditLogs] = useState<Array<{ id: string; action: string; user_id: string | null; created_at: string; metadata: Record<string, unknown> }>>([]);
+  const [loadingLogs, setLoadingLogs] = useState(true);
+  const [deleteEmail, setDeleteEmail] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState("");
+
+  useEffect(() => {
+    fetch("/api/enterprise/audit-logs?limit=30")
+      .then((r) => r.json())
+      .then((j) => setAuditLogs(j.data ?? []))
+      .finally(() => setLoadingLogs(false));
+  }, []);
+
+  const exportData = () => { window.location.href = "/api/enterprise/data"; };
+
+  const deleteCandidate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDeleting(true);
+    const res = await fetch("/api/enterprise/data", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidate_email: deleteEmail }),
+    });
+    const json = await res.json();
+    setDeleteResult(json.message ?? json.error ?? "Done.");
+    setDeleting(false);
+    setDeleteEmail("");
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Data export */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold">Data export</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">Download all your organization's data as JSON (GDPR compliant).</p>
+          </div>
+          <button onClick={exportData}
+            className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
+            <Download className="h-4 w-4" /> Export all data
+          </button>
+        </div>
+      </div>
+
+      {/* Candidate data deletion */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <h2 className="mb-1 font-semibold">Right to erasure (GDPR)</h2>
+        <p className="mb-3 text-sm text-muted-foreground">Anonymise a candidate's personal data across all applications and the talent pool.</p>
+        <form onSubmit={deleteCandidate} className="flex gap-2">
+          <input value={deleteEmail} onChange={(e) => setDeleteEmail(e.target.value)}
+            type="email" required placeholder="candidate@email.com"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <button type="submit" disabled={deleting}
+            className="inline-flex items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-2 text-sm font-medium text-destructive hover:bg-destructive/20 transition-colors disabled:opacity-50">
+            {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+            Anonymise
+          </button>
+        </form>
+        {deleteResult && <p className="mt-2 text-sm text-green-400">{deleteResult}</p>}
+      </div>
+
+      {/* Audit log */}
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="border-b border-border px-5 py-4">
+          <h2 className="font-semibold">Audit log</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">Last 30 actions in your organization (SOC2 compliance).</p>
+        </div>
+        {loadingLogs ? (
+          <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+        ) : auditLogs.length === 0 ? (
+          <p className="px-5 py-6 text-sm text-muted-foreground">No audit events yet.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {auditLogs.map((log) => (
+              <div key={log.id} className="flex items-center justify-between px-5 py-3">
+                <div>
+                  <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-mono text-primary">{log.action}</span>
+                  {log.metadata && Object.keys(log.metadata).length > 0 && (
+                    <span className="ml-2 text-xs text-muted-foreground">
+                      {Object.entries(log.metadata).map(([k, v]) => `${k}: ${v}`).join(" · ")}
+                    </span>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0 ml-4">
+                  {new Date(log.created_at).toLocaleString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* SOC2 readiness checklist */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <Shield className="h-5 w-5 text-primary" />
+          <h2 className="font-semibold">SOC2 readiness</h2>
+        </div>
+        <div className="space-y-2.5">
+          {[
+            { label: "Audit logging enabled",            done: true },
+            { label: "Data export available",             done: true },
+            { label: "Right to erasure / GDPR controls",  done: true },
+            { label: "Role-based access control (RBAC)",  done: true },
+            { label: "Encrypted data at rest (Supabase)", done: true },
+            { label: "Team access managed via invitations", done: true },
+            { label: "SSO / SAML (via Clerk Enterprise)",  done: false },
+            { label: "Penetration test",                   done: false },
+            { label: "Formal SOC2 audit",                  done: false },
+          ].map(({ label, done }) => (
+            <div key={label} className="flex items-center gap-2.5 text-sm">
+              {done
+                ? <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
+                : <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />}
+              <span className={done ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+              {!done && <span className="ml-auto text-[10px] text-amber-400">Pending</span>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
+type Tab = "copilot" | "outreach" | "team" | "integrations" | "emails" | "data";
+
+const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
+  { id: "copilot",      label: "Copilot",      icon: Bot },
+  { id: "outreach",     label: "Outreach",     icon: Sparkles },
+  { id: "team",         label: "Team",         icon: Users },
+  { id: "integrations", label: "Integrations", icon: Link2 },
+  { id: "emails",       label: "Emails",       icon: Mail },
+  { id: "data",         label: "Data & Privacy", icon: Shield },
+];
+
 export default function SettingsPage() {
+  const [tab, setTab] = useState<Tab>("copilot");
+
   return (
     <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-6">
-      <div className="mx-auto max-w-3xl space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Recruiter Tools</h1>
-          <p className="mt-1 text-sm text-muted-foreground">AI tools to supercharge your recruiting workflow.</p>
+      <div className="mx-auto max-w-3xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Recruiter tools, team, integrations, and data controls.</p>
         </div>
-        <RecruiterCopilot />
-        <OutreachGenerator />
+
+        {/* Tab bar */}
+        <div className="mb-6 flex flex-wrap gap-1 rounded-xl border border-border bg-muted/40 p-1">
+          {TABS.map(({ id, label, icon: Icon }) => (
+            <button key={id} onClick={() => setTab(id)}
+              className={cn("flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
+                tab === id ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+              <Icon className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+            </button>
+          ))}
+        </div>
+
+        {tab === "copilot"      && <RecruiterCopilot />}
+        {tab === "outreach"     && <OutreachGenerator />}
+        {tab === "team"         && <TeamSettings />}
+        {tab === "integrations" && <IntegrationsSettings />}
+        {tab === "emails"       && <EmailTemplatesSettings />}
+        {tab === "data"         && <DataPrivacySettings />}
       </div>
     </main>
   );

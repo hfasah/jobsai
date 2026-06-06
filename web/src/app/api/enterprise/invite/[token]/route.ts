@@ -1,0 +1,50 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+
+// GET — validate token and show invite info
+export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  const { data } = await supabaseAdmin
+    .from("enterprise_invitations")
+    .select("*, org:enterprise_orgs(name)")
+    .eq("token", token)
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (!data) return NextResponse.json({ error: "Invalid or expired invitation." }, { status: 404 });
+  return NextResponse.json({ data });
+}
+
+// POST — accept invitation
+export async function POST(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Sign in first to accept this invitation." }, { status: 401 });
+  const { token } = await params;
+
+  const { data: inv } = await supabaseAdmin
+    .from("enterprise_invitations")
+    .select("*")
+    .eq("token", token)
+    .is("accepted_at", null)
+    .gt("expires_at", new Date().toISOString())
+    .maybeSingle();
+
+  if (!inv) return NextResponse.json({ error: "Invalid or expired invitation." }, { status: 404 });
+
+  // Check not already a member
+  const { data: existing } = await supabaseAdmin
+    .from("enterprise_members")
+    .select("id")
+    .eq("org_id", inv.org_id)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (!existing) {
+    await supabaseAdmin.from("enterprise_members").insert({ org_id: inv.org_id, user_id: userId, role: inv.role });
+  }
+
+  await supabaseAdmin.from("enterprise_invitations").update({ accepted_at: new Date().toISOString() }).eq("id", inv.id);
+  return NextResponse.json({ org_id: inv.org_id });
+}
