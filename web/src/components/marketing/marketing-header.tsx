@@ -42,7 +42,7 @@ export function MarketingHeader() {
           {isSignedIn ? (
             <>
               <Link
-                href="/dashboard"
+                href="/launch"
                 className="btn-cta inline-flex items-center rounded-full px-4 py-2 text-sm"
               >
                 Dashboard
