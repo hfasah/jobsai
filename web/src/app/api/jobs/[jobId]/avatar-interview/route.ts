@@ -5,6 +5,7 @@ import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { checkInterviewAccess } from "@/lib/feature-access";
+import { getUserPlan } from "@/lib/billing";
 import { PERSONAS, type AvatarPersona } from "@/lib/avatar";
 
 export const maxDuration = 60;
@@ -124,7 +125,9 @@ export async function POST(
       return NextResponse.json({ error: "Could not start the interview." }, { status: 500 });
     }
 
-    const spend = await deductTokens(userId, PER_TURN_COST, "avatar_minute", { jobId, turn: 0 });
+    // Free users get a short, metered preview (the opening question ≈ 10s), then
+    // an upgrade wall on their first answer. meterFree consumes the 500 grant.
+    const spend = await deductTokens(userId, PER_TURN_COST, "avatar_minute", { jobId, turn: 0 }, { meterFree: true });
     return NextResponse.json({ data: { question, balance: spend.balance, trial: access.trial ?? false, voice: persona.voice } });
   }
 
@@ -134,6 +137,18 @@ export async function POST(
     const mainCount = typeof body.main_count === "number" ? body.main_count : history.filter((t) => t.role === "interviewer").length;
     const followupJustAsked = body.followup_just_asked === true;
     const totalTurns = typeof body.total_turns === "number" ? body.total_turns : history.filter((t) => t.role === "interviewer").length;
+
+    // Free preview ends after the opening question — upgrade to continue.
+    const plan = await getUserPlan(userId);
+    if (plan === "free") {
+      return NextResponse.json({
+        data: {
+          done: true,
+          preview_over: true,
+          message: "That was your free avatar preview — upgrade to run the full AI avatar interview with live feedback.",
+        },
+      });
+    }
 
     const canFollowup = !followupJustAsked && totalTurns < MAX_TOTAL;
     const canNewMain = mainCount < MAX_MAIN && totalTurns < MAX_TOTAL;

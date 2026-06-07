@@ -334,6 +334,13 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     const json = await res.json();
     if (typeof json.balance === "number") setBalance(json.balance);
     if (json.data?.balance !== undefined) setBalance(json.data.balance);
+    // Free preview over → upgrade wall (stop the avatar, don't analyze).
+    if (json.data?.preview_over) {
+      avatarSessionRef.current?.stop().catch(() => {});
+      setErrorMsg(json.data.message ?? "Upgrade to run the full avatar interview.");
+      setPhase("blocked");
+      return;
+    }
     if (json.data?.done || res.status === 402) { finish(newHistory); return; }
     if (!res.ok) { setErrorMsg(json.error ?? "Something went wrong."); setPhase("error"); return; }
 
