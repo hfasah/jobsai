@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ApplicationStage } from "@/types/application";
@@ -33,6 +34,7 @@ function summarizeJob(job: JobRel | JobRel[] | null) {
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const { data, error } = await supabaseAdmin
     .from("applications")
@@ -83,6 +85,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const body = await req.json().catch(() => ({}));
   const jobId: string | undefined = body.job_id;

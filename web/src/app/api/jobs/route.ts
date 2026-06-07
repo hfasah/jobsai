@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { blockNonJobSeeker } from "@/lib/roles";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -6,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const { data, error } = await supabaseAdmin
     .from("jobs")

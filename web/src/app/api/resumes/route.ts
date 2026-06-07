@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
@@ -21,6 +22,7 @@ const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const { data, error } = await supabaseAdmin
     .from("resume_documents")
@@ -44,6 +46,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   // Only gate new document groups, not additional versions of existing resumes
   // We check the gate here; if they pass resume_group_id it's a new version → skip

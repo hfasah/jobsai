@@ -1,4 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import {
@@ -55,6 +56,7 @@ async function ensureCustomer(userId: string): Promise<string> {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const body = await req.json().catch(() => ({}));
   const stripe = getStripe();

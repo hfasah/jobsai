@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadResumeProfile, isContextError } from "@/lib/job-context";
@@ -11,6 +12,7 @@ export const maxDuration = 60;
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const { data } = await supabaseAdmin
     .from("linkedin_profiles")
@@ -26,6 +28,7 @@ export async function GET() {
 export async function POST() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const cost = TOKEN_COSTS.linkedin_optimize;
   const balance = await getTokenBalance(userId);
@@ -83,6 +86,7 @@ export async function POST() {
 export async function PATCH(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const body = await req.json().catch(() => ({}));
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };

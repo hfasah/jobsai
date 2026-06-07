@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { generateLinkedInPost } from "@/lib/linkedin";
@@ -14,6 +15,7 @@ const FORMATS: LinkedInPostFormat[] = ["short", "standard", "article"];
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const { data } = await supabaseAdmin
     .from("linkedin_posts")
@@ -29,6 +31,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   const body = await req.json().catch(() => ({}));
   const topic: string = (body.topic ?? "").trim();
