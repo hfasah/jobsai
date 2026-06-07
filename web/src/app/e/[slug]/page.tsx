@@ -23,8 +23,17 @@ export default async function EnterpriseHome({ params }: { params: Promise<{ slu
     .eq("slug", slug)
     .maybeSingle();
 
+  // portal_title fetched separately + best-effort so a pre-migration deployment
+  // still renders the page (falls back to the default heading).
+  const { data: pt } = await supabaseAdmin
+    .from("enterprise_orgs")
+    .select("portal_title")
+    .eq("slug", slug)
+    .maybeSingle();
+
   const brand = org?.brand_color || "#2563eb";
-  const heading = org?.name ? `${org.name} HR Management & Recruitment Portal` : "HR Management & Recruitment Portal";
+  const heading = (pt as { portal_title?: string } | null)?.portal_title
+    || (org?.name ? `${org.name} HR Management & Recruitment Portal` : "HR Management & Recruitment Portal");
   const loginHref = `/enterprise-login?redirect_url=${encodeURIComponent(`/e/${slug}`)}`;
 
   return (

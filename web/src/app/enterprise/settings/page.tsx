@@ -510,14 +510,14 @@ function DataPrivacySettings() {
 
 // ── White-label Branding ──────────────────────────────────────────────────────
 function BrandingSettings() {
-  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", tagline: "", careers_intro: "", show_powered_by: true, website: "" });
+  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/enterprise/branding").then((r) => r.json()).then((j) => {
-      if (j.data) setForm((f) => ({ ...f, ...j.data, logo_url: j.data.logo_url ?? "", tagline: j.data.tagline ?? "", careers_intro: j.data.careers_intro ?? "", website: j.data.website ?? "" }));
+      if (j.data) setForm((f) => ({ ...f, ...j.data, logo_url: j.data.logo_url ?? "", portal_title: j.data.portal_title ?? "", tagline: j.data.tagline ?? "", careers_intro: j.data.careers_intro ?? "", website: j.data.website ?? "" }));
     }).finally(() => setLoading(false));
   }, []);
 
@@ -539,6 +539,13 @@ function BrandingSettings() {
         <p className="mb-4 text-sm text-muted-foreground">Your logo and colors appear on the careers portal and every candidate-facing page.</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Portal title</label>
+            <input value={form.portal_title} onChange={(e) => setForm((f) => ({ ...f, portal_title: e.target.value }))}
+              placeholder={`${form.name || "Your Company"} HR Management & Recruitment Portal`}
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <p className="mt-1 text-xs text-muted-foreground">The bold headline on your portal home page (<code>/e/{form.slug || "your-company"}</code>). Leave blank to use the default.</p>
+          </div>
           <div className="sm:col-span-2">
             <label className="mb-1.5 block text-sm font-medium">Logo URL</label>
             <input value={form.logo_url} onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))}

@@ -12,6 +12,7 @@ export async function GET() {
   return NextResponse.json({ data: {
     name: org.name, slug: org.slug,
     logo_url: org.logo_url, brand_color: (org as { brand_color?: string }).brand_color ?? "#2563eb",
+    portal_title: (org as { portal_title?: string }).portal_title ?? null,
     tagline: (org as { tagline?: string }).tagline ?? null,
     careers_intro: (org as { careers_intro?: string }).careers_intro ?? null,
     show_powered_by: (org as { show_powered_by?: boolean }).show_powered_by ?? true,
@@ -37,5 +38,13 @@ export async function PUT(req: NextRequest) {
 
   const { data, error } = await supabaseAdmin.from("enterprise_orgs").update(update).eq("id", org.id).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // portal_title written separately and best-effort so core branding still saves
+  // even on deployments where the column hasn't been added yet (migration 045).
+  if (body.portal_title !== undefined) {
+    const { error: ptErr } = await supabaseAdmin.from("enterprise_orgs").update({ portal_title: body.portal_title }).eq("id", org.id);
+    if (ptErr) console.warn("portal_title not saved (run migration 045):", ptErr.message);
+  }
+
   return NextResponse.json({ data });
 }
