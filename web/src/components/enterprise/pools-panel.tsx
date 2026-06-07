@@ -4,11 +4,12 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
   Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
-  Move, Check, Settings2, X, CalendarClock,
+  Move, Check, Settings2, X, CalendarClock, CalendarPlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, EnterprisePool } from "@/types/enterprise";
 import { POOL_COLORS } from "@/types/enterprise";
+import { ScheduleModal } from "@/components/enterprise/schedule-modal";
 
 const SCORE_COLOR = (n: number) => n >= 75 ? "text-green-400" : n >= 50 ? "text-amber-400" : "text-red-400";
 
@@ -19,16 +20,18 @@ const QTYPE_COLOR: Record<string, string> = {
 };
 
 function CandidateRow({
-  app, pools, onMove, onReport, onPreboard,
+  app, pools, onMove, onReport, onPreboard, jobId,
 }: {
   app: EnterpriseApplication;
   pools: EnterprisePool[];
   onMove: (appId: string, poolId: string) => void;
   onReport: (app: EnterpriseApplication) => void;
   onPreboard: (app: EnterpriseApplication) => void;
+  jobId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -94,6 +97,10 @@ function CandidateRow({
               className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
               <ClipboardList className="h-3 w-3" /> Reports
             </button>
+            <button onClick={() => setScheduleOpen(true)}
+              className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
+              <CalendarPlus className="h-3 w-3" /> Schedule
+            </button>
             {(app.stage === "offer" || app.stage === "hired") && (
               <button onClick={() => onPreboard(app)}
                 className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20">
@@ -119,6 +126,14 @@ function CandidateRow({
             </div>
           </div>
         </div>
+      )}
+
+      {scheduleOpen && (
+        <ScheduleModal
+          candidate={{ id: app.id, name: app.candidate_name, email: app.candidate_email }}
+          jobId={jobId}
+          onClose={() => setScheduleOpen(false)}
+        />
       )}
     </div>
   );
@@ -221,7 +236,7 @@ function PoolColumn({
       {/* Candidates */}
       <div className="space-y-2">
         {apps.map((app) => (
-          <CandidateRow key={app.id} app={app} pools={allPools} onMove={onMove} onReport={onReport} onPreboard={onPreboard} />
+          <CandidateRow key={app.id} app={app} pools={allPools} onMove={onMove} onReport={onReport} onPreboard={onPreboard} jobId={jobId} />
         ))}
         {apps.length === 0 && (
           <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
