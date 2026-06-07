@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
+import { INTERVIEW_TOOL_GUARDRAILS } from "@/lib/avatar";
 
 export const maxDuration = 30;
 
@@ -57,6 +58,8 @@ export async function POST(
   const systemPrompt = `You are a real-time interview coach. A candidate is in a live interview for ${title} at ${company}.
 You receive a transcription of what they just said and provide instant coaching.
 Key skills for the role: ${skills || "not specified"}
+
+${INTERVIEW_TOOL_GUARDRAILS}
 
 Return ONLY a valid JSON object:
 {

@@ -4,6 +4,7 @@ import OpenAI from "openai";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
+import { INTERVIEW_TOOL_GUARDRAILS } from "@/lib/avatar";
 
 export const maxDuration = 60;
 
@@ -121,6 +122,7 @@ export async function POST(
 
   const systemPrompt = `You are an expert interview coach evaluating a candidate's written mock interview answer.
 ${TYPE_GUIDANCE[itype]}
+${INTERVIEW_TOOL_GUARDRAILS}
 Return ONLY valid JSON — no markdown, no explanation.
 
 Schema:

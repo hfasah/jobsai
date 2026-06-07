@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { INTERVIEW_TOOL_GUARDRAILS } from "@/lib/avatar";
 import type { ParsedJson } from "@/types/resume";
 import type { ParsedJobJson } from "@/types/job";
 import type {
@@ -289,7 +290,7 @@ export interface InterviewPrepResult {
 
 const INTERVIEW_SYSTEM = `You are an expert interview coach. Generate 10 highly likely interview questions
 for this specific candidate applying to this specific role. Ground every question in the actual job requirements
-and the candidate's real background — no generic filler. Return ONLY valid JSON — no markdown.
+and the candidate's real background — no generic filler. ${INTERVIEW_TOOL_GUARDRAILS} Return ONLY valid JSON — no markdown.
 
 Categories to cover (distribute across all 10):
 - behavioral: past-behaviour questions answered with the STAR method (4 questions minimum)
