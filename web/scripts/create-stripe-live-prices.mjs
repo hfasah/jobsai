@@ -1,8 +1,17 @@
 /**
- * Creates all JobsAI products + prices in Stripe LIVE mode.
- * Usage:  STRIPE_SECRET_KEY=sk_live_... node scripts/create-stripe-live-prices.mjs
+ * Creates all JobsAI products + prices in Stripe LIVE mode and prints a
+ * ready-to-paste block of Vercel env vars at the end.
  *
- * Outputs a ready-to-paste block of Vercel env vars at the end.
+ * Usage:  STRIPE_SECRET_KEY=sk_live_... node scripts/create-stripe-live-prices.mjs
+ * Test first with sk_test_... and TEST env vars before going live.
+ *
+ * NOTE: each run CREATES NEW products/prices (Stripe prices are immutable).
+ *   • Pricing that changed: Pro ($39 / $372) + token packs (3k/$10, 10k/$30,
+ *     25k/$69). If Premium/Accelerator already exist unchanged, comment out
+ *     those two sections so you don't create duplicates.
+ *   • After switching env to the new IDs + redeploying, ARCHIVE the old prices
+ *     in Stripe (old Pro $29/$276 and old 5k/20k/60k packs) so nothing bills the
+ *     old amounts. Archiving a price doesn't affect existing subscriptions.
  */
 
 import Stripe from "stripe";
@@ -37,10 +46,10 @@ const ids = {};
 // ── Pro ─────────────────────────────────────────────────────────────────────
 console.log("Pro");
 const proId = await product("JobsAI Pro", "Auto-apply, unlimited jobs, resume tailoring, 90-day guarantee");
-ids.STRIPE_PRO_PRICE_ID          = await price(proId,   29,   "usd", "month");
-ids.STRIPE_PRO_YEARLY_PRICE_ID   = await price(proId,  276,   "usd", "year");   // $23/mo
-console.log(`  ✓ Monthly $29   → ${ids.STRIPE_PRO_PRICE_ID}`);
-console.log(`  ✓ Yearly  $276  → ${ids.STRIPE_PRO_YEARLY_PRICE_ID}`);
+ids.STRIPE_PRO_PRICE_ID          = await price(proId,   39,   "usd", "month");
+ids.STRIPE_PRO_YEARLY_PRICE_ID   = await price(proId,  372,   "usd", "year");   // $31/mo
+console.log(`  ✓ Monthly $39   → ${ids.STRIPE_PRO_PRICE_ID}`);
+console.log(`  ✓ Yearly  $372  → ${ids.STRIPE_PRO_YEARLY_PRICE_ID}`);
 
 // ── Premium ──────────────────────────────────────────────────────────────────
 console.log("Premium");
@@ -58,17 +67,17 @@ ids.STRIPE_ACCELERATOR_YEARLY_PRICE_ID   = await price(accId,  1908,   "usd", "y
 console.log(`  ✓ Monthly $199  → ${ids.STRIPE_ACCELERATOR_PRICE_ID}`);
 console.log(`  ✓ Yearly  $1908 → ${ids.STRIPE_ACCELERATOR_YEARLY_PRICE_ID}`);
 
-// ── Token packs (one-time) ───────────────────────────────────────────────────
+// ── Token packs (one-time, premium per-token vs subscriptions) ────────────────
 console.log("Token Packs");
-const pack5Id  = await product("JobsAI Token Pack 5k",  "5,000 tokens — for voice & avatar interview prep");
-const pack20Id = await product("JobsAI Token Pack 20k", "20,000 tokens — for voice & avatar interview prep");
-const pack60Id = await product("JobsAI Token Pack 60k", "60,000 tokens — for voice & avatar interview prep");
-ids.STRIPE_PACK_5K_PRICE_ID  = await price(pack5Id,   9,  "usd");
-ids.STRIPE_PACK_20K_PRICE_ID = await price(pack20Id,  29, "usd");
-ids.STRIPE_PACK_60K_PRICE_ID = await price(pack60Id,  69, "usd");
-console.log(`  ✓ 5k  $9   → ${ids.STRIPE_PACK_5K_PRICE_ID}`);
-console.log(`  ✓ 20k $29  → ${ids.STRIPE_PACK_20K_PRICE_ID}`);
-console.log(`  ✓ 60k $69  → ${ids.STRIPE_PACK_60K_PRICE_ID}`);
+const packSmallId = await product("JobsAI Token Pack 3k",  "3,000 tokens — résumé tailoring, cover letters, interview prep");
+const packMidId   = await product("JobsAI Token Pack 10k", "10,000 tokens — résumé tailoring, cover letters, interview prep");
+const packLargeId = await product("JobsAI Token Pack 25k", "25,000 tokens — résumé tailoring, cover letters, interview prep");
+ids.STRIPE_PACK_SMALL_PRICE_ID = await price(packSmallId,  10, "usd");
+ids.STRIPE_PACK_MID_PRICE_ID   = await price(packMidId,    30, "usd");
+ids.STRIPE_PACK_LARGE_PRICE_ID = await price(packLargeId,  69, "usd");
+console.log(`  ✓ 3k  $10  → ${ids.STRIPE_PACK_SMALL_PRICE_ID}`);
+console.log(`  ✓ 10k $30  → ${ids.STRIPE_PACK_MID_PRICE_ID}`);
+console.log(`  ✓ 25k $69  → ${ids.STRIPE_PACK_LARGE_PRICE_ID}`);
 
 // ── Output ───────────────────────────────────────────────────────────────────
 console.log("\n✅  Done! Paste these into Vercel → Settings → Environment Variables:\n");
