@@ -16,6 +16,7 @@ import { UploadZone, UploadProgress } from "@/components/resume/upload-zone";
 import { ParsedPreview } from "@/components/resume/parsed-preview";
 import { ResumeCard } from "@/components/resume/resume-card";
 import { VersionsPanel } from "@/components/resume/versions-panel";
+import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
 import type { ResumeDocument, ResumeVersion } from "@/types/resume";
 
 type UploadState =
@@ -31,6 +32,7 @@ export default function ResumesPage() {
   const [uploadState, setUploadState] = useState<UploadState>({ type: "idle" });
   const [uploadingForGroupId, setUploadingForGroupId] = useState<string | null>(null);
   const [showUpload, setShowUpload] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [versionsPanelDoc, setVersionsPanelDoc] = useState<ResumeDocument | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -114,6 +116,11 @@ export default function ResumesPage() {
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
+        if (res.status === 402 || json.upgrade_required) {
+          setUploadState({ type: "idle" });
+          setShowUpgrade(json.error ?? "The Free plan includes 1 résumé. Upgrade for unlimited résumés and the full toolkit.");
+          return;
+        }
         setUploadState({ type: "error", message: json.error ?? "Upload failed." });
         return;
       }
@@ -346,6 +353,10 @@ export default function ResumesPage() {
           onClose={() => setVersionsPanelDoc(null)}
           onChanged={fetchDocs}
         />
+      )}
+
+      {showUpgrade && (
+        <UpgradePlansModal reason={showUpgrade} onClose={() => setShowUpgrade(null)} />
       )}
     </>
   );

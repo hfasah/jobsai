@@ -325,7 +325,6 @@ function BillingContent() {
   const [tokens, setTokens] = useState<TokenData | null>(null);
   const [loading, setLoading] = useState(true);
   const [interval, setInterval] = useState<BillingInterval>("yearly");
-  const [currency, setCurrency] = useState("usd");
   const [upgrading, setUpgrading] = useState<string | null>(null);
   const [buyingPack, setBuyingPack] = useState<string | null>(null);
   const [portaling, setPortaling] = useState(false);
@@ -374,7 +373,7 @@ function BillingContent() {
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval, currency }),
+        body: JSON.stringify({ plan, interval }),
       });
       const json = await res.json();
       if (json.url) window.location.href = json.url;
@@ -551,15 +550,6 @@ function BillingContent() {
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="font-semibold">{isPaid ? "Change plan" : "Upgrade your plan"}</h2>
               <div className="flex items-center gap-2">
-                {/* currency selector */}
-                <div className="inline-flex items-center gap-0.5 rounded-full border border-border bg-card p-1 text-xs">
-                  {(["usd", "cad", "gbp", "eur"] as const).map((c) => (
-                    <button key={c} onClick={() => setCurrency(c)}
-                      className={cn("rounded-full px-2.5 py-1 font-medium uppercase transition-colors", currency === c ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}>
-                      {c}
-                    </button>
-                  ))}
-                </div>
                 {/* interval toggle */}
                 <div className="inline-flex items-center gap-1 rounded-full border border-border bg-card p-1 text-xs">
                   <button onClick={() => setInterval("monthly")}

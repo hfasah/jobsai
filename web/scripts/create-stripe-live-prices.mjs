@@ -28,6 +28,9 @@ async function product(name, description) {
   return p.id;
 }
 
+// Prices are created in USD. Currency at checkout is handled by Stripe, not the
+// app: enable "Adaptive Pricing" in the Stripe Dashboard (Settings → Payments)
+// so customers see and pay in their local currency automatically.
 async function price(productId, amount, currency, interval, intervalCount) {
   const recurring = interval ? { interval, interval_count: intervalCount ?? 1 } : undefined;
   const p = await stripe.prices.create({
