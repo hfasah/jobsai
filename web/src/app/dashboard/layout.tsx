@@ -1,22 +1,23 @@
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { UpgradeHost } from "@/components/upgrade-host";
-import { getMyMembership } from "@/lib/enterprise";
+import { AccountTypeNotice } from "@/components/account-type-notice";
+import { getUserRole } from "@/lib/roles";
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // Enterprise members never sit on the job-seeker dashboard — bounce them to
-  // their workspace no matter how they arrived (cached session, direct link, etc.)
+  // Strict role separation: Admin and Enterprise accounts can never use the
+  // job-seeker dashboard. Show a friendly notice instead of the job board.
   const { userId } = await auth();
   if (userId) {
-    const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-    if (!adminIds.includes(userId)) {
-      const membership = await getMyMembership(userId);
-      if (membership) redirect("/enterprise/dashboard");
+    const role = await getUserRole(userId);
+    if (role !== "jobseeker") {
+      const user = await currentUser();
+      const email = user?.emailAddresses?.[0]?.emailAddress;
+      return <AccountTypeNotice role={role} email={email} />;
     }
   }
 

@@ -45,9 +45,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           ))}
         </nav>
         <div className="border-t border-border p-3 space-y-1">
-          <Link href="/dashboard" className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            ← Back to dashboard
-          </Link>
           <SignOutButton redirectUrl="/sign-in">
             <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
               <LogOut className="h-3.5 w-3.5" /> Sign out
