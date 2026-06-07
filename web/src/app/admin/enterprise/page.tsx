@@ -97,7 +97,7 @@ export default function AdminEnterprise() {
 }
 
 function CreateModal({ templates, onClose, onCreated }: { templates: { id: string; name: string; description: string }[]; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: "", owner_email: "", industry: "", template: templates[0]?.id ?? "general", plan_label: "Enterprise", admin_notes: "" });
+  const [form, setForm] = useState({ name: "", owner_email: "", contact_name: "", contact_phone: "", industry: "", template: templates[0]?.id ?? "general", plan_label: "Enterprise", admin_notes: "" });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ onboarding_steps: string[]; invite_url: string | null } | null>(null);
@@ -150,9 +150,21 @@ function CreateModal({ templates, onClose, onCreated }: { templates: { id: strin
               <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Acme Corp"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Contact name</label>
+                <input value={form.contact_name} onChange={(e) => setForm((f) => ({ ...f, contact_name: e.target.value }))} placeholder="Jane Doe"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Contact phone</label>
+                <input value={form.contact_phone} onChange={(e) => setForm((f) => ({ ...f, contact_phone: e.target.value }))} placeholder="(optional)"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+            </div>
             <div>
-              <label className="mb-1.5 block text-sm font-medium">Owner email</label>
-              <input value={form.owner_email} onChange={(e) => setForm((f) => ({ ...f, owner_email: e.target.value }))} type="email" placeholder="owner@acme.com — they'll be emailed an invite"
+              <label className="mb-1.5 block text-sm font-medium">Owner email <span className="text-muted-foreground">(becomes primary contact + gets the invite)</span></label>
+              <input value={form.owner_email} onChange={(e) => setForm((f) => ({ ...f, owner_email: e.target.value }))} type="email" placeholder="owner@acme.com"
                 className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
             <div>

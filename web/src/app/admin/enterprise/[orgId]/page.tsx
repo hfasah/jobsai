@@ -8,8 +8,10 @@ import {
 import { cn } from "@/lib/utils";
 
 interface Detail {
-  org: { id: string; name: string; slug: string; industry: string | null; plan_label: string; status: string; onboarding_done: boolean; admin_notes: string | null; created_at: string };
-  members: { user_id: string; role: string; created_at: string }[];
+  org: { id: string; name: string; slug: string; industry: string | null; plan_label: string; status: string; onboarding_done: boolean; admin_notes: string | null; created_at: string;
+    contact_name: string | null; contact_email: string | null; contact_phone: string | null;
+    contact2_name: string | null; contact2_email: string | null; contact2_phone: string | null };
+  members: { user_id: string; role: string; created_at: string; name: string; email: string; image_url: string | null }[];
   jobs: number; applicants: number;
   llm: {
     total_cost: number; total_calls: number; total_tokens: number;
@@ -26,10 +28,16 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
   const [planLabel, setPlanLabel] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [contacts, setContacts] = useState({ contact_name: "", contact_email: "", contact_phone: "", contact2_name: "", contact2_email: "", contact2_phone: "" });
+  const [contactsSaved, setContactsSaved] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/enterprise/${orgId}`).then((r) => r.json()).then((j) => {
-      if (j.data) { setD(j.data); setNotes(j.data.org.admin_notes ?? ""); setPlanLabel(j.data.org.plan_label ?? "Enterprise"); }
+      if (j.data) {
+        setD(j.data); setNotes(j.data.org.admin_notes ?? ""); setPlanLabel(j.data.org.plan_label ?? "Enterprise");
+        const o = j.data.org;
+        setContacts({ contact_name: o.contact_name ?? "", contact_email: o.contact_email ?? "", contact_phone: o.contact_phone ?? "", contact2_name: o.contact2_name ?? "", contact2_email: o.contact2_email ?? "", contact2_phone: o.contact2_phone ?? "" });
+      }
     }).finally(() => setLoading(false));
   }, [orgId]);
 
@@ -61,6 +69,55 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
             d.org.status === "active" ? "border-red-500/30 text-red-400 hover:bg-red-500/10" : "border-green-500/30 text-green-400 hover:bg-green-500/10")}>
           <Power className="h-3.5 w-3.5" /> {d.org.status === "active" ? "Suspend" : "Reactivate"}
         </button>
+      </div>
+
+      {/* Contacts & members */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Account contacts (admin-managed) */}
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h2 className="mb-3 font-semibold">Account contacts</h2>
+          <div className="space-y-3">
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Primary contact</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <input value={contacts.contact_name} onChange={(e) => setContacts((c) => ({ ...c, contact_name: e.target.value }))} placeholder="Name" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input value={contacts.contact_email} onChange={(e) => setContacts((c) => ({ ...c, contact_email: e.target.value }))} placeholder="Email" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input value={contacts.contact_phone} onChange={(e) => setContacts((c) => ({ ...c, contact_phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+            </div>
+            <div>
+              <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Secondary contact</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <input value={contacts.contact2_name} onChange={(e) => setContacts((c) => ({ ...c, contact2_name: e.target.value }))} placeholder="Name" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input value={contacts.contact2_email} onChange={(e) => setContacts((c) => ({ ...c, contact2_email: e.target.value }))} placeholder="Email" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input value={contacts.contact2_phone} onChange={(e) => setContacts((c) => ({ ...c, contact2_phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+            </div>
+            <button onClick={async () => { await update(contacts); setContactsSaved(true); setTimeout(() => setContactsSaved(false), 2000); }}
+              className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
+              {contactsSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} {contactsSaved ? "Saved" : "Save contacts"}
+            </button>
+          </div>
+        </div>
+
+        {/* Workspace members (the actual people signed in) */}
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="border-b border-border px-5 py-3.5"><h2 className="font-semibold">Workspace members ({d.members.length})</h2></div>
+          {d.members.length === 0 ? <p className="px-5 py-6 text-sm text-muted-foreground">No one has joined the workspace yet.</p> : (
+            <div className="divide-y divide-border">
+              {d.members.map((m) => (
+                <div key={m.user_id} className="flex items-center gap-3 px-5 py-3">
+                  {m.image_url ? <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded-full" /> : <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">{(m.name || "?").charAt(0).toUpperCase()}</div>}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{m.name}</p>
+                    <p className="truncate text-xs text-muted-foreground">{m.email}</p>
+                  </div>
+                  <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-medium capitalize">{m.role}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* LLM cost */}

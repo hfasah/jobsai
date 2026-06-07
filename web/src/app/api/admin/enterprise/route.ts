@@ -58,6 +58,9 @@ export async function POST(req: NextRequest) {
     created_by: admin.userId,
     created_by_admin: admin.userId,
     admin_notes: body.admin_notes ?? null,
+    contact_name: body.contact_name ?? null,
+    contact_email: ownerEmail ?? null,
+    contact_phone: body.contact_phone ?? null,
     status: "active",
   }).select("*").single();
 

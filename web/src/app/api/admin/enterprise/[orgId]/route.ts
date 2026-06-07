@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin";
 
@@ -19,6 +20,17 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     supabaseAdmin.from("enterprise_applications").select("id", { count: "exact", head: true }).eq("org_id", orgId),
     supabaseAdmin.from("llm_usage").select("feature, model, input_tokens, output_tokens, cost_usd, created_at").eq("org_id", orgId).order("created_at", { ascending: false }).limit(2000),
   ]);
+
+  // Enrich members with their real name/email (the actual people in the account)
+  const client = await clerkClient();
+  const enrichedMembers = await Promise.all((members.data ?? []).map(async (m) => {
+    try {
+      const u = await client.users.getUser(m.user_id);
+      return { ...m, name: `${u.firstName ?? ""} ${u.lastName ?? ""}`.trim() || "—", email: u.emailAddresses[0]?.emailAddress ?? "", image_url: u.imageUrl };
+    } catch {
+      return { ...m, name: "Pending", email: "", image_url: null };
+    }
+  }));
 
   const rows = usage.data ?? [];
   const totalCost = rows.reduce((s, r) => s + Number(r.cost_usd), 0);
@@ -42,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   return NextResponse.json({ data: {
     org,
-    members: members.data ?? [],
+    members: enrichedMembers,
     jobs: jobs.count ?? 0,
     applicants: apps.count ?? 0,
     llm: {
@@ -63,7 +75,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  for (const f of ["admin_notes", "status", "plan_label", "onboarding_done", "industry", "name"]) {
+  for (const f of ["admin_notes", "status", "plan_label", "onboarding_done", "industry", "name",
+    "contact_name", "contact_email", "contact_phone", "contact2_name", "contact2_email", "contact2_phone"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }
 
