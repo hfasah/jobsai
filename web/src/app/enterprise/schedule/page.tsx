@@ -3,8 +3,10 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   CalendarDays, Loader2, Video, Phone, MapPin, ExternalLink, X, Clock, CheckCircle2, AlertCircle,
+  Plus, Settings2, Check, Link2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ScheduleModal } from "@/components/enterprise/schedule-modal";
 
 interface Interview {
   id: string; candidate_name: string; candidate_email: string; title: string;
@@ -27,6 +29,19 @@ export default function SchedulePage() {
   const [items, setItems] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<"upcoming" | "all">("upcoming");
+  const [newOpen, setNewOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [profile, setProfile] = useState({ default_meeting_link: "", calendar_provider: "zoom" });
+  const [profileSaved, setProfileSaved] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/enterprise/my-profile").then((r) => r.json()).then((j) => { if (j.data) setProfile(j.data); }).catch(() => {});
+  }, []);
+
+  const saveProfile = async () => {
+    await fetch("/api/enterprise/my-profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) });
+    setProfileSaved(true); setTimeout(() => setProfileSaved(false), 2000);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -62,12 +77,35 @@ export default function SchedulePage() {
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><CalendarDays className="h-6 w-6 text-primary" /> Interview Schedule</h1>
             <p className="mt-0.5 text-sm text-muted-foreground">Booked interviews with calendar invites, reminders, and one-click join.</p>
           </div>
-          <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
-            {(["upcoming", "all"] as const).map((s) => (
-              <button key={s} onClick={() => setScope(s)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors", scope === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{s}</button>
-            ))}
+          <div className="flex items-center gap-2">
+            <button onClick={() => setSettingsOpen((o) => !o)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"><Settings2 className="h-4 w-4" /> My link</button>
+            <button onClick={() => setNewOpen(true)} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"><Plus className="h-4 w-4" /> Schedule interview</button>
+            <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
+              {(["upcoming", "all"] as const).map((s) => (
+                <button key={s} onClick={() => setScope(s)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors", scope === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{s}</button>
+              ))}
+            </div>
           </div>
         </div>
+
+        {/* My default meeting link */}
+        {settingsOpen && (
+          <div className="mb-5 rounded-2xl border border-border bg-card p-4">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-semibold"><Link2 className="h-4 w-4 text-primary" /> Your default meeting link</h2>
+            <p className="mb-3 text-xs text-muted-foreground">Saved to your profile and pre-filled into every interview you schedule. Use your Zoom personal room, Teams/Meet link, or a booking link.</p>
+            <div className="flex flex-wrap gap-2">
+              <select value={profile.calendar_provider} onChange={(e) => setProfile((p) => ({ ...p, calendar_provider: e.target.value }))}
+                className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                {[["zoom", "Zoom"], ["teams", "Microsoft Teams"], ["google_meet", "Google Meet"], ["outlook", "Outlook"], ["google_calendar", "Google Calendar"], ["other", "Other"]].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </select>
+              <input value={profile.default_meeting_link} onChange={(e) => setProfile((p) => ({ ...p, default_meeting_link: e.target.value }))} placeholder="https://zoom.us/j/your-room"
+                className="min-w-48 flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <button onClick={saveProfile} className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-semibold">
+                {profileSaved ? <Check className="h-4 w-4" /> : null} {profileSaved ? "Saved" : "Save"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -131,6 +169,8 @@ export default function SchedulePage() {
           </div>
         )}
       </div>
+
+      {newOpen && <ScheduleModal onClose={() => setNewOpen(false)} onScheduled={load} />}
     </main>
   );
 }

@@ -61,12 +61,6 @@ function Sidebar({ org, onNavigate }: { org: EnterpriseOrg | null; onNavigate?: 
 
       {/* Footer */}
       <div className="border-t border-border p-3 space-y-2">
-        <Link href="/dashboard"
-          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-          <Sparkles className="h-4 w-4 shrink-0" />
-          <span>Job Seeker Dashboard</span>
-          <ChevronRight className="ml-auto h-3.5 w-3.5" />
-        </Link>
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
           <SignOutButton>

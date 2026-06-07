@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { CalendarPlus, Loader2, X, Video, Phone, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -8,19 +8,23 @@ const PROVIDERS = [
   { id: "zoom", label: "Zoom" },
   { id: "teams", label: "Microsoft Teams" },
   { id: "google_meet", label: "Google Meet" },
+  { id: "outlook", label: "Outlook" },
+  { id: "google_calendar", label: "Google Calendar" },
   { id: "other", label: "Other link" },
 ];
 
 export function ScheduleModal({
   candidate, jobId, onClose, onScheduled,
 }: {
-  candidate: { id?: string; name: string; email: string };
+  candidate?: { id?: string; name: string; email: string };
   jobId?: string;
   onClose: () => void;
   onScheduled?: () => void;
 }) {
+  const [cand, setCand] = useState({ name: candidate?.name ?? "", email: candidate?.email ?? "" });
+  const manual = !candidate;
   const [form, setForm] = useState({
-    title: `Interview — ${candidate.name}`,
+    title: candidate ? `Interview — ${candidate.name}` : "Interview",
     interview_type: "video",
     provider: "zoom",
     meeting_link: "",
@@ -37,16 +41,26 @@ export function ScheduleModal({
 
   const set = (k: string, v: string | number) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Pre-fill the recruiter's saved default meeting link + provider
+  useEffect(() => {
+    fetch("/api/enterprise/my-profile").then((r) => r.json()).then((j) => {
+      if (j.data?.default_meeting_link) setForm((f) => ({ ...f, meeting_link: f.meeting_link || j.data.default_meeting_link, provider: j.data.calendar_provider || f.provider }));
+    }).catch(() => {});
+  }, []);
+
   const submit = async () => {
+    const name = (candidate?.name ?? cand.name).trim();
+    const email = (candidate?.email ?? cand.email).trim();
+    if (!name || !email) { setError("Add the candidate's name and email."); return; }
     if (!form.date || !form.time) { setError("Pick a date and time."); return; }
-    if (form.interview_type === "video" && !form.meeting_link.trim()) { setError("Paste the meeting link."); return; }
+    if (form.interview_type === "video" && !form.meeting_link.trim()) { setError("Add the meeting link (or set a default in your profile)."); return; }
     setSaving(true); setError("");
     const scheduled_at = new Date(`${form.date}T${form.time}`).toISOString();
     const res = await fetch("/api/enterprise/schedule", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        candidate_name: candidate.name, candidate_email: candidate.email,
-        application_id: candidate.id ?? null, job_id: jobId ?? null,
+        candidate_name: name, candidate_email: email,
+        application_id: candidate?.id ?? null, job_id: jobId ?? null,
         title: form.title, interview_type: form.interview_type, provider: form.provider,
         meeting_link: form.meeting_link, location: form.location,
         scheduled_at, duration_min: Number(form.duration_min),
@@ -72,12 +86,21 @@ export function ScheduleModal({
         {done ? (
           <div className="py-6 text-center">
             <p className="font-semibold">Interview scheduled ✓</p>
-            <p className="mt-1 text-sm text-muted-foreground">A calendar invite was emailed to {candidate.name} and any interviewers. Reminders will go out automatically.</p>
+            <p className="mt-1 text-sm text-muted-foreground">A calendar invite was emailed to {candidate?.name ?? cand.name} and any interviewers. It adds to their Outlook / Google / Apple calendar automatically. Reminders will go out too.</p>
             <button onClick={onClose} className="btn-cta mt-4 rounded-xl px-5 py-2 text-sm font-semibold">Done</button>
           </div>
         ) : (
           <div className="space-y-3">
-            <p className="text-sm text-muted-foreground">With <strong className="text-foreground">{candidate.name}</strong> · {candidate.email}</p>
+            {manual ? (
+              <div className="grid grid-cols-2 gap-2">
+                <input value={cand.name} onChange={(e) => setCand((c) => ({ ...c, name: e.target.value }))} placeholder="Candidate name"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <input value={cand.email} onChange={(e) => setCand((c) => ({ ...c, email: e.target.value }))} type="email" placeholder="Candidate email"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">With <strong className="text-foreground">{candidate!.name}</strong> · {candidate!.email}</p>
+            )}
 
             {/* type */}
             <div className="flex gap-2">
