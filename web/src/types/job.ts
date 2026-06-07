@@ -9,6 +9,7 @@ export interface Job {
   content_hash: string;
   raw_text: string;
   source_url: string | null;
+  posting_url: string | null;
   detected_language: string | null;
   parse_error_msg: string | null;
   created_at: string;

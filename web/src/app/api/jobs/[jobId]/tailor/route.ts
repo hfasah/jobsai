@@ -28,14 +28,15 @@ export async function GET(
 
 // POST /api/jobs/[jobId]/tailor — generate a tailored resume
 export async function POST(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ jobId: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { jobId } = await params;
 
-  const ctx = await loadJobContext(userId, jobId);
+  const body = await req.json().catch(() => ({}));
+  const ctx = await loadJobContext(userId, jobId, body.resume_version_id);
   if (isContextError(ctx)) {
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }

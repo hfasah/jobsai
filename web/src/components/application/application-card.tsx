@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2, FileText, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Application, UpdateApplicationBody } from "@/types/application";
@@ -72,17 +72,39 @@ export function ApplicationCard({
             </p>
           )}
         </div>
-        {job?.match_score != null && (
-          <span
-            className={cn(
-              "shrink-0 rounded-full px-2 py-0.5 text-xs font-bold",
-              scoreColor(job.match_score)
+        {(job?.match_score != null || job?.ai_score != null) && (
+          <div className="flex shrink-0 items-center gap-1">
+            {job?.match_score != null && (
+              <span className={cn("rounded-full px-2 py-0.5 text-xs font-bold", scoreColor(job.match_score))}>
+                {job.match_score}
+              </span>
             )}
-          >
-            {job.match_score}
-          </span>
+            {job?.ai_score != null && (
+              <>
+                <span className="text-xs text-muted-foreground">→</span>
+                <span className={cn("rounded-full px-2 py-0.5 text-xs font-bold", scoreColor(job.ai_score))} title="AI-tailored score">
+                  {job.ai_score}
+                </span>
+              </>
+            )}
+          </div>
         )}
       </div>
+
+      {!editing && (job?.has_tailored || job?.has_cover) && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {job?.has_tailored && (
+            <Link href={`/dashboard/jobs/${application.job_id}`} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20">
+              <FileText className="h-3 w-3" /> Tailored résumé
+            </Link>
+          )}
+          {job?.has_cover && (
+            <Link href={`/dashboard/jobs/${application.job_id}`} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/20">
+              <Mail className="h-3 w-3" /> Cover letter
+            </Link>
+          )}
+        </div>
+      )}
 
       {!editing && application.next_action && (
         <div className="mt-2 flex items-start gap-1.5 rounded-lg bg-muted/60 px-2 py-1.5 text-xs text-muted-foreground">

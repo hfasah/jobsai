@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, MapPin, Building2, Briefcase, RefreshCw, Trash2, ExternalLink,
-  ClipboardList, Check, Send, AlertCircle, Copy, Mic, AudioLines, Video,
+  ClipboardList, Check, Send, AlertCircle, Copy, Mic, AudioLines, Video, Zap, Puzzle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { MatchDetail } from "@/components/job/match-score";
@@ -13,6 +13,8 @@ import { ResumeUsedBadge } from "@/components/job/resume-used-badge";
 import { JobTabs } from "@/components/job/job-tabs";
 import type { TabKey } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
+import { boardForUrl } from "@/lib/job-boards";
+import { runExtensionApply } from "@/lib/extension-bridge";
 
 export default function JobDetailPage({
   params,
@@ -27,7 +29,7 @@ export default function JobDetailPage({
   const [tracking, setTracking] = useState(false);
   const [tracked, setTracked] = useState(false);
 
-  type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed";
+  type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed" | "need_extension";
   const [applyState, setApplyState] = useState<ApplyState>("idle");
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
   const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
@@ -99,6 +101,34 @@ export default function JobDetailPage({
     }
   };
 
+  // Apply via the in-browser extension (LinkedIn/Indeed/ZipRecruiter/Dice/Workable).
+  const applyViaExtension = (j: Job) => {
+    const parsed = (Array.isArray(j.parsed) ? j.parsed[0] : j.parsed) as { title?: string; company?: string; posting_url?: string } | null;
+    const url = j.posting_url || parsed?.posting_url || j.source_url || null;
+    setApplyState("applying");
+    setApplyMsg(null);
+    runExtensionApply(
+      [{ id: jobId, url, title: parsed?.title ?? "this job", company: parsed?.company ?? null }],
+      {},
+      (e) => {
+        if (e.type === "unavailable") {
+          setApplyState("need_extension");
+        } else if (e.type === "progress") {
+          if (e.status === "applying" || e.status === "queued") setApplyState("applying");
+          else if (e.status === "applied") setApplyState("submitted");
+          else if (e.status === "review") {
+            setApplyState("manual_required");
+            setApplyMsg("Autofilled on the board — review the fields and submit. Turn on 1-click for this board in the extension to auto-submit.");
+            fetch(`/api/jobs/${jobId}/cover-letter`).then((r) => r.json()).then((jr) => { if (jr.data?.body) setCoverLetterBody(jr.data.body); }).catch(() => null);
+          } else if (e.status === "failed") {
+            setApplyState("failed");
+            setApplyMsg("Couldn't complete the application on the board. Open the posting to apply manually.");
+          }
+        }
+      }
+    );
+  };
+
   const track = async () => {
     setTracking(true);
     try {
@@ -151,6 +181,12 @@ export default function JobDetailPage({
   const parsed = job.parsed;
   const processing = job.status === "processing" || job.status === "created";
 
+  // Board-aware apply: extension boards (LinkedIn/Indeed/…) apply in-browser via
+  // the extension; ATS boards (Lever/Ashby/…) use the server apply agent.
+  const applyUrl = job.posting_url || job.parsed?.posting_url || job.source_url || null;
+  const applyBoard = boardForUrl(applyUrl);
+  const useExtension = !!applyBoard.adapter && !!applyUrl;
+
   return (
     <>
       <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-10 sm:px-6">
@@ -189,18 +225,24 @@ export default function JobDetailPage({
               <Button
                 size="sm"
                 variant={applyState === "manual_required" ? "outline" : "default"}
-                onClick={applyState === "manual_required" && job.source_url
-                  ? () => window.open(job.source_url!, "_blank")
-                  : applyNow}
+                onClick={
+                  applyState === "manual_required" && applyUrl
+                    ? () => window.open(applyUrl, "_blank")
+                    : useExtension
+                    ? () => applyViaExtension(job)
+                    : applyNow
+                }
                 disabled={applyState === "applying"}
                 className={applyState === "manual_required" ? "border-desyn-warning/40 text-desyn-warning hover:bg-desyn-warning/15" : ""}
               >
                 {applyState === "applying" ? (
                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Applying…</>
                 ) : applyState === "manual_required" ? (
-                  <><AlertCircle className="mr-2 h-4 w-4" />Apply manually</>
-                ) : applyState === "failed" ? (
+                  <><AlertCircle className="mr-2 h-4 w-4" />Review &amp; submit</>
+                ) : applyState === "failed" || applyState === "need_extension" ? (
                   <><Send className="mr-2 h-4 w-4" />Retry apply</>
+                ) : useExtension ? (
+                  <><Zap className="mr-2 h-4 w-4" />Apply on {applyBoard.label}</>
                 ) : (
                   <><Send className="mr-2 h-4 w-4" />Apply</>
                 )}
@@ -267,6 +309,23 @@ export default function JobDetailPage({
             </Button>
           </div>
         </div>
+
+        {/* Needs the extension to apply on this board */}
+        {applyState === "need_extension" && (
+          <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/5 px-4 py-2.5 text-sm">
+            <Puzzle className="h-4 w-4 shrink-0 text-amber-500" />
+            <p className="flex-1 text-foreground">
+              Applying on {applyBoard.label} runs in your browser via the JobsAI extension. Connecting is optional —
+              you can also open the posting and apply manually.
+            </p>
+            <Link href="/dashboard/extension" className="btn-cta inline-flex h-8 items-center rounded-lg px-3 text-xs">Set up extension</Link>
+            {applyUrl && (
+              <button onClick={() => window.open(applyUrl, "_blank")} className="inline-flex h-8 items-center gap-1 rounded-lg border border-border px-3 text-xs text-muted-foreground hover:text-foreground">
+                Open posting <ExternalLink className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Apply status messages */}
         {(applyState === "manual_required" || applyState === "failed") && (

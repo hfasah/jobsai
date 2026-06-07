@@ -77,15 +77,23 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Invalid URL." }, { status: 400 });
       }
       sourceUrl = targetUrl;
+      const fallbackText = (body.text as string | null)?.trim() ?? "";
       try {
         rawText = await fetchUrlContent(targetUrl);
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Unknown error";
         console.error("URL fetch error:", msg);
-        return NextResponse.json(
-          { error: "Could not fetch the URL. Make sure it is publicly accessible and try again." },
-          { status: 422 }
-        );
+        // Many boards/ATSes block scrapers (JS-heavy pages, 403, etc.). If the
+        // caller already has the listing text (e.g. from Job Search results),
+        // use it instead of failing — we still keep the canonical source_url.
+        if (fallbackText.length >= MIN_CHARS) {
+          rawText = fallbackText;
+        } else {
+          return NextResponse.json(
+            { error: "Could not fetch the URL. Make sure it is publicly accessible and try again." },
+            { status: 422 }
+          );
+        }
       }
     } else {
       rawText = (body.text as string | null)?.trim() ?? "";

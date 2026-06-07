@@ -51,6 +51,31 @@ export async function GET() {
     job: summarizeJob(a.job as JobRel | JobRel[] | null),
   }));
 
+  // Attach optimization artifacts (AI/ATS score + whether a tailored résumé and
+  // cover letter exist) so the results dashboard can show them at a glance.
+  const jobIds = applications.map((a) => a.job?.id).filter((id): id is string => !!id);
+  if (jobIds.length > 0) {
+    const [ats, tailored, covers] = await Promise.all([
+      supabaseAdmin.from("ats_scans").select("job_id, score").in("job_id", jobIds),
+      supabaseAdmin.from("tailored_resumes").select("job_id").in("job_id", jobIds),
+      supabaseAdmin.from("cover_letters").select("job_id").in("job_id", jobIds),
+    ]);
+    const bestScore = new Map<string, number>();
+    (ats.data ?? []).forEach((r) => {
+      const cur = bestScore.get(r.job_id as string);
+      if (cur == null || (r.score as number) > cur) bestScore.set(r.job_id as string, r.score as number);
+    });
+    const tailoredSet = new Set((tailored.data ?? []).map((r) => r.job_id as string));
+    const coverSet = new Set((covers.data ?? []).map((r) => r.job_id as string));
+    applications.forEach((a) => {
+      if (!a.job) return;
+      const j = a.job as Record<string, unknown>;
+      j.ai_score = bestScore.get(a.job.id) ?? null;
+      j.has_tailored = tailoredSet.has(a.job.id);
+      j.has_cover = coverSet.has(a.job.id);
+    });
+  }
+
   return NextResponse.json({ data: applications });
 }
 

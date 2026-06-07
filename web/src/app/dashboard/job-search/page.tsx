@@ -130,10 +130,14 @@ export default function JobSearchPage() {
     if (!job.url) return;
     setActing((m) => ({ ...m, [job.id]: "loading" }));
     try {
+      // Send the listing data we already have from search as a fallback, so the
+      // import still works when the URL can't be scraped (JS-heavy ATS, 403, etc.).
+      const meta = [job.title, job.company, job.location, salaryLabel(job)].filter(Boolean).join(" · ");
+      const fallbackText = `${meta}\n\n${job.description ?? ""}`.trim();
       const res = await fetch("/api/jobs/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: job.url }),
+        body: JSON.stringify({ url: job.url, text: fallbackText }),
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.job_id) {

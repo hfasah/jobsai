@@ -79,9 +79,29 @@ export async function pickBestResumeVersion(
  * Loads a job's parsed data + the user's best-matching resume profile.
  * Returns either the context or an error with an HTTP status.
  */
+// Resolve a specific resume version the user owns (used to honor a chosen
+// "profile"). Returns null if the version isn't found or isn't theirs.
+async function loadOwnedVersion(
+  userId: string,
+  versionId: string
+): Promise<{ profile: ParsedJson; versionId: string } | null> {
+  const { data: prof } = await supabaseAdmin
+    .from("resume_parsed_profile")
+    .select("version_id, parsed_json, resume_versions!inner(document_id, resume_documents!inner(user_id))")
+    .eq("version_id", versionId)
+    .maybeSingle();
+
+  const rel = prof?.resume_versions as { resume_documents?: { user_id?: string } | { user_id?: string }[] } | undefined;
+  const doc = Array.isArray(rel?.resume_documents) ? rel?.resume_documents[0] : rel?.resume_documents;
+  if (!prof || doc?.user_id !== userId) return null;
+
+  return { profile: prof.parsed_json as ParsedJson, versionId: prof.version_id as string };
+}
+
 export async function loadJobContext(
   userId: string,
-  jobId: string
+  jobId: string,
+  overrideVersionId?: string | null
 ): Promise<JobContext | JobContextError> {
   // Job ownership + parsed
   const { data: job } = await supabaseAdmin
@@ -97,8 +117,10 @@ export async function loadJobContext(
   const jobParsed = Array.isArray(parsedRel) ? parsedRel[0]?.parsed_json : parsedRel?.parsed_json;
   if (!jobParsed) return { error: "Job has not been parsed yet.", status: 409 };
 
-  // Pick the resume that best matches this job (falls back to primary).
-  const best = await pickBestResumeVersion(userId, jobParsed);
+  // Honor an explicitly chosen profile resume when provided & owned; otherwise
+  // pick the resume that best matches this job (falls back to primary).
+  const chosen = overrideVersionId ? await loadOwnedVersion(userId, overrideVersionId) : null;
+  const best = chosen ?? (await pickBestResumeVersion(userId, jobParsed));
   if (!best) {
     return { error: "No resume found. Upload a resume first.", status: 409 };
   }

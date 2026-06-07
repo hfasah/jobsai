@@ -33,6 +33,10 @@ export interface ApplicationJobSummary {
   company: string | null;
   location: string | null;
   match_score: number | null;
+  // Optimization artifacts (populated by the applications list endpoint).
+  ai_score?: number | null;
+  has_tailored?: boolean;
+  has_cover?: boolean;
 }
 
 export interface Application {

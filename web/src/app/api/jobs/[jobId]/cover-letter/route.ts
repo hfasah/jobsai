@@ -42,7 +42,7 @@ export async function POST(
   const tone: CoverTone = TONES.includes(body.tone) ? body.tone : "professional";
   const length: CoverLength = LENGTHS.includes(body.length) ? body.length : "medium";
 
-  const ctx = await loadJobContext(userId, jobId);
+  const ctx = await loadJobContext(userId, jobId, body.resume_version_id);
   if (isContextError(ctx)) {
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }
