@@ -29,10 +29,17 @@ export const PLAN_TOKEN_GRANTS: Record<Plan, { amount: number; recurring: boolea
 };
 
 // Top-up packs (wired to Stripe in Phase 39).
+// Top-ups are a PREMIUM, à-la-carte convenience: priced higher per token than the
+// per-token value bundled in a subscription, so subscribing is always the better
+// deal. Minimum top-up is $10. Prices are display only — the actual charge comes
+// from the matching Stripe price IDs (TOKEN_PACK_PRICE_IDS), kept in sync.
+//   pack_small  3,000 / $10  = $0.0033/token
+//   pack_mid   10,000 / $30  = $0.0030/token
+//   pack_large 25,000 / $69  = $0.0028/token
 export const TOKEN_PACKS = [
-  { id: "pack_5k",  tokens: 5_000,  price: "$9" },
-  { id: "pack_20k", tokens: 20_000, price: "$29" },
-  { id: "pack_60k", tokens: 60_000, price: "$69" },
+  { id: "pack_small", tokens: 3_000,  price: "$10" },
+  { id: "pack_mid",   tokens: 10_000, price: "$30" },
+  { id: "pack_large", tokens: 25_000, price: "$69" },
 ] as const;
 
 export interface TokenAccount {
@@ -155,13 +162,15 @@ export async function deductTokens(
   userId: string,
   amount: number,
   feature: TokenFeature | string,
-  metadata: Record<string, unknown> = {}
+  metadata: Record<string, unknown> = {},
+  opts: { meterFree?: boolean } = {}
 ): Promise<SpendResult> {
   const account = await getTokenAccount(userId);
 
-  // Free tier is never metered — usage is capped by plan limits + the 1-trial
-  // interview gate, not by tokens. Don't consume or block on balance.
-  if (account.plan === "free") {
+  // Free tier is unmetered for interview trials (gated separately). For other
+  // features (e.g. the optimize pipeline) pass meterFree to bound free usage to
+  // the one-time 500-token grant.
+  if (account.plan === "free" && !opts.meterFree) {
     return { ok: true, balance: account.balance };
   }
 

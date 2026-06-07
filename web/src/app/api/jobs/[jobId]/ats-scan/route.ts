@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { scanATS } from "@/lib/ai-content";
+import { getTokenAccount, deductTokens, TOKEN_COSTS } from "@/lib/tokens";
 
 // GET /api/jobs/[jobId]/ats-scan — fetch the latest saved scan
 export async function GET(
@@ -40,6 +41,16 @@ export async function POST(
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }
 
+  // Token gate (all plans, incl. free's 500-token grant). Charged on success.
+  const cost = TOKEN_COSTS.ats_scan;
+  const account = await getTokenAccount(userId);
+  if (account.balance < cost) {
+    return NextResponse.json(
+      { error: `You're out of tokens. An ATS scan costs ${cost} and you have ${account.balance}. Upgrade your plan or top up to continue.`, upgrade_required: true, balance: account.balance },
+      { status: 402 }
+    );
+  }
+
   let result;
   try {
     result = await scanATS(ctx.resumeProfile, ctx.jobParsed, ctx.resumeRawText ?? undefined);
@@ -71,5 +82,7 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data });
+
+  const spend = await deductTokens(userId, cost, "ats_scan", { jobId }, { meterFree: true });
+  return NextResponse.json({ data, balance: spend.balance });
 }

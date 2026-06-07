@@ -51,7 +51,7 @@ async function ensureCustomer(userId: string): Promise<string> {
 
 // POST /api/billing/checkout
 //  • subscription: { plan: "pro"|"premium"|"accelerator", interval?: "monthly"|"yearly" }
-//  • token top-up:  { pack: "pack_5k"|"pack_20k"|"pack_60k" }
+//  • token top-up:  { pack: "pack_small"|"pack_mid"|"pack_large" }
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

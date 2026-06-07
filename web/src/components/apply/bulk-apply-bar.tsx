@@ -94,7 +94,12 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
     postJSON("/api/applications", { job_id: jobId, stage });
   }
 
+  const isFree = tokens?.plan === "free";
+
   async function runAutoApply() {
+    // Applying is a paid feature — block free up front (also saves optimize cost).
+    if (isFree) { setOutOfTokens(true); return; }
+
     const initial: Record<string, JobStatus> = {};
     jobs.forEach((j) => { initial[j.id] = "queued"; });
     setProgress(initial);
@@ -126,15 +131,14 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
     for (const p of prepared) {
       setJob(p.key, "optimizing");
       const payload = versionId ? { resume_version_id: versionId } : {};
+      const noteSpend = (r: { status: number; json: Record<string, unknown> }) => {
+        if (r.status === 402) setOutOfTokens(true);
+        if (typeof r.json.balance === "number") setTokens((prev) => (prev ? { ...prev, balance: r.json.balance as number } : prev));
+      };
       await postJSON(`/api/jobs/${p.jobId}/match`, payload);
-      if (tailorEach) {
-        const t = await postJSON(`/api/jobs/${p.jobId}/tailor`, payload);
-        if (t.status === 402) setOutOfTokens(true);
-      }
-      const c = await postJSON(`/api/jobs/${p.jobId}/cover-letter`, payload);
-      if (c.status === 402) setOutOfTokens(true);
-      const a = await postJSON(`/api/jobs/${p.jobId}/ats-scan`, payload);
-      if (a.status === 402) setOutOfTokens(true);
+      if (tailorEach) noteSpend(await postJSON(`/api/jobs/${p.jobId}/tailor`, payload));
+      noteSpend(await postJSON(`/api/jobs/${p.jobId}/cover-letter`, payload));
+      noteSpend(await postJSON(`/api/jobs/${p.jobId}/ats-scan`, payload));
     }
 
     // ── Phase 2: apply ──
@@ -210,22 +214,31 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
             {phase === "done" && <Link href="/dashboard/applications" className="ml-auto font-medium text-primary hover:underline">View results →</Link>}
           </div>
         )}
-        {/* Low-on-tokens nudge — encourage upgrading (better value) or topping up. */}
+        {/* Free → applying is paid. Paid + low balance → upgrade (better value) or top up. */}
         {showUpsell && (
           <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 p-3 text-sm">
             <Sparkles className="h-4 w-4 shrink-0 text-primary" />
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-foreground">
-                {outOfTokens ? "You ran low on tokens mid-run." : "This run may use more tokens than you have."}
-                {" "}This could be the one — don&apos;t let that stop you.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {tokens != null && <>You have {tokens.balance.toLocaleString()} tokens; this run needs ~{tokenEstimate.toLocaleString()}. </>}
-                Upgrading your plan gives you far more tokens per dollar than buying top-ups — the cheaper way to keep applying.
-              </p>
+              {isFree ? (
+                <>
+                  <p className="font-medium text-foreground">Applying to jobs is a paid feature — this could be the one, don&apos;t miss it.</p>
+                  <p className="text-xs text-muted-foreground">Upgrade to Pro to auto-apply, tailor your résumé, and generate cover letters across every job you pick.</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium text-foreground">
+                    {outOfTokens ? "You ran low on tokens mid-run." : "This run may use more tokens than you have."}
+                    {" "}This could be the one — don&apos;t let that stop you.
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {tokens != null && <>You have {tokens.balance.toLocaleString()} tokens; this run needs ~{tokenEstimate.toLocaleString()}. </>}
+                    Upgrading your plan gives you far more tokens per dollar than buying top-ups — the cheaper way to keep applying.
+                  </p>
+                </>
+              )}
             </div>
-            <Link href="/dashboard/billing" className="btn-cta inline-flex h-8 shrink-0 items-center rounded-lg px-3 text-xs">Upgrade &amp; save</Link>
-            <Link href="/dashboard/billing" className="inline-flex h-8 shrink-0 items-center rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground">Add tokens</Link>
+            <Link href="/dashboard/billing" className="btn-cta inline-flex h-8 shrink-0 items-center rounded-lg px-3 text-xs">{isFree ? "Upgrade to apply" : "Upgrade & save"}</Link>
+            {!isFree && <Link href="/dashboard/billing" className="inline-flex h-8 shrink-0 items-center rounded-lg border border-border px-3 text-xs font-medium text-muted-foreground hover:text-foreground">Add tokens</Link>}
           </div>
         )}
 

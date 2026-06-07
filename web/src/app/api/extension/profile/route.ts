@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { getUserPlan, PLAN_LIMITS } from "@/lib/billing";
 import type { ParsedJson } from "@/types/resume";
 
 const CORS_HEADERS = {
@@ -32,6 +33,16 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Invalid API key." }, { status: 401, headers: CORS_HEADERS });
   }
   const userId = billing.user_id;
+
+  // Applying to jobs is a paid feature — gate the extension's autofill so free
+  // users can't auto-apply through it (mirrors the server auto-apply gate).
+  const plan = await getUserPlan(userId);
+  if (!PLAN_LIMITS[plan].auto_apply) {
+    return NextResponse.json(
+      { error: "Auto-apply is a paid feature. Upgrade your plan to apply with JobsAI.", upgrade_required: true },
+      { status: 402, headers: CORS_HEADERS }
+    );
+  }
 
   // Prefer the structured apply profile.
   const { data: ap } = await supabaseAdmin

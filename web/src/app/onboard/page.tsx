@@ -394,13 +394,13 @@ function StepTargets({ onDone, onSkip }: { onDone: () => void; onSkip: () => voi
 // ─── Upgrade gate modal ───────────────────────────────────────────────────────
 
 const GATE_PLANS = [
-  { key: "pro",         label: "Pro",              price: 29,  highlight: false },
+  { key: "pro",         label: "Pro",              price: 39,  highlight: false },
   { key: "premium",     label: "Premium",          price: 79,  highlight: true  },
   { key: "accelerator", label: "Career Accelerator", price: 199, highlight: false },
 ];
 const GATE_PACKS = [
-  { key: "pack_5k",  label: "5,000 credits",  price: "$9"  },
-  { key: "pack_20k", label: "20,000 credits", price: "$29" },
+  { key: "pack_small", label: "3,000 credits",  price: "$10" },
+  { key: "pack_mid",   label: "10,000 credits", price: "$30" },
 ];
 
 function AutoApplyGateModal({ onClose }: { onClose: () => void }) {

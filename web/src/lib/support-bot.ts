@@ -37,7 +37,7 @@ const KB: Entry[] = [
   {
     keywords: ["token", "tokens"],
     answer:
-      "Tokens cover the heavier AI features like voice and avatar interview prep. Each paid plan includes a monthly allowance, and you can buy top-up packs: 5k for $9, 20k for $29, or 60k for $69.",
+      "Tokens cover AI features like résumé tailoring, cover letters, ATS scans, and voice/avatar interview prep. Each paid plan includes a monthly allowance. You can also buy top-up packs (3k/$10, 10k/$30, 25k/$69), but subscribing is the cheaper way to get tokens.",
   },
   {
     keywords: ["start", "begin", "sign up", "signup", "join", "register"],

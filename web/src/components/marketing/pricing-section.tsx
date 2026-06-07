@@ -44,7 +44,7 @@ const TIERS: Tier[] = [
     name: "Pro",
     planKey: "pro",
     icon: Send,
-    monthly: 29,
+    monthly: 39,
     tagline: "Best for students and early-career professionals.",
     cta: "Start Pro",
     features: [
@@ -324,7 +324,7 @@ export function PricingSection() {
         <p className="mt-6 text-center text-sm text-muted-foreground">
           Need more in a crunch?{" "}
           <span className="font-medium text-foreground">
-            Top up tokens anytime, 5k / $9, 20k / $29, 60k / $69.
+            Top up tokens anytime: 3k / $10, 10k / $30, 25k / $69. Subscribing is the cheaper way to get tokens.
           </span>
         </p>
 

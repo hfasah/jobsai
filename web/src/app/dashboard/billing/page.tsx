@@ -67,7 +67,7 @@ const UPGRADE_TIERS: { plan: PaidPlan; icon: React.ElementType; tagline: string;
 ];
 
 const PRICES: Record<PaidPlan, { monthly: number; yearly: number }> = {
-  pro:         { monthly: 29,  yearly: 23 },
+  pro:         { monthly: 39,  yearly: 31 },
   premium:     { monthly: 79,  yearly: 63 },
   accelerator: { monthly: 199, yearly: 159 },
 };
@@ -133,7 +133,7 @@ const CANCEL_REASONS: { group: string; items: string[] }[] = [
 ];
 
 const OFFER_PLANS: { plan: PaidPlan; label: string; monthly: number }[] = [
-  { plan: "pro",         label: "Pro",              monthly: 29  },
+  { plan: "pro",         label: "Pro",              monthly: 39  },
   { plan: "premium",     label: "Premium",          monthly: 79  },
   { plan: "accelerator", label: "Career Accelerator", monthly: 199 },
 ];

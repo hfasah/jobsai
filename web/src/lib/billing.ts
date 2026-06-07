@@ -4,36 +4,58 @@ export type Plan = "free" | "pro" | "premium" | "accelerator";
 export type PaidPlan = "pro" | "premium" | "accelerator";
 export type BillingInterval = "monthly" | "yearly";
 
+// Per-plan controls. Beyond tokens we gate on:
+//   • daily_apply        — max job applications per day (abuse + upgrade pressure)
+//   • voice_minutes_month / avatar_minutes_month — caps on the expensive interview
+//     tools (also token-metered; this is the hard ceiling)
+//   • human_coaching     — whether live human coaching is INCLUDED (it's a paid
+//     add-on, never bundled)
 export const PLAN_LIMITS = {
   free: {
     max_resumes: 1,
     max_jobs_per_month: 10,
     auto_apply: false,
+    daily_apply: 0,
+    voice_minutes_month: 0,   // 1 voice + 1 avatar trial handled separately
+    avatar_minutes_month: 0,
+    human_coaching: false,
     label: "Free",
   },
   pro: {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
+    daily_apply: 30,
+    voice_minutes_month: 30,
+    avatar_minutes_month: 0,  // avatar via token top-up only
+    human_coaching: false,
     label: "Pro",
   },
   premium: {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
+    daily_apply: 100,
+    voice_minutes_month: 120,
+    avatar_minutes_month: 30,
+    human_coaching: false,
     label: "Premium",
   },
   accelerator: {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
+    daily_apply: 300,
+    voice_minutes_month: 300,
+    avatar_minutes_month: 120,
+    human_coaching: false,    // available as a paid add-on, not bundled
     label: "Career Accelerator",
   },
 } as const;
 
 // Display prices (monthly anchor + yearly per-month, ~20% off).
 export const PLAN_PRICES: Record<PaidPlan, { monthly: number; yearly: number }> = {
-  pro:         { monthly: 29,  yearly: 23 },
+  pro:         { monthly: 39,  yearly: 31 },
   premium:     { monthly: 79,  yearly: 63 },
   accelerator: { monthly: 199, yearly: 159 },
 };
@@ -59,11 +81,12 @@ export function planFromPriceId(priceId: string | undefined): PaidPlan | null {
   return null;
 }
 
-// One-time token top-up packs → Stripe price IDs.
+// One-time token top-up packs → Stripe price IDs. Top-ups are priced at a premium
+// per token vs subscriptions (subscribing is the cheaper way to get tokens).
 export const TOKEN_PACK_PRICE_IDS: Record<string, string | undefined> = {
-  pack_5k:  process.env.STRIPE_PACK_5K_PRICE_ID,
-  pack_20k: process.env.STRIPE_PACK_20K_PRICE_ID,
-  pack_60k: process.env.STRIPE_PACK_60K_PRICE_ID,
+  pack_small: process.env.STRIPE_PACK_SMALL_PRICE_ID,
+  pack_mid:   process.env.STRIPE_PACK_MID_PRICE_ID,
+  pack_large: process.env.STRIPE_PACK_LARGE_PRICE_ID,
 };
 
 export interface BillingRecord {
@@ -173,12 +196,39 @@ export async function checkJobImportGate(userId: string): Promise<GateResult> {
   return { allowed: true };
 }
 
+// Applications submitted (logged) since midnight today.
+export async function getDailyApplyCount(userId: string): Promise<number> {
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const { count } = await supabaseAdmin
+    .from("apply_attempts")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .gte("created_at", startOfDay.toISOString());
+  return count ?? 0;
+}
+
 export async function checkAutoApplyGate(userId: string): Promise<GateResult> {
   const plan = await getUserPlan(userId);
-  if (PLAN_LIMITS[plan].auto_apply) return { allowed: true };
-  return {
-    allowed: false,
-    upgrade_required: true,
-    reason: "Auto-apply is a Pro feature. Upgrade to enable automatic job applications.",
-  };
+  const limits = PLAN_LIMITS[plan];
+
+  // Free (and any plan without auto_apply) can't apply at all.
+  if (!limits.auto_apply) {
+    return {
+      allowed: false,
+      upgrade_required: true,
+      reason: "Auto-apply is a paid feature. Upgrade to apply with JobsAI.",
+    };
+  }
+
+  // Per-plan daily application cap (abuse protection + upgrade pressure).
+  const used = await getDailyApplyCount(userId);
+  if (used >= limits.daily_apply) {
+    return {
+      allowed: false,
+      upgrade_required: true,
+      reason: `You've reached your ${limits.daily_apply}/day application limit on ${limits.label}. It resets tomorrow — upgrade for a higher daily limit.`,
+    };
+  }
+  return { allowed: true };
 }
