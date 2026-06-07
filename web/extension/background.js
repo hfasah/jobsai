@@ -47,6 +47,21 @@ async function fetchProfile() {
   return { ok: true, profile: json.profile, apiBase };
 }
 
+// How many auto-submit applications the user has left today (per-plan daily cap).
+async function fetchApplyGate() {
+  const { apiKey, apiBase } = await getConfig();
+  if (!apiKey) return { allowed: false, remaining: 0 };
+  try {
+    const res = await fetch(`${apiBase}/api/extension/apply-gate`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+    });
+    const json = await res.json().catch(() => ({}));
+    return { allowed: !!json.allowed, remaining: json.remaining ?? 0, reason: json.reason };
+  } catch {
+    return { allowed: false, remaining: 0 };
+  }
+}
+
 async function postApplyResult(jobId, board, status, error) {
   const { apiKey, apiBase } = await getConfig();
   if (!apiKey) return;
@@ -152,6 +167,11 @@ chrome.runtime.onConnectExternal.addListener((port) => {
     const profile = pr.ok ? pr.profile : {};
     const directBoards = await getDirectBoards();
 
+    // Daily auto-submit allowance (per-plan cap, server source of truth).
+    const gate = await fetchApplyGate();
+    let remaining = gate.remaining;
+    if (!gate.allowed && gate.reason) port.postMessage({ type: "NOTICE", reason: gate.reason });
+
     let applied = 0;
     for (const job of jobs) {
       port.postMessage({ type: "PROGRESS", jobId: job.id, status: "applying" });
@@ -163,14 +183,20 @@ chrome.runtime.onConnectExternal.addListener((port) => {
         status = "needs_review";
       } else {
         const autoSubmit = directBoards[board] === true;
-        try {
-          const raw = await runAdapter(job, profile, msg.resumeLabel, autoSubmit);
-          status = raw === "applied" ? "applied" : raw === "needs_review" ? "needs_review" : "failed";
-        } catch (e) {
-          status = "failed";
-          await postApplyResult(job.id, board, "failed", String(e && e.message || e));
-          port.postMessage({ type: "PROGRESS", jobId: job.id, status: "failed" });
-          continue;
+        // Enforce the daily cap on auto-submits; verify-mode autofill is uncapped.
+        if (autoSubmit && remaining <= 0) {
+          status = "needs_review"; // daily application limit reached
+        } else {
+          try {
+            const raw = await runAdapter(job, profile, msg.resumeLabel, autoSubmit);
+            status = raw === "applied" ? "applied" : raw === "needs_review" ? "needs_review" : "failed";
+            if (status === "applied") remaining = Math.max(0, remaining - 1);
+          } catch (e) {
+            status = "failed";
+            await postApplyResult(job.id, board, "failed", String(e && e.message || e));
+            port.postMessage({ type: "PROGRESS", jobId: job.id, status: "failed" });
+            continue;
+          }
         }
       }
 

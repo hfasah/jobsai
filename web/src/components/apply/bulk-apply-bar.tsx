@@ -43,6 +43,7 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
   const [progress, setProgress] = useState<Record<string, JobStatus>>({});
   const [notInstalled, setNotInstalled] = useState(false);
   const [outOfTokens, setOutOfTokens] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [tokens, setTokens] = useState<{ balance: number; plan: string } | null>(null);
 
   useEffect(() => {
@@ -105,6 +106,7 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
     setProgress(initial);
     setNotInstalled(false);
     setOutOfTokens(false);
+    setNotice(null);
 
     // Progress is keyed by the incoming BulkJob.id (stable). For search results we
     // must first import each to get a JobsAI job id; `jobId` is what the per-job
@@ -170,6 +172,8 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
           setNotInstalled(true);
           adapterJobs.forEach((p) => setJob(p.key, "review"));
           setPhase("done");
+        } else if (e.type === "notice") {
+          setNotice(e.reason);
         } else if (e.type === "progress") {
           const key = keyByJobId.get(e.jobId) ?? e.jobId;
           const mapped: JobStatus = e.status === "applied" ? "applied" : e.status === "failed" ? "failed" : e.status === "review" ? "review" : "applying";
@@ -213,6 +217,12 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
             <span className="text-muted-foreground">{counts.done}/{jobs.length}</span>
             {phase === "done" && <Link href="/dashboard/applications" className="ml-auto font-medium text-primary hover:underline">View results →</Link>}
           </div>
+        )}
+        {notice && (
+          <p className="flex flex-wrap items-center gap-2 text-xs text-amber-500">
+            <AlertTriangle className="h-3.5 w-3.5 shrink-0" /> {notice}{" "}
+            <Link href="/dashboard/billing" className="font-medium text-primary hover:underline">Upgrade</Link>
+          </p>
         )}
         {/* Free → applying is paid. Paid + low balance → upgrade (better value) or top up. */}
         {showUpsell && (

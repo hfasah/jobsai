@@ -196,7 +196,7 @@ export async function checkJobImportGate(userId: string): Promise<GateResult> {
   return { allowed: true };
 }
 
-// Applications submitted (logged) since midnight today.
+// Applications actually submitted since midnight today (not autofill/needs-review).
 export async function getDailyApplyCount(userId: string): Promise<number> {
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
@@ -204,6 +204,7 @@ export async function getDailyApplyCount(userId: string): Promise<number> {
     .from("apply_attempts")
     .select("id", { count: "exact", head: true })
     .eq("user_id", userId)
+    .eq("status", "submitted")
     .gte("created_at", startOfDay.toISOString());
   return count ?? 0;
 }

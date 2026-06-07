@@ -17,6 +17,7 @@ export type BridgeEvent =
   | { type: "ack" }
   | { type: "progress"; jobId: string; status: ApplyJobStatus }
   | { type: "done"; applied: number }
+  | { type: "notice"; reason: string }
   | { type: "unavailable" };
 
 // Minimal typed view of the chrome bridge exposed to the page.
@@ -58,9 +59,10 @@ export function runExtensionApply(
 
   let acked = false;
   port.onMessage.addListener((raw) => {
-    const msg = raw as { type?: string; jobId?: string; status?: ApplyJobStatus; applied?: number };
+    const msg = raw as { type?: string; jobId?: string; status?: ApplyJobStatus; applied?: number; reason?: string };
     if (msg.type === "ACK") { acked = true; onEvent({ type: "ack" }); }
     else if (msg.type === "PROGRESS" && msg.jobId && msg.status) onEvent({ type: "progress", jobId: msg.jobId, status: msg.status });
+    else if (msg.type === "NOTICE" && msg.reason) onEvent({ type: "notice", reason: msg.reason });
     else if (msg.type === "DONE") onEvent({ type: "done", applied: msg.applied ?? 0 });
   });
   port.onDisconnect.addListener(() => { if (!acked) onEvent({ type: "unavailable" }); });

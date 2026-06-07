@@ -1,4 +1,4 @@
-import { getUserPlan } from "@/lib/billing";
+import { getUserPlan, PLAN_LIMITS } from "@/lib/billing";
 import { supabaseAdmin } from "@/lib/supabase";
 
 // Gates the realism tiers (voice now, avatar in Phase 38). Free users get a
@@ -20,12 +20,47 @@ export interface AccessResult {
   trial?: boolean; // true when this is the free user's trial run
 }
 
+// Minutes (≈ metered turns) used for a mode this calendar month, from the ledger.
+async function minutesThisMonth(userId: string, mode: InterviewMode): Promise<number> {
+  const startOfMonth = new Date();
+  startOfMonth.setDate(1);
+  startOfMonth.setHours(0, 0, 0, 0);
+  const feature = mode === "voice" ? "voice_minute" : "avatar_minute";
+  const { count } = await supabaseAdmin
+    .from("token_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("feature", feature)
+    .lt("delta", 0)
+    .gte("created_at", startOfMonth.toISOString());
+  return count ?? 0;
+}
+
 export async function checkInterviewAccess(
   userId: string,
   mode: InterviewMode
 ): Promise<AccessResult> {
   const plan = await getUserPlan(userId);
-  if (plan !== "free") return { allowed: true };
+
+  if (plan !== "free") {
+    // Per-plan monthly minute ceiling on the expensive interview tools. A cap of 0
+    // means "no monthly inclusion — gated by token balance only" (e.g. Pro avatar
+    // via top-up); a positive cap is a hard ceiling that protects margins.
+    const cap = mode === "voice"
+      ? PLAN_LIMITS[plan].voice_minutes_month
+      : PLAN_LIMITS[plan].avatar_minutes_month;
+    if (cap > 0) {
+      const used = await minutesThisMonth(userId, mode);
+      if (used >= cap) {
+        return {
+          allowed: false,
+          upgrade_required: true,
+          reason: `You've used your ${cap} ${mode} minutes this month on ${PLAN_LIMITS[plan].label}. Upgrade for more — it resets next month.`,
+        };
+      }
+    }
+    return { allowed: true };
+  }
 
   // Free plan → count completed sessions of this mode against the trial limit.
   const { count } = await supabaseAdmin
