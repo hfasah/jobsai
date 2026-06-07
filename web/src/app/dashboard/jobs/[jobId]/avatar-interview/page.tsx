@@ -39,6 +39,15 @@ declare global {
 
 type Phase = "preflight" | "speaking" | "listening" | "thinking" | "analyzing" | "results" | "blocked" | "error";
 
+// Minimal structural view of the HeyGen Streaming SDK instance (loaded lazily) —
+// avoids importing the SDK (and its browser globals) at module scope.
+interface HeygenAvatar {
+  on(event: string, cb: (e: { detail: MediaStream }) => void): void;
+  createStartAvatar(cfg: Record<string, unknown>): Promise<unknown>;
+  speak(cfg: { text: string; taskType?: string }): Promise<unknown>;
+  stopAvatar(): Promise<unknown>;
+}
+
 export default function AvatarInterviewPage({ params }: { params: Promise<{ jobId: string }> }) {
   const { jobId } = use(params);
 
@@ -61,8 +70,16 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
   const [faceSupported, setFaceSupported] = useState(false);
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
 
+  const [heygenActive, setHeygenActive] = useState(false);
+
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // HeyGen LiveAvatar streaming
+  const heygenRef = useRef<HeygenAvatar | null>(null);
+  const avatarVideoRef = useRef<HTMLVideoElement | null>(null);
+  const startListeningRef = useRef<() => void>(() => {});
+  const avatarInitedRef = useRef(false);
+  const taskRepeatRef = useRef<string>("repeat");
   const streamRef = useRef<MediaStream | null>(null);
   const selfVideoRef = useRef<HTMLVideoElement | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -174,9 +191,52 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     recorderRef.current = null;
   }, []);
 
-  // ── TTS speak ─────────────────────────────────────────────────────────────────
+  // ── HeyGen LiveAvatar: lazy-init the streaming session (once) ─────────────────
+  const ensureAvatar = useCallback(async (): Promise<boolean> => {
+    if (avatarInitedRef.current) return !!heygenRef.current;
+    avatarInitedRef.current = true;
+    try {
+      const res = await fetch("/api/avatar/session");
+      const { data } = await res.json();
+      if (!data?.configured || data.provider !== "heygen" || !data.token) return false;
+
+      const mod = await import("@heygen/streaming-avatar");
+      const StreamingAvatarCls = mod.default as unknown as new (cfg: { token: string }) => HeygenAvatar;
+      const { AvatarQuality, StreamingEvents, TaskType } = mod;
+      taskRepeatRef.current = TaskType.REPEAT;
+      const quality = data.quality === "high" ? AvatarQuality.High
+        : data.quality === "medium" ? AvatarQuality.Medium
+        : AvatarQuality.Low; // Lite mode
+
+      const avatar = new StreamingAvatarCls({ token: data.token });
+      avatar.on(StreamingEvents.STREAM_READY, (e) => {
+        if (avatarVideoRef.current && e.detail) {
+          avatarVideoRef.current.srcObject = e.detail;
+          avatarVideoRef.current.play().catch(() => {});
+        }
+      });
+      // The avatar finishing its line is our cue to start listening.
+      avatar.on(StreamingEvents.AVATAR_STOP_TALKING, () => startListeningRef.current?.());
+
+      await avatar.createStartAvatar({ quality, avatarName: data.avatarId });
+      heygenRef.current = avatar;
+      setHeygenActive(true);
+      return true;
+    } catch (e) {
+      console.error("HeyGen init failed — falling back to simulated:", e);
+      return false;
+    }
+  }, []);
+
+  // ── Speak: HeyGen avatar lip-syncs the line; else OpenAI TTS ──────────────────
   const speak = useCallback(async (text: string) => {
     setPhase("speaking");
+    if (heygenRef.current) {
+      try {
+        await heygenRef.current.speak({ text, taskType: taskRepeatRef.current });
+        return; // AVATAR_STOP_TALKING → startListening
+      } catch { startListeningRef.current(); return; }
+    }
     try {
       const res = await fetch("/api/tts", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -223,6 +283,9 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     setPhase("listening");
   }, [startFaceSampling]);
 
+  // Keep a stable ref so the HeyGen AVATAR_STOP_TALKING handler can start the mic.
+  useEffect(() => { startListeningRef.current = startListening; }, [startListening]);
+
   const stopListening = useCallback(() => {
     durationRef.current += (Date.now() - listenStartRef.current) / 1000;
     stopFaceSampling();
@@ -254,8 +317,9 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     startRecording();
     setQuestion(json.data.question);
     setHistory([{ role: "interviewer", content: json.data.question }]);
+    await ensureAvatar(); // spin up the HeyGen avatar (no-op if not configured)
     speak(json.data.question);
-  }, [jobId, persona, speak, startRecording]);
+  }, [jobId, persona, speak, startRecording, ensureAvatar]);
 
   const submitAnswer = useCallback(async () => {
     stopListening();
@@ -326,6 +390,7 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     audioRef.current?.pause();
     stopFaceSampling();
     streamRef.current?.getTracks().forEach((t) => t.stop());
+    heygenRef.current?.stopAvatar().catch(() => {});
   }, [stopFaceSampling]);
 
   const meta = PERSONAS[persona];
@@ -336,7 +401,7 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     <div className="relative flex min-h-screen flex-col bg-mesh">
       {/* Top bar */}
       <div className="flex items-center gap-4 border-b border-border bg-card/70 px-4 py-3 backdrop-blur-xl sm:px-6">
-        <Link href={`/dashboard/jobs/${jobId}`} onClick={() => { recognitionRef.current?.stop(); audioRef.current?.pause(); streamRef.current?.getTracks().forEach((t) => t.stop()); }}
+        <Link href={`/dashboard/jobs/${jobId}`} onClick={() => { recognitionRef.current?.stop(); audioRef.current?.pause(); streamRef.current?.getTracks().forEach((t) => t.stop()); heygenRef.current?.stopAvatar().catch(() => {}); }}
           className="flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back
         </Link>
@@ -446,19 +511,31 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
             <div className="grid gap-4 sm:grid-cols-2">
               {/* avatar tile */}
               <div className="relative aspect-video overflow-hidden rounded-2xl border border-border bg-card shadow-soft">
-                <div className={cn("absolute inset-0 bg-gradient-to-br opacity-90", meta.accent)} />
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                  <div className={cn("flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-2xl font-bold backdrop-blur", phase === "speaking" && "animate-pulse-ring")}>
-                    {initials}
-                  </div>
-                  <p className="mt-3 text-sm font-semibold">{meta.label}</p>
-                  {phase === "speaking" ? <AudioBars bars={9} tone="muted" className="mt-2 h-4 opacity-90" />
-                    : <p className="mt-1 text-xs opacity-80">{phase === "thinking" ? "…" : "listening"}</p>}
-                </div>
+                {/* HeyGen live avatar video (shown when streaming is active) */}
+                <video
+                  ref={avatarVideoRef}
+                  autoPlay
+                  playsInline
+                  className={cn("absolute inset-0 h-full w-full object-cover", !heygenActive && "hidden")}
+                />
+                {/* Simulated persona (fallback when no streaming avatar) */}
+                {!heygenActive && (
+                  <>
+                    <div className={cn("absolute inset-0 bg-gradient-to-br opacity-90", meta.accent)} />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
+                      <div className={cn("flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-2xl font-bold backdrop-blur", phase === "speaking" && "animate-pulse-ring")}>
+                        {initials}
+                      </div>
+                      <p className="mt-3 text-sm font-semibold">{meta.label}</p>
+                      {phase === "speaking" ? <AudioBars bars={9} tone="muted" className="mt-2 h-4 opacity-90" />
+                        : <p className="mt-1 text-xs opacity-80">{phase === "thinking" ? "…" : "listening"}</p>}
+                    </div>
+                  </>
+                )}
                 <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/30 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur">
                   <Volume2 className="h-3 w-3" /> Interviewer
                 </span>
-                {phase === "speaking" && (
+                {phase === "speaking" && !heygenActive && (
                   <button onClick={replay} className="absolute bottom-3 right-3 rounded-full bg-black/30 px-2 py-0.5 text-[10px] text-white backdrop-blur">replay</button>
                 )}
               </div>

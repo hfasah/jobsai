@@ -52,23 +52,40 @@ export function isAvatarConfigured(): boolean {
 export interface StreamingSession {
   configured: boolean;
   provider: "heygen" | "simulated";
-  token?: string;
-  // ...provider-specific fields (sessionId, serverUrl, avatarId) go here.
+  token?: string;     // short-lived client token for the HeyGen Streaming SDK
+  avatarId?: string;  // HeyGen interactive avatar to render
+  quality?: string;   // "low" (Lite ≈ cheapest) | "medium" | "high"
 }
 
-// Returns a real streaming session when a provider is configured, otherwise the
-// simulated descriptor. The HeyGen path is left as a clearly-marked seam.
+// Returns a real HeyGen LiveAvatar streaming session when configured, otherwise
+// the simulated descriptor (TTS + animated persona). Falls back to simulated on
+// any HeyGen error so the Avatar Room always works.
 export async function createStreamingSession(): Promise<StreamingSession> {
   if (!isAvatarConfigured()) {
     return { configured: false, provider: "simulated" };
   }
 
-  // ── HeyGen streaming seam ──────────────────────────────────────────────────
-  // const res = await fetch("https://api.heygen.com/v1/streaming.create_token", {
-  //   method: "POST",
-  //   headers: { "x-api-key": process.env.HEYGEN_API_KEY! },
-  // });
-  // const { data } = await res.json();
-  // return { configured: true, provider: "heygen", token: data.token };
-  return { configured: false, provider: "simulated" };
+  try {
+    // Mint a short-lived session token the browser SDK uses (keeps the API key
+    // server-side). The client then starts the avatar + drives it to speak.
+    const res = await fetch("https://api.heygen.com/v1/streaming.create_token", {
+      method: "POST",
+      headers: { "x-api-key": process.env.HEYGEN_API_KEY! },
+    });
+    if (!res.ok) throw new Error(`HeyGen token failed: ${res.status}`);
+    const json = await res.json();
+    const token = json?.data?.token as string | undefined;
+    if (!token) throw new Error("No token in HeyGen response");
+
+    return {
+      configured: true,
+      provider: "heygen",
+      token,
+      avatarId: process.env.HEYGEN_AVATAR_ID,
+      quality: process.env.HEYGEN_AVATAR_QUALITY ?? "low", // Lite mode default
+    };
+  } catch (err) {
+    console.error("HeyGen streaming token error:", err);
+    return { configured: false, provider: "simulated" };
+  }
 }
