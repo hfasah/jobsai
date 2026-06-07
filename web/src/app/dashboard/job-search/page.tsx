@@ -5,13 +5,14 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Search, MapPin, Loader2, Briefcase, Building2, DollarSign, Clock,
-  ExternalLink, ChevronLeft, ChevronRight, Wifi, AlertCircle, Zap,
+  ExternalLink, ChevronLeft, ChevronRight, Wifi, AlertCircle, Zap, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES,
   type SearchJob, type SearchResult, type SortKey, type EmploymentType,
 } from "@/lib/job-search";
+import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
 
 const CUR: Record<string, string> = { USD: "$", CAD: "C$", GBP: "£", EUR: "€", PLN: "zł" };
 
@@ -22,6 +23,12 @@ function salaryLabel(j: SearchJob): string | null {
   if (j.salaryMin) return `${sym}${fmt(j.salaryMin)}+`;
   if (j.salaryMax) return `up to ${sym}${fmt(j.salaryMax)}`;
   return null;
+}
+
+// Listing text we pass to import as a fallback when the URL can't be scraped.
+function buildFallbackText(job: SearchJob): string {
+  const meta = [job.title, job.company, job.location, salaryLabel(job)].filter(Boolean).join(" · ");
+  return `${meta}\n\n${job.description ?? ""}`.trim();
 }
 
 function ago(iso: string | null): string {
@@ -80,6 +87,14 @@ export default function JobSearchPage() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SearchJob | null>(null);
   const [acting, setActing] = useState<Record<string, "loading" | "error" | "upgrade">>({});
+  // Bulk selection (multi-apply)
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const togglePick = (id: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
   const reqId = useRef(0);
   const router = useRouter();
 
@@ -104,6 +119,7 @@ export default function JobSearchPage() {
         setResult(data);
         setPage(data.page);
         setSelected(data.jobs[0] ?? null);
+        setPicked(new Set()); // selection is per-page
       } catch (e) {
         if (id !== reqId.current) return;
         setError(e instanceof Error ? e.message : "Search failed");
@@ -132,12 +148,10 @@ export default function JobSearchPage() {
     try {
       // Send the listing data we already have from search as a fallback, so the
       // import still works when the URL can't be scraped (JS-heavy ATS, 403, etc.).
-      const meta = [job.title, job.company, job.location, salaryLabel(job)].filter(Boolean).join(" · ");
-      const fallbackText = `${meta}\n\n${job.description ?? ""}`.trim();
       const res = await fetch("/api/jobs/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: job.url, text: fallbackText }),
+        body: JSON.stringify({ url: job.url, text: buildFallbackText(job) }),
       });
       const json = await res.json().catch(() => ({}));
       if (res.ok && json.job_id) {
@@ -303,37 +317,74 @@ export default function JobSearchPage() {
               <p className="mt-2">No jobs match. Try a broader keyword, fewer Job Sites, or another country.</p>
             </div>
           ) : (
-            <ul className="space-y-2">
-              {result?.jobs.map((job) => {
-                const active = selected?.id === job.id;
-                const sal = salaryLabel(job);
-                return (
-                  <li key={job.id}>
-                    <button
-                      onClick={() => setSelected(job)}
-                      className={cn("w-full rounded-xl border p-3 text-left transition-colors",
-                        active ? "border-primary/60 bg-primary/5" : "border-border bg-card hover:border-primary/30")}
-                    >
-                      <p className="truncate text-sm font-semibold">{job.title}</p>
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                        <Building2 className="h-3 w-3 shrink-0" /> {job.company}
-                      </p>
-                      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                        <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {job.location}</span>
-                        {sal && <span className="flex items-center gap-1 text-emerald-400"><DollarSign className="h-3 w-3" /> {sal}</span>}
-                        {job.postedAt && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {ago(job.postedAt)}</span>}
-                        {job.publisher && job.publisher !== "Adzuna" && (
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground/80">{job.publisher}</span>
-                        )}
-                        {job.blocked && (
-                          <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">Blocked</span>
-                        )}
+            <>
+              {/* Select-all on this page */}
+              {result && result.jobs.length > 0 && (
+                <div className="mb-2 flex items-center justify-between px-1 text-xs text-muted-foreground">
+                  <button
+                    onClick={() => {
+                      const ids = (result?.jobs ?? []).filter((j) => !j.blocked).map((j) => j.id);
+                      const all = ids.length > 0 && ids.every((id) => picked.has(id));
+                      setPicked((prev) => {
+                        const next = new Set(prev);
+                        if (all) ids.forEach((id) => next.delete(id)); else ids.forEach((id) => next.add(id));
+                        return next;
+                      });
+                    }}
+                    className="inline-flex items-center gap-2 hover:text-foreground"
+                  >
+                    <span className={cn("flex h-4 w-4 items-center justify-center rounded border",
+                      (result?.jobs ?? []).filter((j) => !j.blocked).every((j) => picked.has(j.id)) && result.jobs.length > 0
+                        ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+                      {(result?.jobs ?? []).filter((j) => !j.blocked).every((j) => picked.has(j.id)) && result.jobs.length > 0 && <Check className="h-3 w-3" />}
+                    </span>
+                    Select all on this page ({result.jobs.length})
+                  </button>
+                  {picked.size > 0 && <button onClick={() => setPicked(new Set())} className="hover:text-foreground">Clear</button>}
+                </div>
+              )}
+
+              <ul className="space-y-2">
+                {result?.jobs.map((job) => {
+                  const active = selected?.id === job.id;
+                  const isPicked = picked.has(job.id);
+                  const sal = salaryLabel(job);
+                  return (
+                    <li key={job.id}>
+                      <div className={cn("flex items-start gap-2.5 rounded-xl border p-3 transition-colors",
+                        active ? "border-primary/60 bg-primary/5" : isPicked ? "border-primary/40 bg-primary/[0.03]" : "border-border bg-card hover:border-primary/30")}>
+                        <button
+                          onClick={() => !job.blocked && togglePick(job.id)}
+                          disabled={!!job.blocked}
+                          aria-label={isPicked ? "Deselect" : "Select"}
+                          className={cn("mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors disabled:opacity-30",
+                            isPicked ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary")}
+                        >
+                          {isPicked && <Check className="h-3.5 w-3.5" />}
+                        </button>
+                        <button onClick={() => setSelected(job)} className="min-w-0 flex-1 text-left">
+                          <p className="truncate text-sm font-semibold">{job.title}</p>
+                          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
+                            <Building2 className="h-3 w-3 shrink-0" /> {job.company}
+                          </p>
+                          <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                            <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {job.location}</span>
+                            {sal && <span className="flex items-center gap-1 text-emerald-400"><DollarSign className="h-3 w-3" /> {sal}</span>}
+                            {job.postedAt && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {ago(job.postedAt)}</span>}
+                            {job.publisher && job.publisher !== "Adzuna" && (
+                              <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-foreground/80">{job.publisher}</span>
+                            )}
+                            {job.blocked && (
+                              <span className="rounded bg-destructive/15 px-1.5 py-0.5 text-[10px] font-medium text-destructive">Blocked</span>
+                            )}
+                          </div>
+                        </button>
                       </div>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+                    </li>
+                  );
+                })}
+              </ul>
+            </>
           )}
 
           {result && result.jobs.length > 0 && (canPrev || canNext) && (
@@ -429,6 +480,19 @@ export default function JobSearchPage() {
           )}
         </div>
       </div>
+
+      {/* Spacer so the fixed bulk bar never covers content */}
+      {picked.size > 0 && <div className="h-28" />}
+
+      {picked.size > 0 && (
+        <BulkApplyBar
+          importFirst
+          onClear={() => setPicked(new Set())}
+          jobs={(result?.jobs ?? [])
+            .filter((j) => picked.has(j.id))
+            .map((j): BulkJob => ({ id: j.id, title: j.title, company: j.company, url: j.url, text: buildFallbackText(j) }))}
+        />
+      )}
     </main>
   );
 }

@@ -13,10 +13,12 @@ export interface BulkJob {
   title: string;
   company: string | null;
   url: string | null;
+  /** Fallback listing text for import-first mode (search results not yet imported). */
+  text?: string;
 }
 
-type JobStatus = "queued" | "optimizing" | "applying" | "applied" | "review" | "failed";
-type Phase = "idle" | "optimizing" | "applying" | "done";
+type JobStatus = "queued" | "importing" | "optimizing" | "applying" | "applied" | "review" | "failed";
+type Phase = "idle" | "importing" | "optimizing" | "applying" | "done";
 
 interface ResumeDoc { id: string; label: string; is_primary?: boolean; active_version_id?: string | null }
 
@@ -33,7 +35,7 @@ async function postJSON(url: string, body: Record<string, unknown>) {
   }
 }
 
-export function BulkApplyBar({ jobs, onClear }: { jobs: BulkJob[]; onClear: () => void }) {
+export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: BulkJob[]; onClear: () => void; importFirst?: boolean }) {
   const [resumes, setResumes] = useState<ResumeDoc[]>([]);
   const [resumeId, setResumeId] = useState<string>("");
   const [tailorEach, setTailorEach] = useState(true);
@@ -66,7 +68,7 @@ export function BulkApplyBar({ jobs, onClear }: { jobs: BulkJob[]; onClear: () =
 
   const versionId = resumes.find((r) => r.id === resumeId)?.active_version_id ?? null;
   const resumeLabel = resumes.find((r) => r.id === resumeId)?.label ?? null;
-  const running = phase === "optimizing" || phase === "applying";
+  const running = phase === "importing" || phase === "optimizing" || phase === "applying";
 
   const tokenEstimate = jobs.length * ((tailorEach ? COST_TAILOR : 0) + COST_COVER + COST_ATS);
   const directCount = useMemo(() => jobs.filter((j) => boardForUrl(j.url).applyMode === "direct").length, [jobs]);
@@ -99,57 +101,83 @@ export function BulkApplyBar({ jobs, onClear }: { jobs: BulkJob[]; onClear: () =
     setNotInstalled(false);
     setOutOfTokens(false);
 
+    // Progress is keyed by the incoming BulkJob.id (stable). For search results we
+    // must first import each to get a JobsAI job id; `jobId` is what the per-job
+    // endpoints and the extension operate on.
+    type Prepared = { key: string; jobId: string; url: string | null; title: string; company: string | null };
+    let prepared: Prepared[] = [];
+
+    // ── Phase 0: import (search results only) ──
+    if (importFirst) {
+      setPhase("importing");
+      for (const job of jobs) {
+        setJob(job.id, "importing");
+        const res = await postJSON("/api/jobs/import", { url: job.url, text: job.text ?? "" });
+        const jobId = (res.json as { job_id?: string }).job_id;
+        if (res.ok && jobId) prepared.push({ key: job.id, jobId, url: job.url, title: job.title, company: job.company });
+        else setJob(job.id, "failed");
+      }
+    } else {
+      prepared = jobs.map((j) => ({ key: j.id, jobId: j.id, url: j.url, title: j.title, company: j.company }));
+    }
+
     // ── Phase 1: optimize each job (résumé tailor + cover letter + ATS score) ──
     setPhase("optimizing");
-    for (const job of jobs) {
-      setJob(job.id, "optimizing");
+    for (const p of prepared) {
+      setJob(p.key, "optimizing");
       const payload = versionId ? { resume_version_id: versionId } : {};
-      await postJSON(`/api/jobs/${job.id}/match`, payload);
+      await postJSON(`/api/jobs/${p.jobId}/match`, payload);
       if (tailorEach) {
-        const t = await postJSON(`/api/jobs/${job.id}/tailor`, payload);
+        const t = await postJSON(`/api/jobs/${p.jobId}/tailor`, payload);
         if (t.status === 402) setOutOfTokens(true);
       }
-      const c = await postJSON(`/api/jobs/${job.id}/cover-letter`, payload);
+      const c = await postJSON(`/api/jobs/${p.jobId}/cover-letter`, payload);
       if (c.status === 402) setOutOfTokens(true);
-      const a = await postJSON(`/api/jobs/${job.id}/ats-scan`, payload);
+      const a = await postJSON(`/api/jobs/${p.jobId}/ats-scan`, payload);
       if (a.status === 402) setOutOfTokens(true);
     }
 
     // ── Phase 2: apply ──
     setPhase("applying");
-    const adapterJobs = jobs.filter((j) => j.url && boardForUrl(j.url).adapter);
-    const serverJobs = jobs.filter((j) => !(j.url && boardForUrl(j.url).adapter));
+    const adapterJobs = prepared.filter((p) => p.url && boardForUrl(p.url).adapter);
+    const serverJobs = prepared.filter((p) => !(p.url && boardForUrl(p.url).adapter));
 
     // Server / ATS path (Lever, Ashby, …) + manual fallbacks.
-    for (const job of serverJobs) {
-      setJob(job.id, "applying");
-      if (!job.url) { setJob(job.id, "review"); recordApplication(job.id, "saved"); continue; }
-      const r = await postJSON(`/api/jobs/${job.id}/apply`, {});
+    for (const p of serverJobs) {
+      setJob(p.key, "applying");
+      if (!p.url) { setJob(p.key, "review"); recordApplication(p.jobId, "saved"); continue; }
+      const r = await postJSON(`/api/jobs/${p.jobId}/apply`, {});
       if (r.status === 402) setOutOfTokens(true);
       const st = (r.json as { data?: { status?: string } }).data?.status;
       const mapped: JobStatus = st === "submitted" ? "applied" : st === "manual_required" ? "review" : "failed";
-      setJob(job.id, mapped);
-      recordApplication(job.id, mapped === "applied" ? "applied" : "saved");
+      setJob(p.key, mapped);
+      recordApplication(p.jobId, mapped === "applied" ? "applied" : "saved");
     }
 
     // Extension path (LinkedIn/Indeed/…) — one batch, streamed progress.
     if (adapterJobs.length === 0) { setPhase("done"); return; }
 
-    runExtensionApply(adapterJobs, { resumeLabel }, (e) => {
-      if (e.type === "unavailable") {
-        setNotInstalled(true);
-        adapterJobs.forEach((j) => setJob(j.id, "review"));
-        setPhase("done");
-      } else if (e.type === "progress") {
-        const mapped: JobStatus = e.status === "applied" ? "applied" : e.status === "failed" ? "failed" : e.status === "review" ? "review" : "applying";
-        setJob(e.jobId, mapped);
-        if (mapped === "applied" || mapped === "review" || mapped === "failed") {
-          recordApplication(e.jobId, mapped === "applied" ? "applied" : "saved");
+    const keyByJobId = new Map(adapterJobs.map((p) => [p.jobId, p.key]));
+    runExtensionApply(
+      adapterJobs.map((p) => ({ id: p.jobId, url: p.url, title: p.title, company: p.company })),
+      { resumeLabel },
+      (e) => {
+        if (e.type === "unavailable") {
+          setNotInstalled(true);
+          adapterJobs.forEach((p) => setJob(p.key, "review"));
+          setPhase("done");
+        } else if (e.type === "progress") {
+          const key = keyByJobId.get(e.jobId) ?? e.jobId;
+          const mapped: JobStatus = e.status === "applied" ? "applied" : e.status === "failed" ? "failed" : e.status === "review" ? "review" : "applying";
+          setJob(key, mapped);
+          if (mapped === "applied" || mapped === "review" || mapped === "failed") {
+            recordApplication(e.jobId, mapped === "applied" ? "applied" : "saved");
+          }
+        } else if (e.type === "done") {
+          setPhase("done");
         }
-      } else if (e.type === "done") {
-        setPhase("done");
       }
-    });
+    );
   }
 
   return (
@@ -171,6 +199,7 @@ export function BulkApplyBar({ jobs, onClear }: { jobs: BulkJob[]; onClear: () =
         {/* Progress / phase line */}
         {phase !== "idle" && (
           <div className="flex flex-wrap items-center gap-3 text-xs">
+            {phase === "importing" && <span className="flex items-center gap-1.5 text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing jobs…</span>}
             {phase === "optimizing" && <span className="flex items-center gap-1.5 text-primary"><Sparkles className="h-3.5 w-3.5" /> Optimizing résumé & cover letter…</span>}
             {phase === "applying" && <span className="flex items-center gap-1.5 text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…</span>}
             {phase === "done" && <span className="flex items-center gap-1.5 text-desyn-success"><CheckCircle2 className="h-3.5 w-3.5" /> Done</span>}
