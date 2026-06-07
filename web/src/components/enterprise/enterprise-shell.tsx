@@ -63,7 +63,7 @@ function Sidebar({ org, onNavigate }: { org: EnterpriseOrg | null; onNavigate?: 
       <div className="border-t border-border p-3 space-y-2">
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
-          <SignOutButton>
+          <SignOutButton redirectUrl={org?.slug ? `/e/${org.slug}` : "/enterprise-login"}>
             <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive">
               <LogOut className="h-4 w-4" /> Sign out
             </button>
