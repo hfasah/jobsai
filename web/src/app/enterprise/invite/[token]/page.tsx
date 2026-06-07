@@ -21,6 +21,11 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
   const accept = async () => {
     setAccepting(true);
     const res = await fetch(`/api/enterprise/invite/${token}`, { method: "POST" });
+    if (res.status === 401) {
+      // Not signed in → enterprise (email-only) sign-in, then back here
+      window.location.href = `/enterprise-login?redirect_url=${encodeURIComponent(`/enterprise/invite/${token}`)}`;
+      return;
+    }
     const json = await res.json();
     if (!res.ok) { setError(json.error ?? "Failed to accept."); setAccepting(false); return; }
     setDone(true);
@@ -58,7 +63,7 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
               {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />}
               {accepting ? "Accepting…" : "Accept invitation"}
             </button>
-            <p className="mt-3 text-xs text-muted-foreground">You need to be signed in to accept. If not signed in, you'll be redirected after login.</p>
+            <p className="mt-3 text-xs text-muted-foreground">You&apos;ll sign in with this email to accept. Enterprise accounts use email sign-in only.</p>
           </>
         )}
       </div>

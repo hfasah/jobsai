@@ -8,7 +8,8 @@ import { getMyMembership } from "@/lib/enterprise";
 export default async function EnterpriseEntry({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const { userId } = await auth();
-  if (!userId) redirect(`/sign-in?redirect_url=${encodeURIComponent(`/e/${slug}`)}`);
+  // Unauthenticated → the dedicated enterprise (email-only) sign-in
+  if (!userId) redirect(`/enterprise-login?redirect_url=${encodeURIComponent(`/e/${slug}`)}`);
 
   const membership = await getMyMembership(userId);
   redirect(membership ? "/enterprise/dashboard" : "/dashboard");
