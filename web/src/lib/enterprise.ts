@@ -1,5 +1,13 @@
+import { randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { EnterpriseOrg, EnterpriseMember } from "@/types/enterprise";
+
+// Company-friendly invite token: "<org-slug>-<short secure suffix>" so the link
+// reads as the company name while staying unguessable.
+export function inviteToken(slug: string): string {
+  const clean = slug.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40) || "team";
+  return `${clean}-${randomBytes(8).toString("hex")}`;
+}
 
 export async function getMyOrg(userId: string): Promise<EnterpriseOrg | null> {
   const { data } = await supabaseAdmin

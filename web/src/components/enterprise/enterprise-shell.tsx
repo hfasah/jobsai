@@ -3,10 +3,10 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe,
-  Menu, X, Building2, ChevronRight, Sparkles,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -66,8 +66,13 @@ function Sidebar({ org, onNavigate }: { org: EnterpriseOrg | null; onNavigate?: 
           <span>Job Seeker Dashboard</span>
           <ChevronRight className="ml-auto h-3.5 w-3.5" />
         </Link>
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
+          <SignOutButton>
+            <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive">
+              <LogOut className="h-4 w-4" /> Sign out
+            </button>
+          </SignOutButton>
         </div>
       </div>
     </div>

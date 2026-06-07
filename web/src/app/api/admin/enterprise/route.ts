@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin";
-import { uniqueSlug } from "@/lib/enterprise";
+import { uniqueSlug, inviteToken } from "@/lib/enterprise";
 import { getTemplate, ORG_TEMPLATES } from "@/lib/enterprise-templates";
 import { resend } from "@/lib/resend";
 
@@ -74,7 +74,7 @@ export async function POST(req: NextRequest) {
   let inviteUrl: string | null = null;
   if (ownerEmail) {
     const { data: inv } = await supabaseAdmin.from("enterprise_invitations")
-      .insert({ org_id: org.id, email: ownerEmail, role: "owner", invited_by: admin.userId })
+      .insert({ org_id: org.id, email: ownerEmail, role: "owner", invited_by: admin.userId, token: inviteToken(slug) })
       .select("token").single();
     if (inv) {
       inviteUrl = `${APP_URL}/enterprise/invite/${inv.token}`;

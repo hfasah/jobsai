@@ -1,7 +1,7 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg, getMyMembership } from "@/lib/enterprise";
+import { getMyOrg, getMyMembership, inviteToken } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { audit } from "@/lib/enterprise-audit";
 
@@ -70,7 +70,7 @@ export async function POST(req: NextRequest) {
 
   const { data: invitation, error } = await supabaseAdmin
     .from("enterprise_invitations")
-    .insert({ org_id: org.id, email, role, invited_by: userId })
+    .insert({ org_id: org.id, email, role, invited_by: userId, token: inviteToken(org.slug) })
     .select("*")
     .single();
 
