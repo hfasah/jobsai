@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { checkInterviewAccess } from "@/lib/feature-access";
 import { getUserPlan } from "@/lib/billing";
-import { PERSONAS, type AvatarPersona } from "@/lib/avatar";
+import { PERSONAS, INTERVIEWER_GUARDRAILS, type AvatarPersona } from "@/lib/avatar";
 
 export const maxDuration = 60;
 
@@ -115,7 +115,7 @@ export async function POST(
         model: "gpt-4o",
         temperature: 0.7,
         messages: [
-          { role: "system", content: `${persona.guidance} You are interviewing for a ${jobTitle} role at ${company}. You are on a live video call speaking out loud — keep each question to 1–2 conversational sentences, ONE question at a time. Return ONLY the spoken question text.` },
+          { role: "system", content: `${persona.guidance} You are interviewing for a ${jobTitle} role at ${company}. You are on a live video call speaking out loud — keep each question to 1–2 conversational sentences, ONE question at a time. ${INTERVIEWER_GUARDRAILS} Return ONLY the spoken question text.` },
           { role: "user", content: `Greet ${resumeName} briefly and ask your first question.` },
         ],
       });
@@ -180,7 +180,7 @@ export async function POST(
         temperature: 0.7,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: `${persona.guidance} You are interviewing for a ${jobTitle} role on a live video call. ALWAYS first briefly and naturally acknowledge the candidate's last answer in a few words (e.g. "Got it.", "That makes sense.", "Interesting —"), THEN ask exactly ONE question. Keep the whole thing to 1–2 spoken sentences. ${directive} Return ONLY JSON: {"say":"<short acknowledgment + your spoken question>","kind":"followup"|"question","wrap":<true|false>}` },
+          { role: "system", content: `${persona.guidance} You are interviewing for a ${jobTitle} role on a live video call. ALWAYS first briefly and naturally acknowledge the candidate's last answer in a few words (e.g. "Got it.", "That makes sense.", "Interesting —"), THEN ask exactly ONE question. Keep the whole thing to 1–2 spoken sentences. ${directive} ${INTERVIEWER_GUARDRAILS} Return ONLY JSON: {"say":"<short acknowledgment + your spoken question>","kind":"followup"|"question","wrap":<true|false>}` },
           { role: "user", content: `Conversation so far:\n${convo}` },
         ],
       });
