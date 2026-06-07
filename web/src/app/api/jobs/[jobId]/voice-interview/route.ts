@@ -5,6 +5,7 @@ import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { checkInterviewAccess } from "@/lib/feature-access";
+import { getUserPlan } from "@/lib/billing";
 
 export const maxDuration = 60;
 
@@ -131,7 +132,9 @@ export async function POST(
       return NextResponse.json({ error: "Could not start the interview." }, { status: 500 });
     }
 
-    const spend = await deductTokens(userId, PER_TURN_COST, "voice_minute", { jobId, turn: 0 });
+    // Free users get a short, metered preview (the opening question), then an
+    // upgrade wall on their first answer. meterFree consumes the 500 grant.
+    const spend = await deductTokens(userId, PER_TURN_COST, "voice_minute", { jobId, turn: 0 }, { meterFree: true });
     return NextResponse.json({ data: { question, balance: spend.balance, trial: access.trial ?? false } });
   }
 
@@ -141,6 +144,18 @@ export async function POST(
     const mainCount = typeof body.main_count === "number" ? body.main_count : history.filter((t) => t.role === "interviewer").length;
     const followupJustAsked = body.followup_just_asked === true;
     const totalTurns = typeof body.total_turns === "number" ? body.total_turns : history.filter((t) => t.role === "interviewer").length;
+
+    // Free preview ends after the opening question — upgrade to continue.
+    const plan = await getUserPlan(userId);
+    if (plan === "free") {
+      return NextResponse.json({
+        data: {
+          done: true,
+          preview_over: true,
+          message: "That was your free voice preview — upgrade to run the full AI voice interview with feedback.",
+        },
+      });
+    }
 
     // What's allowed next: never two follow-ups in a row; respect both caps.
     const canFollowup = !followupJustAsked && totalTurns < MAX_TOTAL;
@@ -198,7 +213,7 @@ export async function POST(
     // Enforce the allowed kind regardless of what the model returned.
     const kind: "followup" | "question" = !canNewMain ? "followup" : !canFollowup ? "question" : (parsed.kind === "followup" ? "followup" : "question");
 
-    const spend = await deductTokens(userId, PER_TURN_COST, "voice_minute", { jobId, turn: totalTurns, kind });
+    const spend = await deductTokens(userId, PER_TURN_COST, "voice_minute", { jobId, turn: totalTurns, kind }, { meterFree: true });
     return NextResponse.json({ data: { question: parsed.say, kind, balance: spend.balance, done: false } });
   }
 

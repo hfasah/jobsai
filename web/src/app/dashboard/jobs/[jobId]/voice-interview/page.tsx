@@ -194,6 +194,12 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
     if (typeof json.balance === "number") setBalance(json.balance);
     if (json.data?.balance !== undefined) setBalance(json.data.balance);
 
+    // Free preview over → upgrade wall (don't analyze a one-question teaser).
+    if (json.data?.preview_over) {
+      setErrorMsg(json.data.message ?? "Upgrade to run the full voice interview.");
+      setPhase("blocked");
+      return;
+    }
     if (json.data?.done || res.status === 402) {
       finish(newHistory);
       return;
