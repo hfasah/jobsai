@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -32,6 +32,16 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ to
     .maybeSingle();
 
   if (!inv) return NextResponse.json({ error: "Invalid or expired invitation." }, { status: 404 });
+
+  // Only the invited email may accept — prevents the wrong account claiming the workspace
+  if (inv.email) {
+    const client = await clerkClient();
+    const user = await client.users.getUser(userId);
+    const emails = user.emailAddresses.map((e) => e.emailAddress.toLowerCase());
+    if (!emails.includes(inv.email.toLowerCase())) {
+      return NextResponse.json({ error: `This invitation was sent to ${inv.email}. Please sign in with that email to accept.` }, { status: 403 });
+    }
+  }
 
   // Check not already a member
   const { data: existing } = await supabaseAdmin
