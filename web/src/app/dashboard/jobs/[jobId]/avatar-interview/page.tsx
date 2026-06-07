@@ -193,11 +193,11 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
   }, []);
 
   // ── LiveAvatar LITE: lazy-init the streaming session (once) ───────────────────
-  const ensureAvatar = useCallback(async (): Promise<boolean> => {
+  const ensureAvatar = useCallback(async (p: AvatarPersona): Promise<boolean> => {
     if (avatarInitedRef.current) return !!avatarSessionRef.current;
     avatarInitedRef.current = true;
     try {
-      const res = await fetch("/api/avatar/session");
+      const res = await fetch(`/api/avatar/session?persona=${encodeURIComponent(p)}`);
       const { data } = await res.json();
       if (!data?.configured || data.provider !== "liveavatar" || !data.sessionToken) return false;
 
@@ -316,7 +316,7 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     startRecording();
     setQuestion(json.data.question);
     setHistory([{ role: "interviewer", content: json.data.question }]);
-    await ensureAvatar(); // spin up the HeyGen avatar (no-op if not configured)
+    await ensureAvatar(persona); // spin up the LiveAvatar (no-op if not configured)
     speak(json.data.question);
   }, [jobId, persona, speak, startRecording, ensureAvatar]);
 

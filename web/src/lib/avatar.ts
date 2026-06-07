@@ -45,8 +45,27 @@ export const PERSONAS: Record<AvatarPersona, PersonaMeta> = {
   },
 };
 
+// Per-persona avatar IDs (set any/all at app.liveavatar.com). Falls back to the
+// shared LIVEAVATAR_AVATAR_ID when a persona-specific one isn't set.
+const PERSONA_AVATAR_ENV: Record<AvatarPersona, string> = {
+  recruiter:      "LIVEAVATAR_AVATAR_RECRUITER",
+  hiring_manager: "LIVEAVATAR_AVATAR_HIRING_MANAGER",
+  tech_lead:      "LIVEAVATAR_AVATAR_TECH_LEAD",
+  executive:      "LIVEAVATAR_AVATAR_EXECUTIVE",
+};
+
+function avatarIdForPersona(persona?: AvatarPersona): string | undefined {
+  const specific = persona ? process.env[PERSONA_AVATAR_ENV[persona]] : undefined;
+  return specific || process.env.LIVEAVATAR_AVATAR_ID;
+}
+
 export function isAvatarConfigured(): boolean {
-  return Boolean(process.env.LIVEAVATAR_API_KEY && process.env.LIVEAVATAR_AVATAR_ID);
+  if (!process.env.LIVEAVATAR_API_KEY) return false;
+  // Configured if there's a shared id or at least one persona-specific id.
+  return Boolean(
+    process.env.LIVEAVATAR_AVATAR_ID ||
+    Object.values(PERSONA_AVATAR_ENV).some((k) => process.env[k])
+  );
 }
 
 export interface StreamingSession {
@@ -60,8 +79,9 @@ export interface StreamingSession {
 // drives questions, OpenAI TTS supplies the audio, LiveAvatar lip-syncs). The API
 // key stays server-side. Falls back to simulated mode on any error so the Avatar
 // Room always works.
-export async function createStreamingSession(): Promise<StreamingSession> {
-  if (!isAvatarConfigured()) {
+export async function createStreamingSession(persona?: AvatarPersona): Promise<StreamingSession> {
+  const avatarId = avatarIdForPersona(persona);
+  if (!process.env.LIVEAVATAR_API_KEY || !avatarId) {
     return { configured: false, provider: "simulated" };
   }
 
@@ -74,7 +94,7 @@ export async function createStreamingSession(): Promise<StreamingSession> {
       },
       body: JSON.stringify({
         mode: "LITE",
-        avatar_id: process.env.LIVEAVATAR_AVATAR_ID,
+        avatar_id: avatarId,
         is_sandbox: process.env.LIVEAVATAR_SANDBOX === "true",
       }),
     });
