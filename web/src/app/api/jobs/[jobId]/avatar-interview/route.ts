@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { checkInterviewAccess } from "@/lib/feature-access";
 import { getUserPlan } from "@/lib/billing";
-import { PERSONAS, INTERVIEWER_GUARDRAILS, type AvatarPersona } from "@/lib/avatar";
+import { PERSONAS, INTERVIEWER_GUARDRAILS, INTERVIEW_TOOL_GUARDRAILS, type AvatarPersona } from "@/lib/avatar";
 
 export const maxDuration = 60;
 
@@ -208,6 +208,10 @@ export async function POST(
 
     const ctx = await loadJobContext(userId, jobId);
     const jobTitle = isContextError(ctx) ? "the role" : (ctx.jobParsed.title ?? "the role");
+    const jobFocus = isContextError(ctx) ? "" : [
+      ...(ctx.jobParsed.skills ?? []).slice(0, 8),
+      ...(ctx.jobParsed.requirements ?? []).slice(0, 4),
+    ].filter(Boolean).join(", ");
     const convo = history.map((t) => `${t.role === "interviewer" ? "Interviewer" : "Candidate"}: ${t.content}`).join("\n");
 
     let scores: { communication: number; technical: number; behavioral: number; confidence: number; summary: string; strengths: string[]; improvements: string[] };
@@ -217,8 +221,11 @@ export async function POST(
         temperature: 0.3,
         response_format: { type: "json_object" },
         messages: [
-          { role: "system", content: `You are an interview coach scoring a candidate's video interview (${persona.label}) for a ${jobTitle} role. Return ONLY valid JSON:
-{ "communication": <0-100>, "technical": <0-100>, "behavioral": <0-100>, "confidence": <0-100>, "summary": "<one sentence>", "strengths": ["<2-3>"], "improvements": ["<2-3>"] }` },
+          { role: "system", content: `You are a senior interview coach writing a candidate's debrief after a video interview (${persona.label}) for a ${jobTitle} role.${jobFocus ? ` This role emphasizes: ${jobFocus}.` : ""} Score honestly and give specific, role-relevant feedback grounded in what the candidate actually said. ${INTERVIEW_TOOL_GUARDRAILS} Return ONLY valid JSON:
+{ "communication": <0-100>, "technical": <0-100>, "behavioral": <0-100>, "confidence": <0-100>,
+  "summary": "<a 3-4 sentence written assessment: overall impression, how well they came across for THIS role, and the single most important thing to improve>",
+  "strengths": ["<2-3 specific strengths, each tied to something they actually said>"],
+  "improvements": ["<3-4 concrete, actionable things to work on for THIS role — reference the role's focus areas and give real advice, not just observations>"] }` },
           { role: "user", content: `Full transcript:\n${convo}` },
         ],
       });

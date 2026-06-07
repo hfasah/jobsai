@@ -18,28 +18,28 @@ export const PERSONAS: Record<AvatarPersona, PersonaMeta> = {
   recruiter: {
     label: "HR Recruiter",
     title: "Recruiter screen",
-    voice: "nova",
+    voice: "nova",   // warm female
     guidance: "You are a warm HR recruiter running a first-round screen. Focus on motivation, culture fit, communication, and logistics. Keep it friendly and conversational.",
     accent: "from-pink-500 to-rose-500",
   },
   hiring_manager: {
     label: "Hiring Manager",
     title: "Hiring manager 1:1",
-    voice: "onyx",
+    voice: "onyx",   // deep male
     guidance: "You are the hiring manager. Probe role fit, priorities, how the candidate works, and how they'd handle the team's real challenges. Direct but fair.",
     accent: "from-blue-500 to-indigo-500",
   },
   tech_lead: {
     label: "Technical Lead",
     title: "Technical interview",
-    voice: "echo",
+    voice: "echo",   // male (distinct from onyx)
     guidance: "You are the engineering/technical lead. Go deep on technical concepts, trade-offs, and real project experience. Ask probing follow-ups when answers stay shallow.",
     accent: "from-cyan-500 to-teal-500",
   },
   executive: {
     label: "Executive (VP/Director)",
     title: "Executive interview",
-    voice: "onyx",
+    voice: "shimmer",   // polished female (distinct from hiring manager)
     guidance: "You are a VP/Director. Focus on strategic thinking, leadership, vision, judgment under ambiguity, and executive presence. Expect concise, high-signal answers.",
     accent: "from-violet-500 to-purple-600",
   },
