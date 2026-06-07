@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { LayoutGrid, ShieldCheck, Wand2, Mail, BrainCircuit, Mic2, Reply, Building2, DollarSign, AlertCircle, X } from "lucide-react";
+import Link from "next/link";
+import { LayoutGrid, ShieldCheck, Wand2, Mail, BrainCircuit, Mic2, Reply, Building2, DollarSign, AlertCircle, X, AudioLines, Video } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AtsReport } from "@/components/job/ats-report";
 import { TailoredResumeView } from "@/components/job/tailored-resume";
@@ -179,6 +180,25 @@ export function JobTabs({
             {t.icon}
             {t.label}
           </button>
+        ))}
+
+        {/* Live interview practice — separate immersive pages (free preview, then upgrade) */}
+        {([
+          { href: `/dashboard/jobs/${jobId}/voice-interview`, icon: <AudioLines className="h-4 w-4" />, label: "Voice Interview" },
+          { href: `/dashboard/jobs/${jobId}/avatar-interview`, icon: <Video className="h-4 w-4" />, label: "Avatar Room" },
+        ]).map((it) => (
+          <Link
+            key={it.href}
+            href={it.href}
+            className={cn(
+              "flex items-center gap-2 whitespace-nowrap text-sm font-medium transition-colors",
+              "border-b-2 px-4 py-2.5 md:w-full md:rounded-lg md:border-b-0 md:px-3 md:py-2 md:text-left",
+              "border-transparent text-muted-foreground hover:text-foreground md:hover:bg-muted"
+            )}
+          >
+            {it.icon}
+            {it.label}
+          </Link>
         ))}
       </nav>
 
