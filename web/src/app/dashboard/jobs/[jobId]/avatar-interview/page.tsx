@@ -12,6 +12,7 @@ import { StatRing } from "@/components/ui/stat-ring";
 import { TokenBalance } from "@/components/ui/token-balance";
 import { AudioBars } from "@/components/ui/audio-bars";
 import { PERSONAS, type AvatarPersona } from "@/lib/avatar";
+import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
 import type { Turn, AvatarAnalysis, BodyLanguage } from "@/app/api/jobs/[jobId]/avatar-interview/route";
 
 const TOKEN_PER_TURN = 250;
@@ -73,6 +74,7 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
   const [recordedUrl, setRecordedUrl] = useState<string | null>(null);
 
   const [avatarActive, setAvatarActive] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -302,7 +304,7 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
       body: JSON.stringify({ action: "start", persona }),
     });
     const json = await res.json();
-    if (res.status === 403 || res.status === 402) { setErrorMsg(json.error); setPhase("blocked"); return; }
+    if (res.status === 403 || res.status === 402) { setShowUpgrade(json.error ?? "Upgrade to use the Avatar Room."); return; }
     if (!res.ok) { setErrorMsg(json.error ?? "Could not start."); setPhase("error"); return; }
 
     turnRef.current = 1;
@@ -337,8 +339,9 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     // Free preview over → upgrade wall (stop the avatar, don't analyze).
     if (json.data?.preview_over) {
       avatarSessionRef.current?.stop().catch(() => {});
-      setErrorMsg(json.data.message ?? "Upgrade to run the full avatar interview.");
-      setPhase("blocked");
+      stopListening();
+      setPhase("preflight");
+      setShowUpgrade(json.data.message ?? "Upgrade to run the full avatar interview.");
       return;
     }
     if (json.data?.done || res.status === 402) { finish(newHistory); return; }
@@ -614,6 +617,8 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
           </div>
         )}
       </div>
+
+      {showUpgrade && <UpgradePlansModal reason={showUpgrade} onClose={() => setShowUpgrade(null)} />}
     </div>
   );
 }

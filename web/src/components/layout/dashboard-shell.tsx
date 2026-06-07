@@ -82,7 +82,8 @@ const SECTIONS: NavSection[] = [
   },
 ];
 
-const IMMERSIVE = ["/voice-interview", "/avatar-interview", "/resume-preview", "/resumes/preview"];
+// Voice/avatar interviews keep the dashboard left menu (not a full-screen takeover).
+const IMMERSIVE = ["/resume-preview", "/resumes/preview"];
 
 // Resolve the single active nav href from the current path (+ ?mode= for prep).
 function computeActive(pathname: string, mode: string | null): string | null {

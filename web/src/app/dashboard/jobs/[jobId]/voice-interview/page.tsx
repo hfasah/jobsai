@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { StatRing } from "@/components/ui/stat-ring";
 import { TokenBalance } from "@/components/ui/token-balance";
 import { AudioBars } from "@/components/ui/audio-bars";
+import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
 import type { InterviewType, Turn, VoiceAnalysis } from "@/app/api/jobs/[jobId]/voice-interview/route";
 
 const TOKEN_PER_TURN = 60;
@@ -59,6 +60,7 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
   const [isFollowup, setIsFollowup] = useState(false);
   const [analysis, setAnalysis] = useState<VoiceAnalysis | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
 
   const recognitionRef = useRef<ISpeechRecognition | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -161,7 +163,7 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
       body: JSON.stringify({ action: "start", interview_type: interviewType }),
     });
     const json = await res.json();
-    if (res.status === 403 || res.status === 402) { setErrorMsg(json.error); setPhase("blocked"); return; }
+    if (res.status === 403 || res.status === 402) { setShowUpgrade(json.error ?? "Upgrade to use the Voice Interviewer."); return; }
     if (!res.ok) { setErrorMsg(json.error ?? "Could not start."); setPhase("error"); return; }
 
     turnRef.current = 1;
@@ -196,8 +198,9 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
 
     // Free preview over → upgrade wall (don't analyze a one-question teaser).
     if (json.data?.preview_over) {
-      setErrorMsg(json.data.message ?? "Upgrade to run the full voice interview.");
-      setPhase("blocked");
+      stopListening();
+      setPhase("preflight");
+      setShowUpgrade(json.data.message ?? "Upgrade to run the full voice interview.");
       return;
     }
     if (json.data?.done || res.status === 402) {
@@ -421,6 +424,8 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
           </div>
         )}
       </div>
+
+      {showUpgrade && <UpgradePlansModal reason={showUpgrade} onClose={() => setShowUpgrade(null)} />}
     </div>
   );
 }
