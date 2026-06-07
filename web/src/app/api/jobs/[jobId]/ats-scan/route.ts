@@ -59,6 +59,9 @@ export async function POST(
     return NextResponse.json({ error: "Scan failed. Please try again." }, { status: 500 });
   }
 
+  // NOTE: `summary` is intentionally NOT persisted — the ats_scans table has no
+  // such column on some deployments, and requiring a migration to scan is bad UX.
+  // We return it in the response for display instead (see below).
   const { data, error } = await supabaseAdmin
     .from("ats_scans")
     .upsert(
@@ -67,7 +70,6 @@ export async function POST(
         job_id: jobId,
         resume_version_id: ctx.resumeVersionId,
         score: result.score,
-        summary: result.summary ?? null,
         breakdown: result.breakdown,
         weaknesses: result.weaknesses ?? [],
         formatting_issues: result.formatting_issues ?? [],
@@ -87,5 +89,6 @@ export async function POST(
   }
 
   const spend = await deductTokens(userId, cost, "ats_scan", { jobId }, { meterFree: true });
-  return NextResponse.json({ data, balance: spend.balance });
+  // Merge the AI summary into the response (not stored — see note above).
+  return NextResponse.json({ data: { ...data, summary: result.summary ?? null }, balance: spend.balance });
 }
