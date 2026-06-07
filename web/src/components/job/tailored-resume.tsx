@@ -136,11 +136,11 @@ export function TailoredResumeView({
               <div key={i} className="rounded-xl border border-border bg-card p-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.section}</p>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                  <p className="rounded-lg bg-destructive/15 px-3 py-2 text-sm text-red-900/70 line-through decoration-red-300">
+                  <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-muted-foreground line-through decoration-destructive/50">
                     {c.before}
                   </p>
                   <ArrowRight className="mx-auto hidden h-4 w-4 text-muted-foreground sm:block" />
-                  <p className="rounded-lg bg-desyn-success/15 px-3 py-2 text-sm text-green-900">
+                  <p className="rounded-lg border border-desyn-success/30 bg-desyn-success/10 px-3 py-2 text-sm font-medium text-foreground">
                     {c.after}
                   </p>
                 </div>
