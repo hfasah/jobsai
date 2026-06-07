@@ -75,6 +75,7 @@ const COLUMNS: FooterCol[] = [
       { label: "Affiliates", href: "/affiliate" },
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
+      { label: "Refund Policy", href: "/refund-policy" },
       { label: "Contact", href: "/contact" },
     ],
   },
@@ -198,6 +199,7 @@ export function SiteFooter() {
             <Link href="/sign-up" className="transition-colors hover:text-foreground">Get started</Link>
             <Link href="/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms" className="transition-colors hover:text-foreground">Terms</Link>
+            <Link href="/refund-policy" className="transition-colors hover:text-foreground">Refund Policy</Link>
           </div>
         </div>
       </div>

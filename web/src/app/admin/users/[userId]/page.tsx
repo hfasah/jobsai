@@ -20,10 +20,36 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [changing, setChanging] = useState(false);
+  // Credits & refunds
+  const [creditAmount, setCreditAmount] = useState("");
+  const [creditReason, setCreditReason] = useState("");
+  const [refundRef, setRefundRef] = useState("");
+  const [refundReason, setRefundReason] = useState("");
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/users/${userId}`).then((r) => r.json()).then(setData).finally(() => setLoading(false));
   }, [userId]);
+
+  const runAction = async (payload: Record<string, unknown>) => {
+    setActionBusy(true); setActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload),
+      });
+      const json = await res.json();
+      if (!res.ok) { setActionMsg(json.error ?? "Action failed."); return; }
+      setActionMsg(payload.action === "grant_credit"
+        ? `✓ Granted. New balance: ${Number(json.balance).toLocaleString()} tokens.`
+        : `✓ Refunded ${(json.amount / 100).toFixed(2)} ${String(json.currency).toUpperCase()}.`);
+      setCreditAmount(""); setCreditReason(""); setRefundRef(""); setRefundReason("");
+      const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
+      setData(fresh);
+    } finally {
+      setActionBusy(false);
+    }
+  };
 
   const changePlan = async (plan: string) => {
     setChanging(true);
@@ -46,6 +72,8 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const notifications = data.notifications as unknown[];
   const churnFeedback = data.churnFeedback as unknown[];
   const applyProfile = data.applyProfile as Record<string, unknown> | null;
+  const tokens = data.tokens as { balance: number; plan: string } | null;
+  const ledger = (data.ledger as Record<string, unknown>[]) ?? [];
   const currentPlan = (billing?.plan as string) ?? "free";
 
   return (
@@ -105,6 +133,65 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
           )}
         </div>
       )}
+
+      {/* Credits & Refunds */}
+      <div className="rounded-2xl border border-border bg-card p-5">
+        <div className="mb-1 flex items-center justify-between">
+          <h2 className="font-semibold">Credits &amp; Refunds</h2>
+          {tokens && <span className="text-sm text-muted-foreground">Balance: <span className="font-semibold text-foreground tabular-nums">{tokens.balance.toLocaleString()}</span> tokens</span>}
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">
+          Refunds are issued as <strong className="text-foreground">credits (tokens)</strong> by default — for support, goodwill, or compensating a technical/support issue. Money refunds are exceptional. (See the <Link href="/refund-policy" className="text-primary hover:underline">refund policy</Link>.)
+        </p>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Grant credits */}
+          <div className="rounded-xl border border-border bg-background/40 p-4">
+            <p className="mb-2 text-sm font-medium">Grant credits</p>
+            <input type="number" min={1} value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} placeholder="Tokens (e.g. 5000)"
+              className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <input value={creditReason} onChange={(e) => setCreditReason(e.target.value)} placeholder="Reason (e.g. support issue, goodwill)"
+              className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <button onClick={() => runAction({ action: "grant_credit", amount: Number(creditAmount), reason: creditReason })}
+              disabled={actionBusy || !creditAmount}
+              className="btn-cta inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg text-sm disabled:opacity-60">
+              Grant credits
+            </button>
+          </div>
+
+          {/* Money refund (exceptional) */}
+          <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <p className="mb-2 text-sm font-medium text-amber-600 dark:text-amber-400">Money refund (exceptional)</p>
+            <input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} placeholder="Stripe payment intent / charge id"
+              className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <input value={refundReason} onChange={(e) => setRefundReason(e.target.value)} placeholder="Reason (required)"
+              className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
+            <button onClick={() => { if (confirm("Issue a real money refund via Stripe? This is exceptional.")) runAction({ action: "refund", payment_intent_id: refundRef.startsWith("pi_") ? refundRef : undefined, charge_id: refundRef.startsWith("ch_") ? refundRef : undefined, reason: refundReason }); }}
+              disabled={actionBusy || !refundRef || !refundReason}
+              className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/10 disabled:opacity-60 dark:text-amber-400">
+              Issue money refund
+            </button>
+          </div>
+        </div>
+
+        {actionMsg && <p className="mt-3 text-sm font-medium text-desyn-success">{actionMsg}</p>}
+
+        {ledger.length > 0 && (
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Recent token ledger</p>
+            <div className="space-y-1">
+              {ledger.slice(0, 8).map((l, i) => (
+                <div key={i} className="flex items-center justify-between gap-3 text-xs">
+                  <span className="truncate text-muted-foreground">{String(l.reason)}{(l.metadata as Record<string, unknown>)?.note ? ` — ${String((l.metadata as Record<string, unknown>).note)}` : ""}</span>
+                  <span className={cn("shrink-0 tabular-nums font-medium", Number(l.delta) > 0 ? "text-desyn-success" : Number(l.delta) < 0 ? "text-muted-foreground" : "text-amber-500")}>
+                    {Number(l.delta) > 0 ? "+" : ""}{Number(l.delta).toLocaleString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Settings */}
       {applyProfile && (

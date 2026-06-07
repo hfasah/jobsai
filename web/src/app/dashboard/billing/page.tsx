@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Loader2, CheckCircle2, Zap, Crown, Rocket, Mic,
@@ -633,6 +634,12 @@ function BillingContent() {
               </div>
             )}
           </section>
+
+          <p className="text-center text-xs text-muted-foreground">
+            Questions about billing, credits, or refunds? See our{" "}
+            <Link href="/refund-policy" className="text-primary hover:underline">Refund &amp; Credit Policy</Link>{" "}
+            or email support@jobsai.work.
+          </p>
         </div>
       </main>
 
