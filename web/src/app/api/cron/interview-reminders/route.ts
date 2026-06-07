@@ -14,13 +14,14 @@ export async function GET(req: NextRequest) {
   }
 
   const now = Date.now();
-  // candidates within the next 25h that are still active
+  // Runs once daily — remind for everything in the next ~30h not yet reminded.
+  // The calendar invite (.ics) carries its own 1-day and 1-hour alarms too.
   const { data: rows } = await supabaseAdmin
     .from("enterprise_interview_schedule")
     .select("*")
     .in("status", ["scheduled", "confirmed"])
     .gte("scheduled_at", new Date(now).toISOString())
-    .lte("scheduled_at", new Date(now + 25 * 3600_000).toISOString());
+    .lte("scheduled_at", new Date(now + 30 * 3600_000).toISOString());
 
   let sent = 0;
   for (const r of rows ?? []) {
@@ -46,15 +47,12 @@ export async function GET(req: NextRequest) {
       sent++;
     };
 
-    // 24h reminder window (23.5–24.5h out)
-    if (!r.reminder_24h_sent && mins <= 24 * 60 + 30 && mins >= 24 * 60 - 30) {
-      await send("tomorrow");
-      await supabaseAdmin.from("enterprise_interview_schedule").update({ reminder_24h_sent: true }).eq("id", r.id);
-    }
-    // 1h reminder window (45–75 min out)
-    else if (!r.reminder_1h_sent && mins <= 75 && mins >= 0) {
-      await send("in about an hour");
-      await supabaseAdmin.from("enterprise_interview_schedule").update({ reminder_1h_sent: true }).eq("id", r.id);
+    // Daily run: send one day-before reminder for anything coming up that
+    // hasn't been reminded yet. (The .ics also fires 1-day + 1-hour calendar
+    // alarms in the attendee's own calendar app.)
+    if (!r.reminder_24h_sent && mins >= 0) {
+      await send(mins <= 3 * 60 ? "soon" : "tomorrow");
+      await supabaseAdmin.from("enterprise_interview_schedule").update({ reminder_24h_sent: true, reminder_1h_sent: true }).eq("id", r.id);
     }
   }
 
