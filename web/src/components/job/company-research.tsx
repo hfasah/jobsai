@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Building2, Loader2, RefreshCw, Users, Lightbulb, MessageSquare, ThumbsUp, ThumbsDown, Newspaper, ChevronDown, ChevronUp } from "lucide-react";
+import { promptUpgrade } from "@/lib/upgrade";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/job/ats-report";
 import { cn } from "@/lib/utils";
@@ -89,6 +90,7 @@ export function CompanyResearchView({
     try {
       const res = await fetch(`/api/jobs/${jobId}/company-research`, { method: "POST" });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { alert(json.error ?? "Research failed."); return; }
       setResearch(json.data);
     } finally {

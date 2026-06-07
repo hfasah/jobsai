@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { UpgradeHost } from "@/components/upgrade-host";
 import { getMyMembership } from "@/lib/enterprise";
 
 export default async function DashboardLayout({
@@ -19,5 +20,10 @@ export default async function DashboardLayout({
     }
   }
 
-  return <DashboardShell>{children}</DashboardShell>;
+  return (
+    <DashboardShell>
+      {children}
+      <UpgradeHost />
+    </DashboardShell>
+  );
 }

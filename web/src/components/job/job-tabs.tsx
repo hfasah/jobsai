@@ -8,6 +8,7 @@ import { AtsReport } from "@/components/job/ats-report";
 import { TailoredResumeView } from "@/components/job/tailored-resume";
 import { CoverLetterView } from "@/components/job/cover-letter";
 import { InterviewPrepView } from "@/components/job/interview-prep";
+import { promptUpgrade } from "@/lib/upgrade";
 import { MockInterviewView } from "@/components/job/mock-interview";
 import { FollowUpView } from "@/components/job/follow-up";
 import { CompanyResearchView } from "@/components/job/company-research";
@@ -98,6 +99,7 @@ export function JobTabs({
     try {
       const res = await fetch(`/api/jobs/${jobId}/ats-scan`, { method: "POST" });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { setActionError(json.error ?? "We couldn't scan your résumé. Please try again."); return; }
       setScan(json.data);
     } catch {
@@ -113,6 +115,7 @@ export function JobTabs({
     try {
       const res = await fetch(`/api/jobs/${jobId}/tailor`, { method: "POST" });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { setActionError(json.error ?? "We couldn't tailor your résumé. Please try again."); return; }
       setTailored(json.data);
     } catch {
@@ -128,6 +131,7 @@ export function JobTabs({
     try {
       const res = await fetch(`/api/jobs/${jobId}/interview-prep`, { method: "POST" });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { setActionError(json.error ?? "We couldn't generate interview prep. Please try again."); return; }
       setPrep(json.data);
     } catch {
@@ -147,6 +151,7 @@ export function JobTabs({
         body: JSON.stringify({ tone, length }),
       });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { setActionError(json.error ?? "We couldn't generate your cover letter. Please try again."); return; }
       setLetter(json.data);
     } catch {

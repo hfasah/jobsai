@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { DollarSign, Loader2, RefreshCw, TrendingUp, Lightbulb, Info, ChevronRight } from "lucide-react";
+import { promptUpgrade } from "@/lib/upgrade";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/job/ats-report";
 import { cn } from "@/lib/utils";
@@ -146,6 +147,7 @@ export function SalaryIntelView({ jobId }: { jobId: string }) {
     try {
       const res = await fetch(`/api/jobs/${jobId}/salary-intel`, { method: "POST" });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { alert(json.error ?? "Analysis failed."); return; }
       setResult(json.data);
     } finally {

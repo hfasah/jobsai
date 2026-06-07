@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { promptUpgrade } from "@/lib/upgrade";
 import Link from "next/link";
 import {
   Mic2, ChevronRight, RotateCcw, Loader2, Star,
@@ -329,9 +330,10 @@ export function MockInterviewView({
     });
     const json = await res.json();
 
-    if (res.status === 402) {
+    if (res.status === 402 || json.upgrade_required) {
       setBalance(json.balance ?? 0);
       setTokenWall(true);
+      promptUpgrade(json.error);
       setStage({ type: "answering", qIndex });
       return;
     }

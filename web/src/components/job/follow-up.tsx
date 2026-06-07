@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { promptUpgrade } from "@/lib/upgrade";
 import {
   Reply, Loader2, RefreshCw, Copy, Check, Mail,
 } from "lucide-react";
@@ -73,6 +74,7 @@ export function FollowUpView({ jobId }: { jobId: string }) {
         body: JSON.stringify({ type: t }),
       });
       const json = await res.json();
+      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { alert(json.error ?? "Generation failed."); return; }
       setEmail(json.data);
     } finally {
