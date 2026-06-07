@@ -64,7 +64,7 @@ export default function AdminEnterprise() {
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">
-              <tr>{["Organization", "Plan", "Members", "Jobs", "Applicants", "LLM / mo", "Status", ""].map((h) => (
+              <tr>{["Organization", "Plan", "Members", "Jobs", "Applicants", "LLM / mo", "Created", "Status", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
               ))}</tr>
             </thead>
@@ -77,6 +77,7 @@ export default function AdminEnterprise() {
                   <td className="px-4 py-3 tabular-nums">{o.jobs}</td>
                   <td className="px-4 py-3 tabular-nums">{o.applicants}</td>
                   <td className="px-4 py-3 tabular-nums font-medium">${o.month_cost.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{new Date(o.created_at).toLocaleDateString()}</td>
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize",
                       o.status === "suspended" ? "border-red-500/30 bg-red-500/10 text-red-400" : "border-green-500/30 bg-green-500/10 text-green-400")}>{o.status}</span>

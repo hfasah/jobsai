@@ -4,8 +4,29 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, DollarSign, Cpu, Save, Check, ExternalLink, Power, CheckCircle2,
+  Copy, KeyRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function CustomLink({ slug }: { slug: string }) {
+  const [copied, setCopied] = useState(false);
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://www.jobsai.work";
+  const link = `${origin}/e/${slug}`;
+  return (
+    <div className="rounded-2xl border border-primary/30 bg-primary/5 p-5">
+      <h2 className="mb-1 flex items-center gap-2 font-semibold"><KeyRound className="h-4 w-4 text-primary" /> Enterprise login link</h2>
+      <p className="mb-3 text-sm text-muted-foreground">Send this to the client. It always takes them straight into their workspace (never the job-seeker account), on any device.</p>
+      <div className="flex items-center gap-2">
+        <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-background px-3 py-2 text-sm">{link}</code>
+        <button onClick={() => { navigator.clipboard.writeText(link); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+          className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold">
+          {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />} {copied ? "Copied" : "Copy"}
+        </button>
+        <a href={link} target="_blank" rel="noopener noreferrer" className="rounded-lg border border-border p-2 hover:bg-muted"><ExternalLink className="h-4 w-4" /></a>
+      </div>
+    </div>
+  );
+}
 
 interface Detail {
   org: { id: string; name: string; slug: string; industry: string | null; plan_label: string; status: string; onboarding_done: boolean; admin_notes: string | null; created_at: string;
@@ -59,7 +80,7 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
         <Link href="/admin/enterprise" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><ArrowLeft className="h-4 w-4" /></Link>
         <div className="flex-1">
           <h1 className="text-2xl font-bold">{d.org.name}</h1>
-          <p className="text-sm text-muted-foreground">{d.org.industry ?? "—"} · {d.members.length} members · {d.jobs} jobs · {d.applicants} applicants</p>
+          <p className="text-sm text-muted-foreground">{d.org.industry ?? "—"} · {d.members.length} members · {d.jobs} jobs · {d.applicants} applicants · Created {new Date(d.org.created_at).toLocaleDateString()}</p>
         </div>
         <Link href={`/careers/${d.org.slug}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted">
           <ExternalLink className="h-3.5 w-3.5" /> Careers page
@@ -70,6 +91,9 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
           <Power className="h-3.5 w-3.5" /> {d.org.status === "active" ? "Suspend" : "Reactivate"}
         </button>
       </div>
+
+      {/* Custom login link */}
+      <CustomLink slug={d.org.slug} />
 
       {/* Contacts & members */}
       <div className="grid gap-6 lg:grid-cols-2">
