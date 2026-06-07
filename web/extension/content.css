@@ -1,0 +1,106 @@
+/* JobsAI — For LinkedIn · injected UI. Namespaced #jobsai-* to avoid clashes. */
+
+#jobsai-fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 2147483646;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #7c5cff 0%, #6d3bff 100%);
+  box-shadow: 0 8px 24px rgba(109, 59, 255, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+#jobsai-fab:hover { transform: translateY(-2px); box-shadow: 0 12px 30px rgba(109, 59, 255, 0.55); }
+#jobsai-fab img { border-radius: 50%; display: block; }
+
+#jobsai-panel {
+  position: fixed;
+  right: 22px;
+  bottom: 86px;
+  z-index: 2147483647;
+  width: 280px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #1c1530;
+  color: #f3f0ff;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+#jobsai-panel .jobsai-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 15px;
+}
+#jobsai-panel .jobsai-status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #c9bfff;
+}
+#jobsai-panel .jobsai-status.ok { background: rgba(46, 204, 113, 0.18); color: #7ee2a8; }
+
+#jobsai-panel .jobsai-jobname {
+  margin: 10px 0 12px;
+  font-size: 12px;
+  color: #b9b0d9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#jobsai-panel .jobsai-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+#jobsai-panel .jobsai-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+#jobsai-panel .jobsai-btn-primary {
+  background: linear-gradient(135deg, #7c5cff 0%, #6d3bff 100%);
+  color: #fff;
+}
+#jobsai-panel .jobsai-btn-primary:not(:disabled):hover { opacity: 0.92; }
+#jobsai-panel .jobsai-btn-ghost {
+  background: transparent;
+  color: #d8d1f5;
+  border-color: rgba(255, 255, 255, 0.18);
+}
+#jobsai-panel .jobsai-btn-ghost:not(:disabled):hover { background: rgba(255, 255, 255, 0.06); }
+
+#jobsai-panel .jobsai-msg { margin: 10px 0 0; font-size: 12px; min-height: 14px; color: #b9b0d9; }
+#jobsai-panel .jobsai-msg.ok { color: #7ee2a8; }
+#jobsai-panel .jobsai-msg.warn { color: #ffb37a; }
+
+#jobsai-panel .jobsai-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #b8a4ff;
+  text-decoration: none;
+}
+#jobsai-panel .jobsai-link:hover { text-decoration: underline; }
+
+#jobsai-panel .jobsai-connect { margin: 10px 0 0; font-size: 12px; color: #ffb37a; }
+#jobsai-panel .jobsai-connect a { color: #b8a4ff; }

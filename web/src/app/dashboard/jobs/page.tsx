@@ -2,17 +2,22 @@
 
 import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
-  Plus, Loader2, Briefcase, MapPin, Search, X, ChevronDown,
+  Plus, Loader2, Briefcase, MapPin, Search, X, ChevronDown, Check,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
+import { boardForUrl } from "@/lib/job-boards";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface JobListItem {
   id: string;
   status: string;
+  source_url: string | null;
+  posting_url: string | null;
   created_at: string;
   parsed: {
     title: string | null;
@@ -217,6 +222,16 @@ export default function JobsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [sort, setSort] = useState<SortKey>("newest");
 
+  // Bulk-apply selection
+  const router = useRouter();
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSelect = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
   const fetchJobs = useCallback(async () => {
     const res = await fetch("/api/jobs");
     const json = await res.json();
@@ -231,7 +246,7 @@ export default function JobsPage() {
   }, [fetchJobs]);
 
   const filteredJobs = useMemo(() => {
-    let result = jobs.filter((job) => {
+    const result = jobs.filter((job) => {
       const parsed = Array.isArray(job.parsed) ? job.parsed[0] : job.parsed;
       const q = search.toLowerCase();
       if (q) {
@@ -245,6 +260,33 @@ export default function JobsPage() {
     });
     return applySort(result, sort);
   }, [jobs, search, scoreFilter, statusFilter, sort]);
+
+  const jobUrl = (j: JobListItem) => j.posting_url || j.source_url || null;
+
+  // Only "ready" jobs are selectable for apply.
+  const selectableIds = useMemo(
+    () => filteredJobs.filter((j) => j.status === "ready").map((j) => j.id),
+    [filteredJobs]
+  );
+  const allSelected = selectableIds.length > 0 && selectableIds.every((id) => selected.has(id));
+  const toggleSelectAll = () =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allSelected) selectableIds.forEach((id) => next.delete(id));
+      else selectableIds.forEach((id) => next.add(id));
+      return next;
+    });
+
+  const selectedBulkJobs: BulkJob[] = useMemo(
+    () =>
+      jobs
+        .filter((j) => selected.has(j.id))
+        .map((j) => {
+          const parsed = Array.isArray(j.parsed) ? j.parsed[0] : j.parsed;
+          return { id: j.id, title: parsed?.title ?? "Untitled role", company: parsed?.company ?? null, url: jobUrl(j) };
+        }),
+    [jobs, selected]
+  );
 
   return (
     <>
@@ -298,15 +340,55 @@ export default function JobsPage() {
               </div>
             ) : (
               <div className="space-y-2.5">
+                {/* Select-all for the apply queue */}
+                {selectableIds.length > 0 && (
+                  <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
+                    <button onClick={toggleSelectAll} className="inline-flex items-center gap-2 hover:text-foreground">
+                      <span className={cn(
+                        "flex h-4 w-4 items-center justify-center rounded border",
+                        allSelected ? "border-primary bg-primary text-primary-foreground" : "border-border"
+                      )}>
+                        {allSelected && <Check className="h-3 w-3" />}
+                      </span>
+                      Select all ready ({selectableIds.length})
+                    </button>
+                    {selected.size > 0 && (
+                      <button onClick={() => setSelected(new Set())} className="hover:text-foreground">Clear selection</button>
+                    )}
+                  </div>
+                )}
+
                 {filteredJobs.map((job) => {
                   const parsed = Array.isArray(job.parsed) ? job.parsed[0] : job.parsed;
                   const processing = job.status === "processing" || job.status === "created";
+                  const ready = job.status === "ready";
+                  const isSel = selected.has(job.id);
+                  const board = boardForUrl(job.posting_url || job.source_url);
                   return (
-                    <Link
+                    <div
                       key={job.id}
-                      href={`/dashboard/jobs/${job.id}`}
-                      className="flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm"
+                      onClick={() => router.push(`/dashboard/jobs/${job.id}`)}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm",
+                        isSel ? "border-primary/60 ring-1 ring-primary/30" : "border-border"
+                      )}
                     >
+                      {/* Selection checkbox (only for ready jobs) */}
+                      {ready ? (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); toggleSelect(job.id); }}
+                          aria-label={isSel ? "Deselect job" : "Select job"}
+                          className={cn(
+                            "flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors",
+                            isSel ? "border-primary bg-primary text-primary-foreground" : "border-border hover:border-primary"
+                          )}
+                        >
+                          {isSel && <Check className="h-3.5 w-3.5" />}
+                        </button>
+                      ) : (
+                        <span className="h-5 w-5 shrink-0" />
+                      )}
+
                       <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
                         <Briefcase className="h-4.5 w-4.5 text-primary" />
                       </div>
@@ -322,8 +404,15 @@ export default function JobsPage() {
                               {parsed.location}
                             </span>
                           )}
-                          {parsed?.seniority && (
-                            <span className="capitalize">{parsed.seniority}</span>
+                          {(job.posting_url || job.source_url) && (
+                            <span className={cn(
+                              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                              board.applyMode === "direct" ? "bg-desyn-success/15 text-desyn-success"
+                                : board.applyMode === "assisted" ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+                                : "bg-muted text-muted-foreground"
+                            )}>
+                              {board.label}{board.applyMode === "direct" ? " · 1-click" : ""}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -343,14 +432,21 @@ export default function JobsPage() {
                           <span className="text-xs text-muted-foreground">No resume</span>
                         )}
                       </div>
-                    </Link>
+                    </div>
                   );
                 })}
               </div>
             )}
           </div>
         )}
+
+        {/* Spacer so the fixed bar never covers the last row */}
+        {selected.size > 0 && <div className="h-28" />}
       </main>
+
+      {selected.size > 0 && (
+        <BulkApplyBar jobs={selectedBulkJobs} onClear={() => setSelected(new Set())} />
+      )}
     </>
   );
 }

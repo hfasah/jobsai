@@ -1,0 +1,71 @@
+{
+  "manifest_version": 3,
+  "name": "JobsAI — For LinkedIn",
+  "version": "1.0.0",
+  "description": "Save LinkedIn jobs to JobsAI in one click and breeze through Easy Apply with your saved profile.",
+  "author": "JobsAI",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "JobsAI",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": ["storage", "scripting", "tabs", "activeTab", "notifications"],
+  "host_permissions": [
+    "https://*.linkedin.com/*",
+    "https://*.indeed.com/*",
+    "https://*.ziprecruiter.com/*",
+    "https://*.dice.com/*",
+    "https://*.workable.com/*",
+    "https://*.glassdoor.com/*",
+    "https://*.monster.com/*",
+    "https://jobsai.work/*",
+    "https://www.jobsai.work/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["https://*.linkedin.com/*"],
+      "js": ["content-linkedin.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://*.linkedin.com/*",
+        "https://*.indeed.com/*",
+        "https://*.ziprecruiter.com/*",
+        "https://*.dice.com/*",
+        "https://*.workable.com/*",
+        "https://*.glassdoor.com/*",
+        "https://*.monster.com/*"
+      ],
+      "js": ["apply-runner.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "externally_connectable": {
+    "matches": [
+      "https://jobsai.work/*",
+      "https://www.jobsai.work/*",
+      "http://localhost:3000/*"
+    ]
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["icons/*"],
+      "matches": ["https://*.linkedin.com/*"]
+    }
+  ],
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEApubBT/Gw4z9puNDVapnsxGwxdEBL1aXjCQa5QHP4Tj+bZvfQ54XTlQf2IYHML9mAxQcCpaQFj4/nOpR63LKZjBxDRPqN1XjEZAaKaEw03GMVQASFuYBRyrdR/xD2vQT8Pa6m6/KqgSofPXIksXNMl+7EbeMeM/uUgbU7/fPo6fIuUCkERJnLiKjlsWrZuZZ4m7AnxGku4O5GldF4ZOdzqOW68RTvtv9e8tgUiHhdAMvDP1x8qknZVfnz0254zTQGphkMRV6F5xL+tzb4Chi3yZdfHs/CbqOfwhITu9t9xJbNkbNIOdXIR3wcWhZUnCLuktcOIdPUfj44N8hIZrnzPwIDAQAB"
+}

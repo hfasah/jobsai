@@ -1,0 +1,277 @@
+// JobsAI — For LinkedIn · content script
+//
+// Adds a floating JobsAI launcher to LinkedIn job pages with two actions:
+//   1. Save to JobsAI       — imports the current job into the user's dashboard.
+//   2. Easy Apply (autofill) — opens LinkedIn's native Easy Apply modal and fills
+//      the basic contact/screening fields from the user's saved JobsAI profile.
+//      We never auto-submit — the user reviews and clicks the final button.
+
+(() => {
+  "use strict";
+  if (window.__jobsaiInjected) return;
+  window.__jobsaiInjected = true;
+
+  const LOGO = chrome.runtime.getURL("icons/icon48.png");
+  const $ = (sel, root = document) => root.querySelector(sel);
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  function send(message) {
+    return new Promise((resolve) => {
+      try {
+        chrome.runtime.sendMessage(message, (resp) => resolve(resp || { ok: false }));
+      } catch {
+        resolve({ ok: false, error: "extension_reloaded" });
+      }
+    });
+  }
+
+  // ─── Job detection ─────────────────────────────────────────────────────────
+
+  function currentJobUrl() {
+    const m = location.pathname.match(/\/jobs\/view\/(\d+)/);
+    if (m) return `https://www.linkedin.com/jobs/view/${m[1]}/`;
+    const id = new URLSearchParams(location.search).get("currentJobId");
+    if (id) return `https://www.linkedin.com/jobs/view/${id}/`;
+    return null;
+  }
+
+  function jobTitle() {
+    const el =
+      $(".job-details-jobs-unified-top-card__job-title") ||
+      $(".jobs-unified-top-card__job-title") ||
+      $("h1");
+    return el ? el.textContent.trim() : "this job";
+  }
+
+  // ─── Floating UI ─────────────────────────────────────────────────────────────
+
+  let panelOpen = false;
+
+  function buildUI() {
+    if ($("#jobsai-fab")) return;
+
+    const fab = document.createElement("button");
+    fab.id = "jobsai-fab";
+    fab.title = "JobsAI";
+    fab.innerHTML = `<img src="${LOGO}" alt="JobsAI" width="26" height="26" />`;
+    fab.addEventListener("click", togglePanel);
+
+    const panel = document.createElement("div");
+    panel.id = "jobsai-panel";
+    panel.hidden = true;
+    panel.innerHTML = `
+      <div class="jobsai-head">
+        <img src="${LOGO}" width="20" height="20" alt="" />
+        <span>JobsAI</span>
+        <span id="jobsai-status" class="jobsai-status">…</span>
+      </div>
+      <p id="jobsai-jobname" class="jobsai-jobname"></p>
+      <button id="jobsai-save" class="jobsai-btn jobsai-btn-primary">Save to JobsAI</button>
+      <button id="jobsai-apply" class="jobsai-btn jobsai-btn-ghost">Easy Apply — autofill</button>
+      <p id="jobsai-msg" class="jobsai-msg"></p>
+      <a id="jobsai-link" class="jobsai-link" href="#" target="_blank" rel="noopener" hidden>Open in JobsAI →</a>
+      <p id="jobsai-connect" class="jobsai-connect" hidden>
+        Not connected. Open your <a href="https://jobsai.work/dashboard/extension" target="_blank" rel="noopener">JobsAI dashboard</a> to link the extension.
+      </p>
+    `;
+
+    document.body.appendChild(fab);
+    document.body.appendChild(panel);
+
+    $("#jobsai-save", panel).addEventListener("click", onSave);
+    $("#jobsai-apply", panel).addEventListener("click", onEasyApply);
+
+    refreshStatus();
+  }
+
+  function togglePanel() {
+    const panel = $("#jobsai-panel");
+    panelOpen = !panelOpen;
+    panel.hidden = !panelOpen;
+    if (panelOpen) {
+      $("#jobsai-jobname").textContent = jobTitle();
+      refreshStatus();
+    }
+  }
+
+  async function refreshStatus() {
+    const status = $("#jobsai-status");
+    const connectNote = $("#jobsai-connect");
+    const r = await send({ type: "GET_STATUS" });
+    const connected = !!r.connected;
+    if (status) {
+      status.textContent = connected ? "Connected" : "Not connected";
+      status.classList.toggle("ok", connected);
+    }
+    if (connectNote) connectNote.hidden = connected;
+    ["jobsai-save", "jobsai-apply"].forEach((id) => {
+      const b = $("#" + id);
+      if (b) b.disabled = !connected;
+    });
+  }
+
+  function setMsg(text, kind = "") {
+    const m = $("#jobsai-msg");
+    if (!m) return;
+    m.textContent = text;
+    m.className = "jobsai-msg" + (kind ? " " + kind : "");
+  }
+
+  // ─── Save to JobsAI ──────────────────────────────────────────────────────────
+
+  async function onSave() {
+    const url = currentJobUrl();
+    if (!url) { setMsg("Open a specific job first.", "warn"); return; }
+
+    const btn = $("#jobsai-save");
+    btn.disabled = true;
+    setMsg("Saving…");
+    const r = await send({ type: "IMPORT_JOB", url });
+    btn.disabled = false;
+
+    if (r.ok) {
+      setMsg(r.duplicate ? "Already saved ✓" : "Saved to JobsAI ✓", "ok");
+      const link = $("#jobsai-link");
+      if (link) {
+        link.href = `${r.apiBase || "https://jobsai.work"}/dashboard/jobs/${r.jobId}`;
+        link.hidden = false;
+      }
+    } else if (r.error === "not_connected") {
+      setMsg("Connect the extension first.", "warn");
+      refreshStatus();
+    } else if (r.upgrade) {
+      setMsg("Job limit reached — upgrade your plan.", "warn");
+    } else {
+      setMsg(r.error || "Could not save this job.", "warn");
+    }
+  }
+
+  // ─── Easy Apply autofill ─────────────────────────────────────────────────────
+
+  function findEasyApplyButton() {
+    const btns = [...document.querySelectorAll("button")];
+    return btns.find((b) => {
+      const t = (b.getAttribute("aria-label") || b.textContent || "").toLowerCase();
+      return (b.className.includes("jobs-apply-button") || t.includes("easy apply")) && t.includes("apply");
+    });
+  }
+
+  async function waitForModal(timeout = 6000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+      const modal = $(".jobs-easy-apply-modal") || $("[data-test-modal][role='dialog']") || $(".artdeco-modal");
+      if (modal) return modal;
+      await sleep(200);
+    }
+    return null;
+  }
+
+  // Map a field's visible label to a profile value.
+  function valueForLabel(label, p) {
+    const l = label.toLowerCase();
+    const has = (...words) => words.some((w) => l.includes(w));
+
+    if (has("first name")) return p.first_name;
+    if (has("last name", "surname", "family name")) return p.last_name;
+    if (has("full name", "name") && !has("user", "company", "file")) return p.full_name;
+    if (has("email")) return p.email;
+    if (has("mobile", "phone")) return p.phone;
+    if (has("city", "location")) return p.city || p.location;
+    if (has("postal", "zip")) return p.postal_code;
+    if (has("country")) return p.country;
+    if (has("linkedin")) return p.linkedin_url;
+    if (has("github")) return p.github_url;
+    if (has("portfolio", "website")) return p.portfolio_url || p.website_url;
+    if (has("years") && has("experience")) return p.years_experience != null ? String(p.years_experience) : null;
+    return null;
+  }
+
+  function setNativeValue(el, value) {
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    if (setter) setter.call(el, value); else el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function labelTextFor(el, modal) {
+    if (el.id) {
+      const lab = modal.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+      if (lab) return lab.textContent.trim();
+    }
+    const wrap = el.closest(".artdeco-text-input--container, .fb-dash-form-element, [data-test-form-element]") || el.parentElement;
+    const lab = wrap && wrap.querySelector("label");
+    return (lab ? lab.textContent : el.getAttribute("aria-label") || el.name || "").trim();
+  }
+
+  function fillModal(modal, p) {
+    let filled = 0;
+
+    // Text / email / tel inputs + textareas
+    modal.querySelectorAll("input[type='text'], input[type='email'], input[type='tel'], input:not([type]), textarea").forEach((el) => {
+      if (el.value && el.value.trim()) return; // don't overwrite what's there
+      const val = valueForLabel(labelTextFor(el, modal), p);
+      if (val) { setNativeValue(el, val); filled++; }
+    });
+
+    // Selects (e.g. country, yes/no work authorization)
+    modal.querySelectorAll("select").forEach((el) => {
+      const label = labelTextFor(el, modal).toLowerCase();
+      let want = null;
+      if (label.includes("country")) want = p.country;
+      else if (label.includes("authoriz") || label.includes("eligible") || label.includes("legally")) want = p.authorized_to_work ? "yes" : "no";
+      else if (label.includes("sponsor")) want = p.requires_sponsorship ? "yes" : "no";
+      if (!want) return;
+      const opt = [...el.options].find((o) => o.textContent.trim().toLowerCase().includes(String(want).toLowerCase()));
+      if (opt && !el.value) { el.value = opt.value; el.dispatchEvent(new Event("change", { bubbles: true })); filled++; }
+    });
+
+    return filled;
+  }
+
+  async function onEasyApply() {
+    setMsg("Opening Easy Apply…");
+    const pr = await send({ type: "GET_PROFILE" });
+    if (!pr.ok) {
+      setMsg(pr.error === "not_connected" ? "Connect the extension first." : (pr.error || "Could not load your profile."), "warn");
+      return;
+    }
+
+    const applyBtn = findEasyApplyButton();
+    if (!applyBtn) { setMsg("No Easy Apply on this job (external application).", "warn"); return; }
+    applyBtn.click();
+
+    const modal = await waitForModal();
+    if (!modal) { setMsg("Couldn't open the Easy Apply form.", "warn"); return; }
+    await sleep(400);
+
+    const n = fillModal(modal, pr.profile || {});
+    setMsg(n > 0 ? `Filled ${n} field${n === 1 ? "" : "s"}. Review, then submit.` : "Form opened — review and complete it.", n > 0 ? "ok" : "");
+
+    // Re-fill on each step of the multi-step flow as the user clicks "Next".
+    const obs = new MutationObserver(() => {
+      const live = $(".jobs-easy-apply-modal") || $("[data-test-modal][role='dialog']") || $(".artdeco-modal");
+      if (live) fillModal(live, pr.profile || {});
+    });
+    obs.observe(modal, { childList: true, subtree: true });
+    setTimeout(() => obs.disconnect(), 120000);
+  }
+
+  // ─── Boot + SPA navigation ────────────────────────────────────────────────────
+
+  function maybeShow() {
+    if (location.pathname.startsWith("/jobs/")) buildUI();
+  }
+
+  maybeShow();
+
+  // LinkedIn is a SPA — re-evaluate on URL changes.
+  let lastUrl = location.href;
+  setInterval(() => {
+    if (location.href !== lastUrl) {
+      lastUrl = location.href;
+      maybeShow();
+      if (panelOpen) { $("#jobsai-jobname") && ($("#jobsai-jobname").textContent = jobTitle()); setMsg(""); $("#jobsai-link") && ($("#jobsai-link").hidden = true); }
+    }
+  }, 1000);
+})();

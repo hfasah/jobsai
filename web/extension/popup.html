@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>JobsAI</title>
+  </head>
+  <body>
+    <header class="head">
+      <img src="icons/icon48.png" width="28" height="28" alt="JobsAI" />
+      <div>
+        <strong>JobsAI for LinkedIn</strong>
+        <span id="status" class="status">Checking…</span>
+      </div>
+    </header>
+
+    <section id="connected" hidden>
+      <p class="ok">✓ Connected to your JobsAI account.</p>
+      <p class="hint">Open any LinkedIn job and use the floating JobsAI button to save it or autofill Easy Apply.</p>
+      <a class="btn btn-primary" href="https://jobsai.work/dashboard" target="_blank" rel="noopener">Open dashboard</a>
+      <button id="disconnect" class="btn btn-ghost">Disconnect</button>
+    </section>
+
+    <section id="disconnected" hidden>
+      <p class="hint">
+        Paste your extension key from
+        <a href="https://jobsai.work/dashboard/extension" target="_blank" rel="noopener">JobsAI → Extension</a>,
+        or just open that page while signed in to connect automatically.
+      </p>
+      <input id="key" class="input" type="text" placeholder="jsk_..." autocomplete="off" spellcheck="false" />
+      <button id="connect" class="btn btn-primary">Connect</button>
+      <p id="error" class="error" hidden></p>
+    </section>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

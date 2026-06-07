@@ -11,6 +11,8 @@ export const TOKEN_COSTS = {
   resume_tailor: 30,
   cover_letter: 30,
   ats_scan: 20,
+  linkedin_optimize: 30, // full LinkedIn profile rewrite + audit
+  linkedin_post: 20,     // one generated LinkedIn writeup
   voice_minute: 60,    // ~600 for a 10-min voice interview
   avatar_minute: 250,  // ~2,500 for a 10-min avatar interview
 } as const;

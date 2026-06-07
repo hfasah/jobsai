@@ -10,7 +10,7 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("jobs")
     .select(`
-      id, status, source_type, created_at,
+      id, status, source_type, source_url, posting_url, created_at,
       parsed:job_parsed ( title, company, location, seniority ),
       match:job_matches ( match_score )
     `)

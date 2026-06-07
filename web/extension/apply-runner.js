@@ -1,0 +1,264 @@
+// JobsAI — bulk apply runner. Injected on every supported board. Stays idle until
+// the background worker sends a RUN_APPLY message for a queued job, then drives the
+// application using the user's profile and reports the outcome back.
+//
+// RUN_APPLY payload: { job, profile, resumeLabel, autoSubmit }
+//   autoSubmit=true  → submit when the form is fully fillable (1-click boards)
+//   autoSubmit=false → fill + reach the submit step, then stop for the user (verify)
+//
+// Status returned:
+//   applied      — submitted successfully
+//   needs_review — autofilled but left for the user to finish/submit
+//   failed       — couldn't find an apply path / hit an error
+(() => {
+  "use strict";
+  if (window.__jobsaiRunner) return;
+  window.__jobsaiRunner = true;
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const $ = (sel, root = document) => root.querySelector(sel);
+
+  const HOSTS = {
+    linkedin: ["linkedin.com"], indeed: ["indeed.com"], ziprecruiter: ["ziprecruiter.com"],
+    dice: ["dice.com"], workable: ["workable.com"], glassdoor: ["glassdoor.com"], monster: ["monster.com"],
+  };
+  function boardFromHost(host) {
+    host = (host || location.hostname).toLowerCase();
+    for (const [id, hs] of Object.entries(HOSTS)) {
+      if (hs.some((h) => host === h || host.endsWith("." + h))) return id;
+    }
+    return "manual";
+  }
+
+  // ─── Shared form filling ──────────────────────────────────────────────────────
+
+  function valueForLabel(label, p) {
+    const l = (label || "").toLowerCase();
+    const has = (...w) => w.some((x) => l.includes(x));
+    if (has("first name")) return p.first_name;
+    if (has("last name", "surname", "family name")) return p.last_name;
+    if (has("full name") || (has("name") && !has("user", "company", "file", "first", "last"))) return p.full_name;
+    if (has("email")) return p.email;
+    if (has("mobile", "phone")) return p.phone;
+    if (has("postal", "zip")) return p.postal_code;
+    if (has("city", "location")) return p.city || p.location;
+    if (has("country")) return p.country;
+    if (has("linkedin")) return p.linkedin_url;
+    if (has("github")) return p.github_url;
+    if (has("portfolio", "website")) return p.portfolio_url || p.website_url;
+    if (has("years") && has("experience")) return p.years_experience != null ? String(p.years_experience) : null;
+    return null;
+  }
+
+  function setNativeValue(el, value) {
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, "value")?.set;
+    if (setter) setter.call(el, value); else el.value = value;
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+
+  function labelFor(el, root) {
+    if (el.id) {
+      const lab = root.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+      if (lab) return lab.textContent.trim();
+    }
+    const wrap = el.closest("[data-test-form-element], .fb-dash-form-element, .artdeco-text-input--container, .input, fieldset, label") || el.parentElement;
+    const lab = wrap && wrap.querySelector("label, legend");
+    return (lab ? lab.textContent : el.getAttribute("aria-label") || el.name || el.placeholder || "").trim();
+  }
+
+  function fillForm(root, p) {
+    let filled = 0;
+    root.querySelectorAll("input[type='text'], input[type='email'], input[type='tel'], input[type='url'], input:not([type]), textarea").forEach((el) => {
+      if (el.disabled || el.readOnly || el.value?.trim()) return;
+      const v = valueForLabel(labelFor(el, root), p);
+      if (v) { setNativeValue(el, v); filled++; }
+    });
+    root.querySelectorAll("select").forEach((el) => {
+      if (el.value && el.options[el.selectedIndex]?.value) return;
+      const l = labelFor(el, root).toLowerCase();
+      let want = null;
+      if (l.includes("country")) want = p.country;
+      else if (l.includes("authoriz") || l.includes("eligible") || l.includes("legally")) want = p.authorized_to_work ? "yes" : "no";
+      else if (l.includes("sponsor")) want = p.requires_sponsorship ? "yes" : "no";
+      if (!want) return;
+      const opt = [...el.options].find((o) => o.textContent.trim().toLowerCase().includes(String(want).toLowerCase()));
+      if (opt) { el.value = opt.value; el.dispatchEvent(new Event("change", { bubbles: true })); filled++; }
+    });
+    return filled;
+  }
+
+  // Required, still-empty fields we couldn't answer? Guards against bad auto-submits.
+  function hasUnfilledRequired(root) {
+    const fields = [...root.querySelectorAll("[required], [aria-required='true']")];
+    return fields.some((el) => {
+      const tag = el.tagName.toLowerCase();
+      if (tag === "input" && (el.type === "radio" || el.type === "checkbox")) {
+        const name = el.name;
+        return name ? !root.querySelector(`input[name="${CSS.escape(name)}"]:checked`) : !el.checked;
+      }
+      if (el.disabled) return false;
+      return !(el.value && String(el.value).trim());
+    });
+  }
+
+  function buttonByText(root, ...phrases) {
+    const btns = [...root.querySelectorAll("button, [role='button'], input[type='submit'], a.btn, a[role='button']")];
+    return btns.find((b) => {
+      const t = (b.getAttribute("aria-label") || b.value || b.textContent || "").toLowerCase().trim();
+      return phrases.some((p) => t.includes(p)) && !b.disabled && b.offsetParent !== null;
+    });
+  }
+
+  function looksSubmitted(root = document) {
+    const t = (root.innerText || "").toLowerCase();
+    return /application (was )?submitted|your application has been|successfully applied|applied\b|thank you for applying/.test(t);
+  }
+
+  // ─── Generic step-through apply engine (used by all non-LinkedIn boards) ─────────
+  // cfg: { applyPhrases, submitPhrases, nextPhrases, rootSelectors }
+
+  function pickRoot(cfg) {
+    for (const sel of cfg.rootSelectors || []) {
+      const el = $(sel);
+      if (el) return el;
+    }
+    return $("[role='dialog']") || $("form") || document.body;
+  }
+
+  async function stepApply(profile, autoSubmit, cfg) {
+    // 1. Trigger the apply flow if there's an entry button.
+    const trigger = buttonByText(document, ...(cfg.applyPhrases || []));
+    if (trigger) { trigger.click(); await sleep(1500); }
+    if (looksSubmitted()) return "applied"; // some 1-click boards apply instantly
+
+    // 2. Walk the form steps.
+    for (let step = 0; step < 8; step++) {
+      const root = pickRoot(cfg);
+      fillForm(root, profile);
+      await sleep(300);
+
+      if (looksSubmitted()) return "applied";
+
+      const submit = buttonByText(root, ...(cfg.submitPhrases || []));
+      if (submit) {
+        if (hasUnfilledRequired(root)) return "needs_review";
+        if (!autoSubmit) return "needs_review"; // verify mode: stop at the submit step
+        submit.click();
+        await sleep(1200);
+        return looksSubmitted() ? "applied" : "needs_review";
+      }
+
+      if (hasUnfilledRequired(root)) return "needs_review";
+
+      const next = buttonByText(root, ...(cfg.nextPhrases || []));
+      if (!next) return "needs_review";
+      next.click();
+      await sleep(900);
+    }
+    return "needs_review";
+  }
+
+  const BOARD_CFG = {
+    indeed: {
+      applyPhrases: ["apply now", "apply on company", "easily apply", "apply"],
+      submitPhrases: ["submit your application", "submit application", "submit"],
+      nextPhrases: ["continue", "next", "review your application", "review"],
+      rootSelectors: [".ia-Modal", "#ia-container", "[role='dialog']", "main form"],
+    },
+    ziprecruiter: {
+      applyPhrases: ["1-click apply", "1 click apply", "apply now", "quick apply", "apply"],
+      submitPhrases: ["submit application", "submit", "send application"],
+      nextPhrases: ["continue", "next"],
+      rootSelectors: ["[role='dialog']", ".modal", "main form"],
+    },
+    dice: {
+      applyPhrases: ["easy apply", "apply now", "apply"],
+      submitPhrases: ["submit", "submit application"],
+      nextPhrases: ["next", "continue", "review"],
+      rootSelectors: ["[data-cy='easyApplyModal']", "[role='dialog']", ".modal", "form"],
+    },
+    workable: {
+      applyPhrases: ["apply for this job", "apply now", "i'm interested", "apply"],
+      submitPhrases: ["submit application", "submit", "send application"],
+      nextPhrases: ["continue", "next"],
+      rootSelectors: ["form[data-ui='application-form']", "main form", "form"],
+    },
+  };
+
+  // ─── LinkedIn Easy Apply (modal step-loop) ──────────────────────────────────────
+
+  function selectResume(modal, resumeLabel) {
+    if (!resumeLabel) return;
+    const cards = [...modal.querySelectorAll("[data-test-resume-card-container], .jobs-resume-picker__resume")];
+    const match = cards.find((c) => c.textContent.toLowerCase().includes(resumeLabel.toLowerCase()));
+    if (match) {
+      const radio = match.querySelector("input[type='radio'], button");
+      if (radio && !radio.checked) radio.click();
+    }
+  }
+
+  async function applyLinkedIn(profile, resumeLabel, autoSubmit) {
+    const easy = buttonByText(document, "easy apply");
+    if (!easy) return "needs_review"; // external application
+    easy.click();
+
+    let modal = null;
+    for (let i = 0; i < 25 && !modal; i++) { modal = $(".jobs-easy-apply-modal") || $("[data-test-modal][role='dialog']") || $(".artdeco-modal"); await sleep(200); }
+    if (!modal) return "failed";
+    await sleep(400);
+
+    for (let step = 0; step < 8; step++) {
+      fillForm(modal, profile);
+      selectResume(modal, resumeLabel);
+      await sleep(250);
+
+      const submit = buttonByText(modal, "submit application");
+      if (submit) {
+        if (hasUnfilledRequired(modal)) return "needs_review";
+        if (!autoSubmit) return "needs_review";
+        submit.click();
+        await sleep(800);
+        return "applied";
+      }
+      if (hasUnfilledRequired(modal)) return "needs_review";
+
+      const next = buttonByText(modal, "continue to next step", "review your application", "next", "review");
+      if (!next) return "needs_review";
+      next.click();
+      await sleep(700);
+      modal = $(".jobs-easy-apply-modal") || $("[data-test-modal][role='dialog']") || $(".artdeco-modal") || modal;
+    }
+    return "needs_review";
+  }
+
+  // Fallback for boards with no specific config: autofill the visible form only.
+  async function applyGeneric(profile) {
+    const applyBtn = buttonByText(document, "apply now", "easy apply", "quick apply", "apply");
+    if (applyBtn) { applyBtn.click(); await sleep(1200); }
+    fillForm($("[role='dialog']") || $("form") || document.body, profile);
+    return "needs_review";
+  }
+
+  // ─── Message entrypoint ─────────────────────────────────────────────────────────
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    if (!msg || msg.type !== "RUN_APPLY") return;
+    const profile = msg.profile || {};
+    const autoSubmit = !!msg.autoSubmit;
+    const board = boardFromHost();
+    (async () => {
+      try {
+        let status;
+        if (board === "linkedin") status = await applyLinkedIn(profile, msg.resumeLabel, autoSubmit);
+        else if (BOARD_CFG[board]) status = await stepApply(profile, autoSubmit, BOARD_CFG[board]);
+        else status = await applyGeneric(profile);
+        sendResponse({ status });
+      } catch (e) {
+        sendResponse({ status: "failed", error: String(e && e.message || e) });
+      }
+    })();
+    return true; // async response
+  });
+})();
