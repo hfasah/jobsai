@@ -82,7 +82,10 @@ export async function POST(
     .select("*")
     .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) {
+    console.error("Cover letter save error:", error.message);
+    return NextResponse.json({ error: "Couldn't save your cover letter. Please try again." }, { status: 500 });
+  }
 
   const spend = await deductTokens(userId, cost, "cover_letter", { jobId }, { meterFree: true });
   return NextResponse.json({ data, balance: spend.balance });

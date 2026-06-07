@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { LayoutGrid, ShieldCheck, Wand2, Mail, BrainCircuit, Mic2, Reply, Building2, DollarSign } from "lucide-react";
+import { LayoutGrid, ShieldCheck, Wand2, Mail, BrainCircuit, Mic2, Reply, Building2, DollarSign, AlertCircle, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AtsReport } from "@/components/job/ats-report";
 import { TailoredResumeView } from "@/components/job/tailored-resume";
@@ -67,6 +67,9 @@ export function JobTabs({
   // Mock interview — shares the same prep data; loaded together
   const [mockLoaded, setMockLoaded] = useState(false);
 
+  // Friendly inline error for any action in this panel.
+  const [actionError, setActionError] = useState<string | null>(null);
+
   // Lazy-load saved data when a tab is first opened
   useEffect(() => {
     if (tab === "ats" && !scanLoaded) {
@@ -90,11 +93,14 @@ export function JobTabs({
 
   const runScan = useCallback(async () => {
     setScanRunning(true);
+    setActionError(null);
     try {
       const res = await fetch(`/api/jobs/${jobId}/ats-scan`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Scan failed."); return; }
+      if (!res.ok) { setActionError(json.error ?? "We couldn't scan your résumé. Please try again."); return; }
       setScan(json.data);
+    } catch {
+      setActionError("Network error — please check your connection and try again.");
     } finally {
       setScanRunning(false);
     }
@@ -102,11 +108,14 @@ export function JobTabs({
 
   const runTailor = useCallback(async () => {
     setTailorRunning(true);
+    setActionError(null);
     try {
       const res = await fetch(`/api/jobs/${jobId}/tailor`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Tailoring failed."); return; }
+      if (!res.ok) { setActionError(json.error ?? "We couldn't tailor your résumé. Please try again."); return; }
       setTailored(json.data);
+    } catch {
+      setActionError("Network error — please check your connection and try again.");
     } finally {
       setTailorRunning(false);
     }
@@ -114,11 +123,14 @@ export function JobTabs({
 
   const runPrep = useCallback(async () => {
     setPrepRunning(true);
+    setActionError(null);
     try {
       const res = await fetch(`/api/jobs/${jobId}/interview-prep`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Generation failed."); return; }
+      if (!res.ok) { setActionError(json.error ?? "We couldn't generate interview prep. Please try again."); return; }
       setPrep(json.data);
+    } catch {
+      setActionError("Network error — please check your connection and try again.");
     } finally {
       setPrepRunning(false);
     }
@@ -126,6 +138,7 @@ export function JobTabs({
 
   const runCover = useCallback(async (tone: CoverTone, length: CoverLength) => {
     setCoverRunning(true);
+    setActionError(null);
     try {
       const res = await fetch(`/api/jobs/${jobId}/cover-letter`, {
         method: "POST",
@@ -133,8 +146,10 @@ export function JobTabs({
         body: JSON.stringify({ tone, length }),
       });
       const json = await res.json();
-      if (!res.ok) { alert(json.error ?? "Generation failed."); return; }
+      if (!res.ok) { setActionError(json.error ?? "We couldn't generate your cover letter. Please try again."); return; }
       setLetter(json.data);
+    } catch {
+      setActionError("Network error — please check your connection and try again.");
     } finally {
       setCoverRunning(false);
     }
@@ -152,7 +167,7 @@ export function JobTabs({
         {TABS.map((t) => (
           <button
             key={t.key}
-            onClick={() => setTab(t.key)}
+            onClick={() => { setActionError(null); setTab(t.key); }}
             className={cn(
               "flex items-center gap-2 whitespace-nowrap text-sm font-medium transition-colors",
               "border-b-2 px-4 py-2.5 md:w-full md:rounded-lg md:border-b-0 md:px-3 md:py-2 md:text-left",
@@ -169,6 +184,15 @@ export function JobTabs({
 
       {/* Panels */}
       <div className="min-w-0 flex-1">
+        {actionError && (
+          <div className="mb-4 flex items-start gap-2.5 rounded-xl border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+            <span className="flex-1">{actionError}</span>
+            <button onClick={() => setActionError(null)} aria-label="Dismiss" className="shrink-0 rounded p-0.5 hover:bg-destructive/10">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         {tab === "overview" && overview}
         {tab === "ats" && <AtsReport scan={scan} onRun={runScan} running={scanRunning} />}
         {tab === "tailor" && <TailoredResumeView tailored={tailored} onRun={runTailor} running={tailorRunning} jobId={jobId} />}
