@@ -141,6 +141,7 @@ Schema:
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source — copy them verbatim into each experience entry. Only the framing/wording of bullets changes.
+For the "skills" change, "before" and "after" MUST be human-readable comma-separated lists (e.g. "Python, AWS, Docker, Kubernetes") — never run together without separators.
 Limit changes[] to the 4-6 most impactful edits.`;
 
 export async function tailorResume(resume: ParsedJson, job: ParsedJobJson): Promise<TailorResult> {

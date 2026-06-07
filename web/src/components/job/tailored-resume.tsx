@@ -7,6 +7,12 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, RunningState } from "@/components/job/ats-report";
 import type { TailoredResume } from "@/types/phase3";
 
+// Split a skills string into individual skills for chip rendering. Handles
+// comma/semicolon/newline/bullet separators; falls back to the whole string.
+function splitSkills(text: string): string[] {
+  return (text ?? "").split(/[,;\n•|]+/).map((s) => s.trim()).filter(Boolean);
+}
+
 export function TailoredResumeView({
   tailored,
   onRun,
@@ -136,13 +142,29 @@ export function TailoredResumeView({
               <div key={i} className="rounded-xl border border-border bg-card p-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">{c.section}</p>
                 <div className="grid gap-2 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
-                  <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-muted-foreground line-through decoration-destructive/50">
-                    {c.before}
-                  </p>
+                  {c.section.toLowerCase() === "skills" ? (
+                    <div className="flex flex-wrap gap-1.5 rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2">
+                      {splitSkills(c.before).map((s, j) => (
+                        <span key={j} className="rounded-full bg-destructive/10 px-2 py-0.5 text-xs text-muted-foreground line-through decoration-destructive/50">{s}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-muted-foreground line-through decoration-destructive/50">
+                      {c.before}
+                    </p>
+                  )}
                   <ArrowRight className="mx-auto hidden h-4 w-4 text-muted-foreground sm:block" />
-                  <p className="rounded-lg border border-desyn-success/30 bg-desyn-success/10 px-3 py-2 text-sm font-medium text-foreground">
-                    {c.after}
-                  </p>
+                  {c.section.toLowerCase() === "skills" ? (
+                    <div className="flex flex-wrap gap-1.5 rounded-lg border border-desyn-success/30 bg-desyn-success/10 px-3 py-2">
+                      {splitSkills(c.after).map((s, j) => (
+                        <span key={j} className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-xs font-medium text-foreground">{s}</span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="rounded-lg border border-desyn-success/30 bg-desyn-success/10 px-3 py-2 text-sm font-medium text-foreground">
+                      {c.after}
+                    </p>
+                  )}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">{c.reason}</p>
               </div>
