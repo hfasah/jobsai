@@ -21,6 +21,9 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
   const text = (body.text as string | undefined)?.slice(0, 1000)?.trim();
   const voice = (body.voice as string | undefined) ?? "onyx";
+  // format "pcm" → base64 24kHz 16-bit mono PCM for LiveAvatar repeatAudio();
+  // otherwise audio/mpeg for the simulated/voice player.
+  const pcm = body.format === "pcm";
 
   if (!text) return NextResponse.json({ error: "text is required" }, { status: 400 });
 
@@ -29,8 +32,13 @@ export async function POST(req: NextRequest) {
       model: "tts-1",
       voice: voice as "alloy" | "echo" | "fable" | "onyx" | "nova" | "shimmer",
       input: text,
+      response_format: pcm ? "pcm" : "mp3", // OpenAI "pcm" = 24kHz 16-bit mono
     });
     const buf = Buffer.from(await speech.arrayBuffer());
+
+    if (pcm) {
+      return NextResponse.json({ audio: buf.toString("base64") }, { headers: { "Cache-Control": "no-store" } });
+    }
     return new NextResponse(buf, {
       headers: {
         "Content-Type": "audio/mpeg",

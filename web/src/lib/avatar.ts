@@ -1,8 +1,8 @@
-// Avatar provider abstraction. Today the Avatar Room runs in "simulated" mode
-// (an animated persona that speaks via OpenAI TTS) so the full experience works
-// with no paid key. Setting AVATAR_PROVIDER + the provider key (e.g. HEYGEN_API_KEY)
-// flips `isAvatarConfigured()` true; wire the real streaming session in
-// `createStreamingSession()` below — the client already branches on `configured`.
+// Avatar provider abstraction. Without keys the Avatar Room runs in "simulated"
+// mode (an animated persona that speaks via OpenAI TTS) so the full experience
+// works with no paid provider. Setting LIVEAVATAR_API_KEY + LIVEAVATAR_AVATAR_ID
+// flips `isAvatarConfigured()` true and `createStreamingSession()` mints a real
+// LiveAvatar LITE session — the client branches on `provider`.
 
 export type AvatarPersona = "recruiter" | "hiring_manager" | "tech_lead" | "executive";
 
@@ -46,46 +46,51 @@ export const PERSONAS: Record<AvatarPersona, PersonaMeta> = {
 };
 
 export function isAvatarConfigured(): boolean {
-  return Boolean(process.env.AVATAR_PROVIDER && process.env.HEYGEN_API_KEY);
+  return Boolean(process.env.LIVEAVATAR_API_KEY && process.env.LIVEAVATAR_AVATAR_ID);
 }
 
 export interface StreamingSession {
   configured: boolean;
-  provider: "heygen" | "simulated";
-  token?: string;     // short-lived client token for the HeyGen Streaming SDK
-  avatarId?: string;  // HeyGen interactive avatar to render
-  quality?: string;   // "low" (Lite ≈ cheapest) | "medium" | "high"
+  provider: "liveavatar" | "simulated";
+  sessionToken?: string; // short-lived token for the LiveAvatar Web SDK
+  sessionId?: string;
 }
 
-// Returns a real HeyGen LiveAvatar streaming session when configured, otherwise
-// the simulated descriptor (TTS + animated persona). Falls back to simulated on
-// any HeyGen error so the Avatar Room always works.
+// Mints a LiveAvatar LITE streaming session (bring-your-own-audio: JobsAI's GPT
+// drives questions, OpenAI TTS supplies the audio, LiveAvatar lip-syncs). The API
+// key stays server-side. Falls back to simulated mode on any error so the Avatar
+// Room always works.
 export async function createStreamingSession(): Promise<StreamingSession> {
   if (!isAvatarConfigured()) {
     return { configured: false, provider: "simulated" };
   }
 
   try {
-    // Mint a short-lived session token the browser SDK uses (keeps the API key
-    // server-side). The client then starts the avatar + drives it to speak.
-    const res = await fetch("https://api.heygen.com/v1/streaming.create_token", {
+    const res = await fetch("https://api.liveavatar.com/v1/sessions/token", {
       method: "POST",
-      headers: { "x-api-key": process.env.HEYGEN_API_KEY! },
+      headers: {
+        "X-API-KEY": process.env.LIVEAVATAR_API_KEY!,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode: "LITE",
+        avatar_id: process.env.LIVEAVATAR_AVATAR_ID,
+        is_sandbox: process.env.LIVEAVATAR_SANDBOX === "true",
+      }),
     });
-    if (!res.ok) throw new Error(`HeyGen token failed: ${res.status}`);
+    if (!res.ok) throw new Error(`LiveAvatar token failed: ${res.status}`);
     const json = await res.json();
-    const token = json?.data?.token as string | undefined;
-    if (!token) throw new Error("No token in HeyGen response");
+    const sessionToken = json?.data?.session_token as string | undefined;
+    if (!sessionToken) throw new Error("No session_token in LiveAvatar response");
 
     return {
       configured: true,
-      provider: "heygen",
-      token,
-      avatarId: process.env.HEYGEN_AVATAR_ID,
-      quality: process.env.HEYGEN_AVATAR_QUALITY ?? "low", // Lite mode default
+      provider: "liveavatar",
+      sessionToken,
+      sessionId: json?.data?.session_id,
     };
   } catch (err) {
-    console.error("HeyGen streaming token error:", err);
+    console.error("LiveAvatar session token error:", err);
     return { configured: false, provider: "simulated" };
   }
 }
