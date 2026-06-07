@@ -10,30 +10,70 @@ import type { ParsedJson } from "@/types/resume";
 const MIN_CHARS = 300;
 const SEVEN_DAYS = 7 * 24 * 60 * 60 * 1000;
 
-// ─── URL scraping via Jina.ai Reader ─────────────────────────────────────────
+// ─── URL scraping ────────────────────────────────────────────────────────────
+// Primary: Jina.ai Reader (clean text extraction). Fallback: fetch the page
+// directly and strip the HTML, for sites Jina can't read (rate-limited, blocked)
+// but that are publicly fetchable.
 
-export async function fetchUrlContent(url: string): Promise<string> {
-  const jinaUrl = `https://r.jina.ai/${url}`;
+const MIN_FETCH_CHARS = 200;
+
+async function fetchViaJina(url: string): Promise<string> {
   const headers: Record<string, string> = {
     Accept: "application/json",
     "X-No-Cache": "true",
     "X-Return-Format": "text",
   };
-  if (process.env.JINA_API_KEY) {
-    headers["Authorization"] = `Bearer ${process.env.JINA_API_KEY}`;
-  }
+  if (process.env.JINA_API_KEY) headers["Authorization"] = `Bearer ${process.env.JINA_API_KEY}`;
 
-  const res = await fetch(jinaUrl, {
-    headers,
-    signal: AbortSignal.timeout(30_000),
-  });
-
+  const res = await fetch(`https://r.jina.ai/${url}`, { headers, signal: AbortSignal.timeout(30_000) });
   if (!res.ok) throw new Error(`Jina fetch failed: ${res.status}`);
-
   const json = (await res.json()) as { data?: { content?: string } };
   const content = json.data?.content?.trim();
   if (!content) throw new Error("No content extracted from URL");
   return content;
+}
+
+// Strip an HTML document down to readable text.
+function htmlToText(html: string): string {
+  return html
+    .replace(/<!--[\s\S]*?-->/g, " ")
+    .replace(/<(script|style|noscript|svg|head|nav|footer|header)[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+    .replace(/&#39;|&apos;/gi, "'").replace(/&quot;/gi, '"')
+    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+async function fetchDirect(url: string): Promise<string> {
+  const res = await fetch(url, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+      Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+      "Accept-Language": "en-US,en;q=0.9",
+    },
+    redirect: "follow",
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!res.ok) throw new Error(`Direct fetch failed: ${res.status}`);
+  return htmlToText(await res.text());
+}
+
+export async function fetchUrlContent(url: string): Promise<string> {
+  // 1. Jina reader (best extraction).
+  try {
+    const content = await fetchViaJina(url);
+    if (content.length >= MIN_FETCH_CHARS) return content;
+  } catch (err) {
+    console.warn("Jina reader failed, trying direct fetch:", err instanceof Error ? err.message : err);
+  }
+
+  // 2. Direct fetch + HTML strip (handles sites Jina can't read but are public).
+  const direct = await fetchDirect(url);
+  if (direct.length < MIN_FETCH_CHARS) throw new Error("No content extracted from URL");
+  return direct;
 }
 
 // ─── Core job processing pipeline ────────────────────────────────────────────

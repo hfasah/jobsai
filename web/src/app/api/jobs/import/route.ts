@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
           rawText = fallbackText;
         } else {
           return NextResponse.json(
-            { error: "Could not fetch the URL. Make sure it is publicly accessible and try again." },
+            { error: "Couldn't read that URL (the site may block automated access or need sign-in). Open the posting, copy the description, and use the “Paste” tab instead." },
             { status: 422 }
           );
         }
