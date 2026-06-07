@@ -26,6 +26,13 @@ interface JobListItem {
     seniority: string | null;
   } | null;
   match: { match_score: number } | null;
+  progress?: {
+    tailored: boolean;
+    cover: boolean;
+    ats: boolean;
+    applied: boolean;
+    report: boolean;
+  };
 }
 
 type ScoreFilter = "all" | "great" | "good" | "fair" | "none";
@@ -415,6 +422,16 @@ export default function JobsPage() {
                             </span>
                           )}
                         </div>
+                        {/* Saved-work badges so users can see/resume what's done */}
+                        {job.progress && (job.progress.applied || job.progress.tailored || job.progress.cover || job.progress.ats || job.progress.report) && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                            {job.progress.applied && <span className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-[10px] font-medium text-desyn-success">✓ Applied</span>}
+                            {job.progress.tailored && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Résumé tailored</span>}
+                            {job.progress.cover && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Cover letter</span>}
+                            {job.progress.ats && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">ATS scan</span>}
+                            {job.progress.report && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Interview report</span>}
+                          </div>
+                        )}
                       </div>
                       <div className="shrink-0 text-right">
                         {processing ? (

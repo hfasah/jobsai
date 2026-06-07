@@ -25,21 +25,21 @@ export const PERSONAS: Record<AvatarPersona, PersonaMeta> = {
   hiring_manager: {
     label: "Hiring Manager",
     title: "Hiring manager 1:1",
-    voice: "onyx",   // deep male
+    voice: "echo",   // male
     guidance: "You are the hiring manager. Probe role fit, priorities, how the candidate works, and how they'd handle the team's real challenges. Direct but fair.",
     accent: "from-blue-500 to-indigo-500",
   },
   tech_lead: {
     label: "Technical Lead",
     title: "Technical interview",
-    voice: "echo",   // male (distinct from onyx)
+    voice: "fable",  // male (British, distinct)
     guidance: "You are the engineering/technical lead. Go deep on technical concepts, trade-offs, and real project experience. Ask probing follow-ups when answers stay shallow.",
     accent: "from-cyan-500 to-teal-500",
   },
   executive: {
     label: "Executive (VP/Director)",
     title: "Executive interview",
-    voice: "shimmer",   // polished female (distinct from hiring manager)
+    voice: "onyx",   // deep, senior, polished male (~60yo gravitas)
     guidance: "You are a VP/Director. Focus on strategic thinking, leadership, vision, judgment under ambiguity, and executive presence. Expect concise, high-signal answers.",
     accent: "from-violet-500 to-purple-600",
   },

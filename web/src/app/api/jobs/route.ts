@@ -28,5 +28,30 @@ export async function GET() {
     return { ...j, match: best };
   });
 
+  // Attach "what's been done" flags so My Jobs shows saved progress and users
+  // can resume work / review reports after logging back in.
+  const ids = jobs.map((j) => j.id as string);
+  if (ids.length > 0) {
+    const [tailored, covers, ats, applied, sessions] = await Promise.all([
+      supabaseAdmin.from("tailored_resumes").select("job_id").eq("user_id", userId).in("job_id", ids),
+      supabaseAdmin.from("cover_letters").select("job_id").eq("user_id", userId).in("job_id", ids),
+      supabaseAdmin.from("ats_scans").select("job_id").eq("user_id", userId).in("job_id", ids),
+      supabaseAdmin.from("apply_attempts").select("job_id").eq("user_id", userId).eq("status", "submitted").in("job_id", ids),
+      supabaseAdmin.from("interview_sessions").select("job_id").eq("user_id", userId).in("job_id", ids),
+    ]);
+    const setOf = (rows: { job_id: string }[] | null) => new Set((rows ?? []).map((r) => r.job_id));
+    const tSet = setOf(tailored.data), cSet = setOf(covers.data), aSet = setOf(ats.data), apSet = setOf(applied.data), sSet = setOf(sessions.data);
+    jobs.forEach((j) => {
+      const id = j.id as string;
+      (j as Record<string, unknown>).progress = {
+        tailored: tSet.has(id),
+        cover: cSet.has(id),
+        ats: aSet.has(id),
+        applied: apSet.has(id),
+        report: sSet.has(id),
+      };
+    });
+  }
+
   return NextResponse.json({ data: jobs });
 }

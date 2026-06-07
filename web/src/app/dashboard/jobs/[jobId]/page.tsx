@@ -15,6 +15,7 @@ import type { TabKey } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
 import { boardForUrl } from "@/lib/job-boards";
 import { runExtensionApply } from "@/lib/extension-bridge";
+import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
 
 export default function JobDetailPage({
   params,
@@ -31,6 +32,7 @@ export default function JobDetailPage({
 
   type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed" | "need_extension";
   const [applyState, setApplyState] = useState<ApplyState>("idle");
+  const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
   const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
   const [copiedCover, setCopiedCover] = useState(false);
@@ -81,6 +83,11 @@ export default function JobDetailPage({
     try {
       const res = await fetch(`/api/jobs/${jobId}/apply`, { method: "POST" });
       const json = await res.json().catch(() => ({}));
+      if (res.status === 402 || json.upgrade_required) {
+        setApplyState("idle");
+        setShowUpgrade(json.error ?? "Auto-apply is a paid feature. Upgrade to apply with JobsAI.");
+        return;
+      }
       if (!res.ok) {
         setApplyState("failed");
         setApplyMsg(json.error ?? "Apply failed.");
@@ -467,6 +474,8 @@ export default function JobDetailPage({
           </div>
         )}
       </main>
+
+      {showUpgrade && <UpgradePlansModal reason={showUpgrade} onClose={() => setShowUpgrade(null)} />}
     </>
   );
 }
