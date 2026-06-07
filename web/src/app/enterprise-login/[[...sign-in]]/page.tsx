@@ -22,12 +22,18 @@ export default async function EnterpriseLoginPage({
   // White-label: if arriving via a company's /e/{slug} link, resolve the org
   const slug = (sp.redirect_url ?? "").match(/\/e\/([a-z0-9-]+)/i)?.[1];
   let org: { name: string; logo_url: string | null; brand_color: string | null } | null = null;
+  let portalTitle: string | null = null;
   if (slug) {
     const { data } = await supabaseAdmin
       .from("enterprise_orgs").select("name, logo_url, brand_color").eq("slug", slug).maybeSingle();
     org = data;
+    // best-effort (column may not exist pre-migration 045)
+    const { data: pt } = await supabaseAdmin
+      .from("enterprise_orgs").select("portal_title").eq("slug", slug).maybeSingle();
+    portalTitle = (pt as { portal_title?: string } | null)?.portal_title ?? null;
   }
   const brand = org?.brand_color || "#2563eb";
+  const portalHeading = portalTitle || (org ? `The ${org.name} HR Management Portal` : "");
 
   return (
     <div className="flex min-h-screen flex-col lg:flex-row">
@@ -44,7 +50,7 @@ export default async function EnterpriseLoginPage({
           )}
           {org ? (
             <>
-              <h2 className="text-lg font-bold" style={{ color: brand }}>The {org.name} HR Management Portal</h2>
+              <h2 className="text-lg font-bold" style={{ color: brand }}>{portalHeading}</h2>
               <p className="mt-1 text-xs text-muted-foreground">
                 Powered by <a href="https://www.jobsai.work" className="hover:underline">JobsAI.Work</a> · www.jobsAI.Work
               </p>
