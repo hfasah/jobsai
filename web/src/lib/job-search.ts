@@ -401,18 +401,55 @@ async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
   };
 }
 
+const AFRICA_COUNTRIES = ["ng", "za", "ke", "gh", "eg", "rw", "ma"];
+
+async function searchAfrica(p: SearchParams): Promise<SearchResult | null> {
+  const results = await Promise.allSettled(
+    AFRICA_COUNTRIES.map((c) => searchJSearch({ ...p, country: c }))
+  );
+  const jobs: SearchJob[] = [];
+  const seen = new Set<string>();
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value) {
+      for (const j of r.value.jobs) {
+        if (!seen.has(j.id)) { seen.add(j.id); jobs.push(j); }
+      }
+    }
+  }
+  if (!jobs.length) return null;
+  if (p.sort === "date") {
+    jobs.sort((a, b) => (b.postedAt ? Date.parse(b.postedAt) : 0) - (a.postedAt ? Date.parse(a.postedAt) : 0));
+  }
+  const page = Math.max(1, p.page ?? 1);
+  const start = (page - 1) * PER_PAGE;
+  return {
+    jobs: jobs.slice(start, start + PER_PAGE),
+    count: jobs.length,
+    totalKnown: false,
+    page,
+    perPage: PER_PAGE,
+    provider: "jsearch",
+    configured: true,
+    sources: ["JSearch"],
+  };
+}
+
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function searchJobs(p: SearchParams): Promise<SearchResult> {
-  // Africa or Job Sites chips → JSearch (covers LinkedIn/Indeed globally).
-  const needsJSearch = (p.jobSites?.length ?? 0) > 0 || p.country === "africa";
-  if (needsJSearch) {
-    // For Africa, append location hint so JSearch targets the continent.
-    const params = p.country === "africa"
-      ? { ...p, country: "us", where: [p.where, "Africa"].filter(Boolean).join(" ") }
-      : p;
+  if (p.country === "africa") {
     try {
-      const js = await searchJSearch(params);
+      const africa = await searchAfrica(p);
+      if (africa) return africa;
+    } catch (err) {
+      console.error("Africa search failed, falling back:", err);
+    }
+    return searchFreeSources(p);
+  }
+  // Job Sites chips → JSearch for publisher filtering.
+  if ((p.jobSites?.length ?? 0) > 0) {
+    try {
+      const js = await searchJSearch(p);
       if (js) return js;
     } catch (err) {
       console.error("JSearch failed, falling back:", err);
