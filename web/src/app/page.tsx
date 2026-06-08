@@ -23,6 +23,7 @@ import { SectionBadge } from "@/components/ui/section-badge";
 import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { publicImageExists } from "@/lib/public-image";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
+import { AuthCta } from "@/components/ui/auth-cta";
 import { APP_NAME } from "@/lib/constants";
 
 const LEVELS = [
@@ -176,9 +177,9 @@ export default function Home() {
 
             {/* Dual CTAs */}
             <div className="reveal reveal-5 mt-7 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/sign-up" className="btn-cta inline-flex items-center rounded-full px-7 py-3 text-base">
+              <AuthCta href="/sign-up" className="btn-cta inline-flex items-center rounded-full px-7 py-3 text-base">
                 Get started
-              </Link>
+              </AuthCta>
               <Link
                 href="#how"
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-card/60 px-7 py-3 text-base font-semibold text-foreground backdrop-blur transition-colors hover:bg-white/5"
@@ -433,9 +434,9 @@ export default function Home() {
               Guaranteed, or your money back.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
-              <Link href="/sign-up" className={gradientButtonVariants({ size: "xl" })}>
+              <AuthCta href="/sign-up" className={gradientButtonVariants({ size: "xl" })}>
                 Start auto applying
-              </Link>
+              </AuthCta>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
               Free to start · No card required · 90-day interview guarantee

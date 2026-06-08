@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
+import { AuthCta } from "@/components/ui/auth-cta";
 import { featureHref } from "@/lib/marketing-features";
 
 // This lucide version dropped brand glyphs, so the social icons are inline SVGs.
@@ -195,8 +196,8 @@ export function SiteFooter() {
             © {new Date().getFullYear()} {APP_NAME}. All rights reserved.
           </p>
           <div className="flex items-center gap-5 text-xs text-muted-foreground">
-            <Link href="/sign-in" className="transition-colors hover:text-foreground">Sign in</Link>
-            <Link href="/sign-up" className="transition-colors hover:text-foreground">Get started</Link>
+            <AuthCta href="/sign-in" className="transition-colors hover:text-foreground">Sign in</AuthCta>
+            <AuthCta href="/sign-up" className="transition-colors hover:text-foreground">Get started</AuthCta>
             <Link href="/privacy" className="transition-colors hover:text-foreground">Privacy</Link>
             <Link href="/terms" className="transition-colors hover:text-foreground">Terms</Link>
             <Link href="/refund-policy" className="transition-colors hover:text-foreground">Refund Policy</Link>
