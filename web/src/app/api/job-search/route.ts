@@ -4,7 +4,7 @@ import { searchJobs, type SortKey, type EmploymentType } from "@/lib/job-search"
 import { supabaseAdmin } from "@/lib/supabase";
 import { isBlockedJob } from "@/lib/blocklist";
 
-const EMP_VALUES: EmploymentType[] = ["fulltime", "internship", "contract"];
+const EMP_VALUES: EmploymentType[] = ["fulltime", "internship", "contract", "hybrid"];
 
 // GET /api/job-search?what=&where=&country=&page=&sort=&salary_min=&remote=&employment_types=&job_sites=
 export async function GET(req: NextRequest) {
