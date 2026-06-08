@@ -175,18 +175,18 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        {/* Resume upload prompt for new users who skipped onboarding */}
+        {/* Set Up Profile prompt — the 3 essentials before applying */}
         {!hasResume && (
-          <Link href="/dashboard/resumes"
+          <Link href="/dashboard/setup"
             className="flex items-center justify-between gap-4 rounded-2xl border border-primary/40 bg-primary/5 px-5 py-4 transition-colors hover:bg-primary/10">
             <div className="flex items-center gap-3">
               <FileText className="h-5 w-5 shrink-0 text-primary" />
               <div>
-                <p className="font-semibold text-foreground">Upload your resume to get started</p>
-                <p className="text-sm text-muted-foreground">JobsAI tailors applications and scores your resume against each job.</p>
+                <p className="font-semibold text-foreground">Set up your profile to start applying</p>
+                <p className="text-sm text-muted-foreground">Add a résumé (name one per role), set your preferences, and complete your apply profile. You can search jobs meanwhile.</p>
               </div>
             </div>
-            <span className="btn-cta shrink-0 rounded-xl px-4 py-2 text-sm font-semibold">Upload now →</span>
+            <span className="btn-cta shrink-0 rounded-xl px-4 py-2 text-sm font-semibold">Set up now →</span>
           </Link>
         )}
 

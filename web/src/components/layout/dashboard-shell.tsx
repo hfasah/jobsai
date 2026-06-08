@@ -8,7 +8,7 @@ import {
   LayoutGrid, Zap, Search, ScanSearch, Briefcase, Plus, CheckCircle2, Inbox, Mail,
   FileText, Sparkles, Send,
   Wand2, PenLine, Puzzle,
-  Mic, MessageSquareText, Video, Headphones, UserRound,
+  Mic, MessageSquareText, Video, Headphones, UserRound, ClipboardCheck,
   BarChart3, LineChart, Settings2, CreditCard,
   Menu, X, ExternalLink, Coins, ChevronDown,
   Sun, Moon, Monitor,
@@ -213,8 +213,9 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
-        <div className="mb-3">
+        <div className="mb-3 space-y-0.5">
           <NavLink item={TOP} active={active === TOP.href} onNavigate={onNavigate} />
+          <NavLink item={{ label: "Set Up Profile", href: "/dashboard/setup", icon: ClipboardCheck }} active={active === "/dashboard/setup"} onNavigate={onNavigate} />
         </div>
 
         {SECTIONS.map((sec) => {
