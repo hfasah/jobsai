@@ -228,14 +228,17 @@ export default function Home() {
               </p>
             </div>
 
-            {/* AI image slot, wide product overview screenshot */}
+            {/* Product overview — real JobsAI dashboard screenshot */}
             <div className="mb-10">
               <AIImageSlot
-                path="/marketing/product-overview.webp"
-                ready={publicImageExists("/marketing/product-overview.webp")}
+                path="/marketing/product-dashboard.png"
+                ready={publicImageExists("/marketing/product-dashboard.png")}
                 alt="JobsAI dashboard overview"
                 prompt="Dark JobsAI dashboard: auto-apply pipeline, match scores, and an activity feed. Purple/magenta accents, glassy cards."
-                className="shadow-glow-purple"
+                ratio="aspect-[1511/1041]"
+                fit="cover"
+                priority
+                className="mx-auto max-w-4xl shadow-glow-purple"
               />
             </div>
 
