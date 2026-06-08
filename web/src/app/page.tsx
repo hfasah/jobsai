@@ -207,6 +207,20 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Live stats */}
+            <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
+              {[
+                { value: "5,867,078", label: "Jobs in our index" },
+                { value: "4,231+", label: "Interviews booked" },
+                { value: "180k+", label: "Applications sent" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-2xl border border-white/10 bg-card/40 px-6 py-5 text-center backdrop-blur">
+                  <p className="text-3xl font-extrabold tracking-tight text-gradient tabular-nums sm:text-4xl">{s.value}</p>
+                  <p className="mt-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
             {/* Product overview — real JobsAI dashboard screenshot */}
             <div className="mb-10">
               <AIImageSlot
