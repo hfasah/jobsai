@@ -8,7 +8,7 @@ import {
   LayoutGrid, Zap, Search, ScanSearch, Briefcase, Plus, CheckCircle2, Inbox, Mail,
   FileText, Sparkles, Send,
   Wand2, PenLine, Puzzle,
-  Mic, MessageSquareText, Video, Headphones,
+  Mic, MessageSquareText, Video, Headphones, UserRound,
   BarChart3, LineChart, Settings2, CreditCard,
   Menu, X, ExternalLink, Coins, ChevronDown,
   Sun, Moon, Monitor,
@@ -71,6 +71,7 @@ const SECTIONS: NavSection[] = [
       { label: "Written Coach", href: "/dashboard/interview?mode=written", icon: MessageSquareText },
       { label: "Voice Interviewer", href: "/dashboard/interview?mode=voice", icon: Mic },
       { label: "Avatar Room", href: "/dashboard/interview?mode=avatar", icon: Video },
+      { label: "Career Coach", href: "/dashboard/coaching", icon: UserRound },
     ],
   },
   {

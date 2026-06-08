@@ -19,6 +19,7 @@ export const PLAN_LIMITS = {
     voice_minutes_month: 0,   // 1 voice + 1 avatar trial handled separately
     avatar_minutes_month: 0,
     human_coaching: false,
+    coaching_free_sessions_month: 0, // can still book & pay with tokens
     label: "Free",
   },
   pro: {
@@ -29,6 +30,7 @@ export const PLAN_LIMITS = {
     voice_minutes_month: 30,
     avatar_minutes_month: 0,  // avatar via token top-up only
     human_coaching: false,
+    coaching_free_sessions_month: 0,
     label: "Pro",
   },
   premium: {
@@ -39,6 +41,7 @@ export const PLAN_LIMITS = {
     voice_minutes_month: 120,
     avatar_minutes_month: 30,
     human_coaching: false,
+    coaching_free_sessions_month: 0,
     label: "Premium",
   },
   accelerator: {
@@ -48,10 +51,15 @@ export const PLAN_LIMITS = {
     daily_apply: 300,
     voice_minutes_month: 300,
     avatar_minutes_month: 120,
-    human_coaching: false,    // available as a paid add-on, not bundled
+    human_coaching: true,     // 1 free 45-min session/month; extras paid in tokens
+    coaching_free_sessions_month: 1,
     label: "Career Accelerator",
   },
 } as const;
+
+// Live 1:1 human career coaching.
+export const COACHING_SESSION_MINUTES = 45;
+export const COACHING_USD = 75; // ≈ 25,000 tokens (TOKEN_COSTS.coaching_session)
 
 // Display prices (monthly anchor + yearly per-month, ~20% off).
 export const PLAN_PRICES: Record<PaidPlan, { monthly: number; yearly: number }> = {
