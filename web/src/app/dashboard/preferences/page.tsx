@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
-  Loader2, Save, Check, Zap,
+  Loader2, Save, Check, Zap, IdCard, ArrowRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TagInput } from "@/components/ui/tag-input";
@@ -118,6 +119,21 @@ export default function PreferencesPage() {
         <p className="mt-1 text-sm text-muted-foreground">
           Tell the system what you&apos;re looking for. This drives auto job discovery and auto-apply in the next phases.
         </p>
+
+        {/* Cross-link: eligibility / personal info lives in the Apply Profile */}
+        <Link href="/dashboard/apply-profile"
+          className="mt-6 flex items-center gap-4 rounded-2xl border border-primary/30 bg-primary/5 p-4 transition-colors hover:bg-primary/10">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white">
+            <IdCard className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Application details &amp; eligibility →</p>
+            <p className="text-xs text-muted-foreground">
+              Work authorization / permit, sponsorship, relocation, driver&apos;s license, personal info, references &amp; EEO are in your <span className="font-medium text-foreground">Apply Profile</span> — used to auto-fill applications.
+            </p>
+          </div>
+          <ArrowRight className="h-5 w-5 shrink-0 text-primary" />
+        </Link>
 
         <div className="mt-8 space-y-10">
 
