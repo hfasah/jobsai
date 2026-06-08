@@ -9,6 +9,7 @@ import {
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { getTokenAccount } from "@/lib/tokens";
+import { getUserBilling } from "@/lib/billing";
 import { cn } from "@/lib/utils";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
@@ -129,10 +130,12 @@ export default async function DashboardPage() {
 
   const hasResume = (resumes?.length ?? 0) > 0;
 
-  const [d, tokenAccount] = await Promise.all([
+  const [d, tokenAccount, billing] = await Promise.all([
     getDashboardData(user.id),
     getTokenAccount(user.id).catch(() => null),
+    getUserBilling(user.id).catch(() => null),
   ]);
+  const isPaid = (billing?.plan ?? "free") !== "free";
   const prefs = d.prefs;
   const autoOn = prefs?.auto_apply_enabled ?? false;
   const lastDiscovery = prefs?.last_discovery_at
@@ -166,8 +169,12 @@ export default async function DashboardPage() {
             <Link href="/dashboard/billing" className="hidden sm:block">
               <TokenBalance value={tokenAccount?.balance} />
             </Link>
-            <Link href="/dashboard/discover" className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground">
-              <Search className="h-3.5 w-3.5" /><span className="hidden sm:inline">Discover</span>
+            <Link
+              href="/dashboard/job-search"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 bg-primary/10 px-3 py-2 text-sm font-semibold text-primary transition-colors hover:bg-primary/20"
+            >
+              <Search className="h-3.5 w-3.5" />
+              <span>Job Search</span>
             </Link>
             <Link href="/dashboard/jobs/import" className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-opacity hover:opacity-90">
               <Plus className="h-3.5 w-3.5" /> Import job
