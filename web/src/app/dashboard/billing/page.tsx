@@ -41,23 +41,25 @@ const PLAN_FEATURES: Record<Plan, string[]> = {
   ],
   pro: [
     "5,000 tokens / month",
+    "Auto-apply up to 30 jobs/day",
     "Unlimited AI Written Coach",
-    "Auto-apply + resume tools",
     "Voice interviews from tokens",
     "Avatar via token top-up",
   ],
   premium: [
     "20,000 tokens / month",
     "Everything in Pro",
+    "Auto-apply up to 100 jobs/day",
     "AI Voice Interviewer + analysis",
     "AI Avatar Room access",
   ],
   accelerator: [
     "60,000 tokens / month",
     "Everything in Premium",
+    "Auto-apply up to 300 jobs/day",
+    "1 free 45-min coaching session/mo",
     "Avatar webcam + body-language",
     "Interview recordings & replay",
-    "Human coaching add-on",
   ],
 };
 
@@ -584,7 +586,14 @@ function BillingContent() {
                     <p className="mt-3 text-3xl font-bold tabular-nums">
                       ${price}<span className="text-sm font-normal text-muted-foreground">/mo</span>
                     </p>
-                    {interval === "yearly" && <p className="text-[11px] text-muted-foreground">billed annually</p>}
+                    {(() => {
+                      const savedPct = Math.round((1 - PRICES[tier].yearly / PRICES[tier].monthly) * 100);
+                      return interval === "yearly" ? (
+                        <p className="text-[11px] font-medium text-desyn-success">${PRICES[tier].yearly * 12}/yr billed annually · save {savedPct}%</p>
+                      ) : (
+                        <p className="text-[11px] text-muted-foreground">${PRICES[tier].monthly * 12}/yr · or go yearly &amp; save {savedPct}%</p>
+                      );
+                    })()}
                     <ul className="mt-4 space-y-1.5">
                       {PLAN_FEATURES[tier].map((f) => (
                         <li key={f} className="flex items-start gap-2 text-sm text-muted-foreground">

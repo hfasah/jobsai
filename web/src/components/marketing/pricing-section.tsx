@@ -48,7 +48,7 @@ const TIERS: Tier[] = [
     tagline: "Best for students and early-career professionals.",
     cta: "Start Pro",
     features: [
-      "Automatic applying, every day",
+      "Auto-apply up to 30 jobs/day",
       "Unlimited jobs, resumes & tailoring",
       "Recruiter outreach + cover letters",
       "90-day interview guarantee",
@@ -66,7 +66,7 @@ const TIERS: Tier[] = [
     cta: "Start Premium",
     features: [
       "Everything in Pro",
-      "Higher daily auto-apply volume",
+      "Auto-apply up to 100 jobs/day",
       "Priority job matching",
       "AI Voice interview prep",
       "20,000 tokens / month",
@@ -81,7 +81,8 @@ const TIERS: Tier[] = [
     cta: "Go all-in",
     features: [
       "Everything in Premium",
-      "Highest auto-apply volume",
+      "Auto-apply up to 300 jobs/day",
+      "1 free 45-min career coaching session/mo",
       "AI Avatar prep + recordings",
       "Body-language & presence analysis",
       "60,000 tokens / month",
@@ -177,12 +178,15 @@ function EnterpriseCard() {
 }
 
 function priceFor(monthly: number, yearly: boolean) {
-  if (monthly === 0) return { big: "$0", sub: "forever free" };
+  if (monthly === 0) return { big: "$0", sub: "forever free", note: null as string | null };
+  const perMoYearly = Math.round(monthly * 0.8); // ~20% off annual
+  const savedPct = Math.round((1 - perMoYearly / monthly) * 100);
   if (yearly) {
-    const perMo = Math.round(monthly * 0.8); // ~20% off annual
-    return { big: `$${perMo}`, sub: "/mo · billed yearly" };
+    const annual = perMoYearly * 12;
+    return { big: `$${perMoYearly}`, sub: "/mo · billed yearly", note: `$${annual}/yr — you save ${savedPct}%` };
   }
-  return { big: `$${monthly}`, sub: "/month" };
+  const annual = monthly * 12;
+  return { big: `$${monthly}`, sub: "/month", note: `$${annual}/yr — or go yearly & save ${savedPct}%` };
 }
 
 export function PricingSection() {
@@ -289,6 +293,9 @@ export function PricingSection() {
                   </span>
                   <span className="mb-1 text-xs text-muted-foreground">{price.sub}</span>
                 </div>
+                {price.note && (
+                  <p className="mt-1 text-[11px] font-medium text-desyn-success">{price.note}</p>
+                )}
 
                 <Link
                   href={isSignedIn ? "#" : (t.monthly === 0 ? "/sign-up" : `/sign-up?plan=${t.planKey}`)}
