@@ -324,6 +324,15 @@ export function PricingSection() {
         </div>
 
         {/* Enterprise */}
+        <div className="mt-16 mb-6 text-center">
+          <SectionBadge variant="soft">For recruiters, agency owners &amp; HR teams</SectionBadge>
+          <h3 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">
+            Hiring? <span className="text-gradient">Do it at scale.</span>
+          </h3>
+          <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
+            Recruiters, staffing agencies, and HR teams use JobsAI to source, screen, and hire faster, all in one workspace.
+          </p>
+        </div>
         <EnterpriseCard />
 
         {/* token top-up note */}
