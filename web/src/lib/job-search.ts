@@ -1,11 +1,10 @@
 // Interactive multi-region job search.
-//   • Default engine: Adzuna (US/CA/UK/EU — real totals, location, pagination).
-//   • Job Sites chips (Indeed/LinkedIn/Glassdoor/ZipRecruiter/Google): JSearch,
-//     which exposes the per-listing publisher. Activated only when chips are set,
-//     to conserve JSearch's limited free quota.
+//   • Default engine: Adzuna (US/CA/UK/EU/ZA — real totals, location, pagination).
+//   • Africa non-Adzuna (NG/KE/GH/EG/RW/MA): JSearch, which covers LinkedIn/Indeed globally.
+//   • Job Sites chips (Indeed/LinkedIn/Glassdoor/ZipRecruiter/Google): JSearch.
 //   • No keys at all: free fallback (RemoteOK + Arbeitnow) so it's never empty.
 
-export type RegionGroup = "USA" | "Canada" | "Britain" | "EU";
+export type RegionGroup = "USA" | "Canada" | "Britain" | "EU" | "Africa";
 
 export interface SearchCountry {
   code: string;
@@ -27,6 +26,14 @@ export const SEARCH_COUNTRIES: SearchCountry[] = [
   { code: "pl", label: "Poland", currency: "PLN", region: "EU", flag: "🇵🇱" },
   { code: "at", label: "Austria", currency: "EUR", region: "EU", flag: "🇦🇹" },
   { code: "be", label: "Belgium", currency: "EUR", region: "EU", flag: "🇧🇪" },
+  // Africa — ZA via Adzuna; others via JSearch
+  { code: "za", label: "South Africa", currency: "ZAR", region: "Africa", flag: "🇿🇦" },
+  { code: "ng", label: "Nigeria", currency: "NGN", region: "Africa", flag: "🇳🇬" },
+  { code: "ke", label: "Kenya", currency: "KES", region: "Africa", flag: "🇰🇪" },
+  { code: "gh", label: "Ghana", currency: "GHS", region: "Africa", flag: "🇬🇭" },
+  { code: "eg", label: "Egypt", currency: "EGP", region: "Africa", flag: "🇪🇬" },
+  { code: "rw", label: "Rwanda", currency: "RWF", region: "Africa", flag: "🇷🇼" },
+  { code: "ma", label: "Morocco", currency: "MAD", region: "Africa", flag: "🇲🇦" },
 ];
 
 const COUNTRY_BY_CODE = new Map(SEARCH_COUNTRIES.map((c) => [c.code, c]));
@@ -401,11 +408,15 @@ async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
   };
 }
 
+// Countries Adzuna natively supports (all others fall back to JSearch).
+const ADZUNA_COUNTRIES = new Set(["us", "ca", "gb", "de", "fr", "nl", "es", "it", "pl", "at", "be", "za"]);
+
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function searchJobs(p: SearchParams): Promise<SearchResult> {
-  // Job Sites chips need per-publisher data → JSearch.
-  if ((p.jobSites?.length ?? 0) > 0) {
+  // Job Sites chips OR non-Adzuna countries (African markets) → JSearch.
+  const needsJSearch = (p.jobSites?.length ?? 0) > 0 || !ADZUNA_COUNTRIES.has(p.country);
+  if (needsJSearch) {
     try {
       const js = await searchJSearch(p);
       if (js) return js;
@@ -413,11 +424,13 @@ export async function searchJobs(p: SearchParams): Promise<SearchResult> {
       console.error("JSearch failed, falling back:", err);
     }
   }
-  try {
-    const adzuna = await searchAdzuna(p);
-    if (adzuna) return adzuna;
-  } catch (err) {
-    console.error("Adzuna search failed, falling back to free sources:", err);
+  if (ADZUNA_COUNTRIES.has(p.country)) {
+    try {
+      const adzuna = await searchAdzuna(p);
+      if (adzuna) return adzuna;
+    } catch (err) {
+      console.error("Adzuna search failed, falling back to free sources:", err);
+    }
   }
   return searchFreeSources(p);
 }

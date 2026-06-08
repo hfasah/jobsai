@@ -211,7 +211,7 @@ export default function JobSearchPage() {
           className="h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none lg:w-48"
           aria-label="Country"
         >
-          {(["USA", "Canada", "Britain", "EU"] as const).map((region) => (
+          {(["USA", "Canada", "Britain", "EU", "Africa"] as const).map((region) => (
             <optgroup key={region} label={region}>
               {SEARCH_COUNTRIES.filter((c) => c.region === region).map((c) => (
                 <option key={c.code} value={c.code}>{c.flag} {c.label}</option>
