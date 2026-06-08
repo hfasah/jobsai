@@ -363,10 +363,15 @@ export default function JobSearchPage() {
                           {isPicked && <Check className="h-3.5 w-3.5" />}
                         </button>
                         <button onClick={() => setSelected(job)} className="min-w-0 flex-1 text-left">
-                          <p className="truncate text-sm font-semibold">{job.title}</p>
-                          <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-muted-foreground">
-                            <Building2 className="h-3 w-3 shrink-0" /> {job.company}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            {job.logo ? (
+                              <img src={job.logo} alt={job.company} className="h-6 w-6 shrink-0 rounded object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
+                            ) : (
+                              <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                            )}
+                            <p className="truncate text-sm font-semibold">{job.title}</p>
+                          </div>
+                          <p className="mt-0.5 truncate pl-6 text-xs text-muted-foreground">{job.company}</p>
                           <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                             <span className="flex items-center gap-1"><MapPin className="h-3 w-3" /> {job.location}</span>
                             {sal && <span className="flex items-center gap-1 text-emerald-400"><DollarSign className="h-3 w-3" /> {sal}</span>}
@@ -409,7 +414,19 @@ export default function JobSearchPage() {
           {selected ? (
             <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
               <div className="flex items-start gap-4">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-glow">
+                {selected.logo ? (
+                  <img
+                    src={selected.logo}
+                    alt={selected.company}
+                    className="h-12 w-12 shrink-0 rounded-xl border border-border bg-white object-contain p-1"
+                    onError={(e) => {
+                      const el = e.target as HTMLImageElement;
+                      el.style.display = "none";
+                      el.nextElementSibling?.removeAttribute("style");
+                    }}
+                  />
+                ) : null}
+                <div className={selected.logo ? "hidden" : "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-glow"}>
                   <Briefcase className="h-6 w-6" />
                 </div>
                 <div className="min-w-0 flex-1">

@@ -64,6 +64,7 @@ export interface SearchJob {
   contractTime: string | null;
   remote: boolean;
   category: string | null;
+  logo: string | null;
   blocked?: boolean;
 }
 
@@ -165,6 +166,7 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
       contractTime: j.contract_time ?? null,
       remote: /remote/i.test(`${j.title} ${loc}`),
       category: j.category?.label ?? null,
+      logo: null,
     };
   });
 
@@ -185,6 +187,7 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
 interface JSearchJob {
   job_id: string;
   employer_name?: string;
+  employer_logo?: string;
   job_title?: string;
   job_publisher?: string;
   job_employment_type?: string;
@@ -254,6 +257,7 @@ async function searchJSearch(p: SearchParams): Promise<SearchResult | null> {
       contractTime: j.job_employment_type ?? null,
       remote: Boolean(j.job_is_remote),
       category: null,
+      logo: j.employer_logo ?? null,
     };
   });
 
@@ -314,6 +318,7 @@ async function fetchRemoteOK(): Promise<SearchJob[]> {
     contractTime: "full_time",
     remote: true,
     category: j.tags?.[0] ?? null,
+    logo: null,
   }));
 }
 
@@ -345,6 +350,7 @@ async function fetchArbeitnow(): Promise<SearchJob[]> {
     contractTime: null,
     remote: Boolean(j.remote),
     category: j.tags?.[0] ?? null,
+    logo: null,
   }));
 }
 
