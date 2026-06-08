@@ -91,11 +91,14 @@ export function planFromPriceId(priceId: string | undefined): PaidPlan | null {
 
 // One-time token top-up packs → Stripe price IDs. Top-ups are priced at a premium
 // per token vs subscriptions (subscribing is the cheaper way to get tokens).
-export const TOKEN_PACK_PRICE_IDS: Record<string, string | undefined> = {
-  pack_small: process.env.STRIPE_PACK_SMALL_PRICE_ID,
-  pack_mid:   process.env.STRIPE_PACK_MID_PRICE_ID,
-  pack_large: process.env.STRIPE_PACK_LARGE_PRICE_ID,
-};
+export function getTokenPackPriceId(pack: string): string | undefined {
+  const priceIds: Record<string, string | undefined> = {
+    pack_small: process.env.STRIPE_PACK_SMALL_PRICE_ID,
+    pack_mid:   process.env.STRIPE_PACK_MID_PRICE_ID,
+    pack_large: process.env.STRIPE_PACK_LARGE_PRICE_ID,
+  };
+  return priceIds[pack];
+}
 
 export interface BillingRecord {
   user_id: string;

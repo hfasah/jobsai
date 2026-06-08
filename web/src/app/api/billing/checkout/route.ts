@@ -3,7 +3,7 @@ import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import {
-  getUserBilling, getPlanPriceId, TOKEN_PACK_PRICE_IDS,
+  getUserBilling, getPlanPriceId, getTokenPackPriceId,
   type PaidPlan, type BillingInterval,
 } from "@/lib/billing";
 import { TOKEN_PACKS } from "@/lib/tokens";
@@ -54,18 +54,20 @@ async function ensureCustomer(userId: string): Promise<string> {
 //  • subscription: { plan: "pro"|"premium"|"accelerator", interval?: "monthly"|"yearly" }
 //  • token top-up:  { pack: "pack_small"|"pack_mid"|"pack_large" }
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
-  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
+  try {
+    const { userId } = await auth();
+    if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
-  const body = await req.json().catch(() => ({}));
-  const stripe = getStripe();
-  const currency = parseCurrency(body.currency);
+    const body = await req.json().catch(() => ({}));
+    const stripe = getStripe();
+    const currency = parseCurrency(body.currency);
 
   // ── Token pack (one-time payment) ──────────────────────────────────────────
   if (body.pack) {
     const pack = TOKEN_PACKS.find((p) => p.id === body.pack);
-    const priceId = TOKEN_PACK_PRICE_IDS[body.pack];
+    const priceId = getTokenPackPriceId(body.pack);
+
     if (!pack) return NextResponse.json({ error: "Invalid pack." }, { status: 400 });
     if (!priceId) {
       return NextResponse.json({ error: `Stripe price for ${body.pack} is not configured.` }, { status: 500 });
@@ -118,7 +120,23 @@ export async function POST(req: NextRequest) {
     ...(discounts ? { discounts } : { allow_promotion_codes: true }),
     metadata: { clerk_user_id: userId, plan, interval, ...(affiliate ? { affiliate_id: affiliate.id, ref_code: refCode } : {}) },
   });
-  return NextResponse.json({ url: session.url });
+    return NextResponse.json({ url: session.url });
+  } catch (error: any) {
+    console.error("Stripe checkout error:", {
+      message: error?.message,
+      type: error?.type,
+      code: error?.code,
+      fullError: error,
+    });
+    return NextResponse.json(
+      {
+        error: `Checkout failed: ${error?.message || "Unknown error"}`,
+        type: error?.type,
+        code: error?.code,
+      },
+      { status: 500 }
+    );
+  }
 }
 
 async function getAffiliateByCode(code: string): Promise<{ id: string; discount_pct: number } | null> {
