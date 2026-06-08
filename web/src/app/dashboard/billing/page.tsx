@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
   Loader2, CheckCircle2, Zap, Crown, Rocket, Mic,
-  ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins, X, Building2,
+  ArrowRight, ExternalLink, Copy, Check, RefreshCw, Puzzle, Coins, X, Building2, UserRound,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -642,6 +642,26 @@ function BillingContent() {
                 <Loader2 className="h-4 w-4 animate-spin" /> Loading key…
               </div>
             )}
+          </section>
+
+          {/* Career coaching */}
+          <section className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-brand text-white">
+                  <UserRound className="h-5 w-5" />
+                </div>
+                <div>
+                  <h2 className="font-semibold">Book a Career Success Coach</h2>
+                  <p className="text-sm text-muted-foreground">
+                    A 45-min 1:1 video session — {plan === "accelerator" ? "1 free per month, included with Career Accelerator." : "pay with tokens (25,000 ≈ $75)."}
+                  </p>
+                </div>
+              </div>
+              <Link href="/dashboard/coaching" className="btn-cta inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-xl px-5 text-sm font-semibold">
+                Book a session <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
           </section>
 
           <p className="text-center text-xs text-muted-foreground">
