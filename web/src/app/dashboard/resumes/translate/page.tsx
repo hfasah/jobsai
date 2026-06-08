@@ -118,12 +118,12 @@ export default function TranslatePage() {
   const [error, setError] = useState<string | null>(null);
   const [isPaid, setIsPaid] = useState(true);
 
-  // Load user's resumes
+  // Load billing plan and user's resumes
   useEffect(() => {
     fetch("/api/billing").then((r) => r.json()).then((json) => {
       setIsPaid(json.data?.plan !== "free");
     }).catch(() => {});
-  }, []);
+
     fetch("/api/resumes")
       .then((r) => r.json())
       .then((json) => {
