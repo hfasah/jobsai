@@ -5,6 +5,7 @@ import {
   Mail, RefreshCw, Loader2, Send, Sparkles, Inbox as InboxIcon,
   Reply, Building2, Clock, Plug, AlertCircle, Check, Trash2, Filter, CalendarPlus,
 } from "lucide-react";
+import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
 import { CLASS_LABELS, type InboxClass } from "@/lib/inbox";
 
@@ -149,6 +150,7 @@ export default function InboxPage() {
             <Mail className="h-4 w-4" /> Connect Gmail
           </a>
         </div>
+        <div className="mt-6"><CcEmailCard /></div>
       </main>
     );
   }
@@ -174,6 +176,8 @@ export default function InboxPage() {
           </button>
         </div>
       </div>
+
+      <div className="mt-5"><CcEmailCard /></div>
 
       {/* Filters */}
       <div className="mt-4 flex flex-wrap gap-2">
@@ -290,5 +294,85 @@ export default function InboxPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+// ── "Also CC my email" — copy application/inbox emails to the user (or another address) ──
+function CcEmailCard() {
+  const { user } = useUser();
+  const acctEmail = user?.primaryEmailAddress?.emailAddress ?? "";
+  const [enabled, setEnabled] = useState(false);
+  const [email, setEmail] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/api/preferences").then((r) => r.json()).then((j) => {
+      if (!active) return;
+      setEnabled(!!j.data?.cc_email_enabled);
+      setEmail(j.data?.cc_email ?? "");
+    }).catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  const persist = async (nextEnabled: boolean, nextEmail: string) => {
+    setSaving(true); setSaved(false);
+    try {
+      await fetch("/api/preferences", {
+        method: "PUT", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cc_email_enabled: nextEnabled, cc_email: nextEmail || acctEmail }),
+      });
+      setSaved(true); setTimeout(() => setSaved(false), 1500);
+    } finally { setSaving(false); }
+  };
+
+  const toggle = () => {
+    const v = !enabled;
+    setEnabled(v);
+    const e = email || acctEmail;
+    if (!email) setEmail(acctEmail);
+    persist(v, e);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-semibold">Also CC my email</h2>
+          <p className="mt-1 max-w-md text-sm text-muted-foreground">
+            Get a copy of important application emails and replies JobsAI sends on your behalf — CC&apos;d straight to your inbox, plus saved here.
+          </p>
+        </div>
+        <button
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Also CC my email"
+          onClick={toggle}
+          disabled={saving}
+          className={cn("relative h-6 w-11 shrink-0 rounded-full transition-colors", enabled ? "bg-primary" : "bg-muted")}
+        >
+          <span className={cn("absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform", enabled ? "translate-x-5" : "translate-x-0.5")} />
+        </button>
+      </div>
+
+      {enabled && (
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={() => persist(true, email)}
+            placeholder={acctEmail || "you@example.com"}
+            className="min-w-[220px] flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          />
+          <button onClick={() => persist(true, email)} disabled={saving}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-border px-4 text-sm font-medium hover:bg-muted disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4 text-desyn-success" /> : null}
+            {saved ? "Saved" : "Save"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

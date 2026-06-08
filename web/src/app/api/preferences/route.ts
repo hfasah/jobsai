@@ -48,5 +48,18 @@ export async function PUT(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // CC-email written separately + best-effort so core prefs still save even on a
+  // deployment where the columns don't exist yet (migration 047).
+  if (body.cc_email_enabled !== undefined || body.cc_email !== undefined) {
+    const ccUpdate: Record<string, unknown> = {};
+    if (typeof body.cc_email_enabled === "boolean") ccUpdate.cc_email_enabled = body.cc_email_enabled;
+    if (body.cc_email !== undefined) ccUpdate.cc_email = (typeof body.cc_email === "string" && body.cc_email.trim()) ? body.cc_email.trim() : null;
+    const { data: ccData, error: ccErr } = await supabaseAdmin
+      .from("user_preferences").update(ccUpdate).eq("user_id", userId).select("cc_email_enabled, cc_email").maybeSingle();
+    if (ccErr) console.warn("cc_email not saved (run migration 047):", ccErr.message);
+    else if (ccData) Object.assign(data, ccData);
+  }
+
   return NextResponse.json({ data });
 }

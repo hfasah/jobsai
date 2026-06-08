@@ -42,6 +42,9 @@ export interface UserPreferences {
   auto_apply_enabled: boolean;
   auto_apply_threshold: number;
   require_approval: boolean;
+  // Inbox: also CC the user (or another address) on application/inbox emails.
+  cc_email_enabled: boolean;
+  cc_email: string | null;
   last_discovery_at: string | null;
   last_discovery_count: number;
   created_at: string;
@@ -64,6 +67,8 @@ export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   auto_apply_enabled: false,
   auto_apply_threshold: 75,
   require_approval: false,
+  cc_email_enabled: false,
+  cc_email: null,
   last_discovery_at: null,
   last_discovery_count: 0,
 };
