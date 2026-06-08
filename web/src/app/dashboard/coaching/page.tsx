@@ -179,8 +179,10 @@ export default function CoachingPage() {
               <Video className="h-3.5 w-3.5" /> Pay, then pick a time. Zoom link &amp; calendar invite sent on confirmation.
             </p>
             <p className="mt-3 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-center text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">Get the most from your 45 minutes:</span> upload your résumé, complete your{" "}
-              <Link href="/dashboard/setup" className="font-medium text-primary hover:underline">Apply Profile</Link>, and fill in your Preferences first, so your coach can review them beforehand and you dive straight into what matters.
+              <span className="font-medium text-foreground">Get the most from your 45 minutes:</span> upload your{" "}
+              <Link href="/dashboard/resumes" className="font-medium text-primary hover:underline">résumé</Link>, complete your{" "}
+              <Link href="/dashboard/apply-profile" className="font-medium text-primary hover:underline">Apply Profile</Link>, and fill in your{" "}
+              <Link href="/dashboard/preferences" className="font-medium text-primary hover:underline">Preferences</Link> first, so your coach can review them beforehand and you dive straight into what matters.
             </p>
           </>
         )}
