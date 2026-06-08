@@ -222,11 +222,15 @@ const EMP_TO_JSEARCH: Record<EmploymentType, string> = {
   hybrid: "FULLTIME",
 };
 
-async function searchJSearch(p: SearchParams): Promise<SearchResult | null> {
+async function searchJSearch(
+  p: SearchParams,
+  countryOverride?: string,
+): Promise<SearchResult | null> {
   const key = process.env.JSEARCH_RAPIDAPI_KEY;
   if (!key) return null;
 
   const country = COUNTRY_BY_CODE.get(p.country) ?? SEARCH_COUNTRIES[0];
+  const jsCountry = countryOverride ?? country.code;
   const uiPage = Math.max(1, p.page ?? 1);
   // Each UI page = 2 JSearch pages (~20 results) for cleaner pagination.
   const jsPage = (uiPage - 1) * 2 + 1;
@@ -236,7 +240,7 @@ async function searchJSearch(p: SearchParams): Promise<SearchResult | null> {
     query,
     page: String(jsPage),
     num_pages: "2",
-    country: country.code,
+    country: jsCountry,
     date_posted: p.maxDaysOld ? "week" : "all",
   });
   if (p.remote) params.set("work_from_home", "true");
@@ -253,7 +257,7 @@ async function searchJSearch(p: SearchParams): Promise<SearchResult | null> {
 
   const data = (await res.json()) as { data?: JSearchJob[] };
   let jobs: SearchJob[] = (data.data ?? []).map((j) => {
-    const loc = [j.job_city, j.job_state, j.job_country].filter(Boolean).join(", ") || (j.job_is_remote ? "Remote" : country.label);
+    const loc = [j.job_city, j.job_state, j.job_country].filter(Boolean).join(", ") || (j.job_is_remote ? "Remote" : jsCountry.toUpperCase());
     return {
       id: `jsearch-${j.job_id}`,
       source: "JSearch",
@@ -402,12 +406,21 @@ async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
 }
 
 async function searchAfrica(p: SearchParams): Promise<SearchResult | null> {
-  // Africa = (1) global remote jobs open to Africans + (2) jobs physically in major African markets.
+  const key = process.env.JSEARCH_RAPIDAPI_KEY;
+  if (!key) return null;
+
+  // Remote markets: biggest sources of remote-friendly roles open to Africans.
+  const remoteMarkets = ["us", "gb", "ca", "au"];
+  // African markets: jobs physically in Africa (remote + on-site).
+  const africanMarkets = ["za", "ng", "ke", "gh", "eg"];
+
   const searches = await Promise.allSettled([
-    searchJSearch({ ...p, country: "us", remote: true }),   // worldwide remote
-    searchJSearch({ ...p, country: "za" }),                  // South Africa
-    searchJSearch({ ...p, country: "ng" }),                  // Nigeria
-    searchJSearch({ ...p, country: "ke" }),                  // Kenya
+    ...remoteMarkets.map((code) =>
+      searchJSearch({ ...p, country: "us", remote: true }, code),
+    ),
+    ...africanMarkets.map((code) =>
+      searchJSearch({ ...p, country: "us" }, code),
+    ),
   ]);
 
   const seen = new Set<string>();
