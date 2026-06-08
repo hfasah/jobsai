@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import {
   X, Zap, FileText, Mic, BarChart3, Send, Trophy,
@@ -198,15 +199,21 @@ function ExitModal({ onClose }: { onClose: () => void }) {
 
 type Modal = "engagement" | "exit" | null;
 
+// The job-seeker acquisition popup must never appear on enterprise (white-labeled),
+// admin, careers, or auth pages — only on the public job-seeker marketing site.
+const POPUP_EXCLUDED = ["/enterprise", "/e/", "/admin", "/careers", "/sign-in", "/sign-up", "/dashboard", "/onboarding", "/launch"];
+
 export function MarketingPopups() {
   const { isSignedIn, isLoaded } = useUser();
+  const pathname = usePathname();
+  const blocked = POPUP_EXCLUDED.some((p) => pathname === p || pathname.startsWith(p));
   const [modal, setModal] = useState<Modal>(null);
   const [armed, setArmed] = useState(false);
 
   const close = useCallback(() => setModal(null), []);
 
   useEffect(() => {
-    if (!isLoaded || isSignedIn) return;
+    if (!isLoaded || isSignedIn || blocked) return;
 
     // Don't re-show once seen this session
     if (getFlag("popup_engagement") && getFlag("popup_exit")) return;
@@ -241,11 +248,11 @@ export function MarketingPopups() {
       if (engagementTimer) clearTimeout(engagementTimer);
       window.removeEventListener("scroll", onScroll);
     };
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, blocked]);
 
   // Exit-intent: mouse leaves viewport through the top
   useEffect(() => {
-    if (!armed || isSignedIn || getFlag("popup_exit")) return;
+    if (!armed || isSignedIn || blocked || getFlag("popup_exit")) return;
 
     const onMouseOut = (e: MouseEvent) => {
       if (e.clientY <= 5 && e.relatedTarget === null) {
@@ -256,9 +263,9 @@ export function MarketingPopups() {
     };
     document.addEventListener("mouseout", onMouseOut);
     return () => document.removeEventListener("mouseout", onMouseOut);
-  }, [armed, isSignedIn]);
+  }, [armed, isSignedIn, blocked]);
 
-  if (!modal) return null;
+  if (!modal || blocked) return null;
 
   return modal === "engagement"
     ? <EngagementModal onClose={close} />
