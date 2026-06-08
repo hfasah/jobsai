@@ -26,14 +26,7 @@ export const SEARCH_COUNTRIES: SearchCountry[] = [
   { code: "pl", label: "Poland", currency: "PLN", region: "EU", flag: "🇵🇱" },
   { code: "at", label: "Austria", currency: "EUR", region: "EU", flag: "🇦🇹" },
   { code: "be", label: "Belgium", currency: "EUR", region: "EU", flag: "🇧🇪" },
-  // Africa — ZA via Adzuna; others via JSearch
-  { code: "za", label: "South Africa", currency: "ZAR", region: "Africa", flag: "🇿🇦" },
-  { code: "ng", label: "Nigeria", currency: "NGN", region: "Africa", flag: "🇳🇬" },
-  { code: "ke", label: "Kenya", currency: "KES", region: "Africa", flag: "🇰🇪" },
-  { code: "gh", label: "Ghana", currency: "GHS", region: "Africa", flag: "🇬🇭" },
-  { code: "eg", label: "Egypt", currency: "EGP", region: "Africa", flag: "🇪🇬" },
-  { code: "rw", label: "Rwanda", currency: "RWF", region: "Africa", flag: "🇷🇼" },
-  { code: "ma", label: "Morocco", currency: "MAD", region: "Africa", flag: "🇲🇦" },
+  { code: "africa", label: "Africa", currency: "USD", region: "Africa", flag: "🌍" },
 ];
 
 const COUNTRY_BY_CODE = new Map(SEARCH_COUNTRIES.map((c) => [c.code, c]));
@@ -408,29 +401,28 @@ async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
   };
 }
 
-// Countries Adzuna natively supports (all others fall back to JSearch).
-const ADZUNA_COUNTRIES = new Set(["us", "ca", "gb", "de", "fr", "nl", "es", "it", "pl", "at", "be", "za"]);
-
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function searchJobs(p: SearchParams): Promise<SearchResult> {
-  // Job Sites chips OR non-Adzuna countries (African markets) → JSearch.
-  const needsJSearch = (p.jobSites?.length ?? 0) > 0 || !ADZUNA_COUNTRIES.has(p.country);
+  // Africa or Job Sites chips → JSearch (covers LinkedIn/Indeed globally).
+  const needsJSearch = (p.jobSites?.length ?? 0) > 0 || p.country === "africa";
   if (needsJSearch) {
+    // For Africa, append location hint so JSearch targets the continent.
+    const params = p.country === "africa"
+      ? { ...p, country: "us", where: [p.where, "Africa"].filter(Boolean).join(" ") }
+      : p;
     try {
-      const js = await searchJSearch(p);
+      const js = await searchJSearch(params);
       if (js) return js;
     } catch (err) {
       console.error("JSearch failed, falling back:", err);
     }
   }
-  if (ADZUNA_COUNTRIES.has(p.country)) {
-    try {
-      const adzuna = await searchAdzuna(p);
-      if (adzuna) return adzuna;
-    } catch (err) {
-      console.error("Adzuna search failed, falling back to free sources:", err);
-    }
+  try {
+    const adzuna = await searchAdzuna(p);
+    if (adzuna) return adzuna;
+  } catch (err) {
+    console.error("Adzuna search failed, falling back to free sources:", err);
   }
   return searchFreeSources(p);
 }
