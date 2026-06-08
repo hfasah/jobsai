@@ -6,6 +6,7 @@ import type { ResumeData } from "@/components/resume/resume-preview-client";
 import type { TailoredJson } from "@/types/phase3";
 import type { ParsedJson } from "@/types/resume";
 import { fillExperienceDates } from "@/lib/resume-dates";
+import { getUserBilling } from "@/lib/billing";
 
 export default async function ResumePreviewPage({
   params,
@@ -15,6 +16,9 @@ export default async function ResumePreviewPage({
   const { jobId } = await params;
   const { userId } = await auth();
   if (!userId) notFound();
+
+  const billing = await getUserBilling(userId);
+  const isPaid = billing.plan !== "free";
 
   const { data: tailored } = await supabaseAdmin
     .from("tailored_resumes")
@@ -56,5 +60,5 @@ export default async function ResumePreviewPage({
     skills: tj.skills ?? pj?.skills?.map((s) => s.skill) ?? [],
   };
 
-  return <ResumePreviewClient backHref={`/dashboard/jobs/${jobId}`} data={data} />;
+  return <ResumePreviewClient backHref={`/dashboard/jobs/${jobId}`} data={data} isPaid={isPaid} />;
 }

@@ -116,9 +116,14 @@ export default function TranslatePage() {
   const [translating, setTranslating] = useState(false);
   const [translated, setTranslated] = useState<ResumeData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isPaid, setIsPaid] = useState(true);
 
   // Load user's resumes
   useEffect(() => {
+    fetch("/api/billing").then((r) => r.json()).then((json) => {
+      setIsPaid(json.data?.plan !== "free");
+    }).catch(() => {});
+  }, []);
     fetch("/api/resumes")
       .then((r) => r.json())
       .then((json) => {
@@ -247,10 +252,17 @@ export default function TranslatePage() {
               <p className="text-sm font-semibold text-foreground">
                 Translated to <span className="text-primary">{targetLanguage}</span>
               </p>
-              <Button variant="outline" size="sm" onClick={() => window.print()}>
-                <Printer className="mr-1.5 h-3.5 w-3.5" />
-                Download PDF
-              </Button>
+              {isPaid ? (
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
+                  <Printer className="mr-1.5 h-3.5 w-3.5" />
+                  Download PDF
+                </Button>
+              ) : (
+                <a href="/dashboard/billing" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-gradient-brand px-3 text-xs font-semibold text-white shadow-glow transition-opacity hover:opacity-90">
+                  <Printer className="h-3 w-3" />
+                  Upgrade to Download
+                </a>
+              )}
             </div>
             <div className="overflow-hidden rounded-2xl border border-border">
               <ResumePreviewClient data={translated} hideToolbar />

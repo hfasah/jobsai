@@ -467,10 +467,12 @@ export function ResumePreviewClient({
   backHref = "/dashboard",
   data,
   hideToolbar = false,
+  isPaid = true,
 }: {
   backHref?: string;
   data: ResumeData;
   hideToolbar?: boolean;
+  isPaid?: boolean;
 }) {
   const [template, setTemplate] = useState<TemplateId>("modern");
 
@@ -504,10 +506,17 @@ export function ResumePreviewClient({
           ))}
         </div>
 
-        <Button size="sm" className="shrink-0" onClick={() => window.print()}>
-          <Printer className="mr-1.5 h-3.5 w-3.5" />
-          Download PDF
-        </Button>
+        {isPaid ? (
+          <Button size="sm" className="shrink-0" onClick={() => window.print()}>
+            <Printer className="mr-1.5 h-3.5 w-3.5" />
+            Download PDF
+          </Button>
+        ) : (
+          <a href="/dashboard/billing" className="shrink-0 inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-brand px-3 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90">
+            <Printer className="h-3.5 w-3.5" />
+            Upgrade to Download
+          </a>
+        )}
       </div>
       )}
 
