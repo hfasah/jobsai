@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, UserRound, CheckCircle2, Calendar, Video, Coins, ArrowRight, Clock } from "lucide-react";
+import { Loader2, UserRound, CheckCircle2, Calendar, Video, Coins, ArrowRight, Clock, Target, TrendingUp, Zap, ShieldCheck, Rocket } from "lucide-react";
 import { cn, fmtTokens } from "@/lib/utils";
 import { promptBuyTokens } from "@/lib/upgrade";
 
@@ -22,6 +22,15 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const TIMES = ["09:00", "11:00", "13:00", "15:00", "17:00"];
+
+// Why book a session — value-led upsell points.
+const BENEFITS: { icon: React.ElementType; lead: string; text: string }[] = [
+  { icon: Target,      lead: "Land the job in fewer interviews", text: "your coach reveals exactly what hiring managers want to hear — and the small things that quietly get people rejected." },
+  { icon: TrendingUp,  lead: "Negotiate thousands more",         text: "one tactic can add $10K+ to your offer. A single session can pay for itself many times over." },
+  { icon: Zap,         lead: "Skip months of rejection",         text: "get in 45 minutes the shortcut it takes most people 6 months of trial-and-error to figure out." },
+  { icon: ShieldCheck, lead: "Walk in unshakably confident",     text: "rehearse your toughest questions live with a real pro, so the real interview feels easy." },
+  { icon: Rocket,      lead: "Leave with a game plan, not just tips", text: "a personalized, step-by-step roadmap to your next offer — built around you and your target role." },
+];
 
 function nextBusinessDays(n: number): Date[] {
   const days: Date[] = [];
@@ -132,6 +141,23 @@ export default function CoachingPage() {
                   </p>
                 )}
               </div>
+            </div>
+
+            {/* Why it's worth it — upsell */}
+            <div className="mt-5 rounded-xl border border-primary/20 bg-primary/5 p-4">
+              <p className="mb-3 text-sm font-semibold">Why one session is worth it 🚀</p>
+              <ul className="space-y-2.5">
+                {BENEFITS.map((b, i) => {
+                  const Icon = b.icon;
+                  return (
+                    <li key={i} className="flex items-start gap-2.5 text-sm">
+                      <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/15 text-primary"><Icon className="h-3.5 w-3.5" /></span>
+                      <span className="text-muted-foreground"><strong className="text-foreground">{b.lead}</strong> — {b.text}</span>
+                    </li>
+                  );
+                })}
+              </ul>
+              <p className="mt-3 text-xs font-medium text-primary">Most people never get this kind of insider help. 45 minutes could change your entire job search.</p>
             </div>
 
             <div className="mt-5">
