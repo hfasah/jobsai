@@ -100,77 +100,78 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
 
 // ─── Cancel modal ─────────────────────────────────────────────────────────────
 
-const CANCEL_REASONS: { group: string; items: string[] }[] = [
-  {
-    group: "Price",
-    items: [
-      "Too expensive for the value I got",
-      "Too expensive for my budget",
-      "Found a cheaper alternative",
-    ],
-  },
-  {
-    group: "Results",
-    items: [
-      "Didn't land interviews as expected",
-      "Auto-apply volume wasn't enough",
-      "Application quality wasn't good enough",
-    ],
-  },
-  {
-    group: "Usage",
-    items: [
-      "Didn't use JobsAI enough",
-      "Changed my job search strategy",
-      "Already landed a job 🎉",
-    ],
-  },
-  {
-    group: "Other",
-    items: [
-      "Technical issues with JobsAI",
-      "Missing features I need",
-      "Switching to a different tool",
-    ],
-  },
+type CancelReason = "too_expensive" | "found_alternative" | "got_job" | "not_using" | "missing_features" | "technical" | "other";
+type CancelStep = "survey" | "offer" | "done";
+type DoneVariant = "discount" | "pause" | "feedback";
+
+const CANCEL_REASONS_LIST: { id: CancelReason; label: string; subtext: string }[] = [
+  { id: "too_expensive",     label: "It's too expensive",             subtext: "The price doesn't fit my budget right now" },
+  { id: "got_job",           label: "I already landed a job 🎉",      subtext: "JobsAI helped me — I don't need it anymore" },
+  { id: "not_using",         label: "I'm not using it enough",        subtext: "I haven't had time to get value from it" },
+  { id: "found_alternative", label: "I found a cheaper alternative",  subtext: "Another tool works better for my needs" },
+  { id: "missing_features",  label: "Missing features I need",        subtext: "There's something important I can't do here" },
+  { id: "technical",         label: "Technical issues",               subtext: "Bugs or reliability problems pushed me away" },
+  { id: "other",             label: "Other reason",                   subtext: "Something else entirely" },
 ];
 
 const OFFER_PLANS: { plan: PaidPlan; label: string; monthly: number }[] = [
-  { plan: "pro",         label: "Pro",              monthly: 39  },
-  { plan: "premium",     label: "Premium",          monthly: 79  },
+  { plan: "pro",         label: "Pro",               monthly: 39  },
+  { plan: "premium",     label: "Premium",           monthly: 79  },
   { plan: "accelerator", label: "Career Accelerator", monthly: 199 },
 ];
 
 function CancelModal({ currentPlan, onGoToPortal, onClose }: {
   currentPlan: Plan; onGoToPortal: () => void; onClose: () => void;
 }) {
-  const [step, setStep] = useState<"survey" | "offer" | "wait_sent" | "claimed">("survey");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [comment, setComment] = useState("");
-  const [submitting, setSubmitting] = useState<"cancel" | "wait" | "claim" | null>(null);
+  const [step, setStep]           = useState<CancelStep>("survey");
+  const [reason, setReason]       = useState<CancelReason | null>(null);
+  const [comment, setComment]     = useState("");
+  const [doneVariant, setDoneVariant] = useState<DoneVariant>("discount");
+  const [submitting, setSubmitting] = useState(false);
 
-  const toggle = (item: string) =>
-    setSelected((s) => { const n = new Set(s); if (n.has(item)) { n.delete(item); } else { n.add(item); } return n; });
+  const offerType: "discount" | "pause" | "feedback" | "support" = (() => {
+    if (!reason || reason === "too_expensive" || reason === "found_alternative" || reason === "other") return "discount";
+    if (reason === "got_job" || reason === "not_using") return "pause";
+    if (reason === "missing_features") return "feedback";
+    return "support";
+  })();
 
-  const sendFeedback = async (wait: boolean) => {
-    setSubmitting(wait ? "wait" : "cancel");
-    try {
-      await fetch("/api/billing/cancel-feedback", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reasons: [...selected], comment, wait }),
-      });
-    } catch (_) { void _; }
-    setSubmitting(null);
-    setStep(wait ? "wait_sent" : "offer");
+  const submitSurvey = async () => {
+    if (!reason) return;
+    fetch("/api/billing/cancel-feedback", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reasons: [reason], comment, wait: false }),
+    }).catch(() => {});
+    setStep("offer");
   };
 
   const claimDiscount = async () => {
-    setSubmitting("claim");
+    setSubmitting(true);
+    try { await fetch("/api/billing/retention-offer", { method: "POST" }); } catch { /* */ }
+    setSubmitting(false);
+    setDoneVariant("discount");
+    setStep("done");
+  };
+
+  const pauseSubscription = async () => {
+    setSubmitting(true);
+    try { await fetch("/api/billing/pause-subscription", { method: "POST" }); } catch { /* */ }
+    setSubmitting(false);
+    setDoneVariant("pause");
+    setStep("done");
+  };
+
+  const sendFeatureFeedback = async () => {
+    setSubmitting(true);
     try {
-      await fetch("/api/billing/retention-offer", { method: "POST" });
-    } catch (_) { void _; }
-    setSubmitting(null);
-    setStep("claimed");
+      await fetch("/api/billing/cancel-feedback", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reasons: [reason], comment, wait: true }),
+      });
+    } catch { /* */ }
+    setSubmitting(false);
+    setDoneVariant("feedback");
+    setStep("done");
   };
 
   return (
@@ -180,133 +181,208 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
           <X className="h-5 w-5" />
         </button>
 
-        {/* ── Survey ── */}
+        {/* ── Step 1: Survey ── */}
         {step === "survey" && (
           <div className="p-6">
-            <h2 className="text-lg font-bold text-foreground">Cancel Subscription</h2>
-            <p className="mt-1 text-sm text-muted-foreground">Help us improve — what&apos;s the main reason you&apos;re cancelling?</p>
-            <div className="mt-5 space-y-5">
-              {CANCEL_REASONS.map(({ group, items }) => (
-                <div key={group}>
-                  <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{group}</p>
-                  <div className="space-y-1.5">
-                    {items.map((item) => (
-                      <label key={item} className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/50">
-                        <input type="checkbox" checked={selected.has(item)} onChange={() => toggle(item)} className="h-4 w-4 rounded border-border accent-primary" />
-                        <span className="text-sm text-foreground">{item}</span>
-                      </label>
-                    ))}
+            <h2 className="text-lg font-bold">Before you go…</h2>
+            <p className="mt-1 text-sm text-muted-foreground">What&apos;s the main reason you&apos;re thinking of cancelling?</p>
+            <div className="mt-5 space-y-2">
+              {CANCEL_REASONS_LIST.map(({ id, label, subtext }) => (
+                <label key={id} className={cn(
+                  "flex cursor-pointer items-center gap-3 rounded-xl border p-3.5 transition-all",
+                  reason === id ? "border-primary bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/40"
+                )}>
+                  <input type="radio" name="cancel-reason" value={id} checked={reason === id}
+                    onChange={() => setReason(id)} className="h-4 w-4 shrink-0 accent-primary" />
+                  <div>
+                    <p className="text-sm font-medium text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground">{subtext}</p>
                   </div>
-                </div>
+                </label>
               ))}
             </div>
-            <div className="mt-5">
-              <label className="mb-1.5 block text-sm font-medium text-foreground">
-                What&apos;s the main reason you&apos;re cancelling? <span className="text-muted-foreground">(Required)</span>
-              </label>
-              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3} placeholder="Tell us more…"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">We&apos;ll notify you if we make any changes based on your feedback.</p>
-            <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-              <button onClick={() => sendFeedback(false)} disabled={submitting !== null || !comment.trim()}
-                className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50">
-                {submitting === "cancel" && <Loader2 className="h-4 w-4 animate-spin" />}
-                Continue to Cancellation
+            {(reason === "missing_features" || reason === "technical") && (
+              <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={2}
+                placeholder={reason === "technical" ? "Describe the issue…" : "What feature are you missing?"}
+                className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+            )}
+            <div className="mt-5 flex gap-2">
+              <button onClick={onClose}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted">
+                Keep my plan
               </button>
-              <button onClick={() => sendFeedback(true)} disabled={submitting !== null || !comment.trim()}
-                className="btn-cta inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-50">
-                {submitting === "wait" && <Loader2 className="h-4 w-4 animate-spin" />}
-                Send to Team &amp; Wait
+              <button onClick={submitSurvey} disabled={!reason}
+                className="btn-cta flex-1 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-40">
+                Continue →
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Retention offer ── */}
-        {step === "offer" && (
+        {/* ── Step 2: Offer — discount ── */}
+        {step === "offer" && offerType === "discount" && (
           <div className="p-6">
-            <h2 className="text-lg font-bold text-foreground">Cancel Subscription</h2>
-            <p className="mt-3 text-sm font-semibold text-foreground">Before You Go — Here&apos;s a Better Option</p>
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-cta/10 text-2xl">💡</div>
+            <h2 className="text-lg font-bold">Let&apos;s make it work for you</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Stay with JobsAI and keep access to Auto Apply, Resume Tailoring, and all your unused tokens — without losing progress.
+              Stay with JobsAI and get <span className="font-semibold text-cta">30% off for the next 3 months</span> — keep your tokens, resume, and progress.
             </p>
-            <p className="mt-3 text-sm font-semibold text-cta">
-              Instead of cancelling, enjoy 30% off for the next 3 months on any plan.
-            </p>
-
             <div className="mt-5 grid grid-cols-3 gap-3">
               {OFFER_PLANS.map(({ plan, label, monthly }) => {
-                const discounted = Math.round(monthly * 0.7 * 100) / 100;
-                const save = Math.round((monthly - discounted) * 100) / 100;
+                const discounted = Math.round(monthly * 0.7);
                 const isCurrent = plan === currentPlan;
                 return (
                   <div key={plan} className={cn(
-                    "rounded-xl border p-3 text-center transition-colors",
-                    isCurrent ? "border-cta bg-cta text-cta-foreground" : "border-border bg-card"
+                    "rounded-xl border p-3 text-center",
+                    isCurrent ? "border-cta bg-cta/10" : "border-border bg-muted/30"
                   )}>
-                    <p className={cn("text-xs font-semibold", isCurrent ? "text-cta-foreground" : "text-foreground")}>{label}</p>
-                    <p className={cn("mt-1 text-xl font-bold", isCurrent ? "text-cta-foreground" : "text-foreground")}>
-                      ${discounted}<span className="text-xs font-normal">/mo</span>
-                    </p>
-                    <p className={cn("mt-0.5 text-xs line-through", isCurrent ? "text-cta-foreground/60" : "text-muted-foreground")}>
-                      ${monthly} /mo for 3 months
-                    </p>
-                    <p className={cn("mt-1 text-xs font-medium", isCurrent ? "text-cta-foreground/80" : "text-muted-foreground")}>
-                      Save ${save}/month
-                    </p>
+                    <p className="text-xs font-semibold text-foreground">{label}</p>
+                    <p className="mt-1 text-xl font-bold">${discounted}<span className="text-xs font-normal text-muted-foreground">/mo</span></p>
+                    <p className="text-xs line-through text-muted-foreground">${monthly}/mo</p>
+                    {isCurrent && <p className="mt-1 text-[10px] font-semibold text-cta">Your plan</p>}
                   </div>
                 );
               })}
             </div>
-
-            <p className="mt-3 text-center text-xs text-muted-foreground">(Billed monthly — You save 30%)</p>
-
-            <div className="mt-5 flex flex-col gap-2 sm:flex-row">
+            <p className="mt-2 text-center text-xs text-muted-foreground">Applies for 3 months, then regular pricing resumes.</p>
+            <div className="mt-5 flex gap-2">
               <button onClick={onGoToPortal}
-                className="inline-flex flex-1 items-center justify-center rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
-                Continue to Cancellation
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                Still cancel
               </button>
-              <button onClick={claimDiscount} disabled={submitting === "claim"}
-                className="btn-cta inline-flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
-                {submitting === "claim" && <Loader2 className="h-4 w-4 animate-spin" />}
-                Claim 30% Off &amp; Keep Subscription
+              <button onClick={claimDiscount} disabled={submitting}
+                className="btn-cta flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Claim 30% Off →
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Success: wait sent ── */}
-        {step === "wait_sent" && (
+        {/* ── Step 2: Offer — pause ── */}
+        {step === "offer" && offerType === "pause" && (
+          <div className="p-6">
+            <div className="mb-4 text-4xl">{reason === "got_job" ? "🎉" : "⏸️"}</div>
+            <h2 className="text-lg font-bold">
+              {reason === "got_job" ? "Congrats on landing the job!" : "Life gets busy — we get it."}
+            </h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {reason === "got_job"
+                ? "Pause your subscription for 30 days instead of cancelling. Your tokens, resume, and history stay exactly as they are — no charge during the pause."
+                : "Pause for 30 days instead of cancelling. Your tokens, applied jobs, and profile will be here when you're ready."}
+            </p>
+            <div className="mt-5 rounded-xl border border-border bg-muted/30 p-4">
+              <div className="grid grid-cols-2 gap-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-desyn-success" /> Tokens preserved</div>
+                <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-desyn-success" /> Resume &amp; profile saved</div>
+                <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-desyn-success" /> No charge for 30 days</div>
+                <div className="flex items-center gap-2"><CheckCircle2 className="h-4 w-4 shrink-0 text-desyn-success" /> Auto-resumes after 30 days</div>
+              </div>
+            </div>
+            <div className="mt-5 flex gap-2">
+              <button onClick={onGoToPortal}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                Still cancel
+              </button>
+              <button onClick={pauseSubscription} disabled={submitting}
+                className="btn-cta flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Pause for 30 Days →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Offer — missing features ── */}
+        {step === "offer" && offerType === "feedback" && (
+          <div className="p-6">
+            <div className="mb-4 text-4xl">🧩</div>
+            <h2 className="text-lg font-bold">Tell us what&apos;s missing</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your feedback goes directly to our product team. Stay for 30 more days — if we ship it, you&apos;ll get early access.
+            </p>
+            <textarea value={comment} onChange={(e) => setComment(e.target.value)} rows={3}
+              placeholder="What would make JobsAI perfect for you?"
+              className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
+            <div className="mt-5 flex gap-2">
+              <button onClick={onGoToPortal}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                Still cancel
+              </button>
+              <button onClick={sendFeatureFeedback} disabled={submitting || !comment.trim()}
+                className="btn-cta flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Send &amp; Stay →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Offer — technical issues ── */}
+        {step === "offer" && offerType === "support" && (
+          <div className="p-6">
+            <div className="mb-4 text-4xl">🛠️</div>
+            <h2 className="text-lg font-bold">Let us fix it</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Don&apos;t cancel over a bug. Our team responds within 24 hours and will get it sorted — no charge while we investigate.
+            </p>
+            {comment && (
+              <div className="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                <span className="font-medium text-foreground">Your note: </span>{comment}
+              </div>
+            )}
+            <div className="mt-5 flex gap-2">
+              <button onClick={onGoToPortal}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                Still cancel
+              </button>
+              <a href="mailto:support@jobsai.work?subject=Technical Issue"
+                className="btn-cta flex-1 inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold">
+                Email Support →
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Done — discount ── */}
+        {step === "done" && doneVariant === "discount" && (
           <div className="flex flex-col items-center gap-4 p-8 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-desyn-success/15">
-              <CheckCircle2 className="h-7 w-7 text-desyn-success" />
-            </div>
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cta/15 text-2xl">🎉</div>
             <div>
-              <p className="text-lg font-bold text-foreground">Got it — we&apos;re on it.</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your feedback has been sent to the team. We&apos;ll reach out if we ship something that addresses your concern. Your subscription is still active.
-              </p>
+              <p className="text-lg font-bold">30% Off Applied!</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your discount is active for the next 3 months. Keep applying — your next interview is one step closer.</p>
             </div>
-            <button onClick={onClose} className="mt-2 inline-flex items-center justify-center rounded-xl bg-gradient-brand px-6 py-2.5 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90">
+            <button onClick={onClose} className="btn-cta mt-2 inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-semibold">
               Back to billing
             </button>
           </div>
         )}
 
-        {/* ── Success: discount claimed ── */}
-        {step === "claimed" && (
+        {/* ── Step 3: Done — pause ── */}
+        {step === "done" && doneVariant === "pause" && (
           <div className="flex flex-col items-center gap-4 p-8 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cta/15">
-              <CheckCircle2 className="h-7 w-7 text-cta" />
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/15 text-2xl">⏸️</div>
+            <div>
+              <p className="text-lg font-bold">Subscription Paused</p>
+              <p className="mt-1 text-sm text-muted-foreground">You&apos;re paused for 30 days. Your data and tokens are safe. Billing auto-resumes when the pause ends.</p>
+            </div>
+            <button onClick={onClose} className="btn-cta mt-2 inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-semibold">
+              Got it
+            </button>
+          </div>
+        )}
+
+        {/* ── Step 3: Done — feedback ── */}
+        {step === "done" && doneVariant === "feedback" && (
+          <div className="flex flex-col items-center gap-4 p-8 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-desyn-success/15">
+              <CheckCircle2 className="h-7 w-7 text-desyn-success" />
             </div>
             <div>
-              <p className="text-lg font-bold text-foreground">30% off applied! 🎉</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your discount is active for the next 3 months. Keep applying — your next interview is closer than you think.
-              </p>
+              <p className="text-lg font-bold">Feedback sent!</p>
+              <p className="mt-1 text-sm text-muted-foreground">The team has your request. Your subscription stays active — we&apos;ll reach out when we ship it.</p>
             </div>
-            <button onClick={onClose} className="mt-2 btn-cta inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-semibold">
+            <button onClick={onClose} className="btn-cta mt-2 inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-semibold">
               Back to billing
             </button>
           </div>
@@ -406,10 +482,6 @@ function BillingContent() {
     } finally { setPortaling(false); }
   };
 
-  const manageSubscription = (currentPlan: string) => {
-    if (currentPlan !== "free") { setShowCancelModal(true); } else { openPortal(); }
-  };
-
   if (loading) {
     return (
       <>
@@ -491,7 +563,7 @@ function BillingContent() {
                   <p className="font-semibold">{meta.label} plan</p>
                 </div>
                 {isPaid && (
-                  <Button variant="outline" size="sm" onClick={() => manageSubscription(plan)} disabled={portaling}>
+                  <Button variant="outline" size="sm" onClick={openPortal} disabled={portaling}>
                     {portaling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ExternalLink className="mr-1.5 h-3.5 w-3.5" />}
                     Manage
                   </Button>
@@ -504,6 +576,11 @@ function BillingContent() {
                   </div>
                 ))}
               </div>
+              {isPaid && (
+                <button onClick={() => setShowCancelModal(true)} className="mt-4 text-xs text-muted-foreground hover:text-destructive transition-colors underline underline-offset-2">
+                  Cancel subscription
+                </button>
+              )}
             </div>
 
             {/* Token balance */}

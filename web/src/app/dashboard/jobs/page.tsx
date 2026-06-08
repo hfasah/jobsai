@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus, Loader2, Briefcase, MapPin, Search, X, ChevronDown, Check,
+  TrendingUp, FileText, Star, Send, Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -74,6 +75,41 @@ function applySort(jobs: JobListItem[], sort: SortKey) {
     const sb = b.match?.match_score ?? -1;
     return sort === "score_desc" ? sb - sa : sa - sb;
   });
+}
+
+// ─── Stats bar ────────────────────────────────────────────────────────────────
+
+function StatsBar({ jobs }: { jobs: JobListItem[] }) {
+  const total = jobs.length;
+  const tailored = jobs.filter((j) => j.progress?.tailored).length;
+  const applied  = jobs.filter((j) => j.progress?.applied).length;
+  const scored   = jobs.filter((j) => j.match?.match_score != null);
+  const avgScore = scored.length
+    ? Math.round(scored.reduce((s, j) => s + (j.match!.match_score), 0) / scored.length)
+    : null;
+
+  const stats = [
+    { label: "Total Jobs",   value: total,                      icon: FileText,   color: "text-primary",        bg: "bg-primary/10"        },
+    { label: "Résumés Tailored", value: tailored,               icon: Star,       color: "text-desyn-accent",   bg: "bg-desyn-accent/10"   },
+    { label: "Avg Match Score",  value: avgScore != null ? `${avgScore}%` : "—", icon: TrendingUp, color: "text-desyn-success", bg: "bg-desyn-success/10" },
+    { label: "Applied",      value: applied,                    icon: Send,       color: "text-desyn-warning",  bg: "bg-desyn-warning/10"  },
+  ];
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {stats.map(({ label, value, icon: Icon, color, bg }) => (
+        <div key={label} className="rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-medium text-muted-foreground">{label}</p>
+            <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", bg)}>
+              <Icon className={cn("h-4 w-4", color)} />
+            </div>
+          </div>
+          <p className="mt-2 text-2xl font-bold tabular-nums">{value}</p>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 // ─── Filter bar ───────────────────────────────────────────────────────────────
@@ -311,6 +347,12 @@ export default function JobsPage() {
           </Button>
         </div>
 
+        {!loading && jobs.length > 0 && (
+          <div className="mt-6">
+            <StatsBar jobs={jobs} />
+          </div>
+        )}
+
         {loading ? (
           <div className="mt-12 flex items-center justify-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -326,7 +368,7 @@ export default function JobsPage() {
             </Button>
           </div>
         ) : (
-          <div className="mt-6 space-y-4">
+          <div className="mt-4 space-y-4">
             <FilterBar
               search={search} setSearch={setSearch}
               scoreFilter={scoreFilter} setScoreFilter={setScoreFilter}
@@ -347,20 +389,45 @@ export default function JobsPage() {
               </div>
             ) : (
               <div className="space-y-2.5">
-                {/* Select-all for the apply queue */}
+                {/* Selection action bar */}
                 {selectableIds.length > 0 && (
-                  <div className="flex items-center justify-between px-1 text-xs text-muted-foreground">
-                    <button onClick={toggleSelectAll} className="inline-flex items-center gap-2 hover:text-foreground">
+                  <div className={cn(
+                    "flex items-center gap-3 rounded-xl border px-4 py-2.5 transition-colors",
+                    selected.size > 0
+                      ? "border-primary/40 bg-primary/5"
+                      : "border-border bg-muted/30"
+                  )}>
+                    <button onClick={toggleSelectAll} className="inline-flex items-center gap-2 text-sm font-medium hover:text-foreground">
                       <span className={cn(
-                        "flex h-4 w-4 items-center justify-center rounded border",
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors",
                         allSelected ? "border-primary bg-primary text-primary-foreground" : "border-border"
                       )}>
                         {allSelected && <Check className="h-3 w-3" />}
                       </span>
-                      Select all ready ({selectableIds.length})
+                      {allSelected ? "Deselect all" : `Select all ready (${selectableIds.length})`}
                     </button>
+
                     {selected.size > 0 && (
-                      <button onClick={() => setSelected(new Set())} className="hover:text-foreground">Clear selection</button>
+                      <>
+                        <span className="text-xs font-semibold text-primary">
+                          {selected.size} selected
+                        </span>
+                        <div className="ml-auto flex items-center gap-2">
+                          <button
+                            onClick={() => setSelected(new Set())}
+                            className="text-xs text-muted-foreground hover:text-foreground"
+                          >
+                            Clear
+                          </button>
+                          <button
+                            onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
+                            className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                          >
+                            <Zap className="h-3.5 w-3.5" />
+                            Apply to {selected.size} job{selected.size > 1 ? "s" : ""} ↓
+                          </button>
+                        </div>
+                      </>
                     )}
                   </div>
                 )}

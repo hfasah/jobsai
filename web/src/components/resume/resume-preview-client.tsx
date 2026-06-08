@@ -93,10 +93,11 @@ function TemplateModern({ d }: { d: ResumeData }) {
               <div key={i}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16 }}>
                   <div>
-                    <p style={{ fontWeight: 600, fontSize: 14 }}>{exp.title}</p>
-                    <p style={{ fontSize: 13, color: "#555", marginTop: 1 }}>{exp.company}</p>
+                    <p style={{ fontWeight: 700, fontSize: 13.5 }}>
+                      {exp.title}{exp.company ? <span style={{ fontWeight: 400, color: "#555" }}> | {exp.company}</span> : ""}
+                    </p>
                   </div>
-                  {dateRange(exp) && <p style={{ fontSize: 12, color: "#777", flexShrink: 0 }}>{dateRange(exp)}</p>}
+                  {dateRange(exp) && <p style={{ fontSize: 12, color: "#777", flexShrink: 0, fontStyle: "italic" }}>{dateRange(exp)}</p>}
                 </div>
                 {exp.bullets.length > 0 && (
                   <ul style={{ marginTop: 6, paddingLeft: 14, display: "flex", flexDirection: "column", gap: 3 }}>
@@ -141,11 +142,11 @@ function TemplateModern({ d }: { d: ResumeData }) {
 
       <style>{`
         .modern-heading {
-          font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
-          text-transform: uppercase; color: #999;
-          border-bottom: 1px solid #e0e0e0; padding-bottom: 4px; margin-bottom: 10px;
+          font-size: 10.5px; font-weight: 700; letter-spacing: 0.11em;
+          text-transform: uppercase; color: #1d4ed8;
+          border-bottom: 2px solid #1d4ed8; padding-bottom: 4px; margin-bottom: 12px;
         }
-        .mb-section { margin-bottom: 20px; }
+        .mb-section { margin-bottom: 22px; }
       `}</style>
     </main>
   );
