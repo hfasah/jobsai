@@ -86,7 +86,10 @@ export async function PUT(req: NextRequest) {
     address_line1:            s(body.address_line1),
     address_line2:            s(body.address_line2),
     postal_code:              s(body.postal_code),
-    date_of_birth:            s(body.date_of_birth),
+    // Date of birth is no longer collected (sensitive PII, not needed for matching,
+    // tied to age-discrimination concerns). Force null so any previously stored
+    // value is scrubbed on save. Collect just-in-time if an application requires it.
+    date_of_birth:            null,
     // Eligibility
     work_auth_us:             s(body.work_auth_us),
     work_auth_canada:         s(body.work_auth_canada),

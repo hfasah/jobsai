@@ -194,7 +194,6 @@ export default function ApplyProfilePage() {
             <Field label="Last name" value={str(form.last_name)} onChange={(v) => set("last_name", v)} placeholder="Smith" />
             <Field label="Email" type="email" value={str(form.email)} onChange={(v) => set("email", v)} placeholder="jane@example.com" />
             <Field label="Phone" type="tel" value={str(form.phone)} onChange={(v) => set("phone", v)} placeholder="+1 555 000 0000" />
-            <Field label="Date of birth" type="date" value={str(form.date_of_birth)} onChange={(v) => set("date_of_birth", v)} />
           </div>
         </SectionCard>
 
