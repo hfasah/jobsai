@@ -48,7 +48,7 @@ const TIERS: Tier[] = [
     tagline: "Best for students and early-career professionals.",
     cta: "Start Pro",
     features: [
-      "Auto-apply up to 30 jobs/day",
+      "Auto-apply up to 20 jobs/day",
       "Unlimited jobs, resumes & tailoring",
       "Recruiter outreach + cover letters",
       "90-day interview guarantee",
@@ -66,7 +66,7 @@ const TIERS: Tier[] = [
     cta: "Start Premium",
     features: [
       "Everything in Pro",
-      "Auto-apply up to 100 jobs/day",
+      "Auto-apply up to 80 jobs/day",
       "Priority job matching",
       "AI Voice interview prep",
       "20,000 tokens / month",
@@ -81,7 +81,7 @@ const TIERS: Tier[] = [
     cta: "Go all-in",
     features: [
       "Everything in Premium",
-      "Auto-apply up to 300 jobs/day",
+      "Auto-apply up to 240 jobs/day",
       "1 free 45-min career coaching session/mo",
       "AI Avatar prep + recordings",
       "Body-language & presence analysis",

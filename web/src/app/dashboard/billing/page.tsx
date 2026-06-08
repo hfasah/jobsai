@@ -41,7 +41,7 @@ const PLAN_FEATURES: Record<Plan, string[]> = {
   ],
   pro: [
     "5,000 tokens / month",
-    "Auto-apply up to 30 jobs/day",
+    "Auto-apply up to 20 jobs/day",
     "Unlimited AI Written Coach",
     "Voice interviews from tokens",
     "Avatar via token top-up",
@@ -49,14 +49,14 @@ const PLAN_FEATURES: Record<Plan, string[]> = {
   premium: [
     "20,000 tokens / month",
     "Everything in Pro",
-    "Auto-apply up to 100 jobs/day",
+    "Auto-apply up to 80 jobs/day",
     "AI Voice Interviewer + analysis",
     "AI Avatar Room access",
   ],
   accelerator: [
     "60,000 tokens / month",
     "Everything in Premium",
-    "Auto-apply up to 300 jobs/day",
+    "Auto-apply up to 240 jobs/day",
     "1 free 45-min coaching session/mo",
     "Avatar webcam + body-language",
     "Interview recordings & replay",

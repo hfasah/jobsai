@@ -26,7 +26,7 @@ export const PLAN_LIMITS = {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
-    daily_apply: 30,
+    daily_apply: 20,
     voice_minutes_month: 30,
     avatar_minutes_month: 0,  // avatar via token top-up only
     human_coaching: false,
@@ -37,7 +37,7 @@ export const PLAN_LIMITS = {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
-    daily_apply: 100,
+    daily_apply: 80,
     voice_minutes_month: 120,
     avatar_minutes_month: 30,
     human_coaching: false,
@@ -48,7 +48,7 @@ export const PLAN_LIMITS = {
     max_resumes: Infinity,
     max_jobs_per_month: Infinity,
     auto_apply: true,
-    daily_apply: 300,
+    daily_apply: 240,
     voice_minutes_month: 300,
     avatar_minutes_month: 120,
     human_coaching: true,     // 1 free 45-min session/month; extras paid in tokens
