@@ -51,7 +51,7 @@ const TIERS: Tier[] = [
       "Auto-apply up to 20 jobs/day",
       "Unlimited jobs, resumes & tailoring",
       "Recruiter outreach + cover letters",
-      "90-day interview guarantee",
+      "Priority job matching",
       "5,000 tokens/mo for interview prep",
     ],
   },
@@ -82,9 +82,9 @@ const TIERS: Tier[] = [
     features: [
       "Everything in Premium",
       "Auto-apply up to 240 jobs/day",
+      "90-day interview guarantee, or your money back",
       "1 free 45-min career coaching session/mo",
       "AI Avatar prep + recordings",
-      "Body-language & presence analysis",
       "60,000 tokens / month",
     ],
   },
@@ -230,8 +230,8 @@ export function PricingSection() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             Start free, then upgrade to auto-apply at higher volume and reach recruiters
-            directly. Every paid plan is backed by our 90-day interview guarantee.
-            interview prep included.
+            directly. Career Accelerator is backed by our 90-day interview guarantee, with
+            interview prep included on every paid plan.
           </p>
 
           {/* billing toggle */}
@@ -342,14 +342,15 @@ export function PricingSection() {
               <ShieldCheck className="h-6 w-6 text-desyn-success" />
             </div>
             <div>
-              <p className="font-bold text-foreground">90-day interview guarantee</p>
+              <p className="font-bold text-foreground">90-day interview guarantee, or your money back</p>
               <p className="text-sm text-muted-foreground">
-                Land an interview within 90 days or your money back, no questions asked.
+                On Career Accelerator: land an interview within 90 days of active use, or get your subscription refunded.{" "}
+                <Link href="/interview-guarantee" className="text-primary hover:underline">Conditions apply</Link>.
               </p>
             </div>
           </div>
-          <Link href="/sign-up" className={gradientButtonVariants({ size: "default" })}>
-            Start risk-free
+          <Link href="/interview-guarantee" className={gradientButtonVariants({ size: "default" })}>
+            See how it works
           </Link>
         </GlassCard>
       </div>

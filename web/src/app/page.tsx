@@ -4,7 +4,7 @@ import {
   FileText, Send, Search, BarChart3, Mail,
   Mic, Video, MessageSquareText,
   Building2, DollarSign, TrendingUp, Briefcase, PlayCircle,
-  MapPin, Star,
+  Star,
 } from "lucide-react";
 
 import { MarketingHeader } from "@/components/marketing/marketing-header";
@@ -24,6 +24,7 @@ import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { publicImageExists } from "@/lib/public-image";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
 import { AuthCta } from "@/components/ui/auth-cta";
+import { HeroSearchForm } from "@/components/marketing/hero-search-form";
 import { APP_NAME } from "@/lib/constants";
 
 const LEVELS = [
@@ -76,7 +77,7 @@ const TESTIMONIALS = [
 
 const FAQ = [
   { q: "What is JobsAI and how does it work?", a: "JobsAI is your AI job-search co-pilot, it takes you from a rough resume to interviews booked. It parses your background, tailors a resume and cover letter to each role, scores them against the ATS, finds matching jobs across the US, Canada, UK, and EU, and can auto-apply for you. When interviews land, it preps you to win them." },
-  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. We back it with a 90-day interview guarantee." },
+  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. Career Accelerator is backed by a 90-day interview guarantee (conditions apply)." },
   { q: "What's included, what can JobsAI do?", a: "One workflow covers it all: AI Resume Builder, Optimizer & ATS Score, Cover Letter Generator, a live Job Search board, Auto-Apply, Salary Explorer, Resume Translator (68+ languages), and a full interview suite, written coach, voice and avatar mock rounds, and the real-time Interview Buddy." },
   { q: "Do I need an existing resume to start?", a: "No. Upload a PDF or DOCX, import your LinkedIn profile, or start from scratch, JobsAI structures it into an editable profile and builds from there." },
   { q: "Will my resume be ATS-friendly?", a: "Yes. The templates use clean, parseable structure, and tailoring weaves in the right keywords naturally. The ATS Scanner then gives you a 0–100 score with specific fixes before you apply." },
@@ -128,30 +129,7 @@ export default function Home() {
             </div>
 
             {/* Job search bar */}
-            <form
-              action="/sign-up"
-              className="reveal reveal-4 mt-12 flex w-full max-w-2xl flex-col gap-2 rounded-2xl border border-white/10 bg-card/60 p-2 backdrop-blur sm:flex-row"
-            >
-              <div className="flex flex-1 items-center gap-2 rounded-xl bg-background/60 px-3">
-                <Search className="h-4 w-4 text-muted-foreground" />
-                <input
-                  name="q"
-                  placeholder="Search by job title, keyword, etc."
-                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
-              </div>
-              <div className="flex flex-1 items-center gap-2 rounded-xl bg-background/60 px-3 sm:max-w-[40%]">
-                <MapPin className="h-4 w-4 text-muted-foreground" />
-                <input
-                  name="loc"
-                  placeholder="Location"
-                  className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                />
-              </div>
-              <button type="submit" className="btn-cta flex h-11 items-center justify-center rounded-xl px-5 text-sm">
-                <Search className="h-4 w-4" />
-              </button>
-            </form>
+            <HeroSearchForm />
 
             {/* Social proof */}
             <div className="reveal reveal-5 mt-7 flex items-center gap-3">
@@ -431,7 +409,7 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
               Let {APP_NAME} apply to thousands of jobs for you and land the interviews.
-              Guaranteed, or your money back.
+              Backed by our 90-day interview guarantee on Career Accelerator.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <AuthCta href="/sign-up" className={gradientButtonVariants({ size: "xl" })}>
@@ -439,7 +417,7 @@ export default function Home() {
               </AuthCta>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Free to start · No card required · 90-day interview guarantee
+              Free to start · No card required · Cancel anytime
             </p>
           </div>
         </section>
