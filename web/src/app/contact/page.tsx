@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
-import { Mail, MessageSquare, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { Mail, MessageSquare, Clock, CheckCircle2, Loader2, Phone } from "lucide-react";
 import { GradientBg } from "@/components/ui/gradient-bg";
 
 const CATEGORIES = [
@@ -78,6 +78,31 @@ export default function ContactPage() {
               <a href="mailto:support@jobsai.work" className="mt-2 block text-sm font-medium text-primary hover:underline">
                 support@jobsai.work
               </a>
+            </div>
+
+            <div className="rounded-2xl border border-white/10 bg-card/80 p-6 backdrop-blur">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                <Phone className="h-5 w-5 text-primary" />
+              </div>
+              <h3 className="mt-4 font-semibold">WhatsApp, text or call</h3>
+              <p className="mt-1 text-sm text-muted-foreground">Reach us directly for quick help.</p>
+              <a href="tel:+12895415966" className="mt-2 block text-sm font-medium text-primary hover:underline">
+                1-289-541-5966
+              </a>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <a href="https://wa.me/12895415966" target="_blank" rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                  <MessageSquare className="h-3.5 w-3.5" /> WhatsApp
+                </a>
+                <a href="sms:+12895415966"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                  <MessageSquare className="h-3.5 w-3.5" /> Text
+                </a>
+                <a href="tel:+12895415966"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted">
+                  <Phone className="h-3.5 w-3.5" /> Call
+                </a>
+              </div>
             </div>
 
             <div className="rounded-2xl border border-white/10 bg-card/80 p-6 backdrop-blur">
