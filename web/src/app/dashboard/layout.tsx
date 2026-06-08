@@ -1,6 +1,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { UpgradeHost } from "@/components/upgrade-host";
+import { BuyTokensHost } from "@/components/buy-tokens-host";
 import { AccountTypeNotice } from "@/components/account-type-notice";
 import { getUserRole } from "@/lib/roles";
 
@@ -25,6 +26,7 @@ export default async function DashboardLayout({
     <DashboardShell>
       {children}
       <UpgradeHost />
+      <BuyTokensHost />
     </DashboardShell>
   );
 }

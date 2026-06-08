@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, UserRound, CheckCircle2, Calendar, Video, Coins, ArrowRight, Clock } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { promptUpgrade } from "@/lib/upgrade";
+import { cn, fmtTokens } from "@/lib/utils";
+import { promptBuyTokens } from "@/lib/upgrade";
 
 interface Booking {
   id: string; plan: string; paid_with: string; tokens_spent: number; minutes: number;
@@ -69,7 +69,7 @@ export default function CoachingPage() {
         body: JSON.stringify({ notes }),
       });
       const json = await res.json();
-      if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
+      if (res.status === 402 || json.upgrade_required) { promptBuyTokens(json.error); return; }
       if (!res.ok) { alert(json.error ?? "Couldn't book. Please try again."); return; }
       setBookingId(json.data.id);
       setPhase("scheduling");
@@ -127,7 +127,7 @@ export default function CoachingPage() {
                   <p className="mt-1 text-sm text-muted-foreground">Your free session this month — {data.free_used} of {data.free_total} used. Booking now uses your included session (no tokens).</p>
                 ) : (
                   <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                    <span className="inline-flex items-center gap-1.5 font-medium text-foreground"><Coins className="h-4 w-4 text-primary" /> {data.cost_tokens.toLocaleString()} tokens</span>
+                    <span className="inline-flex items-center gap-1.5 font-medium text-foreground"><Coins className="h-4 w-4 text-primary" /> {fmtTokens(data.cost_tokens)} tokens</span>
                     <span>≈ ${data.cost_usd} per session</span>
                     <span className="text-xs">· Balance: {data.balance.toLocaleString()}</span>
                   </p>
@@ -146,7 +146,7 @@ export default function CoachingPage() {
             <button onClick={book} disabled={booking}
               className="btn-cta mt-5 inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold shadow-glow disabled:opacity-60">
               {booking ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserRound className="h-5 w-5" />}
-              {freeNow ? "Book a Career Success Coach — Free" : `Book a Career Success Coach · ${data.cost_tokens.toLocaleString()} tokens`}
+              {freeNow ? "Book a Career Success Coach — Free" : `Book a Career Success Coach · ${fmtTokens(data.cost_tokens)} tokens`}
               {!booking && <ArrowRight className="h-5 w-5" />}
             </button>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">

@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { getTokenAccount, deductTokens, TOKEN_COSTS } from "@/lib/tokens";
 import { PLAN_LIMITS, COACHING_SESSION_MINUTES, COACHING_USD } from "@/lib/billing";
+import { fmtTokens } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     const spend = await deductTokens(userId, COST, "coaching_session", { booking: true }, { meterFree: true });
     if (!spend.ok) {
       return NextResponse.json(
-        { error: `A coaching session costs ${COST.toLocaleString()} tokens (≈ $${COACHING_USD}). You have ${acct.balance.toLocaleString()}. Top up or upgrade to book.`, upgrade_required: true },
+        { error: `A coaching session costs ${fmtTokens(COST)} tokens (≈ $${COACHING_USD}). You have ${fmtTokens(acct.balance)}. Top up to book.`, upgrade_required: true },
         { status: 402 }
       );
     }

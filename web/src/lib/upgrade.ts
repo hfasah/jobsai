@@ -9,3 +9,13 @@ export function promptUpgrade(reason?: string) {
     window.dispatchEvent(new CustomEvent(UPGRADE_EVENT, { detail: reason ?? null }));
   }
 }
+
+// Open the Buy Tokens modal (top-up packs) — for "out of tokens" walls where the
+// user just wants more tokens, not a plan change.
+export const BUY_TOKENS_EVENT = "jobsai:buy-tokens";
+
+export function promptBuyTokens(reason?: string) {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(BUY_TOKENS_EVENT, { detail: reason ?? null }));
+  }
+}
