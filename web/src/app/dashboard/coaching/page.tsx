@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { Loader2, UserRound, CheckCircle2, Calendar, Video, Coins, ArrowRight, Clock, Target, TrendingUp, Zap, ShieldCheck, Rocket } from "lucide-react";
 import { cn, fmtTokens } from "@/lib/utils";
 import { promptBuyTokens } from "@/lib/upgrade";
@@ -176,6 +177,10 @@ export default function CoachingPage() {
             </button>
             <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
               <Video className="h-3.5 w-3.5" /> Pay, then pick a time — Zoom link &amp; calendar invite sent on confirmation.
+            </p>
+            <p className="mt-3 rounded-lg border border-border bg-background/40 px-3 py-2.5 text-center text-xs text-muted-foreground">
+              💡 <span className="font-medium text-foreground">Get the most from your 45 minutes:</span> upload your résumé, complete your{" "}
+              <Link href="/dashboard/setup" className="font-medium text-primary hover:underline">Apply Profile</Link>, and fill in your Preferences first — your coach reviews them beforehand so you can dive straight into what matters.
             </p>
           </>
         )}
