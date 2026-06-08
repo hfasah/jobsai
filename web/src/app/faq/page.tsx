@@ -70,7 +70,7 @@ const GROUPS: Group[] = [
       { q: "What are tokens?", a: "Your plan includes a monthly token allowance that meters the most expensive AI features — like voice and avatar interview prep. Core tools and auto-apply run within your plan; tokens just cover the heavy extras, and you can top up anytime." },
       { q: "Do I pay separately for each feature?", a: "No. A paid plan includes the resume tools, cover letters, job board, ATS scanner, translator, and interview prep. Only the heaviest AI minutes are metered by tokens." },
       { q: "Can I cancel or get a refund?", a: "Cancel anytime from your billing settings — it stops future renewals. If something isn't working, contact us first; we review refund requests case by case and often offer a prorated refund or credit." },
-      { q: "What is the interview guarantee?", a: "On the Career Accelerator plan: actively use JobsAI for 90 days and if you don't land a single interview, we refund your Career Accelerator subscription. It's exclusive to Career Accelerator and some conditions apply (complete your profile, keep auto-apply running, realistic preferences, attend interviews you're offered). See the full terms at /interview-guarantee." },
+      { q: "What is the interview guarantee?", a: "Actively use JobsAI and if you don't land an interview within 90 days, we refund you. We can offer it because the platform applies at a volume and quality that's hard to match by hand. Some conditions apply — see our Terms of Service for the full details." },
     ],
   },
   {

@@ -77,7 +77,7 @@ const TESTIMONIALS = [
 
 const FAQ = [
   { q: "What is JobsAI and how does it work?", a: "JobsAI is your AI job-search co-pilot, it takes you from a rough resume to interviews booked. It parses your background, tailors a resume and cover letter to each role, scores them against the ATS, finds matching jobs across the US, Canada, UK, and EU, and can auto-apply for you. When interviews land, it preps you to win them." },
-  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. Career Accelerator is backed by a 90-day interview guarantee (conditions apply)." },
+  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. We back it with a 90-day interview guarantee (some conditions apply — see our Terms of Service)." },
   { q: "What's included, what can JobsAI do?", a: "One workflow covers it all: AI Resume Builder, Optimizer & ATS Score, Cover Letter Generator, a live Job Search board, Auto-Apply, Salary Explorer, Resume Translator (68+ languages), and a full interview suite, written coach, voice and avatar mock rounds, and the real-time Interview Buddy." },
   { q: "Do I need an existing resume to start?", a: "No. Upload a PDF or DOCX, import your LinkedIn profile, or start from scratch, JobsAI structures it into an editable profile and builds from there." },
   { q: "Will my resume be ATS-friendly?", a: "Yes. The templates use clean, parseable structure, and tailoring weaves in the right keywords naturally. The ATS Scanner then gives you a 0–100 score with specific fixes before you apply." },
@@ -210,7 +210,7 @@ export default function Home() {
             {/* Live stats */}
             <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3">
               {[
-                { value: "5,867,078", label: "Jobs in our index" },
+                { value: "5,867,078+", label: "Jobs in our index" },
                 { value: "4,231+", label: "Interviews booked" },
                 { value: "180k+", label: "Applications sent" },
               ].map((s) => (
@@ -423,7 +423,7 @@ export default function Home() {
             </h2>
             <p className="mt-4 text-lg text-muted-foreground">
               Let {APP_NAME} apply to thousands of jobs for you and land the interviews.
-              Backed by our 90-day interview guarantee on Career Accelerator.
+              Guaranteed, or your money back. <Link href="/terms" className="text-primary hover:underline">Some conditions apply</Link>.
             </p>
             <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
               <AuthCta href="/sign-up" className={gradientButtonVariants({ size: "xl" })}>
@@ -431,7 +431,7 @@ export default function Home() {
               </AuthCta>
             </div>
             <p className="mt-4 text-xs text-muted-foreground">
-              Free to start · No card required · Cancel anytime
+              Free to start · No card required · 90-day interview guarantee
             </p>
           </div>
         </section>

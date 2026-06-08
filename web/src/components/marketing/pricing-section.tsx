@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import Link from "next/link";
 import { useUser } from "@clerk/nextjs";
 import {
-  CheckCircle2, Sparkles, Send, Zap, Rocket, ShieldCheck,
+  CheckCircle2, Sparkles, Send, Zap, Rocket,
   Building2, Users, BarChart3, Plug, Lock, Headphones, Globe, Layers,
 } from "lucide-react";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -51,7 +51,7 @@ const TIERS: Tier[] = [
       "Auto-apply up to 20 jobs/day",
       "Unlimited jobs, resumes & tailoring",
       "Recruiter outreach + cover letters",
-      "Priority job matching",
+      "Job discovery & match scores",
       "5,000 tokens/mo for interview prep",
     ],
   },
@@ -82,9 +82,9 @@ const TIERS: Tier[] = [
     features: [
       "Everything in Premium",
       "Auto-apply up to 240 jobs/day",
-      "90-day interview guarantee, or your money back",
       "1 free 45-min career coaching session/mo",
       "AI Avatar prep + recordings",
+      "Body-language & presence analysis",
       "60,000 tokens / month",
     ],
   },
@@ -230,8 +230,7 @@ export function PricingSection() {
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
             Start free, then upgrade to auto-apply at higher volume and reach recruiters
-            directly. Career Accelerator is backed by our 90-day interview guarantee, with
-            interview prep included on every paid plan.
+            directly. Interview prep is included on every paid plan.
           </p>
 
           {/* billing toggle */}
@@ -334,25 +333,6 @@ export function PricingSection() {
             Top up tokens anytime: 3k / $10, 10k / $30, 25k / $69. Subscribing is the cheaper way to get tokens.
           </span>
         </p>
-
-        {/* money-back guarantee */}
-        <GlassCard className="mt-8 flex flex-col items-center justify-between gap-4 p-6 sm:flex-row">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-desyn-success/15">
-              <ShieldCheck className="h-6 w-6 text-desyn-success" />
-            </div>
-            <div>
-              <p className="font-bold text-foreground">90-day interview guarantee, or your money back</p>
-              <p className="text-sm text-muted-foreground">
-                On Career Accelerator: land an interview within 90 days of active use, or get your subscription refunded.{" "}
-                <Link href="/interview-guarantee" className="text-primary hover:underline">Conditions apply</Link>.
-              </p>
-            </div>
-          </div>
-          <Link href="/interview-guarantee" className={gradientButtonVariants({ size: "default" })}>
-            See how it works
-          </Link>
-        </GlassCard>
       </div>
     </section>
   );

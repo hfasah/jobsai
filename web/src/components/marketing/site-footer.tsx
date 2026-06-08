@@ -78,7 +78,6 @@ const COLUMNS: FooterCol[] = [
       { label: "Privacy", href: "/privacy" },
       { label: "Terms", href: "/terms" },
       { label: "Refund Policy", href: "/refund-policy" },
-      { label: "Interview Guarantee", href: "/interview-guarantee" },
       { label: "Contact", href: "/contact" },
     ],
   },

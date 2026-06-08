@@ -82,7 +82,16 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "No guarantee of outcomes",
     body: [
-      `${APP_NAME} helps you apply faster and prepare better, but we do not guarantee interviews, offers, hiring outcomes, or timelines, except where a specific written guarantee (such as a promotional interview guarantee) applies on its stated terms.`,
+      `${APP_NAME} helps you apply faster and prepare better, but we do not guarantee interviews, offers, hiring outcomes, or timelines, except where a specific written guarantee (such as the 90-day interview guarantee below) applies on its stated terms.`,
+    ],
+  },
+  {
+    heading: "90-day interview guarantee",
+    body: [
+      "The 90-day interview guarantee applies only to the Career Accelerator plan. It does not apply to the Free, Pro, or Premium plans. If you are on Career Accelerator and you do not receive a single interview within 90 days of actively using the platform, we will refund the Career Accelerator subscription fees you paid for that period.",
+      "An \"interview\" means a scheduled interview or screening invitation from an employer or their recruiter (a phone/video screen or any later stage). Automated rejections do not count, and neither do interviews you decline or do not attend.",
+      "To qualify, during the 90 days you must: keep an active, paid Career Accelerator subscription for the full 90 consecutive days; complete your setup within the first 7 days (at least one résumé, your apply profile, and your job preferences); keep auto-apply enabled and running (at least 5 active days per week, without excessive blocking); keep realistic preferences for your experience level; provide truthful, complete information; and respond to and attend interview invitations you receive.",
+      "To claim, email support@jobsai.work within 14 days after the 90-day period ends, including your account email. We may review your activity (applications sent, profile completeness, preferences) to confirm eligibility. We refund the Career Accelerator subscription fees for the qualifying period to your original payment method; one-time token top-ups and coaching sessions are not included. The guarantee does not apply if you cancelled or downgraded early, did not meet these conditions, set preferences so narrow that few or no matching roles existed, declined or missed interviews, or breached these Terms.",
     ],
   },
   {
