@@ -371,7 +371,7 @@ export default function ApplyProfilePage() {
         <SectionCard icon={<UsersRound className="h-4 w-4" />} title="Voluntary self-identification" subtitle="Optional EEO questions some employers ask. Never used to filter you.">
           <div className="grid gap-4 sm:grid-cols-2">
             <Select label="Race / ethnicity" value={str(form.race_ethnicity)} onChange={(v) => set("race_ethnicity", v)} options={RACE} />
-            <Field label="Nationality" value={str(form.nationality)} onChange={(v) => set("nationality", v)} placeholder="e.g. Canadian" />
+            <Field label="Nationality (optional)" value={str(form.nationality)} onChange={(v) => set("nationality", v)} placeholder="Leave blank if you prefer not to say" />
             <Select label="Gender identity" value={str(form.gender_identity)} onChange={(v) => set("gender_identity", v)} options={GENDER} />
             <Select label="Sexual orientation" value={str(form.sexual_orientation)} onChange={(v) => set("sexual_orientation", v)} options={ORIENTATION} />
             <Select label="Transgender" value={str(form.transgender)} onChange={(v) => set("transgender", v)} options={YESNO} />
