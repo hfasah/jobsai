@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
     const spend = await deductTokens(userId, COST, "coaching_session", { booking: true }, { meterFree: true });
     if (!spend.ok) {
       return NextResponse.json(
-        { error: `A coaching session costs ${fmtTokens(COST)} tokens (≈ $${COACHING_USD}). You have ${fmtTokens(acct.balance)}. Top up to book.`, upgrade_required: true },
+        { error: `A coaching session costs ${fmtTokens(COST)} tokens. You have ${fmtTokens(acct.balance)}. Top up to book.`, upgrade_required: true },
         { status: 402 }
       );
     }
