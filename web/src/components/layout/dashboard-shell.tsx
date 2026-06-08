@@ -71,7 +71,6 @@ const SECTIONS: NavSection[] = [
       { label: "Written Coach", href: "/dashboard/interview?mode=written", icon: MessageSquareText },
       { label: "Voice Interviewer", href: "/dashboard/interview?mode=voice", icon: Mic },
       { label: "Avatar Room", href: "/dashboard/interview?mode=avatar", icon: Video },
-      { label: "Career Coach", href: "/dashboard/coaching", icon: UserRound },
     ],
   },
   {
@@ -246,6 +245,13 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
             </div>
           );
         })}
+
+        {/* Standalone upsell — book a live human coach */}
+        <Link href="/dashboard/coaching" onClick={onNavigate}
+          className="btn-cta mt-3 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold shadow-glow">
+          <UserRound className="h-4 w-4 shrink-0" />
+          Book a Career Success Coach
+        </Link>
       </nav>
 
       {/* Footer */}

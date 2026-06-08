@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, UserRound, CheckCircle2, Calendar, Video, Coins, Sparkles } from "lucide-react";
+import { Loader2, UserRound, CheckCircle2, Calendar, Video, Coins, ArrowRight, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { promptUpgrade } from "@/lib/upgrade";
 
@@ -21,13 +21,39 @@ const STATUS_STYLE: Record<string, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
+const TIMES = ["09:00", "11:00", "13:00", "15:00", "17:00"];
+
+function nextBusinessDays(n: number): Date[] {
+  const days: Date[] = [];
+  const d = new Date(); d.setHours(0, 0, 0, 0);
+  while (days.length < n) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow !== 0 && dow !== 6) days.push(new Date(d));
+  }
+  return days;
+}
+function slotDate(day: Date, hhmm: string): Date {
+  const [h, m] = hhmm.split(":").map(Number);
+  const dt = new Date(day); dt.setHours(h, m, 0, 0); return dt;
+}
+const fmtDay = (d: Date) => d.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+const fmtTime = (hhmm: string) => slotDate(new Date(), hhmm).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+type Phase = "offer" | "scheduling" | "confirmed";
+
 export default function CoachingPage() {
   const [data, setData] = useState<CoachingData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [phase, setPhase] = useState<Phase>("offer");
   const [booking, setBooking] = useState(false);
-  const [times, setTimes] = useState("");
+  const [scheduling, setScheduling] = useState(false);
   const [notes, setNotes] = useState("");
-  const [done, setDone] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [confirmedAt, setConfirmedAt] = useState<string | null>(null);
+
+  const days = nextBusinessDays(10);
+  const [selDay, setSelDay] = useState(0);
 
   const load = () => {
     setLoading(true);
@@ -40,15 +66,33 @@ export default function CoachingPage() {
     try {
       const res = await fetch("/api/coaching", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ preferred_times: times, notes }),
+        body: JSON.stringify({ notes }),
       });
       const json = await res.json();
       if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { alert(json.error ?? "Couldn't book. Please try again."); return; }
-      setDone(true); setTimes(""); setNotes("");
-      load();
+      setBookingId(json.data.id);
+      setPhase("scheduling");
     } finally {
       setBooking(false);
+    }
+  };
+
+  const pickSlot = async (when: Date) => {
+    if (!bookingId) return;
+    setScheduling(true);
+    try {
+      const res = await fetch("/api/coaching", {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ booking_id: bookingId, scheduled_at: when.toISOString() }),
+      });
+      const json = await res.json();
+      if (!res.ok) { alert(json.error ?? "Couldn't schedule. Please try again."); return; }
+      setConfirmedAt(when.toISOString());
+      setPhase("confirmed");
+      load();
+    } finally {
+      setScheduling(false);
     }
   };
 
@@ -60,75 +104,106 @@ export default function CoachingPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 py-2">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Career Coaching</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Career Success Coach</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          A {data.session_minutes}-minute 1:1 video session with a real career coach — resume review, interview strategy, salary negotiation, or whatever you need.
+          A {data.session_minutes}-minute 1:1 video session with a real career coach — resume review, interview strategy, salary negotiation, or whatever you need most.
         </p>
       </div>
 
-      {/* Offer / cost card */}
       <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-brand text-white">
-            <UserRound className="h-6 w-6" />
-          </div>
-          <div className="flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="font-semibold">{data.session_minutes}-min 1:1 coaching session</h2>
-              {freeNow && <span className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-[11px] font-semibold text-desyn-success">Included with your plan</span>}
+        {/* ── Offer + book ── */}
+        {phase === "offer" && (
+          <>
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-brand text-white">
+                <UserRound className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="font-semibold">{data.session_minutes}-min 1:1 coaching session</h2>
+                  {freeNow && <span className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-[11px] font-semibold text-desyn-success">Included with your plan</span>}
+                </div>
+                {freeNow ? (
+                  <p className="mt-1 text-sm text-muted-foreground">Your free session this month — {data.free_used} of {data.free_total} used. Booking now uses your included session (no tokens).</p>
+                ) : (
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <span className="inline-flex items-center gap-1.5 font-medium text-foreground"><Coins className="h-4 w-4 text-primary" /> {data.cost_tokens.toLocaleString()} tokens</span>
+                    <span>≈ ${data.cost_usd} per session</span>
+                    <span className="text-xs">· Balance: {data.balance.toLocaleString()}</span>
+                  </p>
+                )}
+              </div>
             </div>
 
-            {freeNow ? (
-              <p className="mt-1 text-sm text-muted-foreground">
-                Your {data.free_total > 1 ? `${data.free_total} sessions` : "free session"} this month — {data.free_used} used.
-                Booking now uses your included session (no tokens).
-              </p>
-            ) : (
-              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5 font-medium text-foreground"><Coins className="h-4 w-4 text-primary" /> {data.cost_tokens.toLocaleString()} tokens</span>
-                <span>≈ ${data.cost_usd} per session</span>
-                <span className="text-xs">· Balance: {data.balance.toLocaleString()} tokens</span>
-              </p>
-            )}
-            {data.free_total > 0 && data.free_available === 0 && (
-              <p className="mt-1 text-xs text-muted-foreground">You&apos;ve used your included session this month — extra sessions cost {data.cost_tokens.toLocaleString()} tokens (≈ ${data.cost_usd}).</p>
-            )}
-          </div>
-        </div>
-
-        {done ? (
-          <div className="mt-5 flex items-start gap-3 rounded-xl border border-desyn-success/30 bg-desyn-success/5 p-4 text-sm">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-desyn-success" />
-            <div>
-              <p className="font-medium text-foreground">Session requested!</p>
-              <p className="text-muted-foreground">We&apos;ll confirm a time and email you a Zoom link + calendar invite. You can track it below.</p>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-5 space-y-3">
-            <div>
-              <label className="mb-1.5 block text-sm font-medium">Your availability <span className="font-normal text-muted-foreground">(optional)</span></label>
-              <input value={times} onChange={(e) => setTimes(e.target.value)}
-                placeholder="e.g. Weekday evenings ET, or Tue/Thu afternoons"
-                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
-            </div>
-            <div>
+            <div className="mt-5">
               <label className="mb-1.5 block text-sm font-medium">What would you like to focus on? <span className="font-normal text-muted-foreground">(optional)</span></label>
               <textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2}
                 placeholder="Interview prep for a PM role, salary negotiation, resume review…"
                 className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
+
+            {/* Conspicuous CTA */}
             <button onClick={book} disabled={booking}
-              className="btn-cta inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl text-sm font-semibold disabled:opacity-60 sm:w-auto sm:px-8">
-              {booking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {freeNow ? "Book my free session" : `Book session · ${data.cost_tokens.toLocaleString()} tokens`}
+              className="btn-cta mt-5 inline-flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-base font-bold shadow-glow disabled:opacity-60">
+              {booking ? <Loader2 className="h-5 w-5 animate-spin" /> : <UserRound className="h-5 w-5" />}
+              {freeNow ? "Book a Career Success Coach — Free" : `Book a Career Success Coach · ${data.cost_tokens.toLocaleString()} tokens`}
+              {!booking && <ArrowRight className="h-5 w-5" />}
             </button>
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-muted-foreground">
+              <Video className="h-3.5 w-3.5" /> Pay, then pick a time — Zoom link &amp; calendar invite sent on confirmation.
+            </p>
+          </>
+        )}
+
+        {/* ── Slot picker (after paying) ── */}
+        {phase === "scheduling" && (
+          <div>
+            <div className="mb-4 flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              <h2 className="font-semibold">Choose a time slot</h2>
+            </div>
+            <p className="mb-4 text-sm text-muted-foreground">Your session is reserved — pick a time that works ({Intl.DateTimeFormat().resolvedOptions().timeZone}).</p>
+
+            {/* Day selector */}
+            <div className="-mx-1 flex gap-2 overflow-x-auto pb-2">
+              {days.map((d, i) => (
+                <button key={i} onClick={() => setSelDay(i)}
+                  className={cn("shrink-0 rounded-xl border px-3 py-2 text-center text-xs transition-colors",
+                    selDay === i ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}>
+                  <span className="block font-semibold">{fmtDay(d).split(", ")[0]}</span>
+                  <span className="block">{d.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Time slots */}
+            <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3">
+              {TIMES.map((t) => (
+                <button key={t} onClick={() => pickSlot(slotDate(days[selDay], t))} disabled={scheduling}
+                  className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-border bg-background px-3 py-2.5 text-sm font-medium transition-colors hover:border-primary hover:bg-primary/10 disabled:opacity-60">
+                  <Clock className="h-3.5 w-3.5 text-muted-foreground" /> {fmtTime(t)}
+                </button>
+              ))}
+            </div>
+            {scheduling && <p className="mt-3 flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Reserving your slot…</p>}
           </div>
         )}
 
-        <p className="mt-4 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <Video className="h-3.5 w-3.5" /> Sessions are over Zoom — link &amp; calendar invite sent once your time is confirmed.
-        </p>
+        {/* ── Confirmed ── */}
+        {phase === "confirmed" && (
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-desyn-success" />
+            <div>
+              <h2 className="font-semibold text-foreground">You&apos;re booked! 🎉</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {confirmedAt && <>Your session is set for <span className="font-medium text-foreground">{new Date(confirmedAt).toLocaleString(undefined, { weekday: "long", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>. </>}
+                We&apos;ll email your Zoom link and a calendar invite shortly. You can see it under &quot;Your sessions&quot; below.
+              </p>
+              <button onClick={() => { setPhase("offer"); setNotes(""); setBookingId(null); setConfirmedAt(null); }}
+                className="mt-3 text-sm font-medium text-primary hover:underline">Book another session</button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* History */}
@@ -139,16 +214,15 @@ export default function CoachingPage() {
             {data.bookings.map((b) => (
               <div key={b.id} className="flex items-center justify-between gap-3 rounded-xl border border-border/60 p-3 text-sm">
                 <div className="min-w-0">
-                  <p className="font-medium">{b.minutes}-min session</p>
+                  <p className="font-medium">{b.scheduled_at ? new Date(b.scheduled_at).toLocaleString(undefined, { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : `${b.minutes}-min session`}</p>
                   <p className="text-xs text-muted-foreground">
-                    {new Date(b.created_at).toLocaleDateString()} · {b.paid_with === "included" ? "Included" : `${b.tokens_spent.toLocaleString()} tokens`}
-                    {b.scheduled_at ? ` · ${new Date(b.scheduled_at).toLocaleString()}` : ""}
+                    {b.paid_with === "included" ? "Included" : `${b.tokens_spent.toLocaleString()} tokens`} · requested {new Date(b.created_at).toLocaleDateString()}
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {b.zoom_link && b.status === "scheduled" && (
                     <a href={b.zoom_link} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted">
-                      <Calendar className="h-3.5 w-3.5" /> Join
+                      <Video className="h-3.5 w-3.5" /> Join
                     </a>
                   )}
                   <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium capitalize", STATUS_STYLE[b.status] ?? "bg-muted text-muted-foreground")}>{b.status}</span>

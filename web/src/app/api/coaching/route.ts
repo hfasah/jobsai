@@ -113,3 +113,34 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ data, paid_with: paidWith });
 }
+
+// PATCH /api/coaching — pick a time slot for an existing booking.
+// Body: { booking_id, scheduled_at (ISO) }
+export async function PATCH(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
+
+  const body = await req.json().catch(() => ({}));
+  const bookingId = String(body.booking_id ?? "");
+  const when = new Date(String(body.scheduled_at ?? ""));
+  if (!bookingId || isNaN(when.getTime())) {
+    return NextResponse.json({ error: "A valid booking and time slot are required." }, { status: 400 });
+  }
+  if (when.getTime() < Date.now()) {
+    return NextResponse.json({ error: "Please choose a future time slot." }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("coaching_bookings")
+    .update({ scheduled_at: when.toISOString(), status: "scheduled" })
+    .eq("id", bookingId)
+    .eq("user_id", userId)   // ownership guard
+    .select("*")
+    .maybeSingle();
+
+  if (error || !data) {
+    return NextResponse.json({ error: "Couldn't schedule that slot. Please try again." }, { status: 500 });
+  }
+  return NextResponse.json({ data });
+}
