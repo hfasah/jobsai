@@ -102,6 +102,16 @@ function stripHtml(s: string | undefined): string {
   return (s ?? "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
 }
 
+export function companyLogoUrl(company: string): string | null {
+  if (!company || company === "—") return null;
+  const domain = company
+    .replace(/\s*[,.]?\s*(inc\.?|llc\.?|corp\.?|ltd\.?|plc|gmbh|ag|s\.a\.|nv|co\.?|group|company|technologies|tech|solutions|services|systems)\s*$/i, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "") + ".com";
+  return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+}
+
 // ─── Adzuna (default engine) ───────────────────────────────────────────────────
 
 interface AdzunaJob {

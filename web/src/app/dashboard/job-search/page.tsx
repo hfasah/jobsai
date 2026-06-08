@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES,
+  SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES, companyLogoUrl,
   type SearchJob, type SearchResult, type SortKey, type EmploymentType,
 } from "@/lib/job-search";
 import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
@@ -83,6 +83,7 @@ export default function JobSearchPage() {
   const [page, setPage] = useState(1);
 
   const [result, setResult] = useState<SearchResult | null>(null);
+  const [failedLogos, setFailedLogos] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<SearchJob | null>(null);
@@ -279,16 +280,6 @@ export default function JobSearchPage() {
       </div>
 
       {/* Banners */}
-      {sitesNeedJSearch && (
-        <div className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--cta)]/30 bg-[var(--cta)]/10 p-3 text-sm">
-          <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cta)]" />
-          <p className="text-muted-foreground">
-            Filtering by <span className="font-medium text-foreground">Job Sites</span> (Indeed, LinkedIn, Glassdoor…)
-            needs a free <span className="font-medium text-foreground">JSearch / RapidAPI key</span> (JSEARCH_RAPIDAPI_KEY).
-            Showing standard results for now.
-          </p>
-        </div>
-      )}
       {result && !result.configured && !sitesNeedJSearch && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--cta)]/30 bg-[var(--cta)]/10 p-3 text-sm">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cta)]" />
@@ -373,11 +364,19 @@ export default function JobSearchPage() {
                         </button>
                         <button onClick={() => setSelected(job)} className="min-w-0 flex-1 text-left">
                           <div className="flex items-center gap-2">
-                            {job.logo ? (
-                              <img src={job.logo} alt={job.company} className="h-6 w-6 shrink-0 rounded object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }} />
-                            ) : (
-                              <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
-                            )}
+                            {(() => {
+                              const src = job.logo ?? companyLogoUrl(job.company);
+                              return src && !failedLogos.has(job.id) ? (
+                                <img
+                                  src={src}
+                                  alt={job.company}
+                                  className="h-6 w-6 shrink-0 rounded bg-white object-contain p-px"
+                                  onError={() => setFailedLogos((p) => new Set([...p, job.id]))}
+                                />
+                              ) : (
+                                <Building2 className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              );
+                            })()}
                             <p className="truncate text-sm font-semibold">{job.title}</p>
                           </div>
                           <p className="mt-0.5 truncate pl-6 text-xs text-muted-foreground">{job.company}</p>
@@ -423,21 +422,21 @@ export default function JobSearchPage() {
           {selected ? (
             <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
               <div className="flex items-start gap-4">
-                {selected.logo ? (
-                  <img
-                    src={selected.logo}
-                    alt={selected.company}
-                    className="h-12 w-12 shrink-0 rounded-xl border border-border bg-white object-contain p-1"
-                    onError={(e) => {
-                      const el = e.target as HTMLImageElement;
-                      el.style.display = "none";
-                      el.nextElementSibling?.removeAttribute("style");
-                    }}
-                  />
-                ) : null}
-                <div className={selected.logo ? "hidden" : "flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-glow"}>
-                  <Briefcase className="h-6 w-6" />
-                </div>
+                {(() => {
+                  const src = selected.logo ?? companyLogoUrl(selected.company);
+                  return src && !failedLogos.has(selected.id) ? (
+                    <img
+                      src={src}
+                      alt={selected.company}
+                      className="h-12 w-12 shrink-0 rounded-xl border border-border bg-white object-contain p-1"
+                      onError={() => setFailedLogos((p) => new Set([...p, selected.id]))}
+                    />
+                  ) : (
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gradient-brand text-white shadow-glow">
+                      <Briefcase className="h-6 w-6" />
+                    </div>
+                  );
+                })()}
                 <div className="min-w-0 flex-1">
                   <h2 className="text-xl font-bold tracking-tight">{selected.title}</h2>
                   <p className="mt-0.5 text-sm text-muted-foreground">
