@@ -44,6 +44,7 @@ export const EMPLOYMENT_TYPES = [
   { id: "fulltime", label: "Fulltime" },
   { id: "internship", label: "Internship" },
   { id: "contract", label: "Contract" },
+  { id: "hybrid", label: "Hybrid" },
 ] as const;
 
 export type EmploymentType = (typeof EMPLOYMENT_TYPES)[number]["id"];
@@ -135,6 +136,7 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
   let what = p.what.trim();
   if (et.has("internship")) what = `${what} intern`.trim();
   if (p.remote) what = `${what} remote`.trim();
+  if (et.has("hybrid")) what = `${what} hybrid`.trim();
   if (what) params.set("what", what);
   if (p.where?.trim()) params.set("where", p.where.trim());
   if (p.salaryMin) params.set("salary_min", String(p.salaryMin));
@@ -207,6 +209,7 @@ const EMP_TO_JSEARCH: Record<EmploymentType, string> = {
   fulltime: "FULLTIME",
   internship: "INTERN",
   contract: "CONTRACTOR",
+  hybrid: "FULLTIME",
 };
 
 async function searchJSearch(p: SearchParams): Promise<SearchResult | null> {

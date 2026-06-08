@@ -256,7 +256,16 @@ export default function JobSearchPage() {
             <Chip key={t.id} active={empTypes.includes(t.id)} onClick={() => toggle(setEmpTypes as React.Dispatch<React.SetStateAction<string[]>>, t.id)}>{t.label}</Chip>
           ))}
           <Chip active={remote} onClick={() => setRemote((v) => !v)}><Wifi className="h-3.5 w-3.5" /> Remote only</Chip>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {(empTypes.length > 0 || jobSites.length > 0 || remote || what || where) && (
+              <button
+                type="button"
+                onClick={() => { setEmpTypes([]); setJobSites([]); setRemote(false); setWhat(""); setWhere(""); }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+              >
+                Clear all
+              </button>
+            )}
             <select
               value={sort}
               onChange={(e) => setSort(e.target.value as SortKey)}
