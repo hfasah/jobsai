@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Plus_Jakarta_Sans, Geist_Mono, Fraunces } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
+import { I18nProvider } from "@/lib/i18n";
 import { MarketingPopups } from "@/components/marketing/marketing-popups";
 import { SupportWidget } from "@/components/marketing/support-widget";
 import { AffiliateTracker } from "@/components/affiliate-tracker";
@@ -92,11 +93,13 @@ export default function RootLayout({
       >
         <body className="min-h-full flex flex-col" suppressHydrationWarning>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-            {children}
-            <MarketingPopups />
-            <SupportWidget />
-            <AffiliateTracker />
-            <CookieConsent />
+            <I18nProvider>
+              {children}
+              <MarketingPopups />
+              <SupportWidget />
+              <AffiliateTracker />
+              <CookieConsent />
+            </I18nProvider>
           </ThemeProvider>
         </body>
       </html>

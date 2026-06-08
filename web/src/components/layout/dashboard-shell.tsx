@@ -17,6 +17,7 @@ import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/layout/notification-bell";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
+import { useI18n, LOCALES, type Locale } from "@/lib/i18n";
 
 function LinkedInIcon({ className }: { className?: string }) {
   return (
@@ -33,51 +34,51 @@ const PLAN_LABELS: Record<string, string> = {
   free: "Free", pro: "Pro", premium: "Premium", accelerator: "Accelerator",
 };
 
-const TOP: NavItem = { label: "Dashboard", href: "/dashboard", icon: LayoutGrid };
+const TOP: NavItem = { label: "nav.dashboard", href: "/dashboard", icon: LayoutGrid };
 
 const SECTIONS: NavSection[] = [
   {
-    heading: "Auto Apply", icon: Zap,
+    heading: "nav.autoApply", icon: Zap,
     items: [
-      { label: "Job Search", href: "/dashboard/job-search", icon: ScanSearch },
-      { label: "Discover Jobs", href: "/dashboard/discover", icon: Search },
-      { label: "My Jobs", href: "/dashboard/jobs", icon: Briefcase },
-      { label: "Import a Job", href: "/dashboard/jobs/import", icon: Plus },
-      { label: "Approvals", href: "/dashboard/approve", icon: CheckCircle2 },
-      { label: "Applications", href: "/dashboard/applications", icon: Inbox },
-      { label: "Inbox", href: "/dashboard/inbox", icon: Mail },
+      { label: "nav.jobSearch",    href: "/dashboard/job-search",          icon: ScanSearch },
+      { label: "nav.discoverJobs", href: "/dashboard/discover",            icon: Search },
+      { label: "nav.myJobs",       href: "/dashboard/jobs",                icon: Briefcase },
+      { label: "nav.importJob",    href: "/dashboard/jobs/import",         icon: Plus },
+      { label: "nav.approvals",    href: "/dashboard/approve",             icon: CheckCircle2 },
+      { label: "nav.applications", href: "/dashboard/applications",        icon: Inbox },
+      { label: "nav.inbox",        href: "/dashboard/inbox",               icon: Mail },
     ],
   },
   {
-    heading: "Documents", icon: FileText,
+    heading: "nav.documents", icon: FileText,
     items: [
-      { label: "Resumes", href: "/dashboard/resumes", icon: FileText },
-      { label: "Skills Profile", href: "/dashboard/skills", icon: Sparkles },
-      { label: "Apply Profile", href: "/dashboard/apply-profile", icon: Send },
+      { label: "nav.resumes",       href: "/dashboard/resumes",       icon: FileText },
+      { label: "nav.skillsProfile", href: "/dashboard/skills",        icon: Sparkles },
+      { label: "nav.applyProfile",  href: "/dashboard/apply-profile", icon: Send },
     ],
   },
   {
-    heading: "LinkedIn", icon: LinkedInIcon,
+    heading: "nav.linkedin", icon: LinkedInIcon,
     items: [
-      { label: "Profile Optimizer", href: "/dashboard/linkedin/profile", icon: Wand2 },
-      { label: "Content Studio", href: "/dashboard/linkedin/posts", icon: PenLine },
-      { label: "Browser Extension", href: "/dashboard/extension", icon: Puzzle },
+      { label: "nav.profileOptimizer", href: "/dashboard/linkedin/profile", icon: Wand2 },
+      { label: "nav.contentStudio",    href: "/dashboard/linkedin/posts",   icon: PenLine },
+      { label: "nav.browserExtension", href: "/dashboard/extension",        icon: Puzzle },
     ],
   },
   {
-    heading: "Interview Prep", icon: Mic,
+    heading: "nav.interviewPrep", icon: Mic,
     items: [
-      { label: "Interview Buddy", href: "/dashboard/interview-buddy", icon: Headphones },
-      { label: "Written Coach", href: "/dashboard/interview?mode=written", icon: MessageSquareText },
-      { label: "Voice Interviewer", href: "/dashboard/interview?mode=voice", icon: Mic },
-      { label: "Avatar Room", href: "/dashboard/interview?mode=avatar", icon: Video },
+      { label: "nav.interviewBuddy",   href: "/dashboard/interview-buddy",       icon: Headphones },
+      { label: "nav.writtenCoach",     href: "/dashboard/interview?mode=written", icon: MessageSquareText },
+      { label: "nav.voiceInterviewer", href: "/dashboard/interview?mode=voice",   icon: Mic },
+      { label: "nav.avatarRoom",       href: "/dashboard/interview?mode=avatar",  icon: Video },
     ],
   },
   {
-    heading: "Insights", icon: BarChart3,
+    heading: "nav.insights", icon: BarChart3,
     items: [
-      { label: "Analytics", href: "/dashboard/analytics", icon: BarChart3 },
-      { label: "Salaries", href: "/dashboard/salaries", icon: LineChart },
+      { label: "nav.analytics", href: "/dashboard/analytics", icon: BarChart3 },
+      { label: "nav.salaries",  href: "/dashboard/salaries",  icon: LineChart },
     ],
   },
 ];
@@ -112,6 +113,7 @@ function computeActive(pathname: string, mode: string | null): string | null {
 // Plan badge + token meter + Upgrade CTA — the persistent "upsell from inside" surface.
 function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
   const [data, setData] = useState<{ balance: number; plan: string } | null>(null);
+  const { t } = useI18n();
   useEffect(() => {
     let active = true;
     fetch("/api/tokens").then((r) => r.json())
@@ -127,7 +129,7 @@ function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <div className="mb-3 rounded-xl border border-border bg-background/40 p-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-medium text-muted-foreground">Plan</span>
+        <span className="text-xs font-medium text-muted-foreground">{t("sidebar.plan")}</span>
         <span className="rounded-full bg-primary/15 px-2 py-0.5 text-[11px] font-semibold text-primary">
           {PLAN_LABELS[plan] ?? plan}
         </span>
@@ -137,12 +139,12 @@ function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
         <span className={low ? "text-destructive" : "text-foreground"}>
           {data === null ? "…" : data.balance.toLocaleString()}
         </span>
-        <span className="text-xs font-normal text-muted-foreground">tokens</span>
+        <span className="text-xs font-normal text-muted-foreground">{t("sidebar.tokens")}</span>
       </div>
       <Link href="/dashboard/billing" onClick={onNavigate}
         className="btn-cta mt-3 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm">
         <Sparkles className="h-4 w-4" />
-        {isFree ? "Upgrade plan" : low ? "Add tokens" : "Manage plan"}
+        {isFree ? t("sidebar.upgradePlan") : low ? t("sidebar.addTokens") : t("sidebar.managePlan")}
       </Link>
     </div>
   );
@@ -150,6 +152,7 @@ function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
 
 function NavLink({ item, active, onNavigate, sub }: { item: NavItem; active: boolean; onNavigate?: () => void; sub?: boolean }) {
   const Icon = item.icon;
+  const { t } = useI18n();
   return (
     <Link
       href={item.href}
@@ -163,8 +166,44 @@ function NavLink({ item, active, onNavigate, sub }: { item: NavItem; active: boo
       )}
     >
       <Icon className="h-4 w-4 shrink-0" />
-      {item.label}
+      {t(item.label)}
     </Link>
+  );
+}
+
+function LanguageSwitcher() {
+  const { locale, setLocale } = useI18n();
+  const [open, setOpen] = useState(false);
+  const current = LOCALES.find((l) => l.code === locale) ?? LOCALES[0];
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      >
+        <span className="text-base leading-none">{current.flag}</span>
+        <span className="flex-1 text-left text-xs font-medium">{current.label}</span>
+        <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-0 mb-1 w-full overflow-hidden rounded-xl border border-border bg-card shadow-xl">
+          {LOCALES.map((l) => (
+            <button
+              key={l.code}
+              onClick={() => { setLocale(l.code as Locale); setOpen(false); }}
+              className={cn(
+                "flex w-full items-center gap-2.5 px-3 py-2 text-sm transition-colors hover:bg-muted",
+                l.code === locale ? "text-foreground font-semibold" : "text-muted-foreground"
+              )}
+            >
+              <span className="text-base leading-none">{l.flag}</span>
+              {l.label}
+              {l.code === locale && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -199,6 +238,7 @@ function ThemeToggle() {
 function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode: string | null; onNavigate?: () => void }) {
   const active = computeActive(pathname, mode);
   const [openMap, setOpenMap] = useState<Record<string, boolean>>({});
+  const { t } = useI18n();
   const sectionHasActive = (sec: NavSection) => sec.items.some((it) => it.href === active);
   const isOpen = (sec: NavSection) => openMap[sec.heading] ?? sectionHasActive(sec);
 
@@ -233,7 +273,7 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
                 aria-expanded={open}
               >
                 <SecIcon className="h-4 w-4 shrink-0" />
-                <span className="flex-1 text-left">{sec.heading}</span>
+                <span className="flex-1 text-left">{t(sec.heading)}</span>
                 <ChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", open && "rotate-180")} />
               </button>
               {open && (
@@ -251,7 +291,7 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
         <Link href="/dashboard/coaching" onClick={onNavigate}
           className="btn-cta mt-3 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold shadow-glow">
           <UserRound className="h-4 w-4 shrink-0" />
-          Book a Career Success Coach
+          {t("nav.coaching")}
         </Link>
       </nav>
 
@@ -259,14 +299,17 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
       <div className="shrink-0 border-t border-border px-3 py-3">
         <SidebarUpsell onNavigate={onNavigate} />
         <div className="space-y-0.5">
-          <NavLink item={{ label: "Preferences", href: "/dashboard/preferences", icon: Settings2 }} active={active === "/dashboard/preferences"} onNavigate={onNavigate} />
-          <NavLink item={{ label: "Billing & Tokens", href: "/dashboard/billing", icon: CreditCard }} active={active === "/dashboard/billing"} onNavigate={onNavigate} />
+          <NavLink item={{ label: "nav.preferences",  href: "/dashboard/preferences", icon: Settings2 }} active={active === "/dashboard/preferences"} onNavigate={onNavigate} />
+          <NavLink item={{ label: "nav.billingTokens", href: "/dashboard/billing",     icon: CreditCard }}  active={active === "/dashboard/billing"}     onNavigate={onNavigate} />
           <Link href="/" onClick={onNavigate}
             className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
-            <ExternalLink className="h-4 w-4 shrink-0" /> Home page
+            <ExternalLink className="h-4 w-4 shrink-0" /> {t("nav.homePage")}
           </Link>
         </div>
-        <div className="mt-3 px-1">
+        <div className="mt-2 px-0.5">
+          <LanguageSwitcher />
+        </div>
+        <div className="mt-2 px-1">
           <ThemeToggle />
         </div>
         <div className="mt-2 flex items-center justify-between px-1">
