@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { APP_NAME } from "@/lib/constants";
 import { AuthCta } from "@/components/ui/auth-cta";
+import { SubscribeForm } from "@/components/marketing/subscribe-form";
 import { featureHref } from "@/lib/marketing-features";
 
 // This lucide version dropped brand glyphs, so the social icons are inline SVGs.
@@ -127,21 +128,7 @@ export function SiteFooter() {
             </p>
           </div>
 
-          <form
-            action="/sign-up"
-            className="flex w-full max-w-md flex-col gap-2 sm:flex-row"
-          >
-            <input
-              name="email"
-              type="email"
-              required
-              placeholder="you@email.com"
-              className="h-11 flex-1 rounded-xl border border-border bg-background/60 px-4 text-sm outline-none placeholder:text-muted-foreground focus:border-primary/50"
-            />
-            <button type="submit" className="btn-cta inline-flex h-11 items-center justify-center rounded-xl px-5 text-sm">
-              Subscribe
-            </button>
-          </form>
+          <SubscribeForm />
         </div>
       </div>
 
