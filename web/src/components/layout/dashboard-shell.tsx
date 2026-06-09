@@ -9,7 +9,7 @@ import {
   FileText, Sparkles, Send,
   Wand2, PenLine, Puzzle,
   Mic, MessageSquareText, Video, Headphones, UserRound, ClipboardCheck,
-  BarChart3, LineChart, Settings2, CreditCard,
+  BarChart3, LineChart, Settings2, CreditCard, Bot,
   Menu, X, ExternalLink, Coins, ChevronDown,
   Sun, Moon, Monitor,
 } from "lucide-react";
@@ -45,8 +45,9 @@ const SECTIONS: NavSection[] = [
       { label: "nav.myJobs",       href: "/dashboard/jobs",                icon: Briefcase },
       { label: "nav.importJob",    href: "/dashboard/jobs/import",         icon: Plus },
       { label: "nav.approvals",    href: "/dashboard/approve",             icon: CheckCircle2 },
-      { label: "nav.applications", href: "/dashboard/applications",        icon: Inbox },
-      { label: "nav.inbox",        href: "/dashboard/inbox",               icon: Mail },
+      { label: "nav.applications",  href: "/dashboard/applications",  icon: Inbox },
+      { label: "nav.inbox",         href: "/dashboard/inbox",         icon: Mail },
+      { label: "nav.autoApplyLog",  href: "/dashboard/auto-apply",    icon: Bot },
     ],
   },
   {

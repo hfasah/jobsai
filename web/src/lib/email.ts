@@ -177,3 +177,53 @@ export async function sendDiscoverySummary(
     html
   );
 }
+
+// ─── Auto-apply daily digest ──────────────────────────────────────────────────
+
+interface AutoApplyDigestJob { job_id: string; title: string; company: string; match_score: number | null }
+
+export async function sendAutoApplyDigest(
+  userId: string,
+  data: { applied: AutoApplyDigestJob[]; manual: AutoApplyDigestJob[]; threshold: number }
+) {
+  const to = await getUserEmail(userId);
+  if (!to) return;
+
+  const { applied, manual, threshold } = data;
+  const total = applied.length + manual.length;
+  if (total === 0) return;
+
+  const jobRow = (j: AutoApplyDigestJob, badge: string, color: string) =>
+    `<tr>
+      <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
+        <span style="font-weight:500;color:#111;">${j.title}</span>
+        <span style="color:#9ca3af;font-size:13px;"> · ${j.company}</span>
+        ${j.match_score != null ? `<span style="color:#9ca3af;font-size:12px;"> · ${j.match_score}% match</span>` : ""}
+        <br/><span style="display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${color}20;color:${color};">${badge}</span>
+      </td>
+    </tr>`;
+
+  const appliedRows = applied.map((j) => jobRow(j, "✓ Applied", "#16a34a")).join("");
+  const manualRows = manual.map((j) => jobRow(j, "Needs your review", "#d97706")).join("");
+
+  const html = wrap(`
+    ${h2(`JobsAI applied to ${applied.length} job${applied.length !== 1 ? "s" : ""} while you were away`)}
+    ${p(`Your auto-apply ran overnight. Here's what happened (threshold: ${threshold}% match):`)}
+
+    ${applied.length > 0 ? `
+      <p style="font-weight:600;margin:20px 0 8px;color:#111;">Applications submitted (${applied.length})</p>
+      <table style="width:100%;border-collapse:collapse;">${appliedRows}</table>
+    ` : ""}
+
+    ${manual.length > 0 ? `
+      <p style="font-weight:600;margin:20px 0 8px;color:#111;">Needs your review (${manual.length}) — ATS didn't support auto-submit</p>
+      <table style="width:100%;border-collapse:collapse;">${manualRows}</table>
+    ` : ""}
+
+    ${p("Tailored résumé and cover letter saved for every job above.", true)}
+    ${btn(`${APP_URL}/dashboard/auto-apply`, "View full activity log")}
+    ${p(`To adjust your auto-apply settings or threshold, visit your <a href="${APP_URL}/dashboard/preferences" style="color:#4f46e5;">Preferences</a>.`, true)}
+  `);
+
+  await send(to, `JobsAI applied to ${applied.length} job${applied.length !== 1 ? "s" : ""} for you`, html);
+}
