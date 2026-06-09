@@ -7,8 +7,6 @@ import { v4 as uuidv4 } from "uuid";
 export const maxDuration = 60; // seconds — extend for OpenAI parsing
 
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
-import { extractText } from "@/lib/resume-extractor";
-import { parseResumeText } from "@/lib/resume-parser";
 import { checkResumeGate } from "@/lib/billing";
 
 const ALLOWED_TYPES = [
@@ -201,10 +199,8 @@ export async function POST(req: NextRequest) {
       .eq("id", documentId);
   }
 
-  // Parse synchronously so it completes within the serverless function lifetime.
-  // Vercel terminates fire-and-forget work after the response is sent on Hobby.
-  await parseInBackground(version.id, documentId, buffer, file.type).catch(console.error);
-
+  // Parsing is triggered separately by the client via POST /api/resumes/versions/[id]/parse
+  // so upload returns immediately and the user is not blocked waiting for OpenAI.
   return NextResponse.json(
     {
       resume_version_id: version.id,
@@ -215,150 +211,3 @@ export async function POST(req: NextRequest) {
   );
 }
 
-async function parseInBackground(
-  versionId: string,
-  documentId: string,
-  buffer: Buffer,
-  mimeType: string
-) {
-  // Mark as extracting
-  await supabaseAdmin
-    .from("resume_versions")
-    .update({ parse_status: "extracting_text" })
-    .eq("id", versionId);
-
-  let plainText = "";
-  let pages: number | null = null;
-  let ocrUsed = false;
-
-  try {
-    const extracted = await extractText(buffer, mimeType);
-    plainText = extracted.text;
-    pages = extracted.pages;
-    ocrUsed = extracted.ocrUsed;
-
-    await supabaseAdmin
-      .from("resume_versions")
-      .update({ pages_count: pages, ocr_used: ocrUsed })
-      .eq("id", versionId);
-
-    if (!plainText) {
-      await supabaseAdmin
-        .from("resume_versions")
-        .update({
-          parse_status: "failed",
-          parse_error_code: "NO_TEXT_DETECTED",
-          parse_error_msg: "No readable text found. Try a DOCX or text-based PDF.",
-        })
-        .eq("id", versionId);
-      return;
-    }
-
-    // Store raw text
-    await supabaseAdmin.from("resume_texts").upsert({
-      version_id: versionId,
-      plain_text: plainText,
-      tokens_count: Math.ceil(plainText.length / 4),
-    });
-
-  } catch (err) {
-    const code = err instanceof Error ? err.message : "EXTRACTION_FAILED";
-    await supabaseAdmin
-      .from("resume_versions")
-      .update({ parse_status: "failed", parse_error_code: code })
-      .eq("id", versionId);
-    return;
-  }
-
-  // Parse with OpenAI
-  try {
-    const parsed = await parseResumeText(plainText);
-
-    const isPartial =
-      !parsed.name && !parsed.email && (!parsed.experience || parsed.experience.length === 0);
-
-    // Store parsed profile
-    await supabaseAdmin.from("resume_parsed_profile").upsert({
-      version_id: versionId,
-      full_name: parsed.name ?? null,
-      email: parsed.email ?? null,
-      phone: parsed.phone ?? null,
-      location: parsed.location ?? null,
-      headline: parsed.headline ?? null,
-      summary: parsed.summary ?? null,
-      links: parsed.links ?? {},
-      years_experience: parsed.years_experience ?? null,
-      parsed_json: parsed,
-    });
-
-    // Store normalized experiences
-    if (parsed.experience?.length) {
-      await supabaseAdmin.from("resume_experiences").delete().eq("version_id", versionId);
-      await supabaseAdmin.from("resume_experiences").insert(
-        parsed.experience.map((exp, idx) => ({
-          version_id: versionId,
-          idx,
-          title: exp.title ?? null,
-          company: exp.company ?? null,
-          employment_type: exp.employment_type ?? null,
-          location: exp.location ?? null,
-          start_date: exp.start_date ?? null,
-          end_date: exp.end_date ?? null,
-          is_current: exp.is_current ?? false,
-          description: exp.description ?? null,
-        }))
-      );
-    }
-
-    // Store normalized education
-    if (parsed.education?.length) {
-      await supabaseAdmin.from("resume_educations").delete().eq("version_id", versionId);
-      await supabaseAdmin.from("resume_educations").insert(
-        parsed.education.map((edu, idx) => ({
-          version_id: versionId,
-          idx,
-          school: edu.school ?? null,
-          degree: edu.degree ?? null,
-          field_of_study: edu.field_of_study ?? null,
-          start_date: edu.start_date ?? null,
-          end_date: edu.end_date ?? null,
-          grade: edu.grade ?? null,
-          description: edu.description ?? null,
-        }))
-      );
-    }
-
-    // Store skills
-    if (parsed.skills?.length) {
-      await supabaseAdmin.from("resume_skills").delete().eq("version_id", versionId);
-      await supabaseAdmin.from("resume_skills").insert(
-        parsed.skills.map((s) => ({
-          version_id: versionId,
-          skill: s.skill,
-          category: s.category ?? null,
-          confidence: s.confidence ?? null,
-        }))
-      );
-    }
-
-    await supabaseAdmin
-      .from("resume_versions")
-      .update({
-        parse_status: isPartial ? "partial" : "parsed",
-        processed_at: new Date().toISOString(),
-        text_char_count: plainText.length,
-      })
-      .eq("id", versionId);
-
-  } catch (err) {
-    console.error("Parse error:", err);
-    await supabaseAdmin
-      .from("resume_versions")
-      .update({
-        parse_status: "failed",
-        parse_error_code: "STRUCTURE_EXTRACTION_FAILED",
-        parse_error_msg: err instanceof Error ? err.message : "Unknown error",
-      })
-      .eq("id", versionId);
-  }
-}

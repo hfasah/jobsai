@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import Link from "next/link";
-import { Plus, Loader2, Languages, Sparkles, Wand2, Gauge, ArrowRight } from "lucide-react";
+import { Plus, Loader2, Languages, Sparkles, Wand2, Gauge, ArrowRight, CheckCircle2, X, Wifi } from "lucide-react";
 
 function LinkedInIcon({ className }: { className?: string }) {
   return (
@@ -12,7 +12,7 @@ function LinkedInIcon({ className }: { className?: string }) {
   );
 }
 import { Button } from "@/components/ui/button";
-import { UploadZone, UploadProgress } from "@/components/resume/upload-zone";
+import { UploadZone } from "@/components/resume/upload-zone";
 import { ParsedPreview } from "@/components/resume/parsed-preview";
 import { ResumeCard } from "@/components/resume/resume-card";
 import { VersionsPanel } from "@/components/resume/versions-panel";
@@ -22,7 +22,7 @@ import type { ResumeDocument, ResumeVersion } from "@/types/resume";
 type UploadState =
   | { type: "idle" }
   | { type: "uploading"; progress: number; abort?: AbortController }
-  | { type: "processing"; versionId: string; documentId: string }
+  | { type: "analysing"; versionId: string; documentId: string; dismissed: boolean }
   | { type: "preview"; version: ResumeVersion; documentId: string; documentLabel: string }
   | { type: "error"; message: string };
 
@@ -50,9 +50,9 @@ export default function ResumesPage() {
     fetchDocs();
   }, [fetchDocs]);
 
-  // Poll for parse completion when in processing state
+  // Poll for parse completion when analysing
   useEffect(() => {
-    if (uploadState.type !== "processing") {
+    if (uploadState.type !== "analysing") {
       if (pollRef.current) clearInterval(pollRef.current);
       return;
     }
@@ -66,7 +66,6 @@ export default function ResumesPage() {
 
       if (version.parse_status === "parsed" || version.parse_status === "partial") {
         clearInterval(pollRef.current!);
-        // Fetch doc label
         const docRes = await fetch(`/api/resumes/${documentId}`);
         const docJson = await docRes.json();
         setUploadState({
@@ -80,10 +79,9 @@ export default function ResumesPage() {
         clearInterval(pollRef.current!);
         setUploadState({
           type: "error",
-          message:
-            version.parse_error_msg ??
-            "Parsing failed. Try a different file or format.",
+          message: version.parse_error_msg ?? "Parsing failed. Try a different file or format.",
         });
+        fetchDocs();
       }
     }, 3000);
 
@@ -130,10 +128,21 @@ export default function ResumesPage() {
       const { resume_version_id, resume_document_id } = await res.json();
       setUploadingForGroupId(null);
       setShowUpload(false);
+
+      // Fire parse as a separate background request — server runs it to completion
+      // even if the user navigates away (keepalive keeps it alive past page unload).
+      fetch(`/api/resumes/versions/${resume_version_id}/parse`, {
+        method: "POST",
+        keepalive: true,
+      }).catch(() => {});
+
+      // Immediately show the resume list; banner shows analysing progress
+      await fetchDocs();
       setUploadState({
-        type: "processing",
+        type: "analysing",
         versionId: resume_version_id,
         documentId: resume_document_id,
+        dismissed: false,
       });
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
@@ -263,18 +272,58 @@ export default function ResumesPage() {
             </div>
           )}
 
-          {/* Upload progress */}
+          {/* Upload progress — inline bar, not a blocking overlay */}
           {uploadState.type === "uploading" && (
-            <UploadProgress
-              state="uploading"
-              progress={uploadState.progress}
-              onCancel={() => { uploadState.abort?.abort(); setUploadState({ type: "idle" }); }}
-            />
+            <div className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <div className="flex items-center justify-between text-sm font-medium">
+                <span>Uploading resume…</span>
+                <span className="tabular-nums text-muted-foreground">{uploadState.progress}%</span>
+              </div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full transition-all duration-300"
+                  style={{ width: `${uploadState.progress}%`, background: "linear-gradient(90deg, oklch(0.53 0.25 296), oklch(0.68 0.2 296))" }}
+                />
+              </div>
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Wifi className="h-3.5 w-3.5 shrink-0" />
+                Upload speed depends on your internet connection — large files may take a moment.
+              </p>
+              <button
+                onClick={() => { uploadState.abort?.abort(); setUploadState({ type: "idle" }); }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
           )}
 
-          {/* Processing */}
-          {uploadState.type === "processing" && (
-            <UploadProgress state="processing" />
+          {/* Analysing banner — dismissable, user can keep using the app */}
+          {uploadState.type === "analysing" && !uploadState.dismissed && (
+            <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
+              <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Analysing your resume in the background</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  We&apos;re extracting your profile with AI — this takes 15–30 seconds. You can freely navigate the app and we&apos;ll update your resume when it&apos;s ready.
+                </p>
+              </div>
+              <button
+                onClick={() => setUploadState({ ...uploadState, dismissed: true })}
+                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Dismiss"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          )}
+
+          {/* Done banner after analysis */}
+          {uploadState.type === "preview" && (
+            <div className="flex items-center gap-2 rounded-xl border border-desyn-success/30 bg-desyn-success/5 p-3 text-sm text-desyn-success">
+              <CheckCircle2 className="h-4 w-4 shrink-0" />
+              Resume analysed successfully — review your profile below.
+            </div>
           )}
 
           {/* Error */}
