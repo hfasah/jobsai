@@ -29,8 +29,8 @@ export const PLAN_LIMITS = {
     daily_apply: 20,
     voice_minutes_month: 30,
     avatar_minutes_month: 0,  // avatar via token top-up only
-    human_coaching: false,
-    coaching_free_sessions_month: 0,
+    human_coaching: true,
+    coaching_free_sessions_month: 1, // 1 free 45-min session/mo (advertised "Free coaching")
     label: "Pro",
   },
   premium: {
@@ -40,8 +40,8 @@ export const PLAN_LIMITS = {
     daily_apply: 100,
     voice_minutes_month: 120,
     avatar_minutes_month: 30,
-    human_coaching: false,
-    coaching_free_sessions_month: 0,
+    human_coaching: true,
+    coaching_free_sessions_month: 1, // 1 free 45-min session/mo (advertised "Free coaching")
     label: "Premium",
   },
   accelerator: {
