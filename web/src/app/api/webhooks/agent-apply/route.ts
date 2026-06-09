@@ -1,0 +1,100 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { createNotification } from "@/lib/notifications";
+
+// POST /api/webhooks/agent-apply — Skyvern callback when agent completes/fails
+export async function POST(req: NextRequest) {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const taskId = body.task_id as string | undefined;
+  const status = body.status as string | undefined;
+
+  if (!taskId) return NextResponse.json({ error: "Missing task_id" }, { status: 400 });
+
+  // Look up our record for this task
+  const { data: task } = await supabaseAdmin
+    .from("agent_apply_tasks")
+    .select("user_id, job_id")
+    .eq("task_id", taskId)
+    .maybeSingle();
+
+  if (!task) {
+    console.warn("[webhook/agent-apply] Unknown task_id:", taskId);
+    return NextResponse.json({ ok: true }); // Acknowledge but ignore unknown tasks
+  }
+
+  const { user_id: userId, job_id: jobId } = task;
+
+  // Map Skyvern status to our status
+  const success = status === "completed";
+  const failed = status === "failed" || status === "terminated";
+  const ourStatus = success ? "submitted" : failed ? "failed" : "agent_running";
+
+  // Update apply attempt
+  await supabaseAdmin
+    .from("apply_attempts")
+    .update({
+      status: ourStatus,
+      submitted_at: success ? new Date().toISOString() : null,
+      error_msg: failed ? `Agent status: ${status}` : undefined,
+    })
+    .eq("user_id", userId)
+    .eq("job_id", jobId)
+    .eq("platform", "agent")
+    .eq("status", "agent_running");
+
+  if (success || failed) {
+    // Get job info for notification
+    const { data: job } = await supabaseAdmin
+      .from("jobs")
+      .select("title, company")
+      .eq("id", jobId)
+      .maybeSingle();
+
+    const title = job?.title ?? "a role";
+    const company = job?.company ?? "a company";
+
+    if (success) {
+      // Move to applied in application tracker
+      await supabaseAdmin
+        .from("applications")
+        .upsert({
+          user_id: userId,
+          job_id: jobId,
+          stage: "applied",
+          applied_at: new Date().toISOString(),
+          stage_history: [{ stage: "applied", at: new Date().toISOString() }],
+        })
+        .match({ user_id: userId, job_id: jobId });
+
+      createNotification(
+        userId,
+        "agent_apply_done",
+        "Application submitted ✓",
+        `Browser agent successfully applied to ${title} at ${company}.`,
+        { job_id: jobId }
+      ).catch(console.error);
+    } else {
+      createNotification(
+        userId,
+        "agent_apply_failed",
+        "Agent apply couldn't complete",
+        `The agent couldn't fully submit your application to ${title} at ${company}. Your tailored résumé and cover letter are still saved — you can apply manually.`,
+        { job_id: jobId }
+      ).catch(console.error);
+    }
+
+    // Mark task as resolved
+    await supabaseAdmin
+      .from("agent_apply_tasks")
+      .update({ resolved_at: new Date().toISOString(), final_status: ourStatus })
+      .eq("task_id", taskId);
+  }
+
+  return NextResponse.json({ ok: true });
+}

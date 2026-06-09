@@ -30,7 +30,7 @@ export default function JobDetailPage({
   const [tracking, setTracking] = useState(false);
   const [tracked, setTracked] = useState(false);
 
-  type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed" | "need_extension";
+  type ApplyState = "idle" | "applying" | "submitted" | "manual_required" | "failed" | "need_extension" | "agent_launching" | "agent_running";
   const [applyState, setApplyState] = useState<ApplyState>("idle");
   const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
@@ -334,39 +334,73 @@ export default function JobDetailPage({
           </div>
         )}
 
+        {/* Agent launching / running */}
+        {(applyState === "agent_launching" || applyState === "agent_running") && (
+          <div className="mt-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+            <p className="flex items-center gap-2 font-medium text-foreground">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              {applyState === "agent_launching" ? "Launching browser agent…" : "Agent is filling out your application — usually 2–5 minutes"}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Safe to navigate away. You&apos;ll get a notification when the agent submits or hits an issue.</p>
+          </div>
+        )}
+
         {/* Apply status messages */}
         {(applyState === "manual_required" || applyState === "failed") && (
           <div className={`mt-3 rounded-lg border px-4 py-2.5 text-sm ${
             applyState === "manual_required"
-              ? "border-desyn-warning/30 bg-desyn-warning/15 text-desyn-warning"
+              ? "border-desyn-warning/30 bg-desyn-warning/15"
               : "border-destructive/30 bg-destructive/5 text-destructive"
           }`}>
-            <p>{applyMsg ?? (applyState === "manual_required" ? "This platform requires manual submission." : "Apply failed.")}</p>
             {applyState === "manual_required" && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {coverLetterBody && (
+              <>
+                <p className="font-medium text-foreground">Your résumé and cover letter are ready.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you.</p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  {/* Agent Apply — primary action */}
+                  <button
+                    onClick={async () => {
+                      setApplyState("agent_launching");
+                      const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
+                      const json = await res.json();
+                      if (!res.ok) {
+                        if (json.upgrade_required) { setShowUpgrade(json.error); setApplyState("manual_required"); }
+                        else { setApplyMsg(json.error ?? "Agent failed to launch."); setApplyState("manual_required"); }
+                        return;
+                      }
+                      setApplyState("agent_running");
+                    }}
+                    className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  >
+                    <Zap className="h-3.5 w-3.5" /> Agent Apply (Auto)
+                  </button>
+                  {coverLetterBody && (
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(coverLetterBody);
+                        setCopiedCover(true);
+                        setTimeout(() => setCopiedCover(false), 2000);
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      {copiedCover ? <Check className="h-3 w-3 text-desyn-success" /> : <Copy className="h-3 w-3" />}
+                      {copiedCover ? "Copied!" : "Copy cover letter"}
+                    </button>
+                  )}
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText(coverLetterBody);
-                      setCopiedCover(true);
-                      setTimeout(() => setCopiedCover(false), 2000);
+                      setTabOverride("cover");
+                      document.getElementById("job-tabs")?.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="inline-flex items-center gap-1.5 rounded border border-desyn-warning/40 bg-card px-2.5 py-1 text-xs font-medium text-desyn-warning hover:bg-desyn-warning/15 transition-colors"
+                    className="inline-flex items-center gap-1.5 rounded border border-border bg-card px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    {copiedCover ? <Check className="h-3 w-3 text-desyn-success" /> : <Copy className="h-3 w-3" />}
-                    {copiedCover ? "Copied!" : "Copy cover letter"}
+                    View cover letter ↓
                   </button>
-                )}
-                <button
-                  onClick={() => {
-                    setTabOverride("cover");
-                    document.getElementById("job-tabs")?.scrollIntoView({ behavior: "smooth" });
-                  }}
-                  className="inline-flex items-center gap-1.5 rounded border border-desyn-warning/40 bg-card px-2.5 py-1 text-xs font-medium text-desyn-warning hover:bg-desyn-warning/15 transition-colors"
-                >
-                  View cover letter ↓
-                </button>
-              </div>
+                </div>
+              </>
+            )}
+            {applyState === "failed" && (
+              <p>{applyMsg ?? "Apply failed. Try agent apply or apply manually."}</p>
             )}
           </div>
         )}
