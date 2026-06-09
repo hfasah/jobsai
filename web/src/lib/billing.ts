@@ -30,7 +30,7 @@ export const PLAN_LIMITS = {
     voice_minutes_month: 30,
     avatar_minutes_month: 0,  // avatar via token top-up only
     human_coaching: true,
-    coaching_free_sessions_month: 1, // 1 free 45-min session/mo (advertised "Free coaching")
+    coaching_free_sessions_month: 1, // 1 free 30-min session/mo (advertised "Free coaching")
     label: "Pro",
   },
   premium: {
@@ -41,7 +41,7 @@ export const PLAN_LIMITS = {
     voice_minutes_month: 120,
     avatar_minutes_month: 30,
     human_coaching: true,
-    coaching_free_sessions_month: 1, // 1 free 45-min session/mo (advertised "Free coaching")
+    coaching_free_sessions_month: 1, // 1 free 30-min session/mo (advertised "Free coaching")
     label: "Premium",
   },
   accelerator: {
@@ -51,14 +51,14 @@ export const PLAN_LIMITS = {
     daily_apply: 250,
     voice_minutes_month: 300,
     avatar_minutes_month: 120,
-    human_coaching: true,     // 1 free 45-min session/month; extras paid in tokens
+    human_coaching: true,     // 1 free 30-min session/month; extras paid in tokens
     coaching_free_sessions_month: 1,
     label: "Career Accelerator",
   },
 } as const;
 
 // Live 1:1 human career coaching.
-export const COACHING_SESSION_MINUTES = 45;
+export const COACHING_SESSION_MINUTES = 30;
 export const COACHING_USD = 75; // ≈ 25,000 tokens (TOKEN_COSTS.coaching_session)
 
 // Display prices (monthly anchor + yearly per-month, ~20% off).

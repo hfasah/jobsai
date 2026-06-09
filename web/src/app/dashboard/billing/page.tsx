@@ -734,7 +734,7 @@ function BillingContent() {
                 <div>
                   <h2 className="font-semibold">Book a Career Success Coach</h2>
                   <p className="text-sm text-muted-foreground">
-                    A 45-min 1:1 video session — {plan === "accelerator" ? "1 free per month, included with Career Accelerator." : "pay with tokens (20K)."}
+                    A free 30-min 1:1 video call — no tokens, no card. Just pick a time on the calendar.
                   </p>
                 </div>
               </div>

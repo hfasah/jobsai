@@ -17,7 +17,7 @@ export const TOKEN_COSTS = {
   linkedin_post: 20,     // one generated LinkedIn writeup
   voice_minute: 60,    // ~600 for a 10-min voice interview
   avatar_minute: 250,  // ~2,500 for a 10-min avatar interview
-  coaching_session: 20_000, // 45-min 1:1 human career coach ≈ $75 (aligned with Premium's $79/20K)
+  coaching_session: 20_000, // 30-min 1:1 human career coach ≈ $75 (aligned with Premium's $79/20K)
 } as const;
 
 export type TokenFeature = keyof typeof TOKEN_COSTS;
