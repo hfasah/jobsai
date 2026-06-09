@@ -217,13 +217,13 @@ export async function GET(req: NextRequest) {
                 .eq("user_id", userId)
                 .maybeSingle();
 
-              const { data: jobRow } = await supabaseAdmin
-                .from("jobs")
-                .select("source_url, posting_url")
-                .eq("id", jobId)
-                .maybeSingle();
+              // posting_url lives on job_parsed, not jobs
+              const [{ data: jobRow }, { data: jobParsedRow }] = await Promise.all([
+                supabaseAdmin.from("jobs").select("source_url").eq("id", jobId).maybeSingle(),
+                supabaseAdmin.from("job_parsed").select("posting_url").eq("job_id", jobId).maybeSingle(),
+              ]);
 
-              const cronUrl = jobRow?.source_url || jobRow?.posting_url;
+              const cronUrl = jobRow?.source_url || jobParsedRow?.posting_url;
               if (profile?.email && profile?.first_name && cronUrl) {
                 // Generate 1-hour resume download URL
                 const { data: doc } = await supabaseAdmin

@@ -18,11 +18,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  // Two simple queries — avoids join naming issues across Supabase schema variations
-  const [{ data: jobs }, { data: parsedRows }] = await Promise.all([
-    supabaseAdmin.from("jobs").select("id, source_url, posting_url, status, user_id").in("id", jobIds),
+  // Two simple queries — avoids join naming issues across Supabase schema variations.
+  // posting_url lives on job_parsed, NOT on jobs — never select it from jobs.
+  const [{ data: jobs, error: jobsErr }, { data: parsedRows }] = await Promise.all([
+    supabaseAdmin.from("jobs").select("id, source_url, status, user_id").in("id", jobIds),
     supabaseAdmin.from("job_parsed").select("job_id, title, company, posting_url").in("job_id", jobIds),
   ]);
+  if (jobsErr) console.error("[preflight] jobs query failed", jobsErr);
   const parsedMap = new Map((parsedRows ?? []).map((p) => [p.job_id, p]));
 
   const jobMap = new Map((jobs ?? []).map((j) => [j.id, j]));
@@ -60,7 +62,7 @@ export async function POST(req: NextRequest) {
       const parsedRow = parsedMap.get(jobId);
       const title = parsedRow?.title ?? null;
       const company = parsedRow?.company ?? null;
-      const applicationUrl = job?.source_url || job?.posting_url || parsedRow?.posting_url || null;
+      const applicationUrl = job?.source_url || parsedRow?.posting_url || null;
 
       if (!applicationUrl) {
         return { jobId, status: "no_url" as const, title, company };

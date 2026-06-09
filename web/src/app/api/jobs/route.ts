@@ -12,8 +12,8 @@ export async function GET() {
   const { data, error } = await supabaseAdmin
     .from("jobs")
     .select(`
-      id, status, source_type, source_url, posting_url, created_at,
-      parsed:job_parsed ( title, company, location, seniority ),
+      id, status, source_type, source_url, created_at,
+      parsed:job_parsed ( title, company, location, seniority, posting_url ),
       match:job_matches ( match_score )
     `)
     .eq("user_id", userId)
@@ -21,13 +21,15 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Flatten match (job_matches is one-to-many; take the highest score)
+  // Flatten match (job_matches is one-to-many; take the highest score).
+  // posting_url lives on job_parsed, so lift it to the top level for the client.
   const jobs = (data ?? []).map((j) => {
     const matches = (j.match as { match_score: number }[]) ?? [];
     const best = matches.length
       ? matches.reduce((a, b) => (b.match_score > a.match_score ? b : a))
       : null;
-    return { ...j, match: best };
+    const parsed = Array.isArray(j.parsed) ? j.parsed[0] : j.parsed;
+    return { ...j, posting_url: (parsed as { posting_url?: string } | null)?.posting_url ?? null, match: best };
   });
 
   // Attach "what's been done" flags so My Jobs shows saved progress and users

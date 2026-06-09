@@ -43,11 +43,21 @@ export async function POST(
     );
   }
 
-  // Fetch job and parsed data in two simple queries (avoids join naming issues)
-  const [{ data: job }, { data: jobParsed }] = await Promise.all([
-    supabaseAdmin.from("jobs").select("id, status, source_url, posting_url").eq("id", jobId).maybeSingle(),
+  // Fetch job and parsed data in two simple queries (avoids join naming issues).
+  // NOTE: posting_url lives on job_parsed, NOT on jobs — selecting it from jobs
+  // would error and make `job` null, falsely reporting "job no longer exists".
+  const [{ data: job, error: jobErr }, { data: jobParsed }] = await Promise.all([
+    supabaseAdmin.from("jobs").select("id, status, source_url").eq("id", jobId).maybeSingle(),
     supabaseAdmin.from("job_parsed").select("title, company, posting_url").eq("job_id", jobId).maybeSingle(),
   ]);
+
+  if (jobErr) {
+    console.error("[agent-apply] jobs query failed", { jobId, error: jobErr });
+    return NextResponse.json(
+      { error: "We couldn't load this job right now. Please try again in a moment.", action: "retry" },
+      { status: 500 }
+    );
+  }
 
   if (!job) {
     return NextResponse.json(
@@ -56,8 +66,8 @@ export async function POST(
     );
   }
 
-  // URL lives in jobs.source_url, jobs.posting_url, or job_parsed.posting_url
-  const applicationUrl = job.source_url || job.posting_url || jobParsed?.posting_url || null;
+  // URL lives in jobs.source_url or job_parsed.posting_url
+  const applicationUrl = job.source_url || jobParsed?.posting_url || null;
 
   if (!applicationUrl) {
     return NextResponse.json(
