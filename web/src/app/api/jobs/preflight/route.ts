@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  // Fetch all jobs in one query — include both URL fields
+  // Fetch all jobs — join job_parsed for title, company, and posting_url
   const { data: jobs } = await supabaseAdmin
     .from("jobs")
-    .select("id, title, company, source_url, posting_url, status, user_id")
+    .select("id, source_url, posting_url, status, user_id, job_parsed ( title, company, posting_url )")
     .in("id", jobIds);
 
   const jobMap = new Map((jobs ?? []).map((j) => [j.id, j]));
@@ -53,27 +53,31 @@ export async function POST(req: NextRequest) {
 
       const owned = job?.user_id === userId || appOwned.has(jobId);
       if (!owned) {
-        return { jobId, status: "not_found" as const, title: job?.title ?? null, company: job?.company ?? null };
+        return { jobId, status: "not_found" as const, title: null, company: null };
       }
 
-      const applicationUrl = job?.source_url || job?.posting_url;
+      // title/company live in job_parsed; posting_url may be there too
+      const parsedRow = Array.isArray(job?.job_parsed) ? job?.job_parsed[0] : job?.job_parsed;
+      const title = parsedRow?.title ?? null;
+      const company = parsedRow?.company ?? null;
+      const applicationUrl = job?.source_url || job?.posting_url || parsedRow?.posting_url || null;
+
       if (!applicationUrl) {
-        return { jobId, status: "no_url" as const, title: job?.title ?? null, company: job?.company ?? null };
+        return { jobId, status: "no_url" as const, title, company };
       }
 
-      if (job.status === "expired") {
-        return { jobId, status: "expired" as const, title: job.title ?? null, company: job.company ?? null };
+      if (job?.status === "expired") {
+        return { jobId, status: "expired" as const, title, company };
       }
 
       // Check live availability
       const availability = await checkJobAvailability(applicationUrl);
       if (availability === "expired") {
-        // Persist so we don't re-check
         await supabaseAdmin.from("jobs").update({ status: "expired" }).eq("id", jobId);
-        return { jobId, status: "expired" as const, title: job.title ?? null, company: job.company ?? null };
+        return { jobId, status: "expired" as const, title, company };
       }
 
-      return { jobId, status: "ready" as const, title: job.title ?? null, company: job.company ?? null };
+      return { jobId, status: "ready" as const, title, company };
     })
   );
 

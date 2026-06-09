@@ -43,10 +43,10 @@ export async function POST(
     );
   }
 
-  // Fetch full job details without user_id restriction (ownership verified above)
+  // Fetch full job details — join job_parsed to get posting_url (stored there by processJob)
   const { data: job } = await supabaseAdmin
     .from("jobs")
-    .select("id, title, company, source_url, posting_url, status")
+    .select("id, status, source_url, posting_url, job_parsed ( title, company, posting_url )")
     .eq("id", jobId)
     .maybeSingle();
 
@@ -57,14 +57,20 @@ export async function POST(
     );
   }
 
-  // Jobs store their URL in either source_url or posting_url
-  const applicationUrl = job.source_url || job.posting_url;
+  const parsed = Array.isArray(job.job_parsed) ? job.job_parsed[0] : job.job_parsed;
+
+  // URL can be on jobs.source_url, jobs.posting_url, or job_parsed.posting_url
+  const applicationUrl = job.source_url || job.posting_url || parsed?.posting_url || null;
+
   if (!applicationUrl) {
     return NextResponse.json(
       { error: "No application URL found. Open this job and make sure the original posting link is saved.", action: "view_job" },
       { status: 400 }
     );
   }
+
+  const jobTitle = parsed?.title ?? null;
+  const jobCompany = parsed?.company ?? null;
 
   // Check if the posting is still live before wasting an agent run
   const availability = await checkJobAvailability(applicationUrl);
@@ -73,7 +79,7 @@ export async function POST(
     await supabaseAdmin.from("jobs").update({ status: "expired" }).eq("id", jobId);
     return NextResponse.json(
       {
-        error: expiredMessage(job.company),
+        error: expiredMessage(jobCompany),
         expired: true,
         action: "remove_job",
       },
@@ -168,7 +174,7 @@ export async function POST(
       userId,
       "agent_apply_started",
       "Browser agent is applying",
-      `Agent started applying to ${job.title ?? "a role"} at ${job.company ?? "a company"}. We'll notify you when done.`,
+      `Agent started applying to ${jobTitle ?? "a role"} at ${jobCompany ?? "a company"}. We'll notify you when done.`,
       { job_id: jobId }
     ).catch(console.error);
 
