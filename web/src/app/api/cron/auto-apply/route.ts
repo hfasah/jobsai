@@ -1,12 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { applyToJob } from "@/lib/apply-agent";
 import { scoreMatch } from "@/lib/job-parser";
 import { tailorResume, generateCoverLetter } from "@/lib/ai-content";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest } from "@/lib/email";
+import { createSkyvernTask, getSkyvernKey } from "@/lib/skyvern";
 import type { UserPreferences } from "@/types/preferences";
+
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
 
 export const maxDuration = 300;
 
@@ -196,19 +199,108 @@ export async function GET(req: NextRequest) {
             }
           }
 
-          // 6. Apply
+          // 6. Try direct ATS apply first; escalate to browser agent for LinkedIn/Indeed/etc.
           const result = await applyToJob(userId, jobId);
-          const applyStatus = result.status;
-          if (applyStatus === "submitted" || applyStatus === "manual_required" || applyStatus === "failed" || applyStatus === "blocked") {
-            log.status = applyStatus;
-          }
 
           if (result.status === "submitted") {
+            log.status = "submitted";
             summary.jobs_applied++;
-          } else if (result.status === "manual_required") {
-            summary.jobs_manual++;
+          } else if (result.status === "blocked") {
+            log.status = "blocked";
+          } else if (result.status === "manual_required" && getSkyvernKey()) {
+            // Direct ATS submit not possible — launch Skyvern browser agent instead
+            try {
+              // Load apply profile for Skyvern payload
+              const { data: profile } = await supabaseAdmin
+                .from("apply_profiles")
+                .select("*")
+                .eq("user_id", userId)
+                .maybeSingle();
+
+              const { data: jobRow } = await supabaseAdmin
+                .from("jobs")
+                .select("source_url")
+                .eq("id", jobId)
+                .maybeSingle();
+
+              if (profile?.email && profile?.first_name && jobRow?.source_url) {
+                // Generate 1-hour resume download URL
+                const { data: doc } = await supabaseAdmin
+                  .from("resume_documents")
+                  .select("active_version_id, resume_versions!resume_documents_active_version_id_fkey(storage_key)")
+                  .eq("user_id", userId)
+                  .eq("is_primary", true)
+                  .maybeSingle();
+
+                let resumeUrl: string | undefined;
+                const storageKey = (doc?.resume_versions as { storage_key?: string } | null)?.storage_key;
+                if (storageKey) {
+                  const { data: signed } = await supabaseAdmin.storage
+                    .from(STORAGE_BUCKET)
+                    .createSignedUrl(storageKey, 3600);
+                  if (signed?.signedUrl) resumeUrl = signed.signedUrl;
+                }
+
+                const { data: cl } = await supabaseAdmin
+                  .from("cover_letters")
+                  .select("body")
+                  .eq("job_id", jobId)
+                  .eq("user_id", userId)
+                  .order("updated_at", { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+
+                const task = await createSkyvernTask({
+                  url: jobRow.source_url,
+                  webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
+                  navigationPayload: {
+                    first_name: profile.first_name,
+                    last_name: profile.last_name ?? null,
+                    email: profile.email,
+                    phone: profile.phone ?? null,
+                    city: profile.city ?? null,
+                    country: profile.country ?? null,
+                    linkedin_url: profile.linkedin_url ?? null,
+                    authorized_to_work: profile.authorized_to_work ? "Yes" : "No",
+                    requires_sponsorship: profile.requires_sponsorship ? "Yes" : "No",
+                  },
+                  resumeUrl,
+                  coverLetter: cl?.body ?? undefined,
+                });
+
+                await supabaseAdmin.from("agent_apply_tasks").insert({
+                  task_id: task.task_id,
+                  user_id: userId,
+                  job_id: jobId,
+                });
+
+                // Update the manual_required attempt to agent_running
+                await supabaseAdmin
+                  .from("apply_attempts")
+                  .update({ status: "agent_running", error_msg: `Skyvern task: ${task.task_id}` })
+                  .eq("user_id", userId)
+                  .eq("job_id", jobId)
+                  .eq("status", "manual_required");
+
+                log.status = "submitted"; // Count as in-flight — webhook will confirm
+                summary.jobs_applied++;
+              } else {
+                log.status = "manual_required";
+                summary.jobs_manual++;
+              }
+            } catch (skyvernErr) {
+              console.error(`[cron/auto-apply] Skyvern fallback failed job ${jobId}:`, skyvernErr);
+              log.status = "manual_required";
+              summary.jobs_manual++;
+            }
           } else {
-            summary.jobs_failed++;
+            // manual_required without Skyvern, or failed
+            const applyStatus = result.status;
+            if (applyStatus === "manual_required" || applyStatus === "failed") {
+              log.status = applyStatus;
+            }
+            if (result.status === "manual_required") summary.jobs_manual++;
+            else summary.jobs_failed++;
           }
         } catch (err) {
           log.status = "failed";
