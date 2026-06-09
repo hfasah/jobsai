@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
+import { getSkyvernTask } from "@/lib/skyvern";
+import { recordAgentCost } from "@/lib/agent-cost";
 
 // POST /api/webhooks/agent-apply — Skyvern callback when agent completes/fails
 export async function POST(req: NextRequest) {
@@ -54,6 +56,16 @@ export async function POST(req: NextRequest) {
     .eq("job_id", jobId)
     .eq("platform", "agent")
     .eq("status", "pending");
+
+  // Record estimated Skyvern cost. Prefer step_count from the payload; fetch
+  // the run only if it's missing. Separate write — never blocks settlement.
+  if (success || failed) {
+    let stepCount = typeof body.step_count === "number" ? (body.step_count as number) : null;
+    if (stepCount == null) {
+      stepCount = await getSkyvernTask(taskId).then((r) => r.step_count ?? null).catch(() => null);
+    }
+    await recordAgentCost(userId, jobId, stepCount);
+  }
 
   if (success || failed) {
     // Get job info for notification — title/company live on job_parsed, not jobs

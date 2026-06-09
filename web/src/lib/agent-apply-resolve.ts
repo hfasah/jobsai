@@ -9,6 +9,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { getSkyvernTask, isTerminalStatus } from "@/lib/skyvern";
 import { createNotification } from "@/lib/notifications";
+import { recordAgentCost } from "@/lib/agent-cost";
 
 // Turn a raw Skyvern failure_reason into something a candidate can trust.
 export function humanizeAgentFailure(reason?: string | null): string {
@@ -68,6 +69,9 @@ export async function resolveAgentTask(task: TaskRow): Promise<boolean> {
     .eq("job_id", task.job_id)
     .eq("platform", "agent")
     .eq("status", "pending");
+
+  // Record estimated Skyvern cost (separate write — never blocks settlement).
+  await recordAgentCost(task.user_id, task.job_id, run.step_count);
 
   const { title, company } = await jobLabel(task.job_id);
 
