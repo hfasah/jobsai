@@ -8,6 +8,7 @@ import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
+import { deductTokens, addTokens, TOKEN_COSTS } from "@/lib/tokens";
 import type { UserPreferences } from "@/types/preferences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
@@ -252,10 +253,23 @@ export async function GET(req: NextRequest) {
                   .limit(1)
                   .maybeSingle();
 
+                // Charge tokens for this auto-apply; skip the job if the user
+                // is out of credits (logged as manual so they can apply later).
+                const applyCost = TOKEN_COSTS.auto_apply;
+                const spend = await deductTokens(userId, applyCost, "auto_apply", { job_id: jobId, source: "cron" }, { meterFree: true });
+                if (!spend.ok) {
+                  log.status = "manual_required";
+                  summary.jobs_manual++;
+                  runLog.push(log);
+                  continue;
+                }
+
                 const applicantEmail = inboundEmailEnabled()
                   ? await getOrCreateAlias(userId, jobId)
                   : profile.email;
-                const task = await createSkyvernTask({
+                let task;
+                try {
+                  task = await createSkyvernTask({
                   url: cronUrl,
                   webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
                   navigationPayload: {
@@ -272,7 +286,12 @@ export async function GET(req: NextRequest) {
                   resumeUrl,
                   coverLetter: cl?.body ?? undefined,
                   proxyLocation: proxyLocationForLocation(jobParsedRow?.location),
-                });
+                  });
+                } catch (e) {
+                  // Launch failed → refund the tokens and rethrow to outer handler.
+                  await addTokens(userId, applyCost, "auto_apply_refund", { job_id: jobId, source: "cron" }).catch(() => {});
+                  throw e;
+                }
 
                 await supabaseAdmin.from("agent_apply_tasks").insert({
                   task_id: task.task_id,

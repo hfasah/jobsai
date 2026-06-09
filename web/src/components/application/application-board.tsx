@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Loader2, Plus, Zap, X, CheckCircle2, Lock } from "lucide-react";
-import { usePlan, isPaidPlan } from "@/hooks/use-plan";
+import { Loader2, Plus, Zap, X, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApplicationCard } from "@/components/application/application-card";
 import { AddJobPicker } from "@/components/application/add-job-picker";
+import { CreditConfirmModal } from "@/components/credit-confirm-modal";
 import {
   APPLICATION_STAGES,
   STAGE_LABELS,
@@ -27,8 +27,6 @@ type ApplyStatus = "idle" | "running" | "done" | "error" | "expired" | "no_url";
 interface JobApplyState { status: ApplyStatus; error?: string }
 
 export function ApplicationBoard() {
-  const { plan } = usePlan();
-  const paid = isPaidPlan(plan);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -41,6 +39,11 @@ export function ApplicationBoard() {
   const [applyStates, setApplyStates] = useState<Record<string, JobApplyState>>({});
   const [bulkRunning, setBulkRunning] = useState(false);
 
+  // Credits
+  const [balance, setBalance] = useState(0);
+  const [applyCost, setApplyCost] = useState(600);
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
+
   const fetchApplications = useCallback(async () => {
     const res = await fetch("/api/applications");
     const json = await res.json();
@@ -48,7 +51,18 @@ export function ApplicationBoard() {
     setLoading(false);
   }, []);
 
-  useEffect(() => { fetchApplications(); }, [fetchApplications]);
+  const fetchTokens = useCallback(async () => {
+    try {
+      const r = await fetch("/api/tokens");
+      const j = await r.json();
+      if (j.data) {
+        setBalance(j.data.balance ?? 0);
+        if (j.data.costs?.auto_apply) setApplyCost(j.data.costs.auto_apply);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { fetchApplications(); fetchTokens(); }, [fetchApplications, fetchTokens]);
 
   const byStage = useMemo(() => {
     const map: Record<ApplicationStage, Application[]> = {
@@ -90,6 +104,9 @@ export function ApplicationBoard() {
           prev.map((a) => a.job_id === jobId ? { ...a, stage: "applied" as ApplicationStage } : a)
         );
         setSelectedJobIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
+        fetchTokens(); // refresh balance after the server deducted credits
+      } else if (res.status === 402 || json.insufficient_credits) {
+        setApplyStates((p) => ({ ...p, [jobId]: { status: "error", error: json.error ?? "Not enough credits — top up to apply." } }));
       } else if (res.status === 410 || json.expired) {
         // Job no longer available — neutral message, not an error
         setApplyStates((p) => ({ ...p, [jobId]: { status: "expired", error: json.error ?? "This employer is no longer accepting applications for this position." } }));
@@ -101,14 +118,18 @@ export function ApplicationBoard() {
     } catch {
       setApplyStates((p) => ({ ...p, [jobId]: { status: "error", error: "Network error — please try again." } }));
     }
+  }, [fetchTokens]);
+
+  // Open the credit-confirmation modal for a set of jobs.
+  const requestApply = useCallback((jobIds: string[]) => {
+    if (jobIds.length === 0) return;
+    setConfirmModal({ open: true, jobIds });
   }, []);
 
-  // Bulk apply — pre-flight check then apply sequentially
-  const applySelected = useCallback(async () => {
-    if (bulkRunning || selectedJobIds.size === 0) return;
+  // Executor — pre-flight check then apply sequentially (runs after confirm).
+  const runApply = useCallback(async (ids: string[]) => {
+    if (bulkRunning || ids.length === 0) return;
     setBulkRunning(true);
-
-    const ids = Array.from(selectedJobIds);
 
     // Pre-flight: check which jobs are still available
     try {
@@ -143,7 +164,14 @@ export function ApplicationBoard() {
       await applyOne(jobId);
     }
     setBulkRunning(false);
-  }, [bulkRunning, selectedJobIds, applyOne]);
+  }, [bulkRunning, applyOne]);
+
+  // Confirmed from the modal → deduct happens server-side per apply.
+  const confirmApply = useCallback(async () => {
+    const ids = confirmModal.jobIds;
+    setConfirmModal({ open: false, jobIds: [] });
+    await runApply(ids);
+  }, [confirmModal.jobIds, runApply]);
 
   const updateApplication = useCallback(
     async (id: string, body: UpdateApplicationBody) => {
@@ -268,7 +296,7 @@ export function ApplicationBoard() {
                         applying={jobApply?.status === "running"}
                         applied={jobApply?.status === "done"}
                         applyError={jobApply?.error}
-                        onApply={isSaved ? applyOne : undefined}
+                        onApply={isSaved ? (jobId: string) => requestApply([jobId]) : undefined}
                       />
                     );
                   })}
@@ -312,27 +340,18 @@ export function ApplicationBoard() {
 
             <div className="ml-auto flex items-center gap-2">
               <p className="hidden text-xs text-muted-foreground sm:block">
-                {paid ? "Agent opens each site, fills the form & submits — no manual work needed" : "Upgrade to apply automatically with the browser agent"}
+                {selectedJobIds.size * applyCost} credits · balance {balance}
               </p>
-              {paid ? (
-                <button
-                  onClick={applySelected}
-                  disabled={bulkRunning}
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#f5c518] px-4 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
-                >
-                  {bulkRunning
-                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</>
-                    : <><Zap className="h-4 w-4" /> Agent Apply to All ({selectedJobIds.size})</>
-                  }
-                </button>
-              ) : (
-                <a
-                  href="/dashboard/billing"
-                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Lock className="h-4 w-4" /> Upgrade to Apply
-                </a>
-              )}
+              <button
+                onClick={() => requestApply(Array.from(selectedJobIds))}
+                disabled={bulkRunning}
+                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#f5c518] px-4 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+              >
+                {bulkRunning
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</>
+                  : <><Zap className="h-4 w-4" /> Agent Apply to All ({selectedJobIds.size})</>
+                }
+              </button>
             </div>
           </div>
         </div>
@@ -345,6 +364,18 @@ export function ApplicationBoard() {
           onClose={() => setPickerOpen(false)}
         />
       )}
+
+      <CreditConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, jobIds: [] })}
+        onConfirm={confirmApply}
+        action="Auto Apply"
+        unitCost={applyCost}
+        quantity={confirmModal.jobIds.length}
+        balance={balance}
+        busy={bulkRunning}
+        note="Expired or already-applied jobs are skipped automatically after a quick availability check."
+      />
     </>
   );
 }

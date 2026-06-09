@@ -224,22 +224,16 @@ export async function checkAutoApplyGate(userId: string): Promise<GateResult> {
   const plan = await getUserPlan(userId);
   const limits = PLAN_LIMITS[plan];
 
-  // Free (and any plan without auto_apply) can't apply at all.
-  if (!limits.auto_apply) {
-    return {
-      allowed: false,
-      upgrade_required: true,
-      reason: "Auto-apply is a paid feature. Upgrade to apply with JobsAI.",
-    };
-  }
-
-  // Per-plan daily application cap (abuse protection + upgrade pressure).
+  // Access is governed by TOKENS now (each apply costs TOKEN_COSTS.auto_apply),
+  // so any plan can auto-apply if they hold the credits. The daily cap is purely
+  // abuse protection; plans without a configured cap get a sensible floor.
+  const cap = limits.daily_apply && limits.daily_apply > 0 ? limits.daily_apply : 25;
   const used = await getDailyApplyCount(userId);
-  if (used >= limits.daily_apply) {
+  if (used >= cap) {
     return {
       allowed: false,
-      upgrade_required: true,
-      reason: `You've reached your ${limits.daily_apply}/day application limit on ${limits.label}. It resets tomorrow — upgrade for a higher daily limit.`,
+      upgrade_required: plan === "free" || plan === "pro",
+      reason: `You've hit today's ${cap} auto-apply limit on ${limits.label}. It resets tomorrow${plan !== "accelerator" ? " — upgrade for a higher daily limit" : ""}.`,
     };
   }
   return { allowed: true };

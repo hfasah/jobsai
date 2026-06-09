@@ -11,6 +11,8 @@ export async function GET() {
   return NextResponse.json({
     data: {
       balance: account.balance,
+      grant_balance: account.grant_balance,
+      topup_balance: account.topup_balance,
       monthly_grant: account.monthly_grant,
       plan: account.plan,
       costs: TOKEN_COSTS,
