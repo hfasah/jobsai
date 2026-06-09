@@ -161,12 +161,14 @@ export async function POST(
       jobBoardPassword: profile.job_board_password ?? undefined,
     });
 
-    // Record the attempt
+    // Record the attempt. status must be one of the allowed values
+    // (pending|submitted|failed|manual_required) — we use "pending" for an
+    // in-flight agent run and the webhook flips it to submitted/failed.
     await supabaseAdmin.from("apply_attempts").insert({
       user_id: userId,
       job_id: jobId,
       platform: "agent",
-      status: "agent_running",
+      status: "pending",
       submitted_at: null,
       error_msg: `Skyvern task: ${task.task_id}`,
     });
@@ -177,6 +179,32 @@ export async function POST(
       user_id: userId,
       job_id: jobId,
     });
+
+    // Persist "applied" immediately so the card stays in the Applied column
+    // regardless of webhook timing. Forward-only: never downgrade a card that's
+    // already further along (interviewing/offer) or already applied.
+    const now = new Date().toISOString();
+    const { data: existingApp } = await supabaseAdmin
+      .from("applications")
+      .select("id, stage, stage_history")
+      .eq("user_id", userId)
+      .eq("job_id", jobId)
+      .maybeSingle();
+    if (!existingApp) {
+      await supabaseAdmin.from("applications").insert({
+        user_id: userId,
+        job_id: jobId,
+        stage: "applied",
+        applied_at: now,
+        stage_history: [{ stage: "applied", at: now }],
+      });
+    } else if (existingApp.stage === "saved") {
+      const history = Array.isArray(existingApp.stage_history) ? existingApp.stage_history : [];
+      await supabaseAdmin
+        .from("applications")
+        .update({ stage: "applied", applied_at: now, stage_history: [...history, { stage: "applied", at: now }] })
+        .eq("id", existingApp.id);
+    }
 
     createNotification(
       userId,

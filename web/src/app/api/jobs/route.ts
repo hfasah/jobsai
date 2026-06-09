@@ -2,12 +2,16 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { resolvePendingAgentTasks } from "@/lib/agent-apply-resolve";
 
 // GET /api/jobs — list all jobs for the user with parsed title + match score
 export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
+
+  // Settle in-flight agent applies so the "applied" flags reflect real outcomes.
+  await resolvePendingAgentTasks(userId).catch(() => {});
 
   const { data, error } = await supabaseAdmin
     .from("jobs")
@@ -36,15 +40,23 @@ export async function GET() {
   // can resume work / review reports after logging back in.
   const ids = jobs.map((j) => j.id as string);
   if (ids.length > 0) {
-    const [tailored, covers, ats, applied, sessions] = await Promise.all([
+    const [tailored, covers, ats, applied, sessions, pipeline] = await Promise.all([
       supabaseAdmin.from("tailored_resumes").select("job_id").eq("user_id", userId).in("job_id", ids),
       supabaseAdmin.from("cover_letters").select("job_id").eq("user_id", userId).in("job_id", ids),
       supabaseAdmin.from("ats_scans").select("job_id").eq("user_id", userId).in("job_id", ids),
       supabaseAdmin.from("apply_attempts").select("job_id").eq("user_id", userId).eq("status", "submitted").in("job_id", ids),
       supabaseAdmin.from("interview_sessions").select("job_id").eq("user_id", userId).in("job_id", ids),
+      // Durable "applied" signal: any pipeline card past the saved stage.
+      supabaseAdmin.from("applications").select("job_id, stage").eq("user_id", userId).in("job_id", ids),
     ]);
     const setOf = (rows: { job_id: string }[] | null) => new Set((rows ?? []).map((r) => r.job_id));
-    const tSet = setOf(tailored.data), cSet = setOf(covers.data), aSet = setOf(ats.data), apSet = setOf(applied.data), sSet = setOf(sessions.data);
+    const tSet = setOf(tailored.data), cSet = setOf(covers.data), aSet = setOf(ats.data), sSet = setOf(sessions.data);
+    // A job counts as applied if it has a submitted attempt OR a pipeline card
+    // that's moved beyond "saved" (covers agent applies confirmed at launch).
+    const apSet = setOf(applied.data);
+    (pipeline.data ?? []).forEach((r) => {
+      if (r.stage && r.stage !== "saved") apSet.add(r.job_id as string);
+    });
     jobs.forEach((j) => {
       const id = j.id as string;
       (j as Record<string, unknown>).progress = {

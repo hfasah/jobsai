@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ApplicationStage } from "@/types/application";
 import { APPLICATION_STAGES } from "@/types/application";
+import { resolvePendingAgentTasks } from "@/lib/agent-apply-resolve";
 
 type ParsedRel = { title: string | null; company: string | null; location: string | null };
 type MatchRel = { match_score: number };
@@ -35,6 +36,10 @@ export async function GET() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
+
+  // Settle any in-flight browser-agent applies (webhook is best-effort) so the
+  // board reflects real outcomes — confirmed applies and honest failures.
+  await resolvePendingAgentTasks(userId).catch(() => {});
 
   const { data, error } = await supabaseAdmin
     .from("applications")

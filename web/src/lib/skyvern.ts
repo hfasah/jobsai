@@ -24,6 +24,15 @@ export interface SkyvernTask {
   task_id: string;
   status: string;
   created_at?: string;
+  /** Present on terminal failures (e.g. "this job is not available in your region"). */
+  failure_reason?: string | null;
+  /** Number of agent steps consumed — used for cost tracking. */
+  step_count?: number | null;
+}
+
+const TERMINAL_STATUSES = new Set(["completed", "failed", "terminated", "timed_out", "canceled"]);
+export function isTerminalStatus(status: string): boolean {
+  return TERMINAL_STATUSES.has(status);
 }
 
 // Human-readable label for a payload key, e.g. linkedin_url -> "LinkedIn URL"
@@ -112,6 +121,15 @@ export async function getSkyvernTask(taskId: string): Promise<SkyvernTask> {
   });
 
   if (!res.ok) throw new Error(`Skyvern get task failed (${res.status})`);
-  const json = (await res.json()) as { run_id?: string; task_id?: string; status?: string; created_at?: string };
-  return { task_id: json.run_id ?? json.task_id ?? taskId, status: json.status ?? "unknown", created_at: json.created_at };
+  const json = (await res.json()) as {
+    run_id?: string; task_id?: string; status?: string; created_at?: string;
+    failure_reason?: string | null; step_count?: number | null;
+  };
+  return {
+    task_id: json.run_id ?? json.task_id ?? taskId,
+    status: json.status ?? "unknown",
+    created_at: json.created_at,
+    failure_reason: json.failure_reason ?? null,
+    step_count: json.step_count ?? null,
+  };
 }

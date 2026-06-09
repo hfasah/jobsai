@@ -32,16 +32,17 @@ export async function POST(req: NextRequest) {
 
   const { user_id: userId, job_id: jobId } = task;
 
-  // Map Skyvern run status to our status
+  // Map Skyvern run status to our status (must be an allowed apply_attempts
+  // value: pending|submitted|failed|manual_required).
   const success = status === "completed";
   const failed =
     status === "failed" ||
     status === "terminated" ||
     status === "timed_out" ||
     status === "canceled";
-  const ourStatus = success ? "submitted" : failed ? "failed" : "agent_running";
+  const ourStatus = success ? "submitted" : failed ? "failed" : "pending";
 
-  // Update apply attempt
+  // Update the in-flight agent attempt (recorded as platform=agent, status=pending)
   await supabaseAdmin
     .from("apply_attempts")
     .update({
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest) {
     .eq("user_id", userId)
     .eq("job_id", jobId)
     .eq("platform", "agent")
-    .eq("status", "agent_running");
+    .eq("status", "pending");
 
   if (success || failed) {
     // Get job info for notification — title/company live on job_parsed, not jobs

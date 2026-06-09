@@ -275,10 +275,11 @@ export async function GET(req: NextRequest) {
                   job_id: jobId,
                 });
 
-                // Update the manual_required attempt to agent_running
+                // Flip the manual_required attempt to a pending agent run
+                // ("agent_running" isn't an allowed status; webhook resolves it)
                 await supabaseAdmin
                   .from("apply_attempts")
-                  .update({ status: "agent_running", error_msg: `Skyvern task: ${task.task_id}` })
+                  .update({ status: "pending", platform: "agent", error_msg: `Skyvern task: ${task.task_id}` })
                   .eq("user_id", userId)
                   .eq("job_id", jobId)
                   .eq("status", "manual_required");
