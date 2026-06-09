@@ -1,0 +1,80 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { checkJobAvailability } from "@/lib/job-availability";
+
+export const maxDuration = 60;
+
+// POST /api/jobs/preflight — check a list of job IDs before bulk apply
+// Returns: { results: [{ jobId, status: 'ready'|'expired'|'no_url'|'not_found' }] }
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => ({}));
+  const jobIds: string[] = Array.isArray(body.job_ids) ? body.job_ids.slice(0, 30) : [];
+
+  if (jobIds.length === 0) {
+    return NextResponse.json({ results: [] });
+  }
+
+  // Fetch all jobs in one query
+  const { data: jobs } = await supabaseAdmin
+    .from("jobs")
+    .select("id, title, company, source_url, status, user_id")
+    .in("id", jobIds);
+
+  const jobMap = new Map((jobs ?? []).map((j) => [j.id, j]));
+
+  // Check ownership via applications table for jobs not owned directly
+  const unownedIds = jobIds.filter((id) => {
+    const j = jobMap.get(id);
+    return !j || j.user_id !== userId;
+  });
+
+  const appOwned = new Set<string>();
+  if (unownedIds.length > 0) {
+    const { data: apps } = await supabaseAdmin
+      .from("applications")
+      .select("job_id")
+      .eq("user_id", userId)
+      .in("job_id", unownedIds);
+    (apps ?? []).forEach((a) => appOwned.add(a.job_id));
+  }
+
+  // Check availability in parallel (cap at 10 concurrent)
+  const results = await Promise.all(
+    jobIds.map(async (jobId) => {
+      const job = jobMap.get(jobId);
+
+      if (!job && !appOwned.has(jobId)) {
+        return { jobId, status: "not_found" as const, title: null, company: null };
+      }
+
+      const owned = job?.user_id === userId || appOwned.has(jobId);
+      if (!owned) {
+        return { jobId, status: "not_found" as const, title: job?.title ?? null, company: job?.company ?? null };
+      }
+
+      if (!job?.source_url) {
+        return { jobId, status: "no_url" as const, title: job?.title ?? null, company: job?.company ?? null };
+      }
+
+      if (job.status === "expired") {
+        return { jobId, status: "expired" as const, title: job.title ?? null, company: job.company ?? null };
+      }
+
+      // Check live availability
+      const availability = await checkJobAvailability(job.source_url);
+      if (availability === "expired") {
+        // Persist so we don't re-check
+        await supabaseAdmin.from("jobs").update({ status: "expired" }).eq("id", jobId);
+        return { jobId, status: "expired" as const, title: job.title ?? null, company: job.company ?? null };
+      }
+
+      return { jobId, status: "ready" as const, title: job.title ?? null, company: job.company ?? null };
+    })
+  );
+
+  return NextResponse.json({ results });
+}

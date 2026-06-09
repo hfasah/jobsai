@@ -23,7 +23,7 @@ const STAGE_ACCENT: Record<ApplicationStage, string> = {
   rejected: "border-t-red-400",
 };
 
-type ApplyStatus = "idle" | "running" | "done" | "error";
+type ApplyStatus = "idle" | "running" | "done" | "error" | "expired" | "no_url";
 interface JobApplyState { status: ApplyStatus; error?: string }
 
 export function ApplicationBoard() {
@@ -90,6 +90,10 @@ export function ApplicationBoard() {
           prev.map((a) => a.job_id === jobId ? { ...a, stage: "applied" as ApplicationStage } : a)
         );
         setSelectedJobIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
+      } else if (res.status === 410 || json.expired) {
+        // Job no longer available — neutral message, not an error
+        setApplyStates((p) => ({ ...p, [jobId]: { status: "expired", error: json.error ?? "This employer is no longer accepting applications for this position." } }));
+        setSelectedJobIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
       } else {
         const msg = json.error ?? "Agent apply failed. Please try again.";
         setApplyStates((p) => ({ ...p, [jobId]: { status: "error", error: msg } }));
@@ -99,11 +103,43 @@ export function ApplicationBoard() {
     }
   }, []);
 
-  // Bulk apply — runs sequentially to avoid hammering the API
+  // Bulk apply — pre-flight check then apply sequentially
   const applySelected = useCallback(async () => {
     if (bulkRunning || selectedJobIds.size === 0) return;
     setBulkRunning(true);
-    for (const jobId of Array.from(selectedJobIds)) {
+
+    const ids = Array.from(selectedJobIds);
+
+    // Pre-flight: check which jobs are still available
+    try {
+      const pfRes = await fetch("/api/jobs/preflight", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ job_ids: ids }),
+      });
+      if (pfRes.ok) {
+        const { results } = await pfRes.json();
+        for (const r of results) {
+          if (r.status === "expired") {
+            setApplyStates((p) => ({ ...p, [r.jobId]: { status: "expired", error: `${r.company ?? "Employer"} is no longer accepting applications for this position.` } }));
+            setSelectedJobIds((prev) => { const n = new Set(prev); n.delete(r.jobId); return n; });
+          } else if (r.status === "no_url" || r.status === "not_found") {
+            setApplyStates((p) => ({ ...p, [r.jobId]: { status: "no_url", error: "No application URL — open this job and verify the original posting link." } }));
+            setSelectedJobIds((prev) => { const n = new Set(prev); n.delete(r.jobId); return n; });
+          }
+        }
+        // Re-read updated selected after pre-flight removes expired/invalid
+        const validIds = results.filter((r: { status: string; jobId: string }) => r.status === "ready").map((r: { jobId: string }) => r.jobId);
+        for (const jobId of validIds) {
+          await applyOne(jobId);
+        }
+        setBulkRunning(false);
+        return;
+      }
+    } catch { /* fall through to direct apply if preflight errors */ }
+
+    // Fallback: apply without preflight
+    for (const jobId of ids) {
       await applyOne(jobId);
     }
     setBulkRunning(false);

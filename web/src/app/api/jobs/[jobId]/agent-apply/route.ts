@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { createSkyvernTask, getSkyvernKey } from "@/lib/skyvern";
 import { checkAutoApplyGate } from "@/lib/billing";
+import { checkJobAvailability, expiredMessage } from "@/lib/job-availability";
 import { createNotification } from "@/lib/notifications";
 
 export const maxDuration = 30;
@@ -60,6 +61,21 @@ export async function POST(
     return NextResponse.json(
       { error: "No application URL found. Open this job and make sure the original posting link is saved.", action: "view_job" },
       { status: 400 }
+    );
+  }
+
+  // Check if the posting is still live before wasting an agent run
+  const availability = await checkJobAvailability(job.source_url);
+  if (availability === "expired") {
+    // Mark in DB so we don't check again
+    await supabaseAdmin.from("jobs").update({ status: "expired" }).eq("id", jobId);
+    return NextResponse.json(
+      {
+        error: expiredMessage(job.company),
+        expired: true,
+        action: "remove_job",
+      },
+      { status: 410 }
     );
   }
 

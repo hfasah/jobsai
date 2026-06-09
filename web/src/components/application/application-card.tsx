@@ -196,14 +196,26 @@ export function ApplicationCard({
         </div>
       )}
       {applyError && (
-        <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2">
-          <p className="flex items-start gap-1.5 text-[11px] font-medium text-destructive">
+        <div className={cn(
+          "mt-2 rounded-lg border px-2.5 py-2",
+          applyError.includes("no longer accepting") || applyError.includes("no longer available")
+            ? "border-muted-foreground/20 bg-muted/40"
+            : "border-destructive/30 bg-destructive/5"
+        )}>
+          <p className={cn(
+            "flex items-start gap-1.5 text-[11px] font-medium",
+            applyError.includes("no longer accepting") || applyError.includes("no longer available")
+              ? "text-muted-foreground"
+              : "text-destructive"
+          )}>
             <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
             {applyError}
           </p>
-          <Link href={`/dashboard/jobs/${application.job_id}`} className="mt-1 text-[11px] text-primary hover:underline">
-            Open job to fix →
-          </Link>
+          {!(applyError.includes("no longer accepting") || applyError.includes("no longer available")) && (
+            <Link href={`/dashboard/jobs/${application.job_id}`} className="mt-1 text-[11px] text-primary hover:underline">
+              Open job to fix →
+            </Link>
+          )}
         </div>
       )}
 
