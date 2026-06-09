@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
-import { createSkyvernTask, getSkyvernKey } from "@/lib/skyvern";
+import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { checkAutoApplyGate } from "@/lib/billing";
 import { checkJobAvailability, expiredMessage } from "@/lib/job-availability";
 import { createNotification } from "@/lib/notifications";
@@ -48,7 +48,7 @@ export async function POST(
   // would error and make `job` null, falsely reporting "job no longer exists".
   const [{ data: job, error: jobErr }, { data: jobParsed }] = await Promise.all([
     supabaseAdmin.from("jobs").select("id, status, source_url").eq("id", jobId).maybeSingle(),
-    supabaseAdmin.from("job_parsed").select("title, company, posting_url").eq("job_id", jobId).maybeSingle(),
+    supabaseAdmin.from("job_parsed").select("title, company, posting_url, location").eq("job_id", jobId).maybeSingle(),
   ]);
 
   if (jobErr) {
@@ -159,6 +159,7 @@ export async function POST(
       resumeUrl,
       coverLetter: cl?.body ?? undefined,
       jobBoardPassword: profile.job_board_password ?? undefined,
+      proxyLocation: proxyLocationForLocation(jobParsed?.location),
     });
 
     // Record the attempt. status must be one of the allowed values

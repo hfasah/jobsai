@@ -6,7 +6,7 @@ import { tailorResume, generateCoverLetter } from "@/lib/ai-content";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest } from "@/lib/email";
-import { createSkyvernTask, getSkyvernKey } from "@/lib/skyvern";
+import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import type { UserPreferences } from "@/types/preferences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
@@ -220,7 +220,7 @@ export async function GET(req: NextRequest) {
               // posting_url lives on job_parsed, not jobs
               const [{ data: jobRow }, { data: jobParsedRow }] = await Promise.all([
                 supabaseAdmin.from("jobs").select("source_url").eq("id", jobId).maybeSingle(),
-                supabaseAdmin.from("job_parsed").select("posting_url").eq("job_id", jobId).maybeSingle(),
+                supabaseAdmin.from("job_parsed").select("posting_url, location").eq("job_id", jobId).maybeSingle(),
               ]);
 
               const cronUrl = jobRow?.source_url || jobParsedRow?.posting_url;
@@ -267,6 +267,7 @@ export async function GET(req: NextRequest) {
                   },
                   resumeUrl,
                   coverLetter: cl?.body ?? undefined,
+                  proxyLocation: proxyLocationForLocation(jobParsedRow?.location),
                 });
 
                 await supabaseAdmin.from("agent_apply_tasks").insert({

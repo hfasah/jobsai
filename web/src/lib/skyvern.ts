@@ -17,6 +17,38 @@ export interface SkyvernTaskPayload {
   coverLetter?: string;
   /** Password for creating/logging into job board accounts */
   jobBoardPassword?: string;
+  /** Run the browser from this region, e.g. "RESIDENTIAL_CA". Defaults to US. */
+  proxyLocation?: string;
+}
+
+// Country name / code → ISO-3166 alpha-2, for the job markets we see most.
+const COUNTRY_TO_ISO2: Record<string, string> = {
+  "united states": "US", usa: "US", "u.s.": "US", "u.s.a.": "US", america: "US", us: "US",
+  canada: "CA", ca: "CA",
+  "united kingdom": "GB", uk: "GB", "u.k.": "GB", england: "GB", scotland: "GB", wales: "GB", britain: "GB", "great britain": "GB",
+  ireland: "IE", australia: "AU", "new zealand": "NZ",
+  germany: "DE", deutschland: "DE", france: "FR", netherlands: "NL", holland: "NL",
+  spain: "ES", italy: "IT", portugal: "PT", belgium: "BE", austria: "AT", switzerland: "CH",
+  sweden: "SE", norway: "NO", denmark: "DK", finland: "FI", poland: "PL",
+  india: "IN", singapore: "SG", "united arab emirates": "AE", uae: "AE",
+  "south africa": "ZA", nigeria: "NG", kenya: "KE", egypt: "EG",
+  brazil: "BR", mexico: "MX", japan: "JP", "hong kong": "HK", philippines: "PH",
+};
+
+/**
+ * Pick a Skyvern proxy_location from a freeform job location string so the
+ * browser appears to be in the job's country (clears regional content gates
+ * like Adzuna's "not available in your region"). Falls back to US default.
+ */
+export function proxyLocationForLocation(location: string | null | undefined): string {
+  if (!location) return "RESIDENTIAL";
+  const t = ` ${location.toLowerCase().replace(/[.,()/]/g, " ")} `;
+  // Longer names first so "united states" wins over "us".
+  const names = Object.keys(COUNTRY_TO_ISO2).sort((a, b) => b.length - a.length);
+  for (const name of names) {
+    if (t.includes(` ${name} `)) return `RESIDENTIAL_${COUNTRY_TO_ISO2[name]}`;
+  }
+  return "RESIDENTIAL";
 }
 
 export interface SkyvernTask {
@@ -83,22 +115,37 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
   const key = getSkyvernKey();
   if (!key) throw new Error("SKYVERN_API_KEY not configured");
 
-  const res = await fetch(`${SKYVERN_BASE}/run/tasks`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": key,
-    },
-    body: JSON.stringify({
-      prompt: buildPrompt(p),
-      url: p.url,
-      webhook_url: p.webhookCallbackUrl,
-      // skyvern-2.0 handles complex, multi-step flows (login + multi-page forms)
-      engine: "skyvern-2.0",
-      // Charged per step — allow enough for login + multi-page forms
-      max_steps: 75,
-    }),
-  });
+  const base: Record<string, unknown> = {
+    prompt: buildPrompt(p),
+    url: p.url,
+    webhook_url: p.webhookCallbackUrl,
+    // skyvern-2.0 handles complex, multi-step flows (login + multi-page forms)
+    engine: "skyvern-2.0",
+    // Charged per step — allow enough for login + multi-page forms
+    max_steps: 75,
+  };
+
+  const post = (body: Record<string, unknown>) =>
+    fetch(`${SKYVERN_BASE}/run/tasks`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key },
+      body: JSON.stringify(body),
+    });
+
+  // Run from the job's region when we know it (clears geo content gates).
+  let res = await post(p.proxyLocation ? { ...base, proxy_location: p.proxyLocation } : base);
+
+  // If an unsupported/invalid proxy_location is the problem, retry without it
+  // so a region code never blocks the actual application.
+  if (!res.ok && p.proxyLocation) {
+    const errText = await res.text().catch(() => "");
+    if (/proxy|location|region/i.test(errText) || res.status === 422 || res.status === 400) {
+      console.warn(`[skyvern] proxy_location ${p.proxyLocation} rejected, retrying without it`);
+      res = await post(base);
+    } else {
+      throw new Error(`Skyvern task creation failed (${res.status}): ${errText}`);
+    }
+  }
 
   if (!res.ok) {
     const err = await res.text().catch(() => res.statusText);
