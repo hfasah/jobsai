@@ -65,7 +65,7 @@ export function ApplyMethodModal({
             </div>
             <span className="mt-1 inline-block w-fit rounded-full bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">Hands-off</span>
             <ul className="mt-3 flex-1 space-y-1.5 text-xs text-muted-foreground">
-              <li className="flex gap-1.5"><Check className="h-3.5 w-3.5 shrink-0 text-desyn-success" /> Runs on <strong>our servers</strong> — no browser</li>
+              <li className="flex gap-1.5"><Check className="h-3.5 w-3.5 shrink-0 text-desyn-success" /> Runs on <strong>our servers</strong> (no browser)</li>
               <li className="flex gap-1.5"><Check className="h-3.5 w-3.5 shrink-0 text-desyn-success" /> <strong>{sleepCost} credits</strong> per job ({sleepTotal} total)</li>
               <li className="flex gap-1.5"><Check className="h-3.5 w-3.5 shrink-0 text-desyn-success" /> Fully autonomous, anytime</li>
             </ul>

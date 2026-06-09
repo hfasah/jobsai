@@ -433,7 +433,7 @@ export function ApplicationBoard() {
         busy={bulkRunning}
         note={engine === "extension"
           ? "Runs in your browser via the JobsAI extension. Expired/already-applied jobs are skipped."
-          : "Autonomous — we apply on our servers, no browser needed. Costs more credits per job."}
+          : "Autonomous: we apply on our servers, no browser needed. Costs more credits per job."}
       />
 
       <ApplyMethodModal

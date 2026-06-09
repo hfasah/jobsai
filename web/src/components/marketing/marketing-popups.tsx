@@ -168,7 +168,7 @@ function ExitModal({ onClose }: { onClose: () => void }) {
           </h2>
 
           <p className="mt-4 text-sm text-muted-foreground">
-            While you sleep, JobsAI sends tailored applications to hundreds of matching roles, reaches recruiters directly, and scores your resume against every job — so interviews land in your inbox.
+            While you sleep, JobsAI sends tailored applications to hundreds of matching roles, reaches recruiters directly, and scores your resume against every job, so interviews land in your inbox.
           </p>
 
           <p className="mt-4 text-sm font-semibold text-foreground">
