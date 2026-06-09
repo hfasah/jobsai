@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { Loader2, Plus, Zap, X, CheckCircle2 } from "lucide-react";
+import { Loader2, Plus, Zap, X, CheckCircle2, Lock } from "lucide-react";
+import { usePlan, isPaidPlan } from "@/hooks/use-plan";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ApplicationCard } from "@/components/application/application-card";
@@ -26,6 +27,8 @@ type ApplyStatus = "idle" | "running" | "done";
 interface JobApplyState { status: ApplyStatus }
 
 export function ApplicationBoard() {
+  const { plan } = usePlan();
+  const paid = isPaidPlan(plan);
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -272,18 +275,27 @@ export function ApplicationBoard() {
 
             <div className="ml-auto flex items-center gap-2">
               <p className="hidden text-xs text-muted-foreground sm:block">
-                Agent opens each site, fills the form &amp; submits — no manual work needed
+                {paid ? "Agent opens each site, fills the form & submits — no manual work needed" : "Upgrade to apply automatically with the browser agent"}
               </p>
-              <button
-                onClick={applySelected}
-                disabled={bulkRunning}
-                className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#f5c518] px-4 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
-              >
-                {bulkRunning
-                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</>
-                  : <><Zap className="h-4 w-4" /> Agent Apply to All ({selectedJobIds.size})</>
-                }
-              </button>
+              {paid ? (
+                <button
+                  onClick={applySelected}
+                  disabled={bulkRunning}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#f5c518] px-4 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60"
+                >
+                  {bulkRunning
+                    ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</>
+                    : <><Zap className="h-4 w-4" /> Agent Apply to All ({selectedJobIds.size})</>
+                  }
+                </button>
+              ) : (
+                <a
+                  href="/dashboard/billing"
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border bg-muted px-4 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <Lock className="h-4 w-4" /> Upgrade to Apply
+                </a>
+              )}
             </div>
           </div>
         </div>

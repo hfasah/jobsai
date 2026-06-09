@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
 import { boardForUrl } from "@/lib/job-boards";
+import { UpgradeGate } from "@/components/upgrade-gate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -449,17 +450,27 @@ export default function JobsPage() {
                           >
                             Clear
                           </button>
-                          {/* Agent Apply — direct, no optimization needed */}
-                          <button
-                            onClick={agentApplyAll}
-                            disabled={agentBulkRunning}
-                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5c518] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:opacity-60 transition-opacity"
-                          >
-                            {agentBulkRunning
-                              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…</>
-                              : <><Bot className="h-3.5 w-3.5" /> Agent Apply ({selected.size})</>
+                          {/* Agent Apply — direct, gated for free */}
+                          <UpgradeGate
+                            feature="Agent Apply"
+                            description="The browser agent opens each job site, fills the form, handles CAPTCHA, and submits — all without you lifting a finger. Available on all paid plans."
+                            lockedElement={
+                              <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                                🔒 Agent Apply — Paid
+                              </button>
                             }
-                          </button>
+                          >
+                            <button
+                              onClick={agentApplyAll}
+                              disabled={agentBulkRunning}
+                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5c518] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:opacity-60 transition-opacity"
+                            >
+                              {agentBulkRunning
+                                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…</>
+                                : <><Bot className="h-3.5 w-3.5" /> Agent Apply ({selected.size})</>
+                              }
+                            </button>
+                          </UpgradeGate>
                           {/* Optimize + Apply — full tailor → cover → submit flow */}
                           <button
                             onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
@@ -573,14 +584,24 @@ export default function JobsPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground">No resume</span>
                         ))}
-                        {/* Per-row apply button */}
+                        {/* Per-row apply button — gated */}
                         {ready && !agentState && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); agentApplyOne(job.id); }}
-                            className="inline-flex items-center gap-1 rounded-lg bg-[#f5c518] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 transition-opacity"
+                          <UpgradeGate
+                            feature="Agent Apply"
+                            description="Let the browser agent apply to this job for you — no manual work needed. Available on all paid plans."
+                            lockedElement={
+                              <button onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+                                🔒 Apply
+                              </button>
+                            }
                           >
-                            <Zap className="h-3 w-3" /> Apply
-                          </button>
+                            <button
+                              onClick={(e) => { e.stopPropagation(); agentApplyOne(job.id); }}
+                              className="inline-flex items-center gap-1 rounded-lg bg-[#f5c518] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 transition-opacity"
+                            >
+                              <Zap className="h-3 w-3" /> Apply
+                            </button>
+                          </UpgradeGate>
                         )}
                       </div>
                     </div>

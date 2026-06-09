@@ -16,6 +16,7 @@ import type { Job } from "@/types/job";
 import { boardForUrl } from "@/lib/job-boards";
 import { runExtensionApply } from "@/lib/extension-bridge";
 import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
+import { UpgradeGate } from "@/components/upgrade-gate";
 
 export default function JobDetailPage({
   params,
@@ -357,23 +358,33 @@ export default function JobDetailPage({
                 <p className="font-medium text-foreground">Your résumé and cover letter are ready.</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you.</p>
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {/* Agent Apply — primary action */}
-                  <button
-                    onClick={async () => {
-                      setApplyState("agent_launching");
-                      const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
-                      const json = await res.json();
-                      if (!res.ok) {
-                        if (json.upgrade_required) { setShowUpgrade(json.error); setApplyState("manual_required"); }
-                        else { setApplyMsg(json.error ?? "Agent failed to launch."); setApplyState("manual_required"); }
-                        return;
-                      }
-                      setApplyState("agent_running");
-                    }}
-                    className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                  {/* Agent Apply — gated for free users */}
+                  <UpgradeGate
+                    feature="Agent Apply"
+                    description="The browser agent opens the job site, fills every form field, handles CAPTCHA, and submits — automatically. Available on all paid plans."
+                    lockedElement={
+                      <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
+                        🔒 Agent Apply (Auto) — Paid
+                      </button>
+                    }
                   >
-                    <Zap className="h-3.5 w-3.5" /> Agent Apply (Auto)
-                  </button>
+                    <button
+                      onClick={async () => {
+                        setApplyState("agent_launching");
+                        const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
+                        const json = await res.json();
+                        if (!res.ok) {
+                          if (json.upgrade_required) { setShowUpgrade(json.error); setApplyState("manual_required"); }
+                          else { setApplyMsg(json.error ?? "Agent failed to launch."); setApplyState("manual_required"); }
+                          return;
+                        }
+                        setApplyState("agent_running");
+                      }}
+                      className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                    >
+                      <Zap className="h-3.5 w-3.5" /> Agent Apply (Auto)
+                    </button>
+                  </UpgradeGate>
                   {coverLetterBody && (
                     <button
                       onClick={() => {
