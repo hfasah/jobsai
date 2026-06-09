@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2, FileText, Mail } from "lucide-react";
+import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2, FileText, Mail, Zap, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Application, UpdateApplicationBody } from "@/types/application";
@@ -21,12 +21,24 @@ export function ApplicationCard({
   onDelete,
   onDragStart,
   dragging,
+  selectable = false,
+  selected = false,
+  onSelect,
+  applying = false,
+  applied = false,
+  onApply,
 }: {
   application: Application;
   onUpdate: (id: string, body: UpdateApplicationBody) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   onDragStart: (id: string) => void;
   dragging: boolean;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (id: string, checked: boolean) => void;
+  applying?: boolean;
+  applied?: boolean;
+  onApply?: (jobId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [notes, setNotes] = useState(application.notes ?? "");
@@ -52,15 +64,29 @@ export function ApplicationCard({
 
   return (
     <div
-      draggable={!editing}
+      draggable={!editing && !selectable}
       onDragStart={() => onDragStart(application.id)}
       className={cn(
-        "rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-all",
-        !editing && "cursor-grab active:cursor-grabbing hover:shadow-md",
-        dragging && "opacity-40"
+        "rounded-xl border bg-card p-3 text-sm shadow-sm transition-all",
+        !editing && !selectable && "cursor-grab active:cursor-grabbing hover:shadow-md",
+        dragging && "opacity-40",
+        selected ? "border-primary ring-1 ring-primary" : "border-border",
+        applied && "border-desyn-success/40 bg-desyn-success/5",
       )}
     >
       <div className="flex items-start justify-between gap-2">
+        {/* Checkbox for selection mode */}
+        {selectable && (
+          <button
+            onClick={() => onSelect?.(application.job_id, !selected)}
+            className={cn(
+              "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors",
+              selected ? "border-primary bg-primary" : "border-border bg-background"
+            )}
+          >
+            {selected && <span className="text-[9px] font-bold text-white">✓</span>}
+          </button>
+        )}
         <div className="min-w-0 flex-1">
           <p className="truncate font-medium leading-tight">
             {job?.title ?? "Untitled role"}
@@ -156,6 +182,18 @@ export function ApplicationCard({
         </div>
       )}
 
+      {/* Applied status badge */}
+      {applied && (
+        <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-desyn-success">
+          <CheckCircle2 className="h-3.5 w-3.5" /> Agent submitted
+        </div>
+      )}
+      {applying && (
+        <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…
+        </div>
+      )}
+
       {!editing && (
         <div className="mt-2.5 flex items-center justify-between border-t border-border/60 pt-2">
           <Link
@@ -166,6 +204,16 @@ export function ApplicationCard({
             View job
           </Link>
           <div className="flex items-center gap-1">
+            {/* Per-card apply button — only for saved stage */}
+            {onApply && !applied && !applying && (
+              <button
+                onClick={() => onApply(application.job_id)}
+                className="inline-flex items-center gap-1 rounded-lg bg-[#f5c518] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 transition-opacity"
+                title="Agent Apply"
+              >
+                <Zap className="h-3 w-3" /> Apply
+              </button>
+            )}
             <button
               onClick={() => setEditing(true)}
               className="rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
