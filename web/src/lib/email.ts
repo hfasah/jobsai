@@ -110,6 +110,83 @@ export async function sendEmployerReplyCopy(
   if (error) console.error("[email] reply forward failed:", error);
 }
 
+// Welcome email sent once when a member signs up.
+export async function sendWelcomeEmail(opts: { to: string; firstName?: string | null }): Promise<void> {
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY not configured — skipping welcome email");
+    return;
+  }
+  const name = (opts.firstName || "").trim();
+  const hi = name ? `Hi ${escapeHtml(name)},` : "Hi there,";
+
+  const feature = (emoji: string, title: string, desc: string) => `
+    <tr>
+      <td style="padding:10px 0;vertical-align:top;width:34px;font-size:20px;line-height:1.3;">${emoji}</td>
+      <td style="padding:10px 0;vertical-align:top;">
+        <p style="margin:0;font-size:15px;font-weight:600;color:#111827;">${title}</p>
+        <p style="margin:2px 0 0;font-size:13px;line-height:1.55;color:#6b7280;">${desc}</p>
+      </td>
+    </tr>`;
+
+  const step = (n: number, text: string, href: string) => `
+    <tr>
+      <td style="padding:6px 0;vertical-align:top;width:28px;">
+        <span style="display:inline-block;width:22px;height:22px;border-radius:11px;background:#eef2ff;color:#4f46e5;font-size:12px;font-weight:700;text-align:center;line-height:22px;">${n}</span>
+      </td>
+      <td style="padding:6px 0;vertical-align:top;font-size:14px;color:#374151;">
+        <a href="${href}" style="color:#4f46e5;text-decoration:none;font-weight:600;">${text} →</a>
+      </td>
+    </tr>`;
+
+  const body = `
+    ${h2("Welcome to JobsAI 👋")}
+    ${p(`${hi}`)}
+    ${p(`You've just joined a growing community of job seekers using AI to work smarter, stand out, and get hired faster.`)}
+    ${p(`Let's be honest — applying for jobs shouldn't feel like a full-time job. Searching boards, rewriting resumes, filling out endless forms, writing cover letters, prepping for interviews… JobsAI was built to take that off your plate.`)}
+    ${p(`<strong>Our mission is simple: help you spend less time applying and more time interviewing.</strong>`)}
+
+    <p style="margin:24px 0 4px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">What JobsAI does for you</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #f0f1f4;">
+      ${feature("🔍", "AI Job Discovery", "Surfaces roles that match your skills, experience, and goals from thousands of sources.")}
+      ${feature("🚀", "Auto Apply", "Applies to matching jobs for you — choose Auto, Hybrid (approve first), or Review mode.")}
+      ${feature("📄", "Resume Tailoring", "Adapts your resume to each job description to get past ATS screening.")}
+      ${feature("✅", "ATS Scanner", "Shows how well your resume matches a role and what keywords you're missing.")}
+      ${feature("✍️", "AI Cover Letters", "Personalized cover letters in seconds — no blank page.")}
+      ${feature("🏢", "Company Research", "Culture, likely interview questions, and hiring expectations before you apply.")}
+      ${feature("💰", "Salary Intelligence", "Know your market value and negotiate with confidence.")}
+      ${feature("🎯", "Interview Prep", "AI interview coach, voice practice, and an avatar simulator to rehearse for real.")}
+      ${feature("📊", "Progress Tracking", "Every application and interview organized in one place.")}
+    </table>
+
+    <p style="margin:28px 0 8px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">Get the most out of JobsAI — 4 quick steps</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      ${step(1, "Upload your resume", `${APP_URL}/dashboard/resumes`)}
+      ${step(2, "Complete your profile", `${APP_URL}/dashboard/apply-profile`)}
+      ${step(3, "Set your target roles & preferences", `${APP_URL}/dashboard/preferences`)}
+      ${step(4, "Turn on Auto Apply or Hybrid Mode", `${APP_URL}/dashboard/auto-apply`)}
+    </table>
+    ${p(`The more we know about your goals, the better JobsAI works for you.`, true)}
+
+    ${btn(`${APP_URL}/dashboard/resumes`, "Upload your resume & get started")}
+
+    <p style="margin:24px 0 0;font-size:14px;line-height:1.6;color:#374151;">
+      Want a hand? Book a free <a href="${APP_URL}/dashboard/coaching" style="color:#4f46e5;text-decoration:none;font-weight:600;">JobsAI Career Strategy Session</a> for personalized guidance or a walkthrough.
+    </p>
+
+    ${p(`We're excited to be part of your career journey. Let's get you more interviews. Let's get you hired.`)}
+    ${p(`<strong>Apply Less. Interview More.</strong><br>— The JobsAI Team`, true)}
+    ${p(`<span style="color:#9ca3af;font-size:12px;">P.S. Your next opportunity may already be waiting. Upload your resume and let JobsAI start working for you today.</span>`)}
+  `;
+
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: "Welcome to JobsAI — Apply Less. Interview More.",
+    html: wrap(body),
+  });
+  if (error) console.error("[email] welcome send failed:", error);
+}
+
 // ─── Email types ─────────────────────────────────────────────────────────────
 
 export async function sendApplySubmitted(
