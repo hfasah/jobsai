@@ -14,6 +14,8 @@ export interface SkyvernTaskPayload {
   /** Optional: public URL to the resume PDF — Skyvern will upload it */
   resumeUrl?: string;
   coverLetter?: string;
+  /** Password for creating/logging into job board accounts */
+  jobBoardPassword?: string;
 }
 
 export interface SkyvernTask {
@@ -26,16 +28,20 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
   const key = getSkyvernKey();
   if (!key) throw new Error("SKYVERN_API_KEY not configured");
 
+  const hasPassword = !!p.jobBoardPassword;
   const navigationGoal = [
     "Apply for the job listed on this page.",
     "Use the personal information provided in the data payload to fill out every field of the application form.",
     "If a resume upload field is present, upload the resume from the provided resume URL.",
     "If a cover letter field is present, paste the cover letter text provided.",
     "If a CAPTCHA appears, solve it.",
-    "If the site offers a 'Quick Apply' or 'Easy Apply' flow, prefer that.",
-    "Submit the completed application.",
-    "Do NOT create an account or log in — apply as a guest wherever possible.",
-    "Stop and report an error only if the application cannot be completed at all.",
+    "If the site offers a 'Quick Apply', 'Easy Apply', or 'Apply for this job' button, click it.",
+    hasPassword
+      ? "If the site requires creating an account or logging in: use the email address and job_board_password from the data payload. If no account exists yet, create one using that email and password, then complete the application. If already registered, log in with those credentials."
+      : "If the site offers a guest application option, use it. If login is required and no credentials are provided, stop and report that login is required.",
+    "Dismiss any popup dialogs (newsletter sign-ups, cookie notices, email alerts) before proceeding.",
+    "Submit the completed application form.",
+    "Stop and report an error only if the application truly cannot be completed.",
   ].join(" ");
 
   const res = await fetch(`${SKYVERN_BASE}/tasks`, {
@@ -53,9 +59,10 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
         ...p.navigationPayload,
         ...(p.resumeUrl ? { resume_url: p.resumeUrl } : {}),
         ...(p.coverLetter ? { cover_letter: p.coverLetter } : {}),
+        ...(p.jobBoardPassword ? { job_board_password: p.jobBoardPassword } : {}),
       },
-      // Skyvern handles CAPTCHA automatically; we allow up to 30 minutes per task
-      max_steps_override: 50,
+      // Allow extra steps for login flows, popups, multi-page forms
+      max_steps_override: 75,
     }),
   });
 

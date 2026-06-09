@@ -151,6 +151,7 @@ export async function POST(
       navigationPayload,
       resumeUrl,
       coverLetter: cl?.body ?? undefined,
+      jobBoardPassword: profile.job_board_password ?? undefined,
     });
 
     // Record the attempt

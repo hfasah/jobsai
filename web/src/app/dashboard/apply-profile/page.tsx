@@ -23,6 +23,7 @@ const EMPTY: ApplyProfileUpdate = {
   race_ethnicity: null, nationality: null, gender_identity: null, sexual_orientation: null,
   transgender: null, disability_status: null, veteran_status: null,
   cc_email: null, application_mode: "review", auto_reply: false,
+  job_board_password: null,
 };
 
 // ─── Option lists ─────────────────────────────────────────────────────────────
@@ -420,6 +421,21 @@ export default function ApplyProfilePage() {
           <div className="mt-4">
             <Field label="CC a copy of applications to (optional)" type="email" value={str(form.cc_email)} onChange={(v) => set("cc_email", v)} placeholder="you@personal.com" />
           </div>
+
+          {/* Job board password — used by the browser agent to create/log into job boards */}
+          <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <p className="text-sm font-semibold text-foreground">Job Board Account Password</p>
+            <p className="mt-1 text-xs text-muted-foreground leading-relaxed">
+              When applying automatically, the browser agent needs to create or log into accounts on job boards like Adzuna, Workable, and others. Set a password here and the agent will use it — keeping your personal accounts separate from your job search.
+            </p>
+            <div className="mt-3">
+              <Field label="" type="password" value={str(form.job_board_password)} onChange={(v) => set("job_board_password", v)} placeholder="Set a password for job board accounts" />
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              💡 Use a unique password you don&apos;t use elsewhere. The agent uses your email + this password to create accounts on job boards that require registration before applying.
+            </p>
+          </div>
+
           <div className="mt-4 border-t border-border pt-4">
             <Toggle label="Auto-confirm replies to interview & application-update emails" checked={!!form.auto_reply} onChange={(v) => set("auto_reply", v)} />
             <p className="ml-7 mt-1 text-xs text-muted-foreground">

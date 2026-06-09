@@ -47,6 +47,7 @@ export interface ApplyProfile {
   cc_email: string | null;
   application_mode: string | null;
   auto_reply: boolean;
+  job_board_password: string | null;
   created_at: string;
   updated_at: string;
 }

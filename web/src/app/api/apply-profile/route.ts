@@ -123,6 +123,8 @@ export async function PUT(req: NextRequest) {
     cc_email:                 s(body.cc_email),
     application_mode:         s(body.application_mode) ?? "review",
     auto_reply:               body.auto_reply === true,
+    // Job board password — used by the browser agent to create/login to job board accounts
+    job_board_password:       s(body.job_board_password),
   };
 
   const { data, error } = await supabaseAdmin
