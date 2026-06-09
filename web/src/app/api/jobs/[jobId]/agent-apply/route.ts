@@ -29,33 +29,36 @@ export async function POST(
     return NextResponse.json({ error: gate.reason, upgrade_required: true }, { status: 402 });
   }
 
-  // Load job — note: no user_id filter here because the applications table
-  // may reference jobs that were imported under a different user context in edge cases.
-  // We verify ownership separately via applications table.
+  // Verify the user has access: they own the job OR have it in their applications pipeline
+  const [{ data: jobOwned }, { data: appRecord }] = await Promise.all([
+    supabaseAdmin.from("jobs").select("id").eq("id", jobId).eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("applications").select("job_id").eq("job_id", jobId).eq("user_id", userId).maybeSingle(),
+  ]);
+
+  if (!jobOwned && !appRecord) {
+    return NextResponse.json(
+      { error: "Job not found in your account. If this job was recently added, try refreshing the page.", action: "refresh" },
+      { status: 404 }
+    );
+  }
+
+  // Fetch full job details without user_id restriction (ownership verified above)
   const { data: job } = await supabaseAdmin
     .from("jobs")
-    .select("id, title, company, source_url, status, user_id")
+    .select("id, title, company, source_url, status")
     .eq("id", jobId)
     .maybeSingle();
 
   if (!job) {
     return NextResponse.json(
-      { error: "Job not found. It may have been deleted — try removing it from your pipeline and re-importing.", action: "remove_job" },
+      { error: "This job no longer exists. Remove it from your pipeline and re-import from the original posting.", action: "remove_job" },
       { status: 404 }
-    );
-  }
-
-  // Verify ownership: job must belong to this user
-  if (job.user_id !== userId) {
-    return NextResponse.json(
-      { error: "You don't have access to this job.", action: "remove_job" },
-      { status: 403 }
     );
   }
 
   if (!job.source_url) {
     return NextResponse.json(
-      { error: "This job has no application URL — open the job and add the original posting link.", action: "view_job" },
+      { error: "No application URL found. Open this job and make sure the original posting link is saved.", action: "view_job" },
       { status: 400 }
     );
   }
