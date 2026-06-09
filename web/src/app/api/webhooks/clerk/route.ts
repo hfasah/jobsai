@@ -3,6 +3,40 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { verifySvix } from "@/lib/svix";
 import { sendWelcomeEmail } from "@/lib/email";
 
+// Throwaway / disposable email domains — users signing up with these get no
+// welcome email and no credit grant. Add more as new services appear.
+const DISPOSABLE_DOMAINS = new Set([
+  "10minutemail.com","10minutemail.net","10minutemail.org","10minutemail.de",
+  "guerrillamail.com","guerrillamail.net","guerrillamail.org","guerrillamail.de",
+  "guerrillamail.info","guerrillamail.biz","guerrillamailblock.com",
+  "mailinator.com","mailinator.net","mailinator.org",
+  "sharklasers.com","guerrillamailblock.com","grr.la","guerrillamailblock.com",
+  "spam4.me","trashmail.com","trashmail.net","trashmail.org","trashmail.at",
+  "trashmail.me","trashmail.io","trashmail.de",
+  "yopmail.com","yopmail.fr","cool.fr.nf","jetable.fr.nf","nospam.ze.tc",
+  "nomail.xl.cx","mega.zik.dj","speed.1s.fr","courriel.fr.nf","moncourrier.fr.nf",
+  "monemail.fr.nf","monmail.fr.nf",
+  "tempmail.com","tempmail.net","tempmail.org","temp-mail.org","temp-mail.io",
+  "tempr.email","discard.email","fakeinbox.com","mailnull.com","spamgourmet.com",
+  "spamgourmet.net","spamgourmet.org","spamgourmet.com",
+  "throwam.com","throwaway.email","mailnesia.com","maildrop.cc",
+  "dispostable.com","mailnull.com","spamevader.com",
+  "getairmail.com","filzmail.com","throwam.com",
+  "anonaddy.com","simplelogin.io",
+]);
+
+function isDisposableEmail(email: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase();
+  if (!domain) return false;
+  // Exact match or any subdomain of a known throwaway domain.
+  if (DISPOSABLE_DOMAINS.has(domain)) return true;
+  const parts = domain.split(".");
+  for (let i = 1; i < parts.length - 1; i++) {
+    if (DISPOSABLE_DOMAINS.has(parts.slice(i).join("."))) return true;
+  }
+  return false;
+}
+
 export const maxDuration = 15;
 
 // POST /api/webhooks/clerk — Clerk webhook. Sends the welcome email on signup.
@@ -38,6 +72,13 @@ export async function POST(req: NextRequest) {
     emails[0]?.email_address ??
     null;
   if (!to) return NextResponse.json({ ok: true, ignored: "no-email" });
+
+  // Silently skip disposable/throwaway addresses — no welcome email, no credits.
+  // The account still exists in Clerk; we just don't reward it.
+  if (isDisposableEmail(to)) {
+    console.warn("[webhooks/clerk] disposable email blocked:", to.split("@")[1]);
+    return NextResponse.json({ ok: true, ignored: "disposable-email" });
+  }
 
   const firstName =
     (data.first_name as string | null) ??
