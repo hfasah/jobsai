@@ -24,9 +24,9 @@ const PLANS: {
     tagline: "Land interviews on autopilot",
     monthly: 29,
     yearly: 23,
-    tokens: "5,000 tokens / mo",
+    tokens: "5,000 credits / mo",
     features: [
-      "AI Auto-Apply — up to 20 jobs/day",
+      "AI Auto-Apply — uses credits (~600 per job)",
       "Unlimited resumes & job matches",
       "Unlimited ATS scans, tailoring & cover letters",
       "Written AI interview coach",

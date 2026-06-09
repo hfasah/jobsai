@@ -23,8 +23,11 @@ export type TokenFeature = keyof typeof TOKEN_COSTS;
 
 // Monthly allowance per plan. Free is a one-time grant; paid plans re-grant each
 // month. Phase 39 extends this map to premium / accelerator tiers.
-// All plans re-grant monthly. The grant is use-it-or-lose-it (no carryover);
-// PURCHASED top-ups persist separately and are never reset (see two-bucket model).
+// Unused monthly grant rolls over, capped at this many months of the allowance.
+export const ROLLOVER_CAP_MONTHS = 2;
+
+// All plans re-grant monthly. Unused grant rolls over up to ROLLOVER_CAP_MONTHS;
+// PURCHASED top-ups persist separately and never expire (see two-bucket model).
 export const PLAN_TOKEN_GRANTS: Record<Plan, { amount: number; recurring: boolean }> = {
   free:        { amount: 500,    recurring: true },
   pro:         { amount: 5_000,  recurring: true },
@@ -134,7 +137,7 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
     return { balance: grant.amount, grant_balance: grant.amount, topup_balance: 0, monthly_grant: grant.amount, plan, last_granted_at: nowIso };
   }
 
-  const { topup } = readBuckets(existing as Record<string, unknown>);
+  const { grant: grantBalPrev, topup } = readBuckets(existing as Record<string, unknown>);
   const lastGranted = new Date(existing.last_granted_at as string);
   const now = new Date();
   const planChanged = existing.plan !== plan;
@@ -143,10 +146,11 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
   const needsUpgradeGrant = planChanged && grant.recurring;
 
   if (needsMonthly || needsUpgradeGrant) {
-    // RESET the grant bucket (no carryover); keep purchased top-ups untouched.
-    // Pre-052 fallback (topup == legacy balance) makes this degrade to "add",
-    // so no one loses tokens before the migration runs.
-    const newGrant = grant.amount;
+    // Unused grant ROLLS OVER, capped at ROLLOVER_CAP_MONTHS months of the
+    // allowance. Purchased top-ups are untouched and never expire.
+    // Pre-052 fallback (grant=0, topup=legacy balance) degrades to "add", so no
+    // one loses tokens before the migration runs.
+    const newGrant = Math.min(grantBalPrev + grant.amount, ROLLOVER_CAP_MONTHS * grant.amount);
     const newBalance = newGrant + topup;
     await supabaseAdmin
       .from("user_tokens")

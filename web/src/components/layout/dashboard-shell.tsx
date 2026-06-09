@@ -113,19 +113,29 @@ function computeActive(pathname: string, mode: string | null): string | null {
 
 // Plan badge + token meter + Upgrade CTA — the persistent "upsell from inside" surface.
 function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
-  const [data, setData] = useState<{ balance: number; plan: string } | null>(null);
+  const [data, setData] = useState<{ balance: number; plan: string; grant: number; applyCost: number } | null>(null);
   const { t } = useI18n();
   useEffect(() => {
     let active = true;
     fetch("/api/tokens").then((r) => r.json())
-      .then((j) => { if (active && j.data) setData({ balance: j.data.balance, plan: j.data.plan }); })
+      .then((j) => {
+        if (active && j.data) setData({
+          balance: j.data.balance,
+          plan: j.data.plan,
+          grant: j.data.monthly_grant ?? 0,
+          applyCost: j.data.costs?.auto_apply ?? 600,
+        });
+      })
       .catch(() => {});
     return () => { active = false; };
   }, []);
 
   const plan = data?.plan ?? "free";
   const isFree = plan === "free";
-  const low = data !== null && data.balance < 50;
+  // "Low" means they can't afford a single auto-apply.
+  const low = data !== null && data.balance < (data.applyCost || 600);
+  // Usage bar vs the monthly allowance (capped at 100%).
+  const pct = data && data.grant > 0 ? Math.min(100, Math.round((data.balance / data.grant) * 100)) : 0;
 
   return (
     <div className="mb-3 rounded-xl border border-border bg-background/40 p-3">
@@ -135,13 +145,29 @@ function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
           {PLAN_LABELS[plan] ?? plan}
         </span>
       </div>
-      <div className="mt-2 flex items-center gap-1.5 text-sm font-semibold tabular-nums">
-        <Coins className={cn("h-4 w-4", low ? "text-destructive" : "text-desyn-accent")} />
-        <span className={low ? "text-destructive" : "text-foreground"}>
+      <div className="mt-2 flex items-baseline gap-1.5 tabular-nums">
+        <Coins className={cn("h-4 w-4 self-center", low ? "text-destructive" : "text-desyn-accent")} />
+        <span className={cn("text-sm font-semibold", low ? "text-destructive" : "text-foreground")}>
           {data === null ? "…" : data.balance.toLocaleString()}
         </span>
-        <span className="text-xs font-normal text-muted-foreground">{t("sidebar.tokens")}</span>
+        {data && data.grant > 0 && (
+          <span className="text-[11px] font-normal text-muted-foreground">/ {data.grant.toLocaleString()}</span>
+        )}
+        <span className="text-xs font-normal text-muted-foreground">credits</span>
       </div>
+      {data && data.grant > 0 && (
+        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+          <div
+            className={cn("h-full rounded-full transition-all", low ? "bg-destructive" : "bg-desyn-accent")}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+      )}
+      {data && (
+        <p className="mt-1.5 text-[10px] text-muted-foreground">
+          {low ? "Not enough to auto-apply — top up." : `~${Math.floor(data.balance / (data.applyCost || 600))} auto-applies left`}
+        </p>
+      )}
       <Link href="/dashboard/billing" onClick={onNavigate}
         className="btn-cta mt-3 flex items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm">
         <Sparkles className="h-4 w-4" />

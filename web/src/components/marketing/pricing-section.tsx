@@ -48,11 +48,11 @@ const TIERS: Tier[] = [
     tagline: "Best for students and early-career professionals.",
     cta: "Start Pro",
     features: [
-      "Auto-apply up to 20 jobs/day",
-      "Unlimited jobs, resumes & tailoring",
-      "Recruiter outreach + cover letters",
-      "Job discovery & match scores",
-      "5,000 tokens/mo for interview prep",
+      "5,000 credits / month",
+      "Auto Apply — uses credits (~600 per job)",
+      "Unused credits roll over up to 2 months",
+      "Unlimited jobs, résumés, tailoring & cover letters",
+      "Daily fair-use cap: 20 applies",
     ],
   },
   {
@@ -65,11 +65,11 @@ const TIERS: Tier[] = [
     badge: "Most Popular",
     cta: "Start Premium",
     features: [
+      "20,000 credits / month",
       "Everything in Pro",
-      "Auto-apply up to 80 jobs/day",
-      "Priority job matching",
-      "AI Voice interview prep",
-      "20,000 tokens / month",
+      "Auto Apply — uses credits",
+      "AI Voice interview prep + analysis",
+      "Daily fair-use cap: 80 applies",
     ],
   },
   {
@@ -80,12 +80,12 @@ const TIERS: Tier[] = [
     tagline: "Best for executive candidates and career changers.",
     cta: "Go all-in",
     features: [
+      "60,000 credits / month",
       "Everything in Premium",
-      "Auto-apply up to 240 jobs/day",
+      "Auto Apply — uses credits",
       "1 free 45-min career coaching session/mo",
       "AI Avatar prep + recordings",
-      "Body-language & presence analysis",
-      "60,000 tokens / month",
+      "Daily fair-use cap: 240 applies",
     ],
   },
 ];
