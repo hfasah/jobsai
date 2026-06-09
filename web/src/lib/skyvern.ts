@@ -1,7 +1,8 @@
 // Skyvern browser-agent client — opens any job URL, fills the form, handles CAPTCHA, submits.
-// Docs: https://docs.skyvern.com
+// Uses the current Run Tasks API: POST /v1/run/tasks (prompt-based), GET /v1/runs/{id}.
+// Docs: https://www.skyvern.com/docs/running-tasks/api-spec
 
-const SKYVERN_BASE = "https://api.skyvern.com/api/v1";
+const SKYVERN_BASE = "https://api.skyvern.com/v1";
 
 export function getSkyvernKey(): string | null {
   return process.env.SKYVERN_API_KEY ?? null;
@@ -11,7 +12,7 @@ export interface SkyvernTaskPayload {
   url: string;
   webhookCallbackUrl: string;
   navigationPayload: Record<string, string | null>;
-  /** Optional: public URL to the resume PDF — Skyvern will upload it */
+  /** Optional: public URL to the resume PDF — Skyvern will download + upload it */
   resumeUrl?: string;
   coverLetter?: string;
   /** Password for creating/logging into job board accounts */
@@ -19,50 +20,74 @@ export interface SkyvernTaskPayload {
 }
 
 export interface SkyvernTask {
+  /** Maps to the API's run_id (e.g. "tsk_..."). Kept as task_id for our schema. */
   task_id: string;
-  status: "created" | "running" | "completed" | "failed" | "terminated";
-  created_at: string;
+  status: string;
+  created_at?: string;
+}
+
+// Human-readable label for a payload key, e.g. linkedin_url -> "LinkedIn URL"
+function labelize(key: string): string {
+  return key
+    .replace(/_/g, " ")
+    .replace(/\burl\b/gi, "URL")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function buildPrompt(p: SkyvernTaskPayload): string {
+  const hasPassword = !!p.jobBoardPassword;
+
+  const details: string[] = [];
+  for (const [k, v] of Object.entries(p.navigationPayload)) {
+    if (v != null && String(v).trim() !== "") details.push(`- ${labelize(k)}: ${v}`);
+  }
+  if (p.jobBoardPassword) details.push(`- Account Password (use to log in or sign up): ${p.jobBoardPassword}`);
+  if (p.resumeUrl) details.push(`- Resume file to upload (download from this URL): ${p.resumeUrl}`);
+
+  const instructions = [
+    "Goal: Apply for the job posted on this page on behalf of the applicant below.",
+    "",
+    "Steps:",
+    "1. Dismiss any popups (cookie banners, newsletter sign-ups, email alerts) first.",
+    "2. Find and click the apply button ('Apply', 'Apply for this job', 'Quick Apply', 'Easy Apply').",
+    hasPassword
+      ? "3. If the site requires an account or login, use the applicant's email and the Account Password below. If no account exists, sign up with that email and password; if one exists, log in. Then continue the application."
+      : "3. If the site offers a guest/no-account application, use it. If login is strictly required and you have no credentials, report that login is required.",
+    "4. Fill every form field using the applicant details below. Make reasonable choices for optional questions.",
+    "5. If there is a resume/CV upload field, upload the applicant's resume from the provided URL.",
+    p.coverLetter ? "6. If there is a cover letter field, paste the cover letter provided below." : "6. If a cover letter is requested, write a brief professional one from the applicant's details.",
+    "7. Solve any CAPTCHA. Complete every page of multi-step forms.",
+    "8. Submit the application. Only stop with an error if the application genuinely cannot be completed.",
+    "",
+    "Applicant details:",
+    ...details,
+  ];
+
+  if (p.coverLetter) {
+    instructions.push("", "Cover letter:", p.coverLetter);
+  }
+
+  return instructions.join("\n");
 }
 
 export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernTask> {
   const key = getSkyvernKey();
   if (!key) throw new Error("SKYVERN_API_KEY not configured");
 
-  const hasPassword = !!p.jobBoardPassword;
-  const navigationGoal = [
-    "Apply for the job listed on this page.",
-    "Use the personal information provided in the data payload to fill out every field of the application form.",
-    "If a resume upload field is present, upload the resume from the provided resume URL.",
-    "If a cover letter field is present, paste the cover letter text provided.",
-    "If a CAPTCHA appears, solve it.",
-    "If the site offers a 'Quick Apply', 'Easy Apply', or 'Apply for this job' button, click it.",
-    hasPassword
-      ? "If the site requires creating an account or logging in: use the email address and job_board_password from the data payload. If no account exists yet, create one using that email and password, then complete the application. If already registered, log in with those credentials."
-      : "If the site offers a guest application option, use it. If login is required and no credentials are provided, stop and report that login is required.",
-    "Dismiss any popup dialogs (newsletter sign-ups, cookie notices, email alerts) before proceeding.",
-    "Submit the completed application form.",
-    "Stop and report an error only if the application truly cannot be completed.",
-  ].join(" ");
-
-  const res = await fetch(`${SKYVERN_BASE}/tasks`, {
+  const res = await fetch(`${SKYVERN_BASE}/run/tasks`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-api-key": key,
     },
     body: JSON.stringify({
+      prompt: buildPrompt(p),
       url: p.url,
-      webhook_callback_url: p.webhookCallbackUrl,
-      navigation_goal: navigationGoal,
-      data_extraction_goal: "Extract the application confirmation message, reference number, or any error.",
-      navigation_payload: {
-        ...p.navigationPayload,
-        ...(p.resumeUrl ? { resume_url: p.resumeUrl } : {}),
-        ...(p.coverLetter ? { cover_letter: p.coverLetter } : {}),
-        ...(p.jobBoardPassword ? { job_board_password: p.jobBoardPassword } : {}),
-      },
-      // Allow extra steps for login flows, popups, multi-page forms
-      max_steps_override: 75,
+      webhook_url: p.webhookCallbackUrl,
+      // skyvern-2.0 handles complex, multi-step flows (login + multi-page forms)
+      engine: "skyvern-2.0",
+      // Charged per step — allow enough for login + multi-page forms
+      max_steps: 75,
     }),
   });
 
@@ -71,17 +96,22 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
     throw new Error(`Skyvern task creation failed (${res.status}): ${err}`);
   }
 
-  return res.json() as Promise<SkyvernTask>;
+  const json = (await res.json()) as { run_id?: string; task_id?: string; status?: string; created_at?: string };
+  const runId = json.run_id ?? json.task_id;
+  if (!runId) throw new Error("Skyvern response missing run_id");
+
+  return { task_id: runId, status: json.status ?? "queued", created_at: json.created_at };
 }
 
 export async function getSkyvernTask(taskId: string): Promise<SkyvernTask> {
   const key = getSkyvernKey();
   if (!key) throw new Error("SKYVERN_API_KEY not configured");
 
-  const res = await fetch(`${SKYVERN_BASE}/tasks/${taskId}`, {
+  const res = await fetch(`${SKYVERN_BASE}/runs/${taskId}`, {
     headers: { "x-api-key": key },
   });
 
   if (!res.ok) throw new Error(`Skyvern get task failed (${res.status})`);
-  return res.json() as Promise<SkyvernTask>;
+  const json = (await res.json()) as { run_id?: string; task_id?: string; status?: string; created_at?: string };
+  return { task_id: json.run_id ?? json.task_id ?? taskId, status: json.status ?? "unknown", created_at: json.created_at };
 }

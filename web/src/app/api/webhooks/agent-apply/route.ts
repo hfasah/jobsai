@@ -11,10 +11,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const taskId = body.task_id as string | undefined;
+  // New Run Tasks API sends run_id; older payloads used task_id. We store run_id
+  // in agent_apply_tasks.task_id, so either field resolves the same record.
+  const taskId = (body.run_id ?? body.task_id) as string | undefined;
   const status = body.status as string | undefined;
 
-  if (!taskId) return NextResponse.json({ error: "Missing task_id" }, { status: 400 });
+  if (!taskId) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
 
   // Look up our record for this task
   const { data: task } = await supabaseAdmin
@@ -30,9 +32,13 @@ export async function POST(req: NextRequest) {
 
   const { user_id: userId, job_id: jobId } = task;
 
-  // Map Skyvern status to our status
+  // Map Skyvern run status to our status
   const success = status === "completed";
-  const failed = status === "failed" || status === "terminated";
+  const failed =
+    status === "failed" ||
+    status === "terminated" ||
+    status === "timed_out" ||
+    status === "canceled";
   const ourStatus = success ? "submitted" : failed ? "failed" : "agent_running";
 
   // Update apply attempt
@@ -49,11 +55,11 @@ export async function POST(req: NextRequest) {
     .eq("status", "agent_running");
 
   if (success || failed) {
-    // Get job info for notification
+    // Get job info for notification — title/company live on job_parsed, not jobs
     const { data: job } = await supabaseAdmin
-      .from("jobs")
+      .from("job_parsed")
       .select("title, company")
-      .eq("id", jobId)
+      .eq("job_id", jobId)
       .maybeSingle();
 
     const title = job?.title ?? "a role";
