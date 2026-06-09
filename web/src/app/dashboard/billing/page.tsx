@@ -34,13 +34,14 @@ const PLAN_META: Record<Plan, { label: string; icon: React.ElementType; color: s
 
 const PLAN_FEATURES: Record<Plan, string[]> = {
   free: [
+    "🎁 3 free auto-applies to start",
     "500 credits / month",
     "Résumé tailoring, ATS scans & cover letters (uses credits)",
     "5 written interview sessions",
     "1 voice + 1 avatar trial",
   ],
   pro: [
-    "5,000 credits / month",
+    "9,000 credits / month (~15 auto-applies)",
     "Auto Apply — uses credits (~600 per job)",
     "Unused credits roll over up to 2 months",
     "Unlimited AI Written Coach",
@@ -48,7 +49,7 @@ const PLAN_FEATURES: Record<Plan, string[]> = {
     "Daily fair-use cap: 20 applies",
   ],
   premium: [
-    "20,000 credits / month",
+    "18,000 credits / month (~30 auto-applies)",
     "Everything in Pro",
     "Auto Apply — uses credits",
     "AI Voice Interviewer + analysis",
@@ -56,7 +57,7 @@ const PLAN_FEATURES: Record<Plan, string[]> = {
     "Daily fair-use cap: 80 applies",
   ],
   accelerator: [
-    "60,000 credits / month",
+    "45,000 credits / month (~75 auto-applies)",
     "Everything in Premium",
     "Auto Apply — uses credits",
     "1 free 45-min coaching session/mo",

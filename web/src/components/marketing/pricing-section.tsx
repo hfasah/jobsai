@@ -33,10 +33,10 @@ const TIERS: Tier[] = [
     tagline: "Try the tools, no card",
     cta: "Start free",
     features: [
-      "10 job imports / month",
+      "🎁 3 free auto-applies to start",
+      "500 credits / month",
       "Resume tailoring & ATS scan",
       "Job discovery & match scores",
-      "Unlimited written interview prep",
       "1 voice + 1 avatar prep trial",
     ],
   },
@@ -48,7 +48,7 @@ const TIERS: Tier[] = [
     tagline: "Best for students and early-career professionals.",
     cta: "Start Pro",
     features: [
-      "5,000 credits / month",
+      "9,000 credits / month (~15 auto-applies)",
       "Auto Apply — uses credits (~600 per job)",
       "Unused credits roll over up to 2 months",
       "Unlimited jobs, résumés, tailoring & cover letters",
@@ -65,7 +65,7 @@ const TIERS: Tier[] = [
     badge: "Most Popular",
     cta: "Start Premium",
     features: [
-      "20,000 credits / month",
+      "18,000 credits / month (~30 auto-applies)",
       "Everything in Pro",
       "Auto Apply — uses credits",
       "AI Voice interview prep + analysis",
@@ -80,7 +80,7 @@ const TIERS: Tier[] = [
     tagline: "Best for executive candidates and career changers.",
     cta: "Go all-in",
     features: [
-      "60,000 credits / month",
+      "45,000 credits / month (~75 auto-applies)",
       "Everything in Premium",
       "Auto Apply — uses credits",
       "1 free 45-min career coaching session/mo",

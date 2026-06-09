@@ -8,7 +8,7 @@ import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
-import { deductTokens, addTokens, TOKEN_COSTS } from "@/lib/tokens";
+import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
 import type { UserPreferences } from "@/types/preferences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
@@ -253,15 +253,18 @@ export async function GET(req: NextRequest) {
                   .limit(1)
                   .maybeSingle();
 
-                // Charge tokens for this auto-apply; skip the job if the user
-                // is out of credits (logged as manual so they can apply later).
+                // Use a free apply if any remain, else charge credits; skip the
+                // job if out of credits (logged as manual so they can apply later).
                 const applyCost = TOKEN_COSTS.auto_apply;
-                const spend = await deductTokens(userId, applyCost, "auto_apply", { job_id: jobId, source: "cron" }, { meterFree: true });
-                if (!spend.ok) {
-                  log.status = "manual_required";
-                  summary.jobs_manual++;
-                  runLog.push(log);
-                  continue;
+                const usedFreeApply = await consumeFreeApply(userId);
+                if (!usedFreeApply) {
+                  const spend = await deductTokens(userId, applyCost, "auto_apply", { job_id: jobId, source: "cron" }, { meterFree: true });
+                  if (!spend.ok) {
+                    log.status = "manual_required";
+                    summary.jobs_manual++;
+                    runLog.push(log);
+                    continue;
+                  }
                 }
 
                 const applicantEmail = inboundEmailEnabled()
@@ -288,8 +291,9 @@ export async function GET(req: NextRequest) {
                   proxyLocation: proxyLocationForLocation(jobParsedRow?.location),
                   });
                 } catch (e) {
-                  // Launch failed → refund the tokens and rethrow to outer handler.
-                  await addTokens(userId, applyCost, "auto_apply_refund", { job_id: jobId, source: "cron" }).catch(() => {});
+                  // Launch failed → give back the free apply or refund credits.
+                  if (usedFreeApply) await restoreFreeApply(userId).catch(() => {});
+                  else await addTokens(userId, applyCost, "auto_apply_refund", { job_id: jobId, source: "cron" }).catch(() => {});
                   throw e;
                 }
 

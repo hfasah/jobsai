@@ -29,30 +29,35 @@ export const ROLLOVER_CAP_MONTHS = 2;
 // All plans re-grant monthly. Unused grant rolls over up to ROLLOVER_CAP_MONTHS;
 // PURCHASED top-ups persist separately and never expire (see two-bucket model).
 export const PLAN_TOKEN_GRANTS: Record<Plan, { amount: number; recurring: boolean }> = {
-  free:        { amount: 500,    recurring: true },
-  pro:         { amount: 5_000,  recurring: true },
-  premium:     { amount: 20_000, recurring: true },
-  accelerator: { amount: 60_000, recurring: true },
+  free:        { amount: 500,    recurring: true },  // cheap features only (~0 applies)
+  pro:         { amount: 9_000,  recurring: true },  // ~15 auto-applies / mo
+  premium:     { amount: 18_000, recurring: true },  // ~30 auto-applies / mo
+  accelerator: { amount: 45_000, recurring: true },  // ~75 auto-applies / mo
 };
+
+// New accounts get a few free auto-applies (lifetime) so they can experience
+// the core feature before paying — consumed before any credits are charged.
+export const FREE_APPLIES = 3;
 
 // Top-up packs (wired to Stripe in Phase 39).
 // Top-ups are a PREMIUM, à-la-carte convenience: priced higher per token than the
 // per-token value bundled in a subscription, so subscribing is always the better
 // deal. Minimum top-up is $10. Prices are display only — the actual charge comes
 // from the matching Stripe price IDs (TOKEN_PACK_PRICE_IDS), kept in sync.
-//   pack_small  3,000 / $10  = $0.0033/token
-//   pack_mid   10,000 / $30  = $0.0030/token
-//   pack_large 25,000 / $69  = $0.0028/token
+//   pack_small  1,800 / $10 = $0.0056/credit  (~3 applies)
+//   pack_mid    5,000 / $25 = $0.0050/credit  (~8 applies)
+//   pack_large 11,000 / $50 = $0.0045/credit  (~18 applies)
 export const TOKEN_PACKS = [
-  { id: "pack_small", tokens: 3_000,  price: "$10" },
-  { id: "pack_mid",   tokens: 10_000, price: "$30" },
-  { id: "pack_large", tokens: 25_000, price: "$69" },
+  { id: "pack_small", tokens: 1_800,  price: "$10" },
+  { id: "pack_mid",   tokens: 5_000,  price: "$25" },
+  { id: "pack_large", tokens: 11_000, price: "$50" },
 ] as const;
 
 export interface TokenAccount {
   balance: number;        // total spendable = grant_balance + topup_balance
-  grant_balance: number;  // monthly allowance — resets, no carryover
+  grant_balance: number;  // monthly allowance — rolls over up to 2 months
   topup_balance: number;  // purchased — persists, never reset
+  free_applies: number;   // lifetime free auto-applies remaining
   monthly_grant: number;
   plan: Plan;
   last_granted_at: string;
@@ -134,9 +139,10 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
     });
     await writeBuckets(userId, grant.amount, 0);
     await writeLedger(userId, grant.amount, grant.amount, "signup_grant", null, { plan });
-    return { balance: grant.amount, grant_balance: grant.amount, topup_balance: 0, monthly_grant: grant.amount, plan, last_granted_at: nowIso };
+    return { balance: grant.amount, grant_balance: grant.amount, topup_balance: 0, free_applies: FREE_APPLIES, monthly_grant: grant.amount, plan, last_granted_at: nowIso };
   }
 
+  const freeApplies = (existing.free_applies as number) ?? 0;
   const { grant: grantBalPrev, topup } = readBuckets(existing as Record<string, unknown>);
   const lastGranted = new Date(existing.last_granted_at as string);
   const now = new Date();
@@ -158,7 +164,7 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
       .eq("user_id", userId);
     await writeBuckets(userId, newGrant, topup);
     await writeLedger(userId, grant.amount, newBalance, "monthly_grant", null, { plan, reset: true });
-    return { balance: newBalance, grant_balance: newGrant, topup_balance: topup, monthly_grant: grant.amount, plan, last_granted_at: now.toISOString() };
+    return { balance: newBalance, grant_balance: newGrant, topup_balance: topup, free_applies: freeApplies, monthly_grant: grant.amount, plan, last_granted_at: now.toISOString() };
   }
 
   // Keep stored plan/grant in sync without crediting tokens.
@@ -174,10 +180,39 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
     balance: (existing.balance as number) ?? grantBal + topup,
     grant_balance: grantBal,
     topup_balance: topup,
+    free_applies: freeApplies,
     monthly_grant: grant.amount,
     plan,
     last_granted_at: existing.last_granted_at as string,
   };
+}
+
+// ─── Free auto-applies (lifetime teaser) ────────────────────────────────────
+
+/** Consume one free auto-apply if any remain. Returns true if one was used. */
+export async function consumeFreeApply(userId: string): Promise<boolean> {
+  const acct = await getTokenAccount(userId);
+  if ((acct.free_applies ?? 0) <= 0) return false;
+  const { data, error } = await supabaseAdmin
+    .from("user_tokens")
+    .update({ free_applies: acct.free_applies - 1, updated_at: new Date().toISOString() })
+    .eq("user_id", userId)
+    .gte("free_applies", 1)
+    .select("free_applies")
+    .maybeSingle();
+  if (error || !data) return false; // pre-053 (no column) or raced → fall back to credits
+  await writeLedger(userId, 0, acct.balance, "free_apply", "auto_apply", { remaining: data.free_applies });
+  return true;
+}
+
+/** Give a free auto-apply back (e.g. when a launch fails after consuming one). */
+export async function restoreFreeApply(userId: string): Promise<void> {
+  const acct = await getTokenAccount(userId);
+  const { error } = await supabaseAdmin
+    .from("user_tokens")
+    .update({ free_applies: (acct.free_applies ?? 0) + 1, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  if (error) console.warn("[tokens] restoreFreeApply failed:", error.message);
 }
 
 export async function getTokenBalance(userId: string): Promise<number> {

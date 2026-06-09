@@ -283,6 +283,7 @@ export default function JobsPage() {
   // Credits
   const [balance, setBalance] = useState(0);
   const [applyCost, setApplyCost] = useState(600);
+  const [freeApplies, setFreeApplies] = useState(0);
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
 
   const fetchTokens = useCallback(async () => {
@@ -291,6 +292,7 @@ export default function JobsPage() {
       const j = await r.json();
       if (j.data) {
         setBalance(j.data.balance ?? 0);
+        setFreeApplies(j.data.free_applies ?? 0);
         if (j.data.costs?.auto_apply) setApplyCost(j.data.costs.auto_apply);
       }
     } catch { /* non-fatal */ }
@@ -637,6 +639,7 @@ export default function JobsPage() {
         unitCost={applyCost}
         quantity={confirmModal.jobIds.length}
         balance={balance}
+        freeApplies={freeApplies}
         busy={agentBulkRunning}
         note="Expired or already-applied jobs are skipped automatically after a quick availability check."
       />

@@ -22,9 +22,9 @@ const PLANS: {
     key: "pro",
     name: "Pro",
     tagline: "Land interviews on autopilot",
-    monthly: 29,
-    yearly: 23,
-    tokens: "5,000 credits / mo",
+    monthly: 39,
+    yearly: 31,
+    tokens: "9,000 credits / mo (~15 auto-applies)",
     features: [
       "AI Auto-Apply — uses credits (~600 per job)",
       "Unlimited resumes & job matches",
@@ -39,7 +39,7 @@ const PLANS: {
     tagline: "Practice out loud",
     monthly: 79,
     yearly: 63,
-    tokens: "20,000 tokens / mo",
+    tokens: "18,000 credits / mo (~30 auto-applies)",
     popular: true,
     features: [
       "Everything in Pro",
@@ -55,7 +55,7 @@ const PLANS: {
     tagline: "Face-to-face realism",
     monthly: 199,
     yearly: 159,
-    tokens: "60,000 tokens / mo",
+    tokens: "45,000 credits / mo (~75 auto-applies)",
     features: [
       "Everything in Premium",
       "AI Avatar room — face-to-face video interview",

@@ -19,6 +19,8 @@ export interface CreditConfirmProps {
   note?: string;
   /** Unit noun, default "job" */
   unitNoun?: string;
+  /** Lifetime free auto-applies remaining — applied before credits. */
+  freeApplies?: number;
   busy?: boolean;
 }
 
@@ -32,11 +34,14 @@ export function CreditConfirmModal({
   balance,
   note,
   unitNoun = "job",
+  freeApplies = 0,
   busy = false,
 }: CreditConfirmProps) {
   if (!open) return null;
 
-  const total = unitCost * quantity;
+  const freeUsed = Math.min(quantity, Math.max(0, freeApplies));
+  const chargeable = quantity - freeUsed;
+  const total = unitCost * chargeable;
   const affordable = balance >= total;
   const noun = quantity === 1 ? unitNoun : `${unitNoun}s`;
 
@@ -68,8 +73,13 @@ export function CreditConfirmModal({
         <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/80">
           <p>This operation will process:</p>
           <p className="mt-2 text-white">
-            {action} ({quantity} {noun} × {unitCost} credits = {total} credits)
+            {action} ({chargeable} {chargeable === 1 ? unitNoun : `${unitNoun}s`} × {unitCost} credits = {total} credits)
           </p>
+          {freeUsed > 0 && (
+            <p className="mt-1 text-xs text-emerald-300">
+              🎁 {freeUsed} free auto-{freeUsed === 1 ? "apply" : "applies"} applied — no credits charged for {freeUsed === 1 ? "it" : "those"}.
+            </p>
+          )}
           <p className="mt-3">
             Total credits required: <span className="font-semibold text-white">{total}</span>
           </p>
@@ -83,7 +93,9 @@ export function CreditConfirmModal({
         {affordable ? (
           <div className="mt-4 flex items-center gap-2 rounded-lg bg-purple-600/20 px-3 py-2.5 text-xs text-purple-200">
             <Info className="h-4 w-4 shrink-0" />
-            By continuing, {total} credits will be deducted from your account.
+            {total === 0
+              ? "By continuing, no credits will be charged — covered by your free auto-applies."
+              : `By continuing, ${total} credits will be deducted from your account.`}
           </div>
         ) : (
           <div className="mt-4 rounded-lg bg-red-500/15 px-3 py-2.5 text-xs text-red-300">
@@ -106,7 +118,7 @@ export function CreditConfirmModal({
               className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              Proceed ({total} credits)
+              {total === 0 ? "Proceed (free)" : `Proceed (${total} credits)`}
             </button>
           ) : (
             <Link

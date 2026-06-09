@@ -42,6 +42,7 @@ export function ApplicationBoard() {
   // Credits
   const [balance, setBalance] = useState(0);
   const [applyCost, setApplyCost] = useState(600);
+  const [freeApplies, setFreeApplies] = useState(0);
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
 
   const fetchApplications = useCallback(async () => {
@@ -57,6 +58,7 @@ export function ApplicationBoard() {
       const j = await r.json();
       if (j.data) {
         setBalance(j.data.balance ?? 0);
+        setFreeApplies(j.data.free_applies ?? 0);
         if (j.data.costs?.auto_apply) setApplyCost(j.data.costs.auto_apply);
       }
     } catch { /* non-fatal */ }
@@ -373,6 +375,7 @@ export function ApplicationBoard() {
         unitCost={applyCost}
         quantity={confirmModal.jobIds.length}
         balance={balance}
+        freeApplies={freeApplies}
         busy={bulkRunning}
         note="Expired or already-applied jobs are skipped automatically after a quick availability check."
       />

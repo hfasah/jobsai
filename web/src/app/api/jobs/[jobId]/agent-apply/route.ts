@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
-import { deductTokens, addTokens, TOKEN_COSTS } from "@/lib/tokens";
+import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
 import { checkAutoApplyGate } from "@/lib/billing";
 import { checkJobAvailability, expiredMessage } from "@/lib/job-availability";
 import { createNotification } from "@/lib/notifications";
@@ -160,20 +160,23 @@ export async function POST(
     requires_sponsorship: profile.requires_sponsorship ? "Yes" : "No",
   };
 
-  // Charge tokens for this apply (metered for every plan, including free).
-  // Only charged here — after availability passed — so we never bill a dead job.
+  // Use a free auto-apply if any remain, otherwise charge credits. Only here —
+  // after availability passed — so we never bill (or burn a freebie on) a dead job.
   const cost = TOKEN_COSTS.auto_apply;
-  const spend = await deductTokens(userId, cost, "auto_apply", { job_id: jobId }, { meterFree: true });
-  if (!spend.ok) {
-    return NextResponse.json(
-      {
-        error: spend.reason ?? `This apply needs ${cost} credits. Top up to continue.`,
-        insufficient_credits: true,
-        needed: cost,
-        balance: spend.balance,
-      },
-      { status: 402 }
-    );
+  const usedFreeApply = await consumeFreeApply(userId);
+  if (!usedFreeApply) {
+    const spend = await deductTokens(userId, cost, "auto_apply", { job_id: jobId }, { meterFree: true });
+    if (!spend.ok) {
+      return NextResponse.json(
+        {
+          error: spend.reason ?? `This apply needs ${cost} credits. Top up to continue.`,
+          insufficient_credits: true,
+          needed: cost,
+          balance: spend.balance,
+        },
+        { status: 402 }
+      );
+    }
   }
 
   try {
@@ -247,8 +250,9 @@ export async function POST(
     });
   } catch (err) {
     console.error("[agent-apply]", err);
-    // Launch failed → refund the tokens we charged for this apply.
-    await addTokens(userId, cost, "auto_apply_refund", { job_id: jobId }).catch(() => {});
+    // Launch failed → give back whatever we charged (free apply or credits).
+    if (usedFreeApply) await restoreFreeApply(userId).catch(() => {});
+    else await addTokens(userId, cost, "auto_apply_refund", { job_id: jobId }).catch(() => {});
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Agent apply failed." },
       { status: 500 }
