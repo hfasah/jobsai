@@ -33,11 +33,10 @@ const TIERS: Tier[] = [
     tagline: "Try the tools, no card",
     cta: "Start free",
     features: [
-      "🎁 3 free auto-applies to start",
       "500 credits / month",
-      "Resume tailoring & ATS scan",
+      "Spend on any tool — tailoring, ATS, cover letters, prep",
+      "Top up anytime for auto-apply & more",
       "Job discovery & match scores",
-      "1 voice + 1 avatar prep trial",
     ],
   },
   {

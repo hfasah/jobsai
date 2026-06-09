@@ -34,11 +34,10 @@ const PLAN_META: Record<Plan, { label: string; icon: React.ElementType; color: s
 
 const PLAN_FEATURES: Record<Plan, string[]> = {
   free: [
-    "🎁 3 free auto-applies to start",
     "500 credits / month",
-    "Résumé tailoring, ATS scans & cover letters (uses credits)",
-    "5 written interview sessions",
-    "1 voice + 1 avatar trial",
+    "Spend credits on any tool — tailoring, ATS scans, cover letters, interview prep",
+    "Top up anytime to auto-apply or do more",
+    "Job discovery & match scores",
   ],
   pro: [
     "9,000 credits / month (~15 auto-applies)",

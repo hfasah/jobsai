@@ -139,7 +139,9 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
     });
     await writeBuckets(userId, grant.amount, 0);
     await writeLedger(userId, grant.amount, grant.amount, "signup_grant", null, { plan });
-    return { balance: grant.amount, grant_balance: grant.amount, topup_balance: 0, free_applies: FREE_APPLIES, monthly_grant: grant.amount, plan, last_granted_at: nowIso };
+    // Free applies are NOT granted here (lazy row creation can be an existing
+    // user's first token read). They're granted by the Clerk user.created webhook.
+    return { balance: grant.amount, grant_balance: grant.amount, topup_balance: 0, free_applies: 0, monthly_grant: grant.amount, plan, last_granted_at: nowIso };
   }
 
   const freeApplies = (existing.free_applies as number) ?? 0;
@@ -205,6 +207,16 @@ export async function consumeFreeApply(userId: string): Promise<boolean> {
   return true;
 }
 
+/** Grant the new-signup free auto-applies (called once from the Clerk webhook). */
+export async function grantFreeApplies(userId: string, n: number = FREE_APPLIES): Promise<void> {
+  await getTokenAccount(userId); // ensure the row exists
+  const { error } = await supabaseAdmin
+    .from("user_tokens")
+    .update({ free_applies: n, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  if (error) console.warn("[tokens] grantFreeApplies failed:", error.message);
+}
+
 /** Give a free auto-apply back (e.g. when a launch fails after consuming one). */
 export async function restoreFreeApply(userId: string): Promise<void> {
   const acct = await getTokenAccount(userId);
@@ -238,12 +250,10 @@ export async function deductTokens(
 ): Promise<SpendResult> {
   const account = await getTokenAccount(userId);
 
-  // Free tier is unmetered for interview trials (gated separately). For other
-  // features (e.g. the optimize pipeline) pass meterFree to bound free usage to
-  // the one-time 500-token grant.
-  if (account.plan === "free" && !opts.meterFree) {
-    return { ok: true, balance: account.balance };
-  }
+  // Every account is metered, including Free — free users spend their 500/mo
+  // grant and must top up to keep using token-consuming tools. (opts.meterFree
+  // is retained for call-site clarity but no longer grants a free pass.)
+  void opts;
 
   if (account.balance < amount) {
     return {
