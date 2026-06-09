@@ -26,7 +26,7 @@ const PLANS: {
     yearly: 31,
     tokens: "9,000 credits / mo (~15 auto-applies)",
     features: [
-      "AI Auto-Apply — uses credits (~600 per job)",
+      "AI Auto-Apply: uses credits (~600 per job)",
       "Unlimited resumes & job matches",
       "Unlimited ATS scans, tailoring & cover letters",
       "Written AI interview coach",
@@ -43,10 +43,10 @@ const PLANS: {
     popular: true,
     features: [
       "Everything in Pro",
-      "AI Voice interviewer — spoken mock interviews",
+      "AI Voice interviewer: spoken mock interviews",
       "Real-time pacing & filler-word analysis",
       "Priority job matching",
-      "Inbox Apply — email recruiters directly",
+      "Inbox Apply: email recruiters directly",
     ],
   },
   {
@@ -58,7 +58,7 @@ const PLANS: {
     tokens: "45,000 credits / mo (~75 auto-applies)",
     features: [
       "Everything in Premium",
-      "AI Avatar room — face-to-face video interview",
+      "AI Avatar room: face-to-face video interview",
       "Webcam body-language & eye-contact analysis",
       "Session recordings + replay",
       "Highest token allowance",

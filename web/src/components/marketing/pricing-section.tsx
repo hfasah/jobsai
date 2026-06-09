@@ -34,7 +34,7 @@ const TIERS: Tier[] = [
     cta: "Start free",
     features: [
       "500 credits / month",
-      "Spend on any tool — tailoring, ATS, cover letters, prep",
+      "Spend on any tool: tailoring, ATS, cover letters, prep",
       "Top up anytime for auto-apply & more",
       "Job discovery & match scores",
     ],
@@ -48,8 +48,8 @@ const TIERS: Tier[] = [
     cta: "Start Pro",
     features: [
       "9,000 credits / month",
-      "🤖 Apply on autopilot — up to 20/day (browser extension)",
-      "🌙 Apply while you sleep — autonomous, no browser",
+      "🤖 Apply on autopilot: up to 20/day (browser extension)",
+      "🌙 Apply while you sleep: autonomous, no browser",
       "Unused credits roll over up to 2 months",
       "Unlimited jobs, résumés, tailoring & cover letters",
     ],
@@ -66,8 +66,8 @@ const TIERS: Tier[] = [
     features: [
       "18,000 credits / month",
       "Everything in Pro",
-      "🤖 Apply on autopilot — up to 100/day (extension)",
-      "🌙 Apply while you sleep — autonomous",
+      "🤖 Apply on autopilot: up to 100/day (extension)",
+      "🌙 Apply while you sleep: autonomous",
       "AI Voice interview prep + analysis",
     ],
   },
@@ -81,8 +81,8 @@ const TIERS: Tier[] = [
     features: [
       "45,000 credits / month",
       "Everything in Premium",
-      "🤖 Apply on autopilot — up to 250/day (extension)",
-      "🌙 Apply while you sleep — autonomous",
+      "🤖 Apply on autopilot: up to 250/day (extension)",
+      "🌙 Apply while you sleep: autonomous",
       "1 free 45-min career coaching session/mo",
       "AI Avatar prep + recordings",
     ],

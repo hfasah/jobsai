@@ -19,15 +19,15 @@ interface PlanCard {
 const PLANS: PlanCard[] = [
   {
     plan: "pro", label: "Pro", tagline: "For active job seekers", price: 39, icon: Crown,
-    features: ["9,000 credits / month (~15 auto-applies)", "Auto Apply — uses credits (~600/job)", "Rolls over up to 2 months", "Unlimited AI Written Coach"],
+    features: ["9,000 credits / month (~15 auto-applies)", "Auto Apply: uses credits (~600/job)", "Rolls over up to 2 months", "Unlimited AI Written Coach"],
   },
   {
     plan: "premium", label: "Premium", tagline: "Most chosen by interviewees", price: 79, popular: true, icon: Mic,
-    features: ["18,000 credits / month (~30 auto-applies)", "Auto Apply — uses credits", "AI Voice Interviewer + analysis", "AI Avatar Room access"],
+    features: ["18,000 credits / month (~30 auto-applies)", "Auto Apply: uses credits", "AI Voice Interviewer + analysis", "AI Avatar Room access"],
   },
   {
     plan: "accelerator", label: "Career Accelerator", tagline: "Maximum realism + coaching", price: 199, icon: Rocket,
-    features: ["45,000 credits / month (~75 auto-applies)", "Auto Apply — uses credits", "1 free coaching session/mo", "Interview recordings & replay"],
+    features: ["45,000 credits / month (~75 auto-applies)", "Auto Apply: uses credits", "1 free coaching session/mo", "Interview recordings & replay"],
   },
 ];
 
