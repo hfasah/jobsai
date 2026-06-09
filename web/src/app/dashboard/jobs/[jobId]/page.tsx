@@ -451,8 +451,8 @@ export default function JobDetailPage({
                 {/* Match */}
                 {job.match ? (
                   <section className="rounded-2xl border border-border bg-card p-6">
-                    <h2 className="mb-4 font-display text-lg">Resume Match</h2>
-                    <MatchDetail match={job.match} />
+                    <h2 className="mb-4 font-display text-lg">Your Match Analysis</h2>
+                    <MatchDetail match={job.match} jobId={jobId} />
                   </section>
                 ) : (
                   <div className="rounded-xl border border-desyn-warning/30 bg-desyn-warning/15 p-4 text-sm text-desyn-warning">

@@ -66,6 +66,8 @@ export interface MatchScoreJson {
   matched_keywords?: string[];
   missing_keywords?: string[];
   explanation?: string;
+  coach_note?: string;
+  interview_tip?: string;
   strengths?: string[];
   gaps?: string[];
   breakdown?: {

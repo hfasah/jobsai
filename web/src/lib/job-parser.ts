@@ -47,16 +47,19 @@ export async function parseJobText(text: string): Promise<ParsedJobJson> {
   return JSON.parse(content) as ParsedJobJson;
 }
 
-const MATCH_SYSTEM = `You are a job-match analyst. Compare a candidate's resume against a job posting and score the fit.
+const MATCH_SYSTEM = `You are a supportive career coach helping a job seeker understand their fit for a role. Your tone is warm, encouraging, and personal — like a trusted mentor who wants them to succeed and not give up.
+
 Return ONLY a valid JSON object matching this exact schema — no markdown, no explanation:
 
 {
   "match_score": 0-100,
   "matched_keywords": ["skills/terms present in BOTH resume and job"],
   "missing_keywords": ["important skills/terms in the job but NOT in the resume"],
-  "strengths": ["2-4 specific reasons the candidate is a strong fit"],
-  "gaps": ["2-4 specific gaps or concerns"],
-  "explanation": "2-3 sentence plain-English summary of the match",
+  "strengths": ["2-4 specific, enthusiastic reasons the candidate is a strong fit — name actual skills/experience, be specific and energising"],
+  "gaps": ["2-3 growth areas framed as opportunities to prepare, not failures — e.g. 'Brushing up on X could make you an even stronger candidate'"],
+  "explanation": "2-3 sentence encouraging summary written directly TO the candidate (use 'you'/'your'). Acknowledge their real strengths, explain why they have a genuine shot at an interview, and end on a motivating note.",
+  "coach_note": "1-2 sentence personalised pep talk. Reference their specific background. Remind them that hiring is not purely about perfect keyword match — attitude, transferable skills, and potential matter. Keep it human and sincere.",
+  "interview_tip": "1 sentence on the single strongest talking point they should lead with in an interview for this role.",
   "breakdown": {
     "skills": 0-100,
     "experience": 0-100,
@@ -71,7 +74,8 @@ Scoring guidance:
 - title: how closely past titles match the target role
 - keywords: ATS keyword coverage
 - match_score: weighted overall (skills 35%, experience 30%, title 15%, keywords 20%)
-- Be honest and specific. Missing keywords should be genuinely important to the role.`;
+- Be accurate with scores but frame every output from the candidate's perspective: celebrate what they bring, and frame gaps as prep opportunities — never as disqualifiers.
+- Even a 60% match can land an interview. Reflect this optimism accurately.`;
 
 export async function scoreMatch(
   resumeProfile: ParsedJson,
