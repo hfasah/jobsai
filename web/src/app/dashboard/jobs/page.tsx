@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus, Loader2, Briefcase, MapPin, Search, X, ChevronDown, Check,
-  TrendingUp, FileText, Star, Send, Zap,
+  TrendingUp, FileText, Star, Send, Zap, CheckCircle2, Bot,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -275,6 +275,36 @@ export default function JobsPage() {
       return next;
     });
 
+  // Per-job agent-apply state
+  const [agentStates, setAgentStates] = useState<Record<string, "running" | "done" | "error">>({});
+  const [agentBulkRunning, setAgentBulkRunning] = useState(false);
+
+  const agentApplyOne = useCallback(async (jobId: string) => {
+    setAgentStates((p) => ({ ...p, [jobId]: "running" }));
+    try {
+      const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
+      const json = await res.json();
+      if (res.ok) {
+        setAgentStates((p) => ({ ...p, [jobId]: "done" }));
+        setSelected((prev) => { const n = new Set(prev); n.delete(jobId); return n; });
+      } else {
+        setAgentStates((p) => ({ ...p, [jobId]: "error" }));
+        if (json.error) alert(json.error);
+      }
+    } catch {
+      setAgentStates((p) => ({ ...p, [jobId]: "error" }));
+    }
+  }, []);
+
+  const agentApplyAll = useCallback(async () => {
+    if (agentBulkRunning || selected.size === 0) return;
+    setAgentBulkRunning(true);
+    for (const id of Array.from(selected)) {
+      await agentApplyOne(id);
+    }
+    setAgentBulkRunning(false);
+  }, [agentBulkRunning, selected, agentApplyOne]);
+
   const fetchJobs = useCallback(async () => {
     const res = await fetch("/api/jobs");
     const json = await res.json();
@@ -419,12 +449,24 @@ export default function JobsPage() {
                           >
                             Clear
                           </button>
+                          {/* Agent Apply — direct, no optimization needed */}
+                          <button
+                            onClick={agentApplyAll}
+                            disabled={agentBulkRunning}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5c518] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:opacity-60 transition-opacity"
+                          >
+                            {agentBulkRunning
+                              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…</>
+                              : <><Bot className="h-3.5 w-3.5" /> Agent Apply ({selected.size})</>
+                            }
+                          </button>
+                          {/* Optimize + Apply — full tailor → cover → submit flow */}
                           <button
                             onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
                             className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
                           >
                             <Zap className="h-3.5 w-3.5" />
-                            Apply to {selected.size} job{selected.size > 1 ? "s" : ""} ↓
+                            Optimize &amp; Apply ↓
                           </button>
                         </div>
                       </>
@@ -438,13 +480,15 @@ export default function JobsPage() {
                   const ready = job.status === "ready";
                   const isSel = selected.has(job.id);
                   const board = boardForUrl(job.posting_url || job.source_url);
+                  const agentState = agentStates[job.id];
                   return (
                     <div
                       key={job.id}
                       onClick={() => router.push(`/dashboard/jobs/${job.id}`)}
                       className={cn(
                         "flex cursor-pointer items-center gap-3 rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm",
-                        isSel ? "border-primary/60 ring-1 ring-primary/30" : "border-border"
+                        isSel ? "border-primary/60 ring-1 ring-primary/30" : "border-border",
+                        agentState === "done" && "border-desyn-success/40 bg-desyn-success/5",
                       )}
                     >
                       {/* Selection checkbox (only for ready jobs) */}
@@ -500,11 +544,25 @@ export default function JobsPage() {
                           </div>
                         )}
                       </div>
-                      <div className="shrink-0 text-right">
-                        {processing ? (
+                      <div className="flex shrink-0 flex-col items-end gap-1.5">
+                        {/* Agent apply status */}
+                        {agentState === "running" && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-primary">
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…
+                          </span>
+                        )}
+                        {agentState === "done" && (
+                          <span className="flex items-center gap-1 text-xs font-medium text-desyn-success">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Submitted
+                          </span>
+                        )}
+                        {agentState === "error" && (
+                          <span className="text-xs font-medium text-destructive">Failed</span>
+                        )}
+                        {/* Score */}
+                        {!agentState && (processing ? (
                           <span className="flex items-center gap-1.5 text-xs text-blue-500">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            Scoring
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" /> Scoring
                           </span>
                         ) : job.status === "failed" ? (
                           <span className="text-xs text-destructive">Failed</span>
@@ -514,6 +572,15 @@ export default function JobsPage() {
                           </span>
                         ) : (
                           <span className="text-xs text-muted-foreground">No resume</span>
+                        ))}
+                        {/* Per-row apply button */}
+                        {ready && !agentState && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); agentApplyOne(job.id); }}
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#f5c518] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 transition-opacity"
+                          >
+                            <Zap className="h-3 w-3" /> Apply
+                          </button>
                         )}
                       </div>
                     </div>
