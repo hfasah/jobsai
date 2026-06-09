@@ -55,6 +55,7 @@ export async function GET(req: NextRequest) {
   for (const prefs of activePrefs) {
     const userId = prefs.user_id;
     const threshold = prefs.auto_apply_threshold ?? 75;
+    const mode = (prefs.auto_apply_mode ?? "hybrid") as "auto" | "hybrid" | "review";
     summary.users_processed++;
 
     const runLog: AutoApplyJobLog[] = [];
@@ -119,8 +120,34 @@ export async function GET(req: NextRequest) {
 
           log.match_score = matchScore;
 
-          // 4. Skip if below threshold
-          if (matchScore === null || matchScore < threshold) {
+          // 4. Mode-based routing
+          const aboveThreshold = matchScore !== null && matchScore >= threshold;
+
+          // Review mode: always queue for approval, never auto-apply
+          if (mode === "review") {
+            await supabaseAdmin.from("applications").upsert(
+              { user_id: userId, job_id: jobId, stage: "saved", stage_history: [{ stage: "saved", at: new Date().toISOString() }] },
+              { onConflict: "user_id,job_id" }
+            );
+            log.status = "skipped";
+            log.match_score = matchScore;
+            runLog.push(log);
+            continue;
+          }
+
+          // Hybrid mode: only auto-apply if above threshold, else queue for review
+          if (mode === "hybrid" && !aboveThreshold) {
+            await supabaseAdmin.from("applications").upsert(
+              { user_id: userId, job_id: jobId, stage: "saved", stage_history: [{ stage: "saved", at: new Date().toISOString() }] },
+              { onConflict: "user_id,job_id" }
+            );
+            log.status = "below_threshold";
+            runLog.push(log);
+            continue;
+          }
+
+          // Auto mode or hybrid above threshold: skip if below threshold entirely
+          if (!aboveThreshold) {
             log.status = "below_threshold";
             runLog.push(log);
             continue;

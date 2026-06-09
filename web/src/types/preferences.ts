@@ -40,6 +40,7 @@ export interface UserPreferences {
   excluded_companies: string[];
   blocked_domains: string[];
   auto_apply_enabled: boolean;
+  auto_apply_mode: "auto" | "hybrid" | "review";
   auto_apply_threshold: number;
   require_approval: boolean;
   // Inbox: also CC the user (or another address) on application/inbox emails.
@@ -65,6 +66,7 @@ export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   excluded_companies: [],
   blocked_domains: [],
   auto_apply_enabled: false,
+  auto_apply_mode: "hybrid" as const,
   auto_apply_threshold: 75,
   require_approval: false,
   cc_email_enabled: false,

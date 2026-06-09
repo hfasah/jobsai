@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Loader2, Save, Check, Zap, IdCard, ArrowRight,
+  Loader2, Save, Check, Zap, IdCard, ArrowRight, Bot, Eye, Shuffle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TagInput } from "@/components/ui/tag-input";
@@ -295,81 +295,125 @@ export default function PreferencesPage() {
           </section>
 
           {/* ── Auto-apply ── */}
-          <section className="rounded-2xl border border-border bg-card p-6">
+          <section id="auto-apply" className="rounded-2xl border border-border bg-card p-6">
             <SectionHeader
-              title="Auto-apply"
-              description="The system will automatically submit applications on your behalf when a job's match score meets your threshold."
+              title="How should we apply for jobs?"
+              description="JobsAI finds matching jobs daily and applies on your behalf — pick how much control you want."
             />
-            <div className="space-y-5">
-              <div className="flex items-center justify-between rounded-xl border border-border p-4">
-                <div>
-                  <p className="font-medium">Enable auto-apply</p>
-                  <p className="text-sm text-muted-foreground">
-                    Automatically apply to matching jobs as they&apos;re discovered.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={prefs.auto_apply_enabled}
-                  onClick={() => set("auto_apply_enabled", !prefs.auto_apply_enabled)}
-                  className={cn(
-                    "relative h-6 w-11 rounded-full border-2 transition-colors cursor-pointer",
-                    prefs.auto_apply_enabled ? "border-primary bg-primary" : "border-border bg-muted"
-                  )}
-                >
-                  <span className={cn(
-                    "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                    prefs.auto_apply_enabled ? "translate-x-5" : "translate-x-0.5"
-                  )} />
-                </button>
-              </div>
-              {prefs.auto_apply_enabled && (
-                <div className="flex items-center justify-between rounded-xl border border-border p-4">
-                  <div>
-                    <p className="font-medium">Require my approval first</p>
-                    <p className="text-sm text-muted-foreground">
-                      Jobs land in a review queue — you approve before we submit.
-                    </p>
-                  </div>
+
+            {/* Mode selector */}
+            <div className="space-y-3">
+              {([
+                {
+                  mode: "auto" as const,
+                  icon: Bot,
+                  label: "Auto mode",
+                  tag: "Save time, no approval needed",
+                  tagColor: "text-desyn-success bg-desyn-success/10",
+                  desc: "Fully hands-off. Maximum speed. Our AI agent finds and applies to matching jobs for you.",
+                },
+                {
+                  mode: "hybrid" as const,
+                  icon: Shuffle,
+                  label: "Hybrid mode",
+                  tag: "Best of both worlds",
+                  tagColor: "text-primary bg-primary/10",
+                  desc: `Best balance of speed and control. We auto-apply to high-fit roles (${prefs.auto_apply_threshold}%+ match). You decide on the rest.`,
+                },
+                {
+                  mode: "review" as const,
+                  icon: Eye,
+                  label: "Review mode",
+                  tag: "Review and approve each job",
+                  tagColor: "text-muted-foreground bg-muted",
+                  desc: "Full control. Nothing sent without your approval. Review every match. Our agent handles the application once you approve.",
+                },
+              ] as const).map(({ mode, icon: Icon, label, tag, tagColor, desc }) => {
+                const selected = (prefs.auto_apply_mode ?? "hybrid") === mode;
+                return (
                   <button
+                    key={mode}
                     type="button"
-                    role="switch"
-                    aria-checked={prefs.require_approval}
-                    onClick={() => set("require_approval", !prefs.require_approval)}
+                    onClick={() => {
+                      set("auto_apply_mode", mode);
+                      set("auto_apply_enabled", true);
+                      set("require_approval", mode === "review");
+                    }}
                     className={cn(
-                      "relative h-6 w-11 rounded-full border-2 transition-colors cursor-pointer",
-                      prefs.require_approval ? "border-primary bg-primary" : "border-border bg-muted"
+                      "w-full rounded-xl border p-4 text-left transition-all",
+                      selected
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-border hover:border-primary/40 hover:bg-muted/30"
                     )}
                   >
-                    <span className={cn(
-                      "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
-                      prefs.require_approval ? "translate-x-5" : "translate-x-0.5"
-                    )} />
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("flex h-8 w-8 items-center justify-center rounded-lg", selected ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <span className="font-semibold">{label}</span>
+                        <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", tagColor)}>{tag}</span>
+                      </div>
+                      <div className={cn(
+                        "flex h-5 w-5 items-center justify-center rounded-full border-2 transition-colors",
+                        selected ? "border-primary bg-primary" : "border-border"
+                      )}>
+                        {selected && <Check className="h-3 w-3 text-white" />}
+                      </div>
+                    </div>
+                    <p className="mt-2 pl-11 text-sm text-muted-foreground">{desc}</p>
                   </button>
-                </div>
-              )}
-              <div>
-                <FieldLabel>Minimum match score to auto-apply</FieldLabel>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min={50}
-                    max={100}
-                    step={5}
-                    value={prefs.auto_apply_threshold}
-                    onChange={(e) => set("auto_apply_threshold", Number(e.target.value))}
-                    className="flex-1 cursor-pointer"
-                  />
-                  <span className="w-12 text-right text-sm font-bold tabular-nums">
-                    {prefs.auto_apply_threshold}%
-                  </span>
-                </div>
-                <div className="mt-1 flex justify-between text-xs text-muted-foreground">
-                  <span>50 — cast wide net</span>
-                  <span>100 — perfect match only</span>
-                </div>
+                );
+              })}
+            </div>
+
+            {/* Threshold slider */}
+            <div className="mt-5">
+              <FieldLabel>Minimum match score threshold</FieldLabel>
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min={50}
+                  max={100}
+                  step={5}
+                  value={prefs.auto_apply_threshold}
+                  onChange={(e) => set("auto_apply_threshold", Number(e.target.value))}
+                  className="flex-1 cursor-pointer"
+                />
+                <span className="w-12 text-right text-sm font-bold tabular-nums text-primary">
+                  {prefs.auto_apply_threshold}%
+                </span>
               </div>
+              <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+                <span>50% — cast a wide net</span>
+                <span>100% — perfect match only</span>
+              </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                In <strong className="text-foreground">Hybrid mode</strong>, jobs above this score are auto-applied; below it goes to your review queue.
+              </p>
+            </div>
+
+            {/* CC email copy */}
+            <div className="mt-5 flex items-center justify-between rounded-xl border border-border p-4">
+              <div>
+                <p className="font-medium">Receive copies in your email</p>
+                <p className="text-sm text-muted-foreground">Get a confirmation email for every application submitted.</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.cc_email_enabled}
+                onClick={() => set("cc_email_enabled", !prefs.cc_email_enabled)}
+                className={cn(
+                  "relative h-6 w-11 rounded-full border-2 transition-colors cursor-pointer",
+                  prefs.cc_email_enabled ? "border-primary bg-primary" : "border-border bg-muted"
+                )}
+              >
+                <span className={cn(
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                  prefs.cc_email_enabled ? "translate-x-5" : "translate-x-0.5"
+                )} />
+              </button>
             </div>
           </section>
 
