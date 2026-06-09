@@ -287,11 +287,11 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
           );
         })}
 
-        {/* Standalone upsell — book a live human coach */}
+        {/* Free coaching call CTA */}
         <Link href="/dashboard/coaching" onClick={onNavigate}
           className="btn-cta mt-3 flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-sm font-bold shadow-glow">
           <UserRound className="h-4 w-4 shrink-0" />
-          {t("nav.coaching")}
+          Book Free Career Call
         </Link>
       </nav>
 
