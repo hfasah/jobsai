@@ -132,13 +132,18 @@ export default function ApplyProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  // Raw string kept separate so commas aren't eaten while the user is still typing
+  const [certsRaw, setCertsRaw] = useState("");
 
   useEffect(() => {
     fetch("/api/apply-profile")
       .then((r) => r.json())
       .then((j) => {
-        if (j.data) setForm({ ...EMPTY, ...j.data });
-        else if (j.prefill) setForm({ ...EMPTY, ...j.prefill });
+        const data = j.data ?? j.prefill;
+        if (data) {
+          setForm({ ...EMPTY, ...data });
+          setCertsRaw((data.certifications ?? []).join(", "));
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -147,9 +152,11 @@ export default function ApplyProfilePage() {
     setSaved(false);
     setForm((f) => ({ ...f, [key]: value === "" ? null : value }));
   };
-  const setCerts = (text: string) => {
+  // Only parse comma-split on blur — while typing, keep raw string intact
+  const commitCerts = () => {
+    const parsed = certsRaw.split(",").map((s) => s.trim()).filter(Boolean);
     setSaved(false);
-    setForm((f) => ({ ...f, certifications: text.split(",").map((s) => s.trim()).filter(Boolean) }));
+    setForm((f) => ({ ...f, certifications: parsed }));
   };
 
   const save = async () => {
@@ -238,7 +245,24 @@ export default function ApplyProfilePage() {
             <Field label="University / school" value={str(form.university)} onChange={(v) => set("university", v)} placeholder="University of …" />
           </div>
           <div className="mt-4">
-            <Field label="Certifications (comma-separated)" value={(form.certifications ?? []).join(", ")} onChange={setCerts} placeholder="AWS SA Pro, CKA, PMP" />
+            <label className="mb-1.5 block text-sm font-medium">Certifications (comma-separated)</label>
+            <input
+              type="text"
+              value={certsRaw}
+              onChange={(e) => setCertsRaw(e.target.value)}
+              onBlur={commitCerts}
+              placeholder="AWS SA Pro, CKA, PMP"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            {(form.certifications ?? []).length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(form.certifications ?? []).map((c) => (
+                  <span key={c} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-medium text-primary">
+                    {c}
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
         </SectionCard>
 
