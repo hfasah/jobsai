@@ -593,8 +593,8 @@ function BillingContent() {
               <p className="mt-3 text-4xl font-bold tabular-nums">{tokens?.balance.toLocaleString() ?? "—"}</p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {tokens && tokens.monthly_grant > 0
-                  ? `${tokens.monthly_grant.toLocaleString()} refill ${plan === "free" ? "(one-time)" : "/ month"}`
-                  : "Tokens power voice & avatar interviews"}
+                  ? `${tokens.monthly_grant.toLocaleString()} credits / month · rolls over up to 2 months`
+                  : "Credits power auto-apply, tailoring & interview prep"}
               </p>
               <div className="mt-4 grid grid-cols-3 gap-2">
                 {(tokens?.packs ?? []).map((p) => (
