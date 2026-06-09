@@ -43,34 +43,31 @@ export async function POST(
     );
   }
 
-  // Fetch full job details — join job_parsed to get posting_url (stored there by processJob)
-  const { data: job } = await supabaseAdmin
-    .from("jobs")
-    .select("id, status, source_url, posting_url, job_parsed ( title, company, posting_url )")
-    .eq("id", jobId)
-    .maybeSingle();
+  // Fetch job and parsed data in two simple queries (avoids join naming issues)
+  const [{ data: job }, { data: jobParsed }] = await Promise.all([
+    supabaseAdmin.from("jobs").select("id, status, source_url, posting_url").eq("id", jobId).maybeSingle(),
+    supabaseAdmin.from("job_parsed").select("title, company, posting_url").eq("job_id", jobId).maybeSingle(),
+  ]);
 
   if (!job) {
     return NextResponse.json(
-      { error: "This job no longer exists. Remove it from your pipeline and re-import from the original posting.", action: "remove_job" },
+      { error: "This job no longer exists in your account. It may have been removed — try re-importing from the original URL.", action: "remove_job" },
       { status: 404 }
     );
   }
 
-  const parsed = Array.isArray(job.job_parsed) ? job.job_parsed[0] : job.job_parsed;
-
-  // URL can be on jobs.source_url, jobs.posting_url, or job_parsed.posting_url
-  const applicationUrl = job.source_url || job.posting_url || parsed?.posting_url || null;
+  // URL lives in jobs.source_url, jobs.posting_url, or job_parsed.posting_url
+  const applicationUrl = job.source_url || job.posting_url || jobParsed?.posting_url || null;
 
   if (!applicationUrl) {
     return NextResponse.json(
-      { error: "No application URL found. Open this job and make sure the original posting link is saved.", action: "view_job" },
+      { error: "No application URL found for this job. Open it and verify the original posting link.", action: "view_job" },
       { status: 400 }
     );
   }
 
-  const jobTitle = parsed?.title ?? null;
-  const jobCompany = parsed?.company ?? null;
+  const jobTitle = jobParsed?.title ?? null;
+  const jobCompany = jobParsed?.company ?? null;
 
   // Check if the posting is still live before wasting an agent run
   const availability = await checkJobAvailability(applicationUrl);

@@ -18,11 +18,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  // Fetch all jobs — join job_parsed for title, company, and posting_url
-  const { data: jobs } = await supabaseAdmin
-    .from("jobs")
-    .select("id, source_url, posting_url, status, user_id, job_parsed ( title, company, posting_url )")
-    .in("id", jobIds);
+  // Two simple queries — avoids join naming issues across Supabase schema variations
+  const [{ data: jobs }, { data: parsedRows }] = await Promise.all([
+    supabaseAdmin.from("jobs").select("id, source_url, posting_url, status, user_id").in("id", jobIds),
+    supabaseAdmin.from("job_parsed").select("job_id, title, company, posting_url").in("job_id", jobIds),
+  ]);
+  const parsedMap = new Map((parsedRows ?? []).map((p) => [p.job_id, p]));
 
   const jobMap = new Map((jobs ?? []).map((j) => [j.id, j]));
 
@@ -56,8 +57,7 @@ export async function POST(req: NextRequest) {
         return { jobId, status: "not_found" as const, title: null, company: null };
       }
 
-      // title/company live in job_parsed; posting_url may be there too
-      const parsedRow = Array.isArray(job?.job_parsed) ? job?.job_parsed[0] : job?.job_parsed;
+      const parsedRow = parsedMap.get(jobId);
       const title = parsedRow?.title ?? null;
       const company = parsedRow?.company ?? null;
       const applicationUrl = job?.source_url || job?.posting_url || parsedRow?.posting_url || null;
