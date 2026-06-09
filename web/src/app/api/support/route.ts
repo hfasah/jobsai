@@ -10,19 +10,10 @@ function getOpenAI() {
   return _openai;
 }
 
-// Simple in-memory IP rate limiter: max 20 requests per 5 minutes
-const rl = new Map<string, { count: number; reset: number }>();
-function checkRate(ip: string): boolean {
-  const now = Date.now();
-  const entry = rl.get(ip);
-  if (!entry || now > entry.reset) {
-    rl.set(ip, { count: 1, reset: now + 5 * 60 * 1000 });
-    return true;
-  }
-  if (entry.count >= 20) return false;
-  entry.count += 1;
-  return true;
-}
+import { createRateLimiter, getClientIp, tooManyRequests } from "@/lib/rate-limit";
+
+// 20 messages per 5 minutes per IP (unchanged behaviour, now using shared lib).
+const limiter = createRateLimiter({ limit: 20, windowMs: 5 * 60_000 });
 
 const SYSTEM = `You are the JobsAI support assistant — friendly, helpful, and precise. JobsAI is an AI-powered job-search platform at https://jobsai.work.
 
@@ -57,10 +48,8 @@ const SYSTEM = `You are the JobsAI support assistant — friendly, helpful, and 
 - Never make up features or prices not listed above.`;
 
 export async function POST(req: NextRequest) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "anon";
-  if (!checkRate(ip)) {
-    return NextResponse.json({ error: "Too many requests. Please wait a moment." }, { status: 429 });
-  }
+  const rl = limiter(getClientIp(req));
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec);
 
   const body = await req.json().catch(() => null);
   if (!body) return NextResponse.json({ error: "Invalid body" }, { status: 400 });

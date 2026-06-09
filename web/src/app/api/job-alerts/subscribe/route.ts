@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend, FROM_SUPPORT } from "@/lib/resend";
+import { createRateLimiter, getClientIp, tooManyRequests } from "@/lib/rate-limit";
+
+const limiter = createRateLimiter({ limit: 5, windowMs: 10 * 60_000 }); // 5/10 min
 
 export async function POST(req: NextRequest) {
+  const rl = limiter(getClientIp(req));
+  if (!rl.ok) return tooManyRequests(rl.retryAfterSec);
   const body = await req.json().catch(() => ({}));
   const { email, name, job_titles, locations, job_type, frequency } = body as Record<string, string>;
 
