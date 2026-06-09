@@ -224,7 +224,7 @@ export default function ApprovePage() {
             </p>
             <h1 className="mt-1 text-2xl font-bold tracking-tight">Approval Queue</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              Review jobs before we apply. Approve to submit, skip to dismiss.
+              Résumé &amp; cover letter already prepared for each job. Hit <strong className="text-foreground">Approve all</strong> to submit everything in one click, or approve individually.
             </p>
           </div>
           <div className="flex items-center gap-2">

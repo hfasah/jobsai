@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
-  Zap, X, ChevronDown, Loader2, CheckCircle2, AlertTriangle, Puzzle, Sparkles, Coins,
+  Zap, X, ChevronDown, Loader2, CheckCircle2, AlertTriangle, Puzzle, Sparkles, Coins, ArrowRight,
 } from "lucide-react";
 import { boardForUrl } from "@/lib/job-boards";
 import { runExtensionApply } from "@/lib/extension-bridge";
@@ -204,18 +204,53 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
           </div>
         )}
 
+        {/* Safe-to-navigate notice while working */}
+        {running && (
+          <div className="flex items-center gap-2 rounded-lg bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-primary" />
+            <span><strong className="text-foreground">Safe to navigate away</strong> — your résumés and cover letters are being prepared in the background. Come back to check progress, or we&apos;ll notify you when done.</span>
+          </div>
+        )}
+
         {/* Progress / phase line */}
         {phase !== "idle" && (
           <div className="flex flex-wrap items-center gap-3 text-xs">
             {phase === "importing" && <span className="flex items-center gap-1.5 text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Importing jobs…</span>}
-            {phase === "optimizing" && <span className="flex items-center gap-1.5 text-primary"><Sparkles className="h-3.5 w-3.5" /> Optimizing résumé & cover letter…</span>}
-            {phase === "applying" && <span className="flex items-center gap-1.5 text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…</span>}
+            {phase === "optimizing" && <span className="flex items-center gap-1.5 text-primary"><Sparkles className="h-3.5 w-3.5 animate-pulse" /> Optimizing résumé & cover letter…</span>}
+            {phase === "applying" && <span className="flex items-center gap-1.5 text-primary"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Submitting applications…</span>}
             {phase === "done" && <span className="flex items-center gap-1.5 text-desyn-success"><CheckCircle2 className="h-3.5 w-3.5" /> Done</span>}
-            <span className="flex items-center gap-1.5 text-desyn-success"><CheckCircle2 className="h-3.5 w-3.5" /> {counts.applied} applied</span>
-            {counts.review > 0 && <span className="flex items-center gap-1.5 text-amber-500"><AlertTriangle className="h-3.5 w-3.5" /> {counts.review} to review</span>}
+            {counts.applied > 0 && <span className="flex items-center gap-1.5 text-desyn-success"><CheckCircle2 className="h-3.5 w-3.5" /> {counts.applied} applied</span>}
+            {counts.review > 0 && <span className="flex items-center gap-1.5 text-amber-500"><AlertTriangle className="h-3.5 w-3.5" /> {counts.review} need extension</span>}
             {counts.failed > 0 && <span className="flex items-center gap-1.5 text-destructive"><X className="h-3.5 w-3.5" /> {counts.failed} failed</span>}
             <span className="text-muted-foreground">{counts.done}/{jobs.length}</span>
-            {phase === "done" && <Link href="/dashboard/applications" className="ml-auto font-medium text-primary hover:underline">View results →</Link>}
+            {phase === "done" && (
+              <Link href="/dashboard/approve" className="ml-auto flex items-center gap-1 font-medium text-primary hover:underline">
+                Apply all in Approvals <ArrowRight className="h-3 w-3" />
+              </Link>
+            )}
+          </div>
+        )}
+
+        {/* "To review" explanation — shown after done if any jobs need extension */}
+        {phase === "done" && counts.review > 0 && (
+          <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm">
+            <Puzzle className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
+            <div className="flex-1 min-w-0">
+              <p className="font-medium text-foreground">
+                {counts.review} job{counts.review > 1 ? "s are" : " is"} on LinkedIn / Indeed — these need the browser extension to submit.
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Your tailored résumé and cover letter are <strong>already saved</strong> for each one. Go to Approvals to apply them all with one click — or set up the extension to make this fully automatic.
+              </p>
+            </div>
+            <div className="flex shrink-0 flex-col gap-1.5">
+              <Link href="/dashboard/approve" className="btn-cta inline-flex h-7 items-center gap-1 rounded-lg px-2.5 text-xs font-semibold whitespace-nowrap">
+                Apply in Approvals <ArrowRight className="h-3 w-3" />
+              </Link>
+              <Link href="/dashboard/extension" className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground whitespace-nowrap">
+                Set up extension
+              </Link>
+            </div>
           </div>
         )}
         {notice && (
@@ -284,9 +319,14 @@ export function BulkApplyBar({ jobs, onClear, importFirst = false }: { jobs: Bul
             <span> · {directCount}/{jobs.length} 1-click</span>
           </span>
 
-          <button onClick={runAutoApply} disabled={running || jobs.length === 0}
+          <button onClick={runAutoApply} disabled={running || jobs.length === 0 || phase === "done"}
             className="ml-auto inline-flex h-9 items-center gap-1.5 rounded-lg bg-[#f5c518] px-4 text-sm font-semibold text-black transition-opacity hover:opacity-90 disabled:opacity-60">
-            {running ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</> : <><Zap className="h-4 w-4" /> Optimize & Apply to All</>}
+            {running
+              ? <><Loader2 className="h-4 w-4 animate-spin" /> Working…</>
+              : phase === "done"
+                ? <><CheckCircle2 className="h-4 w-4" /> Optimized &amp; Applied</>
+                : <><Zap className="h-4 w-4" /> Optimize &amp; Apply to All</>
+            }
           </button>
         </div>
       </div>
