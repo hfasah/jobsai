@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
 import { boardForUrl } from "@/lib/job-boards";
-import { UpgradeGate } from "@/components/upgrade-gate";
+import { CreditConfirmModal } from "@/components/credit-confirm-modal";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,6 +280,24 @@ export default function JobsPage() {
   const [agentStates, setAgentStates] = useState<Record<string, "running" | "done" | "error">>({});
   const [agentBulkRunning, setAgentBulkRunning] = useState(false);
 
+  // Credits
+  const [balance, setBalance] = useState(0);
+  const [applyCost, setApplyCost] = useState(600);
+  const [confirmModal, setConfirmModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
+
+  const fetchTokens = useCallback(async () => {
+    try {
+      const r = await fetch("/api/tokens");
+      const j = await r.json();
+      if (j.data) {
+        setBalance(j.data.balance ?? 0);
+        if (j.data.costs?.auto_apply) setApplyCost(j.data.costs.auto_apply);
+      }
+    } catch { /* non-fatal */ }
+  }, []);
+
+  useEffect(() => { fetchTokens(); }, [fetchTokens]);
+
   const agentApplyOne = useCallback(async (jobId: string) => {
     setAgentStates((p) => ({ ...p, [jobId]: "running" }));
     try {
@@ -288,6 +306,7 @@ export default function JobsPage() {
       if (res.ok) {
         setAgentStates((p) => ({ ...p, [jobId]: "done" }));
         setSelected((prev) => { const n = new Set(prev); n.delete(jobId); return n; });
+        fetchTokens();
       } else {
         setAgentStates((p) => ({ ...p, [jobId]: "error" }));
         if (json.error) alert(json.error);
@@ -295,16 +314,24 @@ export default function JobsPage() {
     } catch {
       setAgentStates((p) => ({ ...p, [jobId]: "error" }));
     }
+  }, [fetchTokens]);
+
+  // Open the credit-confirmation modal for one or many jobs.
+  const requestAgentApply = useCallback((jobIds: string[]) => {
+    if (jobIds.length === 0) return;
+    setConfirmModal({ open: true, jobIds });
   }, []);
 
-  const agentApplyAll = useCallback(async () => {
-    if (agentBulkRunning || selected.size === 0) return;
+  const confirmAgentApply = useCallback(async () => {
+    const ids = confirmModal.jobIds;
+    setConfirmModal({ open: false, jobIds: [] });
+    if (ids.length === 0) return;
     setAgentBulkRunning(true);
-    for (const id of Array.from(selected)) {
+    for (const id of ids) {
       await agentApplyOne(id);
     }
     setAgentBulkRunning(false);
-  }, [agentBulkRunning, selected, agentApplyOne]);
+  }, [confirmModal.jobIds, agentApplyOne]);
 
   const fetchJobs = useCallback(async () => {
     const res = await fetch("/api/jobs");
@@ -450,27 +477,18 @@ export default function JobsPage() {
                           >
                             Clear
                           </button>
-                          {/* Agent Apply — direct, gated for free */}
-                          <UpgradeGate
-                            feature="Agent Apply"
-                            description="The browser agent opens each job site, fills the form, handles CAPTCHA, and submits — all without you lifting a finger. Available on all paid plans."
-                            lockedElement={
-                              <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
-                                🔒 Agent Apply — Paid
-                              </button>
-                            }
+                          {/* Agent Apply — credits charged per job, confirmed in modal */}
+                          <button
+                            onClick={() => requestAgentApply(Array.from(selected))}
+                            disabled={agentBulkRunning}
+                            title={`${selected.size * applyCost} credits · balance ${balance}`}
+                            className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5c518] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:opacity-60 transition-opacity"
                           >
-                            <button
-                              onClick={agentApplyAll}
-                              disabled={agentBulkRunning}
-                              className="inline-flex items-center gap-1.5 rounded-lg bg-[#f5c518] px-3 py-1.5 text-xs font-semibold text-black hover:opacity-90 disabled:opacity-60 transition-opacity"
-                            >
-                              {agentBulkRunning
-                                ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…</>
-                                : <><Bot className="h-3.5 w-3.5" /> Agent Apply ({selected.size})</>
-                              }
-                            </button>
-                          </UpgradeGate>
+                            {agentBulkRunning
+                              ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Working…</>
+                              : <><Bot className="h-3.5 w-3.5" /> Agent Apply ({selected.size})</>
+                            }
+                          </button>
                           {/* Optimize + Apply — full tailor → cover → submit flow */}
                           <button
                             onClick={() => window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" })}
@@ -584,24 +602,15 @@ export default function JobsPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground">No resume</span>
                         ))}
-                        {/* Per-row apply button — gated */}
+                        {/* Per-row apply button — credits charged, confirmed in modal */}
                         {ready && !agentState && (
-                          <UpgradeGate
-                            feature="Agent Apply"
-                            description="Let the browser agent apply to this job for you — no manual work needed. Available on all paid plans."
-                            lockedElement={
-                              <button onClick={(e) => e.stopPropagation()} className="inline-flex items-center gap-1 rounded-lg border border-border bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                                🔒 Apply
-                              </button>
-                            }
+                          <button
+                            onClick={(e) => { e.stopPropagation(); requestAgentApply([job.id]); }}
+                            title={`${applyCost} credits · balance ${balance}`}
+                            className="inline-flex items-center gap-1 rounded-lg bg-[#f5c518] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 transition-opacity"
                           >
-                            <button
-                              onClick={(e) => { e.stopPropagation(); agentApplyOne(job.id); }}
-                              className="inline-flex items-center gap-1 rounded-lg bg-[#f5c518] px-2 py-1 text-[11px] font-semibold text-black hover:opacity-90 transition-opacity"
-                            >
-                              <Zap className="h-3 w-3" /> Apply
-                            </button>
-                          </UpgradeGate>
+                            <Zap className="h-3 w-3" /> Apply
+                          </button>
                         )}
                       </div>
                     </div>
@@ -619,6 +628,18 @@ export default function JobsPage() {
       {selected.size > 0 && (
         <BulkApplyBar jobs={selectedBulkJobs} onClear={() => setSelected(new Set())} />
       )}
+
+      <CreditConfirmModal
+        open={confirmModal.open}
+        onClose={() => setConfirmModal({ open: false, jobIds: [] })}
+        onConfirm={confirmAgentApply}
+        action="Auto Apply"
+        unitCost={applyCost}
+        quantity={confirmModal.jobIds.length}
+        balance={balance}
+        busy={agentBulkRunning}
+        note="Expired or already-applied jobs are skipped automatically after a quick availability check."
+      />
     </>
   );
 }
