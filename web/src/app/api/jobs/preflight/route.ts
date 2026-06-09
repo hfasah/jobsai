@@ -18,10 +18,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ results: [] });
   }
 
-  // Fetch all jobs in one query
+  // Fetch all jobs in one query — include both URL fields
   const { data: jobs } = await supabaseAdmin
     .from("jobs")
-    .select("id, title, company, source_url, status, user_id")
+    .select("id, title, company, source_url, posting_url, status, user_id")
     .in("id", jobIds);
 
   const jobMap = new Map((jobs ?? []).map((j) => [j.id, j]));
@@ -56,7 +56,8 @@ export async function POST(req: NextRequest) {
         return { jobId, status: "not_found" as const, title: job?.title ?? null, company: job?.company ?? null };
       }
 
-      if (!job?.source_url) {
+      const applicationUrl = job?.source_url || job?.posting_url;
+      if (!applicationUrl) {
         return { jobId, status: "no_url" as const, title: job?.title ?? null, company: job?.company ?? null };
       }
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Check live availability
-      const availability = await checkJobAvailability(job.source_url);
+      const availability = await checkJobAvailability(applicationUrl);
       if (availability === "expired") {
         // Persist so we don't re-check
         await supabaseAdmin.from("jobs").update({ status: "expired" }).eq("id", jobId);

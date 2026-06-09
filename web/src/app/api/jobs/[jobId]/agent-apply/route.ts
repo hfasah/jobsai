@@ -46,7 +46,7 @@ export async function POST(
   // Fetch full job details without user_id restriction (ownership verified above)
   const { data: job } = await supabaseAdmin
     .from("jobs")
-    .select("id, title, company, source_url, status")
+    .select("id, title, company, source_url, posting_url, status")
     .eq("id", jobId)
     .maybeSingle();
 
@@ -57,7 +57,9 @@ export async function POST(
     );
   }
 
-  if (!job.source_url) {
+  // Jobs store their URL in either source_url or posting_url
+  const applicationUrl = job.source_url || job.posting_url;
+  if (!applicationUrl) {
     return NextResponse.json(
       { error: "No application URL found. Open this job and make sure the original posting link is saved.", action: "view_job" },
       { status: 400 }
@@ -65,7 +67,7 @@ export async function POST(
   }
 
   // Check if the posting is still live before wasting an agent run
-  const availability = await checkJobAvailability(job.source_url);
+  const availability = await checkJobAvailability(applicationUrl);
   if (availability === "expired") {
     // Mark in DB so we don't check again
     await supabaseAdmin.from("jobs").update({ status: "expired" }).eq("id", jobId);
@@ -138,7 +140,7 @@ export async function POST(
 
   try {
     const task = await createSkyvernTask({
-      url: job.source_url,
+      url: applicationUrl,
       webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
       navigationPayload,
       resumeUrl,

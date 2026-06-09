@@ -219,11 +219,12 @@ export async function GET(req: NextRequest) {
 
               const { data: jobRow } = await supabaseAdmin
                 .from("jobs")
-                .select("source_url")
+                .select("source_url, posting_url")
                 .eq("id", jobId)
                 .maybeSingle();
 
-              if (profile?.email && profile?.first_name && jobRow?.source_url) {
+              const cronUrl = jobRow?.source_url || jobRow?.posting_url;
+              if (profile?.email && profile?.first_name && cronUrl) {
                 // Generate 1-hour resume download URL
                 const { data: doc } = await supabaseAdmin
                   .from("resume_documents")
@@ -251,7 +252,7 @@ export async function GET(req: NextRequest) {
                   .maybeSingle();
 
                 const task = await createSkyvernTask({
-                  url: jobRow.source_url,
+                  url: cronUrl,
                   webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
                   navigationPayload: {
                     first_name: profile.first_name,
