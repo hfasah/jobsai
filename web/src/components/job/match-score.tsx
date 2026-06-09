@@ -145,39 +145,51 @@ export function MatchDetail({ match, jobId }: { match: JobMatch; jobId?: string 
         </div>
       )}
 
-      {/* Platform upsell — interview tools */}
-      <div className="rounded-xl border border-border bg-muted/30 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Get interview-ready with JobsAI</p>
+      {/* "When you land the interview" section */}
+      <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/5 to-transparent p-5">
+        <div className="mb-3">
+          <p className="font-semibold text-foreground">When you land that interview — come back.</p>
+          <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+            We&apos;ll have you walking in more prepared than 95% of the room. JobsAI has everything you need to go from callback to offer.
+          </p>
+        </div>
         <div className="grid gap-2 sm:grid-cols-3">
           {[
             {
               href: jobId ? `/dashboard/jobs/${jobId}?tab=interview-prep` : "/dashboard/jobs",
+              emoji: "📋",
               label: "Interview Prep",
-              desc: "AI-generated Q&A tailored to this exact role",
+              desc: "Role-specific questions and winning answers generated from the actual job description",
             },
             {
-              href: jobId ? `/dashboard/jobs/${jobId}?tab=mock` : "/dashboard/jobs",
-              label: "Mock Interview",
-              desc: "Practice with an AI interviewer and get scored feedback",
+              href: "/dashboard/avatar-room",
+              emoji: "🎭",
+              label: "Live Avatar Practice",
+              desc: "Practice with a live AI avatar that interviews you, reads your body language, and scores every answer",
             },
             {
               href: "/dashboard/voice-interview",
+              emoji: "🎙️",
               label: "Live Interview Agent",
-              desc: "Real-time AI whispers answers during your live interview call",
+              desc: "Real-time AI that listens to the interviewer's questions and whispers the best answers in your ear — during the actual call",
             },
-          ].map(({ href, label, desc }) => (
+          ].map(({ href, emoji, label, desc }) => (
             <Link
               key={label}
               href={href}
-              className="group flex flex-col gap-0.5 rounded-lg border border-border bg-card p-3 hover:border-primary/40 hover:bg-primary/5 transition-colors"
+              className="group flex flex-col gap-1 rounded-xl border border-border bg-card p-3.5 hover:border-primary/50 hover:bg-primary/5 hover:shadow-sm transition-all"
             >
-              <span className="flex items-center gap-1 text-xs font-semibold text-foreground group-hover:text-primary">
+              <span className="text-lg">{emoji}</span>
+              <span className="flex items-center gap-1 text-xs font-semibold text-foreground group-hover:text-primary transition-colors">
                 {label} <ArrowRight className="h-3 w-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all" />
               </span>
               <span className="text-[11px] text-muted-foreground leading-snug">{desc}</span>
             </Link>
           ))}
         </div>
+        <p className="mt-3 text-[11px] text-muted-foreground italic">
+          Don&apos;t wait until the night before. The candidates who win interviews are the ones who prepared a week out.
+        </p>
       </div>
     </div>
   );
