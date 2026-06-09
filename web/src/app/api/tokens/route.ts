@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { getTokenAccount, TOKEN_COSTS, TOKEN_PACKS } from "@/lib/tokens";
+import { PLAN_LIMITS } from "@/lib/billing";
 
 // GET /api/tokens — current balance, plan grant, cost table, and top-up packs.
 export async function GET() {
@@ -16,6 +17,7 @@ export async function GET() {
       free_applies: account.free_applies,
       monthly_grant: account.monthly_grant,
       plan: account.plan,
+      daily_apply_cap: PLAN_LIMITS[account.plan]?.daily_apply ?? 0,
       costs: TOKEN_COSTS,
       packs: TOKEN_PACKS,
     },

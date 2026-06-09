@@ -32,6 +32,7 @@ export interface ApplicationJobSummary {
   title: string | null;
   company: string | null;
   location: string | null;
+  url: string | null;
   match_score: number | null;
   // Optimization artifacts (populated by the applications list endpoint).
   ai_score?: number | null;

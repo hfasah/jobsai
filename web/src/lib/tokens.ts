@@ -8,7 +8,8 @@ import { getUserPlan, type Plan } from "@/lib/billing";
 
 export const TOKEN_COSTS = {
   written_eval: 50,    // one written-coach answer evaluation (~$0.10 API)
-  auto_apply: 600,     // one browser-agent application (~$0.80 Skyvern → ~2.25× margin)
+  auto_apply: 600,     // one SERVER-side (Skyvern) application (~$0.80 → ~2.25× margin)
+  extension_apply: 10, // one CLIENT-side (extension) application — near-zero infra cost
   resume_tailor: 30,
   cover_letter: 30,
   ats_scan: 20,

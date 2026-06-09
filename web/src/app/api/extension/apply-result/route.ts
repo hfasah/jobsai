@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { deductTokens, TOKEN_COSTS } from "@/lib/tokens";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -63,6 +64,27 @@ export async function POST(req: NextRequest) {
     response_data: body.applied_url ? { applied_url: body.applied_url } : {},
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS_HEADERS });
+
+  // Charge the cheap extension-apply credit only on a real submission, and
+  // advance the pipeline card to "applied" (forward-only).
+  if (status === "submitted") {
+    await deductTokens(userId, TOKEN_COSTS.extension_apply, "extension_apply", { job_id: jobId, board }, { meterFree: true });
+    const now = new Date().toISOString();
+    const { data: app } = await supabaseAdmin
+      .from("applications").select("id, stage, stage_history")
+      .eq("user_id", userId).eq("job_id", jobId).maybeSingle();
+    if (!app) {
+      await supabaseAdmin.from("applications").insert({
+        user_id: userId, job_id: jobId, stage: "applied", applied_at: now,
+        stage_history: [{ stage: "applied", at: now }],
+      });
+    } else if (app.stage === "saved") {
+      const history = Array.isArray(app.stage_history) ? app.stage_history : [];
+      await supabaseAdmin.from("applications")
+        .update({ stage: "applied", applied_at: now, stage_history: [...history, { stage: "applied", at: now }] })
+        .eq("id", app.id);
+    }
+  }
 
   return NextResponse.json({ ok: true, status }, { status: 201, headers: CORS_HEADERS });
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getUserPlan, PLAN_LIMITS, getDailyApplyCount } from "@/lib/billing";
+import { getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
@@ -32,22 +33,24 @@ export async function GET(req: NextRequest) {
   const plan = await getUserPlan(userId);
   const limits = PLAN_LIMITS[plan];
 
-  if (!limits.auto_apply) {
-    return NextResponse.json(
-      { allowed: false, remaining: 0, cap: 0, upgrade_required: true, reason: "Auto-apply is a paid feature. Upgrade to apply with JobsAI." },
-      { headers: CORS_HEADERS }
-    );
-  }
+  // Access is credit-governed: each extension apply costs TOKEN_COSTS.extension_apply.
+  // Remaining is bounded by both the daily fair-use cap and the credit balance.
+  const cost = TOKEN_COSTS.extension_apply;
+  const dailyCap = limits.daily_apply && limits.daily_apply > 0 ? limits.daily_apply : 25;
+  const [used, balance] = await Promise.all([getDailyApplyCount(userId), getTokenBalance(userId)]);
+  const byCap = Math.max(0, dailyCap - used);
+  const byCredits = Math.floor(balance / cost);
+  const remaining = Math.min(byCap, byCredits);
 
-  const used = await getDailyApplyCount(userId);
-  const remaining = Math.max(0, limits.daily_apply - used);
+  const reason =
+    byCap <= 0
+      ? `You've hit today's ${dailyCap} apply limit on ${limits.label}. It resets tomorrow.`
+      : byCredits <= 0
+        ? `Not enough credits — each apply costs ${cost}. Top up to continue.`
+        : null;
+
   return NextResponse.json(
-    {
-      allowed: remaining > 0,
-      remaining,
-      cap: limits.daily_apply,
-      reason: remaining > 0 ? null : `You've reached your ${limits.daily_apply}/day limit on ${limits.label}. It resets tomorrow — upgrade for more.`,
-    },
+    { allowed: remaining > 0, remaining, cap: dailyCap, cost, balance, reason, upgrade_required: byCredits <= 0 },
     { headers: CORS_HEADERS }
   );
 }

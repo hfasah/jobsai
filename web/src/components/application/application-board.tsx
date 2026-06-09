@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { ApplicationCard } from "@/components/application/application-card";
 import { AddJobPicker } from "@/components/application/add-job-picker";
 import { CreditConfirmModal } from "@/components/credit-confirm-modal";
+import { ApplyMethodModal } from "@/components/apply-method-modal";
+import { extensionMaybeInstalled, runExtensionApply, type BridgeJob } from "@/lib/extension-bridge";
 import {
   APPLICATION_STAGES,
   STAGE_LABELS,
@@ -39,11 +41,21 @@ export function ApplicationBoard() {
   const [applyStates, setApplyStates] = useState<Record<string, JobApplyState>>({});
   const [bulkRunning, setBulkRunning] = useState(false);
 
-  // Credits
+  // Credits + apply engine
   const [balance, setBalance] = useState(0);
-  const [applyCost, setApplyCost] = useState(600);
+  const [applyCost, setApplyCost] = useState(600);     // Skyvern (server-side)
+  const [extCost, setExtCost] = useState(10);          // extension (client-side)
   const [freeApplies, setFreeApplies] = useState(0);
+  const [dailyCap, setDailyCap] = useState(20);
+  const [extInstalled, setExtInstalled] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
+  const [methodModal, setMethodModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
+
+  // Prefer the cheap client-side extension when it's installed; else Skyvern.
+  const engine: "extension" | "skyvern" = extInstalled ? "extension" : "skyvern";
+  const unitCost = engine === "extension" ? extCost : applyCost;
+
+  useEffect(() => { setExtInstalled(extensionMaybeInstalled()); }, []);
 
   const fetchApplications = useCallback(async () => {
     const res = await fetch("/api/applications");
@@ -60,6 +72,8 @@ export function ApplicationBoard() {
         setBalance(j.data.balance ?? 0);
         setFreeApplies(j.data.free_applies ?? 0);
         if (j.data.costs?.auto_apply) setApplyCost(j.data.costs.auto_apply);
+        if (j.data.costs?.extension_apply) setExtCost(j.data.costs.extension_apply);
+        if (j.data.daily_apply_cap) setDailyCap(j.data.daily_apply_cap);
       }
     } catch { /* non-fatal */ }
   }, []);
@@ -122,11 +136,13 @@ export function ApplicationBoard() {
     }
   }, [fetchTokens]);
 
-  // Open the credit-confirmation modal for a set of jobs.
+  // Extension installed → cheap client-side apply (credit confirm). Not installed
+  // → show the method popup that sells both the extension and "while you sleep".
   const requestApply = useCallback((jobIds: string[]) => {
     if (jobIds.length === 0) return;
-    setConfirmModal({ open: true, jobIds });
-  }, []);
+    if (extInstalled) setConfirmModal({ open: true, jobIds });
+    else setMethodModal({ open: true, jobIds });
+  }, [extInstalled]);
 
   // Executor — pre-flight check then apply sequentially (runs after confirm).
   const runApply = useCallback(async (ids: string[]) => {
@@ -168,12 +184,50 @@ export function ApplicationBoard() {
     setBulkRunning(false);
   }, [bulkRunning, applyOne]);
 
-  // Confirmed from the modal → deduct happens server-side per apply.
+  // Run the batch through the installed extension (cheap, client-side). Maps
+  // streamed progress to card state; charging + stage advance happen server-side
+  // via /api/extension/apply-result.
+  const runExtensionBatch = useCallback((ids: string[]) => {
+    const bridgeJobs: BridgeJob[] = ids.map((jid) => {
+      const app = applications.find((a) => a.job_id === jid);
+      return { id: jid, url: app?.job?.url ?? null, title: app?.job?.title ?? "Job", company: app?.job?.company ?? null };
+    });
+    ids.forEach((jid) => setApplyStates((p) => ({ ...p, [jid]: { status: "running" } })));
+    setBulkRunning(true);
+    runExtensionApply(bridgeJobs, {}, (e) => {
+      if (e.type === "unavailable") {
+        setBulkRunning(false);
+        runApply(ids); // extension unreachable → fall back to Skyvern
+      } else if (e.type === "progress") {
+        const st: ApplyStatus = e.status === "applied" ? "done" : e.status === "failed" ? "error" : "running";
+        setApplyStates((p) => ({ ...p, [e.jobId]: { status: st, error: st === "error" ? "Couldn't complete on this site." : undefined } }));
+        if (e.status === "applied") {
+          setApplications((prev) => prev.map((a) => (a.job_id === e.jobId ? { ...a, stage: "applied" as ApplicationStage } : a)));
+          setSelectedJobIds((prev) => { const n = new Set(prev); n.delete(e.jobId); return n; });
+        }
+      } else if (e.type === "done") {
+        setBulkRunning(false);
+        fetchTokens();
+        fetchApplications();
+      }
+    });
+  }, [applications, runApply, fetchTokens, fetchApplications]);
+
+  // Confirmed from the modal → route to the preferred engine.
   const confirmApply = useCallback(async () => {
     const ids = confirmModal.jobIds;
     setConfirmModal({ open: false, jobIds: [] });
+    if (ids.length === 0) return;
+    if (engine === "extension") runExtensionBatch(ids);
+    else await runApply(ids);
+  }, [confirmModal.jobIds, engine, runExtensionBatch, runApply]);
+
+  // Chose "apply while you sleep" from the method popup → autonomous (Skyvern).
+  const sleepApply = useCallback(async () => {
+    const ids = methodModal.jobIds;
+    setMethodModal({ open: false, jobIds: [] });
     await runApply(ids);
-  }, [confirmModal.jobIds, runApply]);
+  }, [methodModal.jobIds, runApply]);
 
   const updateApplication = useCallback(
     async (id: string, body: UpdateApplicationBody) => {
@@ -342,7 +396,7 @@ export function ApplicationBoard() {
 
             <div className="ml-auto flex items-center gap-2">
               <p className="hidden text-xs text-muted-foreground sm:block">
-                {selectedJobIds.size * applyCost} credits · balance {balance}
+                {selectedJobIds.size * unitCost} credits {engine === "extension" ? "(extension)" : "(autonomous)"} · balance {balance}
               </p>
               <button
                 onClick={() => requestApply(Array.from(selectedJobIds))}
@@ -371,13 +425,27 @@ export function ApplicationBoard() {
         open={confirmModal.open}
         onClose={() => setConfirmModal({ open: false, jobIds: [] })}
         onConfirm={confirmApply}
-        action="Auto Apply"
-        unitCost={applyCost}
+        action={engine === "extension" ? "Auto Apply (from your browser)" : "Apply while you sleep (autonomous)"}
+        unitCost={unitCost}
         quantity={confirmModal.jobIds.length}
         balance={balance}
         freeApplies={freeApplies}
         busy={bulkRunning}
-        note="Expired or already-applied jobs are skipped automatically after a quick availability check."
+        note={engine === "extension"
+          ? "Runs in your browser via the JobsAI extension. Expired/already-applied jobs are skipped."
+          : "Autonomous — we apply on our servers, no browser needed. Costs more credits per job."}
+      />
+
+      <ApplyMethodModal
+        open={methodModal.open}
+        onClose={() => setMethodModal({ open: false, jobIds: [] })}
+        onSleep={sleepApply}
+        quantity={methodModal.jobIds.length}
+        extCost={extCost}
+        sleepCost={applyCost}
+        balance={balance}
+        dailyCap={dailyCap}
+        busy={bulkRunning}
       />
     </>
   );

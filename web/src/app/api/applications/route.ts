@@ -6,10 +6,11 @@ import type { ApplicationStage } from "@/types/application";
 import { APPLICATION_STAGES } from "@/types/application";
 import { resolvePendingAgentTasks } from "@/lib/agent-apply-resolve";
 
-type ParsedRel = { title: string | null; company: string | null; location: string | null };
+type ParsedRel = { title: string | null; company: string | null; location: string | null; posting_url: string | null };
 type MatchRel = { match_score: number };
 type JobRel = {
   id: string;
+  source_url: string | null;
   parsed: ParsedRel | ParsedRel[] | null;
   match: MatchRel[] | null;
 };
@@ -27,6 +28,7 @@ function summarizeJob(job: JobRel | JobRel[] | null) {
     title: parsed?.title ?? null,
     company: parsed?.company ?? null,
     location: parsed?.location ?? null,
+    url: j.source_url ?? parsed?.posting_url ?? null,
     match_score: best?.match_score ?? null,
   };
 }
@@ -45,7 +47,7 @@ export async function GET() {
     .from("applications")
     .select(`
       *,
-      job:jobs ( id, parsed:job_parsed ( title, company, location ), match:job_matches ( match_score ) )
+      job:jobs ( id, source_url, parsed:job_parsed ( title, company, location, posting_url ), match:job_matches ( match_score ) )
     `)
     .eq("user_id", userId)
     .order("position", { ascending: true })
