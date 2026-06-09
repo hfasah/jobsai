@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2, FileText, Mail, Zap, CheckCircle2 } from "lucide-react";
+import { Building2, CalendarClock, ExternalLink, Loader2, Pencil, Trash2, FileText, Mail, Zap, CheckCircle2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Application, UpdateApplicationBody } from "@/types/application";
@@ -26,6 +26,7 @@ export function ApplicationCard({
   onSelect,
   applying = false,
   applied = false,
+  applyError,
   onApply,
 }: {
   application: Application;
@@ -38,6 +39,7 @@ export function ApplicationCard({
   onSelect?: (id: string, checked: boolean) => void;
   applying?: boolean;
   applied?: boolean;
+  applyError?: string;
   onApply?: (jobId: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -182,7 +184,7 @@ export function ApplicationCard({
         </div>
       )}
 
-      {/* Applied status badge */}
+      {/* Apply status */}
       {applied && (
         <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-desyn-success">
           <CheckCircle2 className="h-3.5 w-3.5" /> Agent submitted
@@ -191,6 +193,17 @@ export function ApplicationCard({
       {applying && (
         <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-primary">
           <Loader2 className="h-3.5 w-3.5 animate-spin" /> Applying…
+        </div>
+      )}
+      {applyError && (
+        <div className="mt-2 rounded-lg border border-destructive/30 bg-destructive/5 px-2.5 py-2">
+          <p className="flex items-start gap-1.5 text-[11px] font-medium text-destructive">
+            <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+            {applyError}
+          </p>
+          <Link href={`/dashboard/jobs/${application.job_id}`} className="mt-1 text-[11px] text-primary hover:underline">
+            Open job to fix →
+          </Link>
         </div>
       )}
 

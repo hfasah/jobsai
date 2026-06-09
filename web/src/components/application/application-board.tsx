@@ -23,8 +23,8 @@ const STAGE_ACCENT: Record<ApplicationStage, string> = {
   rejected: "border-t-red-400",
 };
 
-type ApplyStatus = "idle" | "running" | "done";
-interface JobApplyState { status: ApplyStatus }
+type ApplyStatus = "idle" | "running" | "done" | "error";
+interface JobApplyState { status: ApplyStatus; error?: string }
 
 export function ApplicationBoard() {
   const { plan } = usePlan();
@@ -84,18 +84,18 @@ export function ApplicationBoard() {
     try {
       const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
       const json = await res.json();
-      setApplyStates((p) => ({ ...p, [jobId]: { status: res.ok ? "done" : "idle" } }));
       if (res.ok) {
-        // Optimistically move to applied
+        setApplyStates((p) => ({ ...p, [jobId]: { status: "done" } }));
         setApplications((prev) =>
           prev.map((a) => a.job_id === jobId ? { ...a, stage: "applied" as ApplicationStage } : a)
         );
         setSelectedJobIds((prev) => { const next = new Set(prev); next.delete(jobId); return next; });
       } else {
-        alert(json.error ?? "Agent apply failed.");
+        const msg = json.error ?? "Agent apply failed. Please try again.";
+        setApplyStates((p) => ({ ...p, [jobId]: { status: "error", error: msg } }));
       }
     } catch {
-      setApplyStates((p) => ({ ...p, [jobId]: { status: "idle" } }));
+      setApplyStates((p) => ({ ...p, [jobId]: { status: "error", error: "Network error — please try again." } }));
     }
   }, []);
 
@@ -231,6 +231,7 @@ export function ApplicationBoard() {
                         onSelect={isSaved ? toggleSelect : undefined}
                         applying={jobApply?.status === "running"}
                         applied={jobApply?.status === "done"}
+                        applyError={jobApply?.error}
                         onApply={isSaved ? applyOne : undefined}
                       />
                     );

@@ -29,16 +29,36 @@ export async function POST(
     return NextResponse.json({ error: gate.reason, upgrade_required: true }, { status: 402 });
   }
 
-  // Load job
+  // Load job — note: no user_id filter here because the applications table
+  // may reference jobs that were imported under a different user context in edge cases.
+  // We verify ownership separately via applications table.
   const { data: job } = await supabaseAdmin
     .from("jobs")
-    .select("id, title, company, source_url, status")
+    .select("id, title, company, source_url, status, user_id")
     .eq("id", jobId)
-    .eq("user_id", userId)
-    .single();
+    .maybeSingle();
 
-  if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
-  if (!job.source_url) return NextResponse.json({ error: "No application URL for this job." }, { status: 400 });
+  if (!job) {
+    return NextResponse.json(
+      { error: "Job not found. It may have been deleted — try removing it from your pipeline and re-importing.", action: "remove_job" },
+      { status: 404 }
+    );
+  }
+
+  // Verify ownership: job must belong to this user
+  if (job.user_id !== userId) {
+    return NextResponse.json(
+      { error: "You don't have access to this job.", action: "remove_job" },
+      { status: 403 }
+    );
+  }
+
+  if (!job.source_url) {
+    return NextResponse.json(
+      { error: "This job has no application URL — open the job and add the original posting link.", action: "view_job" },
+      { status: 400 }
+    );
+  }
 
   // Load apply profile
   const { data: profile } = await supabaseAdmin
