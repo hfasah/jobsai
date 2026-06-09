@@ -64,6 +64,52 @@ function p(text: string, muted = false): string {
   return `<p style="margin:0 0 12px;color:${color};font-size:15px;line-height:1.6;">${text}</p>`;
 }
 
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+// Forward an employer's reply (captured via the application alias) to the user's
+// real inbox. Reply-To is the employer so the user can respond directly.
+export async function sendEmployerReplyCopy(
+  userId: string,
+  opts: {
+    jobTitle: string;
+    company: string;
+    fromName: string | null;
+    fromEmail: string;
+    subject: string;
+    bodyText: string;
+  }
+): Promise<void> {
+  const to = await getUserEmail(userId);
+  if (!to || !resend) return;
+
+  const sender = opts.fromName || opts.fromEmail;
+  const quoted = escapeHtml(opts.bodyText || "").slice(0, 6000).replace(/\n/g, "<br>");
+  const html = wrap(`
+    ${h2(`New reply about ${escapeHtml(opts.jobTitle)}`)}
+    ${p(`<strong>${escapeHtml(sender)}</strong> replied regarding your application at <strong>${escapeHtml(opts.company)}</strong>:`)}
+    <div style="margin:8px 0 4px;padding:14px 16px;background:#f9fafb;border:1px solid #eef0f3;border-radius:10px;color:#374151;font-size:14px;line-height:1.6;">
+      <p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">Subject: ${escapeHtml(opts.subject || "(no subject)")}</p>
+      ${quoted}
+    </div>
+    ${p(`Reply directly to this email to respond to ${escapeHtml(sender)}, or manage it in JobsAI.`, true)}
+    ${btn(`${APP_URL}/dashboard/inbox`, "Open inbox")}
+  `);
+
+  const subject = /^re:/i.test(opts.subject) ? opts.subject : `Re: ${opts.subject || "Your application"}`;
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to,
+    replyTo: opts.fromEmail,
+    subject,
+    html,
+  });
+  if (error) console.error("[email] reply forward failed:", error);
+}
+
 // ─── Email types ─────────────────────────────────────────────────────────────
 
 export async function sendApplySubmitted(

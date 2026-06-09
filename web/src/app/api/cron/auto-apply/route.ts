@@ -7,6 +7,7 @@ import { loadJobContext, isContextError } from "@/lib/job-context";
 import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
+import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import type { UserPreferences } from "@/types/preferences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
@@ -251,13 +252,16 @@ export async function GET(req: NextRequest) {
                   .limit(1)
                   .maybeSingle();
 
+                const applicantEmail = inboundEmailEnabled()
+                  ? await getOrCreateAlias(userId, jobId)
+                  : profile.email;
                 const task = await createSkyvernTask({
                   url: cronUrl,
                   webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
                   navigationPayload: {
                     first_name: profile.first_name,
                     last_name: profile.last_name ?? null,
-                    email: profile.email,
+                    email: applicantEmail,
                     phone: profile.phone ?? null,
                     city: profile.city ?? null,
                     country: profile.country ?? null,

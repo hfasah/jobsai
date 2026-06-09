@@ -3,6 +3,7 @@ import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
+import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { checkAutoApplyGate } from "@/lib/billing";
 import { checkJobAvailability, expiredMessage } from "@/lib/job-availability";
 import { createNotification } from "@/lib/notifications";
@@ -136,11 +137,18 @@ export async function POST(
     .limit(1)
     .maybeSingle();
 
+  // Apply with a per-application JobsAI alias so employer replies come back to
+  // the platform (forwarded to the user + shown in their JobsAI inbox). Falls
+  // back to the user's real email until inbound receiving is configured.
+  const applicantEmail = inboundEmailEnabled()
+    ? await getOrCreateAlias(userId, jobId)
+    : profile.email;
+
   // Build Skyvern task
   const navigationPayload: Record<string, string | null> = {
     first_name: profile.first_name,
     last_name: profile.last_name ?? null,
-    email: profile.email,
+    email: applicantEmail,
     phone: profile.phone ?? null,
     city: profile.city ?? null,
     country: profile.country ?? null,

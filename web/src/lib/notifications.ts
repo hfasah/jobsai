@@ -11,7 +11,8 @@ export type NotificationType =
   | "auto_replied"
   | "agent_apply_started"
   | "agent_apply_done"
-  | "agent_apply_failed";
+  | "agent_apply_failed"
+  | "employer_reply";
 
 // Fire-and-forget — never throws, never blocks the caller
 export async function createNotification(

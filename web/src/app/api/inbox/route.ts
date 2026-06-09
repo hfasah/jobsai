@@ -22,9 +22,12 @@ export async function GET() {
 
   const unread = (messages ?? []).filter((m) => !m.is_read && m.direction === "inbound").length;
 
+  // The platform collects employer replies via per-application aliases, so the
+  // inbox is active even without a connected Gmail account — show it once any
+  // reply has landed (or a mailbox is connected).
   return NextResponse.json({
     data: {
-      connected: !!acct,
+      connected: !!acct || (messages?.length ?? 0) > 0,
       email: acct?.email ?? null,
       lastSynced: acct?.last_synced_at ?? null,
       messages: messages ?? [],
