@@ -162,13 +162,15 @@ function EnterpriseCard() {
             </ul>
 
             <a
-              href="mailto:enterprise@jobsai.co"
+              href="https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F"
+              target="_blank"
+              rel="noopener noreferrer"
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90"
             >
-              Talk to sales
+              Book A Demo
             </a>
             <p className="w-full text-center text-xs text-muted-foreground">
-              Usually responds within one business day
+              Pick a time that works for you
             </p>
           </div>
         </div>
