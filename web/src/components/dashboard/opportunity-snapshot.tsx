@@ -142,7 +142,7 @@ export function OpportunitySnapshot({
           <span className="font-semibold uppercase text-muted-foreground">Quality:</span>
           {[
             {
-              label: "Excellent",
+              label: "Excellent Fit",
               color: "bg-emerald-500",
               percent:
                 Math.round(
@@ -150,7 +150,7 @@ export function OpportunitySnapshot({
                 ) || 0,
             },
             {
-              label: "Good",
+              label: "Good Fit",
               color: "bg-blue-500",
               percent:
                 Math.round(
@@ -158,7 +158,7 @@ export function OpportunitySnapshot({
                 ) || 0,
             },
             {
-              label: "Potential",
+              label: "Potential Fit",
               color: "bg-purple-500",
               percent:
                 Math.round(
@@ -166,15 +166,15 @@ export function OpportunitySnapshot({
                 ) || 0,
             },
           ].map((item) => (
-            <div key={item.label} className="flex items-center gap-1">
+            <div key={item.label} className="flex-1 flex items-center gap-2">
               <div
-                className={cn("h-1.5 rounded-full", item.color)}
-                style={{ width: `${Math.max(20, item.percent)}px` }}
+                className={cn("h-2 rounded-full transition-all", item.color)}
+                style={{ width: `${Math.max(40, item.percent * 3)}px` }}
               />
-              <span className="font-medium whitespace-nowrap text-foreground">
+              <span className="font-medium whitespace-nowrap text-foreground text-xs">
                 {item.label}
               </span>
-              <span className="text-muted-foreground">{item.percent}%</span>
+              <span className="text-muted-foreground text-xs">{item.percent}%</span>
             </div>
           ))}
         </div>
