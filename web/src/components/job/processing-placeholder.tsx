@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Zap } from "lucide-react";
+import { Loader2, Clock } from "lucide-react";
 
 export function ProcessingPlaceholder() {
   const [progress, setProgress] = useState(15);
+  const [timeLeft, setTimeLeft] = useState(90); // 1.5 minutes in seconds
 
   // Animate progress bar with random jumps to simulate activity
   useEffect(() => {
@@ -18,13 +19,33 @@ export function ProcessingPlaceholder() {
     return () => clearInterval(interval);
   }, []);
 
+  // Countdown timer
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTimeLeft((t) => Math.max(0, t - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+  };
+
   return (
     <div className="space-y-2">
-      <div className="flex items-center gap-2">
-        <Loader2 className="h-4 w-4 animate-spin text-primary" />
-        <span className="text-sm font-medium text-foreground">
-          Our AI is analyzing this job
-        </span>
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
+          <span className="text-sm font-medium text-foreground">
+            Our AI is analyzing this job
+          </span>
+        </div>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Clock className="h-3.5 w-3.5" />
+          ~{formatTime(timeLeft)}
+        </div>
       </div>
       <p className="text-xs text-muted-foreground">
         Extracting skills, requirements, and matching with your profile…
