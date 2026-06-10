@@ -34,13 +34,20 @@ export default function ResumesPage() {
   const [showUpload, setShowUpload] = useState(false);
   const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [versionsPanelDoc, setVersionsPanelDoc] = useState<ResumeDocument | null>(null);
+  const [userPlan, setUserPlan] = useState<string>("free");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fetchDocs = useCallback(async () => {
     try {
-      const res = await fetch("/api/resumes");
-      const json = await res.json();
-      if (json.data) setDocs(json.data);
+      const [resRes, billingRes] = await Promise.all([
+        fetch("/api/resumes"),
+        fetch("/api/billing"),
+      ]);
+      const resJson = await resRes.json();
+      if (resJson.data) setDocs(resJson.data);
+
+      const billingJson = await billingRes.json();
+      if (billingJson.data?.plan) setUserPlan(billingJson.data.plan);
     } finally {
       setLoading(false);
     }
@@ -365,8 +372,31 @@ export default function ResumesPage() {
               </Button>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {docs.map((doc) => (
+            <>
+              {/* Upsell banner for free users at limit */}
+              {userPlan === "free" && docs.length >= 1 && (
+                <div className="rounded-xl border border-primary/30 bg-gradient-to-r from-primary/10 to-primary/5 p-4 flex items-start gap-3">
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">Want multiple resumes?</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      Create tailored versions for different roles (e.g., "DevOps Engineer", "Full Stack Dev"). Pro plans include 5 resumes, plus token top-ups for even more.
+                    </p>
+                    <div className="mt-3 flex gap-2">
+                      <Button size="sm" onClick={() => setShowUpgrade("You've reached the resume limit on the Free plan. Upgrade to Pro for 5 resumes.")}>
+                        Upgrade Plan
+                      </Button>
+                      <Button size="sm" variant="outline" onClick={() => setShowUpgrade("Top up credits to add more resumes")}>
+                        Top up Credits
+                      </Button>
+                    </div>
+                  </div>
+                  <button className="shrink-0 text-muted-foreground hover:text-foreground" onClick={() => {/* dismiss */}}>
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+              <div className="grid gap-3 sm:grid-cols-2">
+                {docs.map((doc) => (
                 <ResumeCard
                   key={doc.id}
                   doc={doc}
@@ -384,7 +414,8 @@ export default function ResumesPage() {
                   }}
                 />
               ))}
-            </div>
+              </div>
+            </>
           )}
         </div>
       </main>

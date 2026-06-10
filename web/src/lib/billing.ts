@@ -23,7 +23,7 @@ export const PLAN_LIMITS = {
     label: "Free",
   },
   pro: {
-    max_resumes: Infinity,
+    max_resumes: 5,
     max_jobs_per_month: Infinity,
     auto_apply: true,
     daily_apply: 20,
@@ -34,7 +34,7 @@ export const PLAN_LIMITS = {
     label: "Pro",
   },
   premium: {
-    max_resumes: Infinity,
+    max_resumes: 5,
     max_jobs_per_month: Infinity,
     auto_apply: true,
     daily_apply: 100,
@@ -45,7 +45,7 @@ export const PLAN_LIMITS = {
     label: "Premium",
   },
   accelerator: {
-    max_resumes: Infinity,
+    max_resumes: 5,
     max_jobs_per_month: Infinity,
     auto_apply: true,
     daily_apply: 250,
@@ -179,14 +179,17 @@ interface GateResult {
 
 export async function checkResumeGate(userId: string): Promise<GateResult> {
   const plan = await getUserPlan(userId);
-  if (plan !== "free") return { allowed: true };
+  const limit = PLAN_LIMITS[plan]?.max_resumes ?? 1;
 
   const count = await getResumeCount(userId);
-  if (count >= PLAN_LIMITS.free.max_resumes) {
+  if (count >= limit) {
+    const isPaid = plan !== "free";
     return {
       allowed: false,
       upgrade_required: true,
-      reason: `Free plan includes ${PLAN_LIMITS.free.max_resumes} resume. Upgrade to Pro for unlimited resumes.`,
+      reason: isPaid
+        ? `You've reached the ${limit} resume limit on your ${plan} plan. Upgrade your plan or top up credits to add more resumes.`
+        : `Free plan includes 1 resume. Upgrade to a paid plan for 5 resumes, or top up credits to add more.`,
     };
   }
   return { allowed: true };
