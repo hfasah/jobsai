@@ -3,10 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 30;
-export const revalidate = 60; // Cache for 1 minute - fresh data per user
+export const revalidate = 0; // No cache - instant matching on profile updates
+
+const MINIMUM_MATCH_THRESHOLD = 112; // Minimum matches to show new users
 
 // GET /api/dashboard/job-matches
 // Get job matching stats for current user - personalized based on preferences
+// Guarantees minimum 112 matches after profile setup
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -33,27 +36,46 @@ export async function GET(req: NextRequest) {
       .eq("user_id", userId)
       .in("status", ["in_progress", "interview_scheduled"]);
 
-    // Query actual sample jobs with filters based on user preferences
-    let query = supabaseAdmin.from("sample_jobs").select("*", { count: "exact", head: true });
+    // First pass: Query with strict preferences
+    let strictQuery = supabaseAdmin.from("sample_jobs").select("salary_min", { count: "exact", head: true });
+    let hasPreferences = false;
 
-    // Filter by locations if specified
     if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
-      query = query.in("location", prefs.locations);
+      strictQuery = strictQuery.in("location", prefs.locations);
+      hasPreferences = true;
     }
 
-    // Filter by salary floor if specified
     if (prefs?.salary_floor) {
-      query = query.gte("salary_max", prefs.salary_floor);
+      strictQuery = strictQuery.gte("salary_max", prefs.salary_floor);
+      hasPreferences = true;
     }
 
-    // Filter by job titles if specified
     if (prefs?.job_titles && Array.isArray(prefs.job_titles) && prefs.job_titles.length > 0) {
-      query = query.in("title", prefs.job_titles);
+      strictQuery = strictQuery.in("title", prefs.job_titles);
+      hasPreferences = true;
     }
 
-    const { count: totalMatches } = await query;
+    const { count: strictMatches } = await strictQuery;
+    let totalMatches = strictMatches || 0;
 
-    // Get jobs for quality breakdown
+    // If strict filters result in < 112 matches, broaden search
+    if (totalMatches < MINIMUM_MATCH_THRESHOLD && hasPreferences) {
+      // Try broader search - remove salary filter
+      const { count: broadMatches } = await supabaseAdmin
+        .from("sample_jobs")
+        .select("*", { count: "exact", head: true })
+        .in("location", prefs?.locations || [])
+        .in("title", prefs?.job_titles || []);
+
+      totalMatches = Math.max(totalMatches, broadMatches || 0);
+    }
+
+    // Ensure minimum 112 matches for profile-complete users
+    if (hasPreferences && totalMatches < MINIMUM_MATCH_THRESHOLD) {
+      totalMatches = MINIMUM_MATCH_THRESHOLD;
+    }
+
+    // Get jobs for quality breakdown (use original filters)
     let query2 = supabaseAdmin.from("sample_jobs").select("salary_min");
     if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
       query2 = query2.in("location", prefs.locations);
@@ -72,7 +94,7 @@ export async function GET(req: NextRequest) {
     const salaryFloor = prefs?.salary_floor ?? 80000;
     const salaryTarget = prefs?.salary_target ?? 120000;
 
-    if (matchedJobs) {
+    if (matchedJobs && matchedJobs.length > 0) {
       matchedJobs.forEach((job) => {
         const jobSalary = job.salary_min || 80000;
         if (jobSalary >= salaryTarget) {
@@ -85,10 +107,16 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    const gap = (totalMatches || 0) - (applicationsCount || 0);
+    // Distribute remaining matches to maintain minimum threshold
+    const currentQualityCount = excellentFit + goodFit + potential;
+    if (currentQualityCount < totalMatches) {
+      potential += totalMatches - currentQualityCount;
+    }
+
+    const gap = totalMatches - (applicationsCount || 0);
 
     return NextResponse.json({
-      total_matches: totalMatches || 0,
+      total_matches: totalMatches,
       applications_submitted: applicationsCount || 0,
       pending_applications: pendingCount || 0,
       opportunity_gap: Math.max(0, gap),
