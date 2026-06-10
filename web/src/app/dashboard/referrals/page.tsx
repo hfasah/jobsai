@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Copy, Check, Users, TrendingUp, Gift, Share2 } from "lucide-react";
+import { Copy, Check, Users, TrendingUp, Gift, Share2, Medal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -12,10 +12,23 @@ interface ReferralStats {
   total_tokens_earned: number;
 }
 
+interface LeaderboardEntry {
+  rank: number;
+  user_id: string;
+  email: string;
+  total_referrals: number;
+  converted_referrals: number;
+  total_tokens: number;
+  conversion_rate: number;
+}
+
 export default function ReferralsPage() {
   const [stats, setStats] = useState<ReferralStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [leaderboardPeriod, setLeaderboardPeriod] = useState<"month" | "all-time">("month");
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -34,6 +47,25 @@ export default function ReferralsPage() {
 
     fetchStats();
   }, []);
+
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      setLeaderboardLoading(true);
+      try {
+        const res = await fetch(`/api/referrals/leaderboard?period=${leaderboardPeriod}`);
+        if (res.ok) {
+          const data = await res.json();
+          setLeaderboard(data.leaderboard);
+        }
+      } catch (err) {
+        console.error("Failed to fetch leaderboard:", err);
+      } finally {
+        setLeaderboardLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+  }, [leaderboardPeriod]);
 
   const handleCopyLink = () => {
     if (stats?.referral_code) {
@@ -204,6 +236,130 @@ export default function ReferralsPage() {
         <p className="text-xs text-muted-foreground mt-4">
           💡 Rewards are only awarded when someone buys a paid plan (Pro, Premium, or Career Accelerator).
         </p>
+      </div>
+
+      {/* Leaderboard */}
+      <div className="rounded-lg border border-border bg-card p-6 mb-8">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Medal className="h-5 w-5 text-primary" />
+            <h3 className="text-lg font-semibold">Top Referrers</h3>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setLeaderboardPeriod("month")}
+              className={cn(
+                "px-3 py-1 rounded-lg text-sm font-medium transition-colors",
+                leaderboardPeriod === "month"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              This Month
+            </button>
+            <button
+              onClick={() => setLeaderboardPeriod("all-time")}
+              className={cn(
+                "px-3 py-1 rounded-lg text-sm font-medium transition-colors",
+                leaderboardPeriod === "all-time"
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              All Time
+            </button>
+          </div>
+        </div>
+
+        {leaderboardLoading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            Loading leaderboard...
+          </div>
+        ) : leaderboard.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            No referrals yet. Be the first!
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase text-muted-foreground">
+                    Rank
+                  </th>
+                  <th className="text-left py-3 px-4 text-xs font-semibold uppercase text-muted-foreground">
+                    Referrer
+                  </th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold uppercase text-muted-foreground">
+                    Referrals
+                  </th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold uppercase text-muted-foreground">
+                    Converted
+                  </th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold uppercase text-muted-foreground">
+                    Rate
+                  </th>
+                  <th className="text-right py-3 px-4 text-xs font-semibold uppercase text-muted-foreground">
+                    Tokens
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {leaderboard.map((entry) => {
+                  const isMedal = entry.rank <= 3;
+                  const medalEmoji =
+                    entry.rank === 1
+                      ? "🥇"
+                      : entry.rank === 2
+                      ? "🥈"
+                      : "🥉";
+
+                  return (
+                    <tr
+                      key={entry.user_id}
+                      className="border-b border-border/50 hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="py-3 px-4">
+                        {isMedal ? (
+                          <span className="text-lg">{medalEmoji}</span>
+                        ) : (
+                          <span className="text-sm font-medium text-muted-foreground">
+                            #{entry.rank}
+                          </span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium">{entry.email}</span>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-sm font-medium">
+                          {entry.total_referrals}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-sm font-medium text-emerald-600">
+                          {entry.converted_referrals}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-sm text-muted-foreground">
+                          {entry.conversion_rate}%
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <span className="text-sm font-semibold text-primary">
+                          {entry.total_tokens.toLocaleString()}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Share CTA */}
