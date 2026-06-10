@@ -195,9 +195,12 @@ export function OpportunitySnapshot() {
       </div>
 
       {/* Footer Catchphrase */}
-      <div className="text-center">
-        <p className="text-xs text-muted-foreground leading-relaxed">
-          💡 Our AI keeps scanning multiple sources and will update this page as soon as matches are found.
+      <div className="text-center space-y-2">
+        <p className="text-sm font-medium text-foreground">
+          🤖 Your AI Job Hunter Never Stops
+        </p>
+        <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl mx-auto">
+          While you sleep, our AI scans 1000+ job sources across the web 24/7, continuously finding roles that match your profile. New matches are added hourly. Check back often — fresh opportunities are always arriving.
         </p>
       </div>
     </div>
