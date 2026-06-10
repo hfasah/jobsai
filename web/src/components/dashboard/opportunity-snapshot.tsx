@@ -2,9 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { TrendingUp, Zap, ArrowRight, Loader2 } from "lucide-react";
+import { TrendingUp, Zap, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SetupGateModal } from "./setup-gate-modal";
+import { Journey, type JourneyStep } from "./journey";
+import { SectionBadge } from "@/components/ui/section-badge";
 import { cn } from "@/lib/utils";
 
 interface JobMatches {
@@ -24,12 +26,14 @@ interface OpportunitySnapshotProps {
   hasResume?: boolean;
   hasJobPreferences?: boolean;
   hasApplyProfile?: boolean;
+  journeySteps?: JourneyStep[];
 }
 
 export function OpportunitySnapshot({
   hasResume = false,
   hasJobPreferences = false,
   hasApplyProfile = false,
+  journeySteps = [],
 }: OpportunitySnapshotProps) {
   const [data, setData] = useState<JobMatches | null>(null);
   const [loading, setLoading] = useState(true);
@@ -128,6 +132,17 @@ export function OpportunitySnapshot({
           <p className="text-2xl font-bold text-blue-600">{data.pending_applications}</p>
         </div>
       </div>
+
+      {/* Line 2: Journey */}
+      {journeySteps.length > 0 && (
+        <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
+          <div>
+            <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
+            <p className="mt-0.5 text-xs text-muted-foreground">Practice like it&apos;s the real thing — each level gets you closer.</p>
+          </div>
+          <Journey steps={journeySteps} />
+        </div>
+      )}
 
       {/* Match Breakdown — Horizontal Bars */}
       <div className="rounded-lg border border-border bg-card p-3">
