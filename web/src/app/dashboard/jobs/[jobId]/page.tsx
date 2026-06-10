@@ -35,6 +35,7 @@ export default function JobDetailPage({
   const [applyState, setApplyState] = useState<ApplyState>("idle");
   const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
   const [copiedCover, setCopiedCover] = useState(false);
   const [tabOverride, setTabOverride] = useState<TabKey | undefined>(undefined);
@@ -65,11 +66,12 @@ export default function JobDetailPage({
 
   const rematch = async () => {
     setRematching(true);
+    setError(null);
     try {
       const res = await fetch(`/api/jobs/${jobId}/match`, { method: "POST" });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        alert(json.error ?? "Re-match failed.");
+        setError(json.error ?? "Re-match failed.");
         return;
       }
       await fetchJob();
@@ -205,6 +207,23 @@ export default function JobDetailPage({
           <ArrowLeft className="h-4 w-4" />
           All jobs
         </Link>
+
+        {error && (
+          <div className="mt-4 flex items-start gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 p-3">
+            <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+            <div className="flex-1">
+              <p className="text-sm text-amber-800 dark:text-amber-200">{error}</p>
+              {error.includes("still being analyzed") && (
+                <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                  Try again in a few moments, or check your resumes to make sure one is marked as primary.
+                </p>
+              )}
+            </div>
+            <button onClick={() => setError(null)} className="text-amber-600 hover:text-amber-700">
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="mt-4 flex items-start justify-between gap-4">

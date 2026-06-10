@@ -91,7 +91,10 @@ export async function POST(_req: NextRequest) {
   } | null;
 
   if (!resumeParsed) {
-    return NextResponse.json({ error: "Resume has no parsed data." }, { status: 409 });
+    return NextResponse.json({
+      error: "Your resume is still being analyzed. Please wait a moment and try again.",
+      reason: "resume_not_ready",
+    }, { status: 409 });
   }
 
   // Load all jobs for this user (last 100)

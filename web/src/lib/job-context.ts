@@ -169,7 +169,10 @@ export async function loadResumeProfile(
     .maybeSingle();
 
   if (!profile?.parsed_json) {
-    return { error: "Primary resume has no parsed data.", status: 409 };
+    return {
+      error: "Your resume is still being analyzed. Please wait a moment and try again.",
+      status: 409,
+    };
   }
 
   const { data: textRow } = await supabaseAdmin

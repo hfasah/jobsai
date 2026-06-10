@@ -71,7 +71,10 @@ export async function POST(
     .maybeSingle();
 
   if (!profile?.parsed_json) {
-    return NextResponse.json({ error: "Resume has no parsed data." }, { status: 409 });
+    return NextResponse.json({
+      error: "Your resume is still being analyzed. Please wait a moment and try again.",
+      reason: "resume_not_ready",
+    }, { status: 409 });
   }
 
   const score = await scoreMatch(profile.parsed_json as ParsedJson, jobJson);
