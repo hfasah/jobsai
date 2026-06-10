@@ -19,6 +19,10 @@ export function OnboardingChecklist({
   const [isOpen, setIsOpen] = useState(true);
   const [dismissed, setDismissed] = useState(false);
 
+  const completed = [hasResume, hasJobPreferences, hasApplyProfile].filter(Boolean).length;
+  const total = 3;
+  const allComplete = completed === total;
+
   useEffect(() => {
     // Only check localStorage if they've completed all 3 steps
     if (allComplete) {
@@ -41,10 +45,6 @@ export function OnboardingChecklist({
   };
 
   if (!isOpen || dismissed) return null;
-
-  const completed = [hasResume, hasJobPreferences, hasApplyProfile].filter(Boolean).length;
-  const total = 3;
-  const allComplete = completed === total;
 
   const items = [
     {
