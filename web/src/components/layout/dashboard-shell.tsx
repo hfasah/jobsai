@@ -81,6 +81,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "nav.analytics", href: "/dashboard/analytics", icon: BarChart3 },
       { label: "nav.salaries",  href: "/dashboard/salaries",  icon: LineChart },
+      { label: "Referrals",     href: "/dashboard/referrals", icon: Coins },
     ],
   },
 ];
