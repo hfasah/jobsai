@@ -12,6 +12,8 @@ import { cn } from "@/lib/utils";
 import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
 import { boardForUrl } from "@/lib/job-boards";
 import { CreditConfirmModal } from "@/components/credit-confirm-modal";
+import { ApplyMethodModal } from "@/components/apply-method-modal";
+import { extensionMaybeInstalled } from "@/lib/extension-bridge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,11 +282,15 @@ export default function JobsPage() {
   const [agentStates, setAgentStates] = useState<Record<string, "running" | "done" | "error">>({});
   const [agentBulkRunning, setAgentBulkRunning] = useState(false);
 
-  // Credits
+  // Credits + apply engine
   const [balance, setBalance] = useState(0);
-  const [applyCost, setApplyCost] = useState(600);
+  const [applyCost, setApplyCost] = useState(600);      // Skyvern (server-side)
+  const [extCost, setExtCost] = useState(10);           // extension (client-side)
   const [freeApplies, setFreeApplies] = useState(0);
+  const [dailyCap, setDailyCap] = useState(20);
+  const [extInstalled, setExtInstalled] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
+  const [methodModal, setMethodModal] = useState<{ open: boolean; jobIds: string[] }>({ open: false, jobIds: [] });
 
   const fetchTokens = useCallback(async () => {
     try {
@@ -294,6 +300,8 @@ export default function JobsPage() {
         setBalance(j.data.balance ?? 0);
         setFreeApplies(j.data.free_applies ?? 0);
         if (j.data.costs?.auto_apply) setApplyCost(j.data.costs.auto_apply);
+        if (j.data.costs?.extension_apply) setExtCost(j.data.costs.extension_apply);
+        if (j.data.daily_apply_cap) setDailyCap(j.data.daily_apply_cap);
       }
     } catch { /* non-fatal */ }
   }, []);
@@ -318,12 +326,14 @@ export default function JobsPage() {
     }
   }, [fetchTokens]);
 
-  // Open the credit-confirmation modal for one or many jobs.
+  // Two-tier apply: show method modal if extension not installed, else credit confirm.
   const requestAgentApply = useCallback((jobIds: string[]) => {
     if (jobIds.length === 0) return;
-    setConfirmModal({ open: true, jobIds });
-  }, []);
+    if (extInstalled) setConfirmModal({ open: true, jobIds });
+    else setMethodModal({ open: true, jobIds });
+  }, [extInstalled]);
 
+  // Confirmed from credit-confirm modal → run Skyvern apply.
   const confirmAgentApply = useCallback(async () => {
     const ids = confirmModal.jobIds;
     setConfirmModal({ open: false, jobIds: [] });
@@ -334,6 +344,18 @@ export default function JobsPage() {
     }
     setAgentBulkRunning(false);
   }, [confirmModal.jobIds, agentApplyOne]);
+
+  // Chose "apply while you sleep" from method modal → autonomous (Skyvern).
+  const sleepApply = useCallback(async () => {
+    const ids = methodModal.jobIds;
+    setMethodModal({ open: false, jobIds: [] });
+    if (ids.length === 0) return;
+    setAgentBulkRunning(true);
+    for (const id of ids) {
+      await agentApplyOne(id);
+    }
+    setAgentBulkRunning(false);
+  }, [methodModal.jobIds, agentApplyOne]);
 
   const fetchJobs = useCallback(async () => {
     const res = await fetch("/api/jobs");
@@ -347,6 +369,10 @@ export default function JobsPage() {
     const interval = setInterval(fetchJobs, 4000);
     return () => clearInterval(interval);
   }, [fetchJobs]);
+
+  useEffect(() => {
+    setExtInstalled(extensionMaybeInstalled());
+  }, []);
 
   const filteredJobs = useMemo(() => {
     const result = jobs.filter((job) => {
@@ -642,6 +668,18 @@ export default function JobsPage() {
         freeApplies={freeApplies}
         busy={agentBulkRunning}
         note="Expired or already-applied jobs are skipped automatically after a quick availability check."
+      />
+
+      <ApplyMethodModal
+        open={methodModal.open}
+        onClose={() => setMethodModal({ open: false, jobIds: [] })}
+        onSleep={sleepApply}
+        quantity={methodModal.jobIds.length}
+        extCost={extCost}
+        sleepCost={applyCost}
+        balance={balance}
+        dailyCap={dailyCap}
+        busy={agentBulkRunning}
       />
     </>
   );
