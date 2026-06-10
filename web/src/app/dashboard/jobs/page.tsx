@@ -13,6 +13,7 @@ import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
 import { boardForUrl } from "@/lib/job-boards";
 import { CreditConfirmModal } from "@/components/credit-confirm-modal";
 import { ApplyMethodModal } from "@/components/apply-method-modal";
+import { ProcessingPlaceholder } from "@/components/job/processing-placeholder";
 import { extensionMaybeInstalled } from "@/lib/extension-bridge";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -568,9 +569,13 @@ export default function JobsPage() {
                         <Briefcase className="h-4.5 w-4.5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="truncate text-sm font-medium">
-                          {parsed?.title ?? (processing ? "Parsing…" : "Untitled role")}
-                        </p>
+                        {processing ? (
+                          <ProcessingPlaceholder />
+                        ) : (
+                          <p className="truncate text-sm font-medium">
+                            {parsed?.title ?? "Untitled role"}
+                          </p>
+                        )}
                         <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
                           {parsed?.company && <span>{parsed.company}</span>}
                           {parsed?.location && (

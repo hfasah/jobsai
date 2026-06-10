@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { MatchDetail } from "@/components/job/match-score";
 import { ResumeUsedBadge } from "@/components/job/resume-used-badge";
 import { JobTabs } from "@/components/job/job-tabs";
+import { ProcessingPlaceholder } from "@/components/job/processing-placeholder";
 import type { TabKey } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
 import { boardForUrl } from "@/lib/job-boards";
@@ -228,9 +229,13 @@ export default function JobDetailPage({
         {/* Header */}
         <div className="mt-4 flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-2xl font-bold tracking-tight">
-              {parsed?.title ?? (processing ? "Parsing job…" : "Untitled role")}
-            </h1>
+            {processing ? (
+              <ProcessingPlaceholder />
+            ) : (
+              <h1 className="text-2xl font-bold tracking-tight">
+                {parsed?.title ?? "Untitled role"}
+              </h1>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
               {parsed?.company && (
                 <span className="flex items-center gap-1"><Building2 className="h-4 w-4" />{parsed.company}</span>
