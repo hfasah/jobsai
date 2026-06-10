@@ -3,18 +3,17 @@ import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
-
-export const maxDuration = 60; // seconds — extend for OpenAI parsing
-
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { checkResumeGate } from "@/lib/billing";
+
+export const maxDuration = 30;
 
 const ALLOWED_TYPES = [
   "application/pdf",
   "application/msword",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
-const MAX_SIZE_BYTES = 20 * 1024 * 1024; // 20 MB
+const MAX_SIZE_BYTES = 20 * 1024 * 1024;
 
 // GET /api/resumes — list all resume documents for the current user
 export async function GET() {
@@ -47,7 +46,6 @@ export async function POST(req: NextRequest) {
   const roleBlock = await blockNonJobSeeker(userId); if (roleBlock) return roleBlock;
 
   // Only gate new document groups, not additional versions of existing resumes
-  // We check the gate here; if they pass resume_group_id it's a new version → skip
   const contentTypeCheck = req.headers.get("content-type") ?? "";
   if (contentTypeCheck.includes("multipart/form-data")) {
     const clonedReq = req.clone();
@@ -78,136 +76,118 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
   if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
-      { error: "Unsupported file type. Use PDF, DOC, or DOCX." },
-      { status: 415 }
+      { error: "Only PDF, DOC, and DOCX files are supported." },
+      { status: 400 }
     );
   }
   if (file.size > MAX_SIZE_BYTES) {
-    return NextResponse.json({ error: "File exceeds 20 MB limit." }, { status: 413 });
+    return NextResponse.json(
+      { error: "File is too large (max 20 MB)." },
+      { status: 400 }
+    );
   }
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const checksum = createHash("sha256").update(buffer).digest("hex");
-  const ext = file.name.split(".").pop()?.toLowerCase() ?? "pdf";
 
-  // Resolve or create the document group
-  let documentId: string;
-
+  // ── Get or create resume document ──────────────────────────────────────────────
+  let groupId: string;
   if (resumeGroupId) {
-    // Verify ownership
-    const { data: doc, error } = await supabaseAdmin
+    groupId = resumeGroupId;
+  } else {
+    groupId = uuidv4();
+    const { error: insertError } = await supabaseAdmin
       .from("resume_documents")
-      .select("id")
-      .eq("id", resumeGroupId)
-      .eq("user_id", userId)
-      .single();
-
-    if (error || !doc) {
-      return NextResponse.json({ error: "Resume document not found." }, { status: 404 });
-    }
-
-    // Duplicate detection within group
-    const { data: dupe } = await supabaseAdmin
-      .from("resume_versions")
-      .select("id")
-      .eq("document_id", resumeGroupId)
-      .eq("checksum_sha256", checksum)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (dupe) {
+      .insert({
+        id: groupId,
+        user_id: userId,
+        label: label.trim(),
+        is_primary: false,
+        is_archived: false,
+      });
+    if (insertError) {
       return NextResponse.json(
-        { error: "Identical file already exists.", existing_id: dupe.id },
-        { status: 409 }
+        { error: "Failed to create resume." },
+        { status: 500 }
       );
     }
-
-    documentId = resumeGroupId;
-  } else {
-    // Create new document group
-    const { data: newDoc, error } = await supabaseAdmin
-      .from("resume_documents")
-      .insert({ user_id: userId, label })
-      .select("id")
-      .single();
-
-    if (error || !newDoc) {
-      return NextResponse.json({ error: "Failed to create resume document." }, { status: 500 });
-    }
-    documentId = newDoc.id;
   }
 
-  // Get next version number
-  const { count } = await supabaseAdmin
-    .from("resume_versions")
-    .select("id", { count: "exact", head: true })
-    .eq("document_id", documentId)
-    .is("deleted_at", null);
+  // ── Upload file to storage ─────────────────────────────────────────────────────
+  const fileHash = createHash("sha256").update(buffer).digest("hex");
+  const fileExt = file.name.split(".").pop()?.toLowerCase() || "pdf";
+  const storagePath = `resumes/${userId}/${groupId}/${fileHash}.${fileExt}`;
 
-  const versionNumber = (count ?? 0) + 1;
-
-  // Upload file to Supabase Storage
-  const storageKey = `${userId}/${documentId}/${uuidv4()}.${ext}`;
-  const { error: storageError } = await supabaseAdmin.storage
+  const { error: uploadError } = await supabaseAdmin.storage
     .from(STORAGE_BUCKET)
-    .upload(storageKey, buffer, { contentType: file.type, upsert: false });
+    .upload(storagePath, buffer, { upsert: true });
 
-  if (storageError) {
-    return NextResponse.json({ error: "File upload failed." }, { status: 500 });
+  if (uploadError) {
+    return NextResponse.json(
+      { error: "Failed to upload file." },
+      { status: 500 }
+    );
   }
 
-  // Create version record
-  const { data: version, error: versionError } = await supabaseAdmin
+  // ── Create resume version ──────────────────────────────────────────────────────
+  const versionId = uuidv4();
+  const { error: versionError } = await supabaseAdmin
     .from("resume_versions")
     .insert({
-      document_id: documentId,
-      version_number: versionNumber,
-      storage_key: storageKey,
+      id: versionId,
+      document_id: groupId,
+      version_number: 1,
       file_name: file.name,
-      file_ext: ext,
-      file_mime: file.type,
+      file_ext: fileExt,
       file_size_bytes: file.size,
-      checksum_sha256: checksum,
-      upload_status: "uploaded",
-      parse_status: "pending",
-    })
-    .select("id")
-    .single();
+      file_mime: file.type,
+      storage_key: storagePath,
+      parse_status: "partial", // Mark as ready immediately
+      uploaded_at: new Date().toISOString(),
+    });
 
-  if (versionError || !version) {
-    return NextResponse.json({ error: "Failed to create version record." }, { status: 500 });
+  if (versionError) {
+    return NextResponse.json(
+      { error: "Failed to save resume version." },
+      { status: 500 }
+    );
   }
 
-  // Set as active version on the document
+  // ── Create minimal parsed profile so user can proceed ─────────────────────────
+  await supabaseAdmin.from("resume_parsed_profile").upsert({
+    version_id: versionId,
+    parsed_json: {
+      name: null,
+      email: null,
+      phone: null,
+      location: null,
+      headline: null,
+      summary: null,
+      links: {},
+      years_experience: null,
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      languages: [],
+      confidence: { contact: 0, experience: 0, education: 0, skills: 0 },
+      warnings: ["Resume uploaded. You can now add skills and experience to improve matches."],
+    },
+  });
+
+  // ── Set as active version ──────────────────────────────────────────────────────
   await supabaseAdmin
     .from("resume_documents")
-    .update({ active_version_id: version.id, label })
-    .eq("id", documentId);
+    .update({ active_version_id: versionId })
+    .eq("id", groupId);
 
-  // If no primary resume yet, make this one primary
-  const { count: primaryCount } = await supabaseAdmin
-    .from("resume_documents")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("is_primary", true)
-    .eq("is_archived", false);
+  // Fire text extraction in background (user doesn't wait)
+  fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/resumes/versions/${versionId}/parse`, {
+    method: "POST",
+    keepalive: true,
+  }).catch(() => {});
 
-  if ((primaryCount ?? 0) === 0) {
-    await supabaseAdmin
-      .from("resume_documents")
-      .update({ is_primary: true })
-      .eq("id", documentId);
-  }
-
-  // Parsing is triggered separately by the client via POST /api/resumes/versions/[id]/parse
-  // so upload returns immediately and the user is not blocked waiting for OpenAI.
-  return NextResponse.json(
-    {
-      resume_version_id: version.id,
-      resume_document_id: documentId,
-      status: "pending",
-    },
-    { status: 202 }
-  );
+  return NextResponse.json({
+    resume_version_id: versionId,
+    resume_document_id: groupId,
+  });
 }
-

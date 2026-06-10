@@ -131,21 +131,10 @@ export default function ResumesPage() {
       setUploadingForGroupId(null);
       setShowUpload(false);
 
-      // Fire parse as a separate background request — server runs it to completion
-      // even if the user navigates away (keepalive keeps it alive past page unload).
-      fetch(`/api/resumes/versions/${resume_version_id}/parse`, {
-        method: "POST",
-        keepalive: true,
-      }).catch(() => {});
-
-      // Immediately show the resume list; banner shows analysing progress
+      // Resume is immediately ready (no blocking wait)
+      // Text extraction happens silently in background
       await fetchDocs();
-      setUploadState({
-        type: "analysing",
-        versionId: resume_version_id,
-        documentId: resume_document_id,
-        dismissed: false,
-      });
+      setUploadState({ type: "idle" });
     } catch (err: unknown) {
       if (err instanceof Error && err.name === "AbortError") {
         setUploadState({ type: "idle" });
