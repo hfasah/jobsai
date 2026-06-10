@@ -179,6 +179,7 @@ export default async function DashboardPage() {
           <div>
             <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">Dashboard</p>
             <h1 className="mt-1 text-3xl font-bold tracking-tight">Welcome back, {firstName}</h1>
+            <p className="mt-2 text-sm text-muted-foreground">5,963,188 jobs and counting • Your opportunities await</p>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard/billing" className="hidden sm:block">
