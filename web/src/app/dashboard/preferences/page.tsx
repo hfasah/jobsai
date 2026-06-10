@@ -61,6 +61,7 @@ export default function PreferencesPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/preferences")
@@ -71,6 +72,7 @@ export default function PreferencesPage() {
 
   const set = <K extends keyof PreferencesUpdate>(key: K, value: PreferencesUpdate[K]) => {
     setSaved(false);
+    setError(null);
     setPrefs((p) => ({ ...p, [key]: value }));
   };
 
@@ -85,13 +87,24 @@ export default function PreferencesPage() {
 
   const save = async () => {
     setSaving(true);
+    setError(null);
     try {
       const res = await fetch("/api/preferences", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(prefs),
       });
-      if (res.ok) setSaved(true);
+      const json = await res.json().catch(() => null);
+      if (res.ok) {
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000); // reset after 3s
+      } else {
+        setError(json?.error || "Failed to save preferences");
+        console.error("Preferences save failed:", json);
+      }
+    } catch (err) {
+      setError("Network error. Please try again.");
+      console.error("Preferences save error:", err);
     } finally {
       setSaving(false);
     }
@@ -418,6 +431,11 @@ export default function PreferencesPage() {
           </section>
 
           {/* ── Save ── */}
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-600">
+              {error}
+            </div>
+          )}
           <div className="flex items-center gap-4 pb-4">
             <Button onClick={save} disabled={saving}>
               {saving ? (
