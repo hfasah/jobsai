@@ -145,8 +145,8 @@ export function OpportunitySnapshot({
       )}
 
       {/* Match Breakdown — Single Line */}
-      <div className="rounded-lg border border-border bg-card p-3">
-        <div className="flex items-center gap-3 text-xs">
+      <div className="rounded-lg border border-border bg-card p-3 overflow-x-auto">
+        <div className="flex items-center gap-3 text-xs whitespace-nowrap">
           <span className="font-semibold uppercase text-muted-foreground">Quality:</span>
           {[
             {
