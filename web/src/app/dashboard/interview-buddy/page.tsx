@@ -14,6 +14,12 @@ import { cn } from "@/lib/utils";
 // fall back to the placeholder.
 const LIVE_ASSIST_IMAGE_READY = true;
 
+// Desktop app binaries live at /public/downloads/. They are NOT built/uploaded
+// yet, so showing "Download" links dead-ends at a 404. Until the binaries ship,
+// we honestly show a "Coming soon" state. Flip to true the moment
+// interview-buddy-mac.dmg and interview-buddy-win.exe exist in /public/downloads.
+const DESKTOP_APP_AVAILABLE = false;
+
 type Account = { balance: number; plan: string } | null;
 
 // Anyone on a paid plan gets the desktop app; free users see the unlock CTA.
@@ -120,22 +126,35 @@ export default function InterviewBuddyPage() {
         ) : unlocked ? (
           <>
             <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-3 py-1 text-sm font-medium text-emerald-400">
-              <CheckCircle2 className="h-4 w-4" /> Unlocked on your {account?.plan} plan
+              <CheckCircle2 className="h-4 w-4" /> Included in your {account?.plan} plan
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-3">
-              <a
-                href="/downloads/interview-buddy-mac.dmg"
-                className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-              >
-                <Apple className="h-4 w-4" /> Download for macOS
-              </a>
-              <a
-                href="/downloads/interview-buddy-win.exe"
-                className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
-              >
-                <Monitor className="h-4 w-4" /> Download for Windows
-              </a>
-            </div>
+            {DESKTOP_APP_AVAILABLE ? (
+              <div className="flex flex-wrap items-center justify-center gap-3">
+                <a
+                  href="/downloads/interview-buddy-mac.dmg"
+                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                >
+                  <Apple className="h-4 w-4" /> Download for macOS
+                </a>
+                <a
+                  href="/downloads/interview-buddy-win.exe"
+                  className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm font-semibold text-background transition-opacity hover:opacity-90"
+                >
+                  <Monitor className="h-4 w-4" /> Download for Windows
+                </a>
+              </div>
+            ) : (
+              <div className="flex max-w-md flex-col items-center gap-2 text-center">
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-sm font-medium text-primary">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" /> Desktop app — coming soon
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  The live-assist desktop app is in final testing. It&apos;s part of your plan at no
+                  extra cost — we&apos;ll email you the download link the moment it&apos;s ready. Your
+                  practice modes below are available right now.
+                </p>
+              </div>
+            )}
           </>
         ) : (
           <Link
@@ -146,7 +165,7 @@ export default function InterviewBuddyPage() {
           </Link>
         )}
         <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <Download className="h-3.5 w-3.5" /> Available on Windows and macOS
+          <Download className="h-3.5 w-3.5" /> {DESKTOP_APP_AVAILABLE ? "Available on Windows and macOS" : "Windows & macOS apps on the way"}
         </p>
       </div>
 
