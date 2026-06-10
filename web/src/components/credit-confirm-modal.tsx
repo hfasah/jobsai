@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AlertTriangle, X, Info, Loader2 } from "lucide-react";
+import { AlertCircle, X, Info, Loader2 } from "lucide-react";
 
 export interface CreditConfirmProps {
   open: boolean;
@@ -45,6 +45,28 @@ export function CreditConfirmModal({
   const affordable = balance >= total;
   const noun = quantity === 1 ? unitNoun : `${unitNoun}s`;
 
+  // Dynamic messaging based on balance
+  let statusMessage = "";
+  let statusColor = "";
+  let statusIcon = "";
+
+  if (affordable) {
+    statusColor = "bg-emerald-500/15 text-emerald-300";
+    statusIcon = "✓";
+    if (total === 0) {
+      statusMessage = "This action is covered by your free tier. Proceed at no cost.";
+    } else if (balance > total * 2) {
+      statusMessage = "You have plenty of credits. Ready to proceed.";
+    } else {
+      statusMessage = "You have enough credits for this. Ready to proceed.";
+    }
+  } else {
+    statusColor = "bg-amber-500/15 text-amber-300";
+    statusIcon = "⚡";
+    const shortfall = total - balance;
+    statusMessage = `Your credits are running low. Upgrade your plan or buy more credits to continue.`;
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={busy ? undefined : onClose} />
@@ -58,50 +80,35 @@ export function CreditConfirmModal({
           <X className="h-4 w-4" />
         </button>
 
-        <h2 className="text-lg font-bold text-white">Credit Confirmation Required</h2>
+        <h2 className="text-lg font-bold text-white">Confirm Action</h2>
 
         <div className="mt-4 flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-amber-400/90">
-            <AlertTriangle className="h-5 w-5 text-black" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-purple-400/90">
+            <AlertCircle className="h-5 w-5 text-white" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-white">This is a paid operation</p>
-            <p className="text-xs text-white/50">Credits will be deducted for this action</p>
+            <p className="text-sm font-semibold text-white">{action}</p>
+            <p className="text-xs text-white/50">Premium feature • Credits will be used</p>
           </div>
         </div>
 
-        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/80">
-          <p>This operation will process:</p>
-          <p className="mt-2 text-white">
-            {action} ({chargeable} {chargeable === 1 ? unitNoun : `${unitNoun}s`} × {unitCost} credits = {total} credits)
+        <div className="mt-4 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-sm text-white/80 space-y-2">
+          <p>You're about to:</p>
+          <p className="text-white font-medium">
+            {action} {quantity} {noun}
           </p>
           {freeUsed > 0 && (
-            <p className="mt-1 text-xs text-emerald-300">
-              🎁 {freeUsed} free auto-{freeUsed === 1 ? "apply" : "applies"} applied — no credits charged for {freeUsed === 1 ? "it" : "those"}.
+            <p className="text-xs text-emerald-300">
+              🎁 {freeUsed} free {freeUsed === 1 ? "action" : "actions"} — no credits used
             </p>
           )}
-          <p className="mt-3">
-            Total credits required: <span className="font-semibold text-white">{total}</span>
-          </p>
-          {note && <p className="mt-1 text-xs text-white/50">{note}</p>}
-          <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3 text-xs text-white/50">
-            <span>Your balance</span>
-            <span className={affordable ? "text-white/80" : "text-red-400 font-semibold"}>{balance} credits</span>
-          </div>
+          {note && <p className="text-xs text-white/50 border-t border-white/10 pt-2">{note}</p>}
         </div>
 
-        {affordable ? (
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-purple-600/20 px-3 py-2.5 text-xs text-purple-200">
-            <Info className="h-4 w-4 shrink-0" />
-            {total === 0
-              ? "By continuing, no credits will be charged — covered by your free auto-applies."
-              : `By continuing, ${total} credits will be deducted from your account.`}
-          </div>
-        ) : (
-          <div className="mt-4 rounded-lg bg-red-500/15 px-3 py-2.5 text-xs text-red-300">
-            Not enough credits — you need {total} but have {balance}. Buy a credit bundle to continue.
-          </div>
-        )}
+        <div className={`mt-4 rounded-lg px-3 py-2.5 text-xs flex items-start gap-2 ${statusColor}`}>
+          <span className="shrink-0 font-bold">{statusIcon}</span>
+          <span>{statusMessage}</span>
+        </div>
 
         <div className="mt-5 flex items-center justify-end gap-3">
           <button
@@ -118,14 +125,14 @@ export function CreditConfirmModal({
               className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500 disabled:opacity-60"
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-              {total === 0 ? "Proceed (free)" : `Proceed (${total} credits)`}
+              Proceed
             </button>
           ) : (
             <Link
               href="/dashboard/billing"
               className="inline-flex items-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white hover:bg-purple-500"
             >
-              Buy credits
+              Upgrade
             </Link>
           )}
         </div>
