@@ -23,8 +23,9 @@ export function OnboardingChecklist({
     // Load dismiss state from localStorage
     const dismissedKey = "onboarding-dismissed";
     const wasDismissed = localStorage.getItem(dismissedKey) === "true";
-    setDismissed(wasDismissed);
-    setIsOpen(!wasDismissed);
+    const debugMode = new URLSearchParams(window.location.search).has("onboard-debug");
+    setDismissed(wasDismissed && !debugMode);
+    setIsOpen(!wasDismissed || debugMode);
   }, []);
 
   const handleDismiss = () => {
