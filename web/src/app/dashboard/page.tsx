@@ -17,6 +17,7 @@ import { GradientBg } from "@/components/ui/gradient-bg";
 import { StatRing } from "@/components/ui/stat-ring";
 import { TokenBalance } from "@/components/ui/token-balance";
 import { Journey, type JourneyStep } from "@/components/dashboard/journey";
+import { OpportunitySnapshot } from "@/components/dashboard/opportunity-snapshot";
 
 // ─── Data ───────────────────────────────────────────────────────────────────
 
@@ -196,6 +197,9 @@ export default async function DashboardPage() {
             <span className="btn-cta shrink-0 rounded-xl px-4 py-2 text-sm font-semibold">Set up now →</span>
           </Link>
         )}
+
+        {/* Opportunity Snapshot — Market the matches */}
+        <OpportunitySnapshot />
 
         {/* Journey */}
         <GlassCard className="relative overflow-hidden p-6">
