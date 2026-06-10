@@ -11,6 +11,7 @@ import {
   Pencil,
   Loader2,
   Layers,
+  Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,7 @@ export function ResumeCard({
   const [loading, setLoading] = useState<string | null>(null);
   const [renaming, setRenaming] = useState(false);
   const [newLabel, setNewLabel] = useState(doc.label);
+  const [showPartialInfo, setShowPartialInfo] = useState(false);
 
   const version = doc.active_version;
   const parseStatus = version?.parse_status;
@@ -116,10 +118,27 @@ export function ResumeCard({
                   <span>·</span>
                   <span>{version.file_ext.toUpperCase()}</span>
                   <span>·</span>
-                  <span className={cn("font-medium", statusColor[parseStatus ?? "pending"])}>
-                    {isPending && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}
-                    {statusLabel[parseStatus ?? "pending"]}
-                  </span>
+                  <div className="relative inline-block">
+                    <span className={cn("font-medium cursor-help flex items-center gap-1", statusColor[parseStatus ?? "pending"])}
+                      onMouseEnter={() => parseStatus === "partial" && setShowPartialInfo(true)}
+                      onMouseLeave={() => setShowPartialInfo(false)}
+                    >
+                      {isPending && <Loader2 className="mr-1 h-3 w-3 animate-spin" />}
+                      {statusLabel[parseStatus ?? "pending"]}
+                      {parseStatus === "partial" && <Info className="h-3 w-3" />}
+                    </span>
+                    {showPartialInfo && parseStatus === "partial" && (
+                      <div className="absolute bottom-full right-0 mb-2 w-60 rounded-lg bg-slate-900 p-3 text-white shadow-lg text-xs leading-relaxed z-10">
+                        <p className="font-semibold mb-2">Resume Ready to Use</p>
+                        <ul className="space-y-1.5 mb-2">
+                          <li>✅ Resume text extracted</li>
+                          <li>✅ Ready for job matching & apply</li>
+                          <li>⏳ Skills & experience processing</li>
+                        </ul>
+                        <p className="text-slate-300">Your resume gets more complete as background parsing finishes. You can edit details anytime.</p>
+                      </div>
+                    )}
+                  </div>
                 </>
               )
             )}
