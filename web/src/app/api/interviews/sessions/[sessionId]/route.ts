@@ -8,12 +8,12 @@ export const maxDuration = 30;
 // Get specific session with feedback and responses
 export async function GET(
   req: NextRequest,
-  { params }: { params: { sessionId: string } }
+  { params }: { params: Promise<{ sessionId: string }> }
 ) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { sessionId } = params;
+  const { sessionId } = await params;
 
   try {
     // Fetch session
