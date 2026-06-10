@@ -105,11 +105,11 @@ export function SetupGateModal({
             {steps.map((step) => {
               const Icon = step.icon;
               return (
-                <div
+                <Link
                   key={step.id}
-                  onClick={() => handleNavigate(step.href)}
+                  href={step.href}
                   className={cn(
-                    "group rounded-lg border-2 p-4 transition-all cursor-pointer hover:border-primary/50",
+                    "group rounded-lg border-2 p-4 transition-all cursor-pointer hover:border-primary/50 block",
                     step.done
                       ? "border-emerald-500/30 bg-emerald-500/5"
                       : "border-border hover:bg-muted/50"
@@ -141,18 +141,15 @@ export function SetupGateModal({
                         <p className="text-sm text-muted-foreground">{step.description}</p>
                       </div>
                       {!step.done && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleNavigate(step.href);
-                          }}
-                          className="flex-shrink-0 px-3 py-1 rounded-md bg-primary/10 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
-                        >
-                          Start →
-                        </button>
+                        <div className="flex-shrink-0 flex items-center">
+                          <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors cursor-pointer">
+                            Start →
+                          </span>
+                        </div>
                       )}
                     </div>
                   </div>
+                </Link>
               );
             })}
           </div>
