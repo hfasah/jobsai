@@ -44,7 +44,8 @@ export function OnboardingChecklist({
     localStorage.setItem("onboarding-dismissed", "true");
   };
 
-  if (!isOpen || dismissed) return null;
+  // When the profile is fully set up, never show the popup — the user is done.
+  if (allComplete || !isOpen || dismissed) return null;
 
   const items = [
     {
