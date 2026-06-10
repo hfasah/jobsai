@@ -20,13 +20,19 @@ export function OnboardingChecklist({
   const [dismissed, setDismissed] = useState(false);
 
   useEffect(() => {
-    // Load dismiss state from localStorage
-    const dismissedKey = "onboarding-dismissed";
-    const wasDismissed = localStorage.getItem(dismissedKey) === "true";
-    const debugMode = new URLSearchParams(window.location.search).has("onboard-debug");
-    setDismissed(wasDismissed && !debugMode);
-    setIsOpen(!wasDismissed || debugMode);
-  }, []);
+    // Only check localStorage if they've completed all 3 steps
+    if (allComplete) {
+      const dismissedKey = "onboarding-dismissed";
+      const wasDismissed = localStorage.getItem(dismissedKey) === "true";
+      const debugMode = new URLSearchParams(window.location.search).has("onboard-debug");
+      setDismissed(wasDismissed && !debugMode);
+      setIsOpen(!wasDismissed || debugMode);
+    } else {
+      // Always show if not complete
+      setIsOpen(true);
+      setDismissed(false);
+    }
+  }, [allComplete]);
 
   const handleDismiss = () => {
     setDismissed(true);
