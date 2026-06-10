@@ -144,10 +144,10 @@ export function OpportunitySnapshot({
         </div>
       )}
 
-      {/* Match Breakdown — Horizontal Bars */}
+      {/* Match Breakdown — Single Line */}
       <div className="rounded-lg border border-border bg-card p-3">
-        <h3 className="text-xs font-semibold mb-2 uppercase text-muted-foreground">Quality</h3>
-        <div className="flex gap-2 items-end h-8">
+        <div className="flex items-center gap-3 text-xs">
+          <span className="font-semibold uppercase text-muted-foreground">Quality:</span>
           {[
             {
               label: "Excellent",
@@ -174,17 +174,15 @@ export function OpportunitySnapshot({
                 ) || 0,
             },
           ].map((item) => (
-            <div key={item.label} className="flex-1 flex flex-col items-center gap-1">
+            <div key={item.label} className="flex items-center gap-1">
               <div
-                className={cn("w-full rounded-t transition-all", item.color)}
-                style={{ height: `${Math.max(4, item.percent / 4)}px` }}
+                className={cn("h-1.5 rounded-full", item.color)}
+                style={{ width: `${Math.max(20, item.percent)}px` }}
               />
-              <div className="text-center">
-                <p className="text-[9px] font-semibold text-foreground whitespace-nowrap">
-                  {item.label}
-                </p>
-                <p className="text-[9px] text-muted-foreground">{item.percent}%</p>
-              </div>
+              <span className="font-medium whitespace-nowrap text-foreground">
+                {item.label}
+              </span>
+              <span className="text-muted-foreground">{item.percent}%</span>
             </div>
           ))}
         </div>
