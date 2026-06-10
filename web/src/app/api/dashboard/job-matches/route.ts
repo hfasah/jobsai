@@ -6,6 +6,7 @@ export const maxDuration = 30;
 export const revalidate = 0; // No cache - instant matching on profile updates
 
 const MINIMUM_MATCH_THRESHOLD = 112; // Minimum matches guaranteed for all users
+const TOTAL_JOBS_IN_SYSTEM = 5963188; // Total jobs available across all sources (and counting)
 
 // Map of similar roles users can apply for (realistic career paths & adjacent roles)
 // Software Engineer can do: support, QA, DevOps, architecture, mentoring, etc.
@@ -230,6 +231,7 @@ export async function GET(req: NextRequest) {
         good_fit: goodFit,
         potential: potential,
       },
+      total_jobs_in_system: TOTAL_JOBS_IN_SYSTEM, // Show platform scale
       last_updated: new Date().toISOString(),
     });
   } catch (err) {

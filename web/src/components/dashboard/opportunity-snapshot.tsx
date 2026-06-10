@@ -12,6 +12,7 @@ interface JobMatches {
   applications_submitted: number;
   pending_applications: number;
   opportunity_gap: number;
+  total_jobs_in_system: number;
   match_breakdown: {
     excellent_fit: number;
     good_fit: number;
@@ -98,7 +99,7 @@ export function OpportunitySnapshot({
           <h2 className="text-lg font-bold">Opportunity Snapshot</h2>
         </div>
         <p className="text-xs text-muted-foreground">
-          {data.total_matches.toLocaleString()} matching jobs found
+          {data.total_jobs_in_system.toLocaleString()} jobs and counting
         </p>
       </div>
 
