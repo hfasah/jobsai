@@ -1,10 +1,11 @@
 "use client";
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Mic, ArrowLeft, Loader2, Volume2, Lock, Coins,
-  CheckCircle2, AlertCircle, RotateCcw, ChevronRight, MessageSquareText, Cpu, Crown, Shuffle, Gauge, Sparkles,
+  CheckCircle2, AlertCircle, RotateCcw, ChevronRight, MessageSquareText, Cpu, Crown, Shuffle, Gauge, Sparkles, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +13,7 @@ import { StatRing } from "@/components/ui/stat-ring";
 import { TokenBalance } from "@/components/ui/token-balance";
 import { AudioBars } from "@/components/ui/audio-bars";
 import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
+import { saveInterviewSession, convertVoiceAnalysisToResponses } from "@/lib/interview-utils";
 import type { InterviewType, Turn, VoiceAnalysis } from "@/app/api/jobs/[jobId]/voice-interview/route";
 
 const TOKEN_PER_TURN = 60;
@@ -409,10 +411,15 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
 
         {/* Results */}
         {phase === "results" && analysis && (
-          <VoiceResults analysis={analysis} onRestart={() => {
-            setHistory([]); setAnalysis(null); setQuestion(""); turnRef.current = 0; durationRef.current = 0;
-            answerRef.current = ""; setInterim(""); setPhase("preflight");
-          }} />
+          <VoiceResults
+            analysis={analysis}
+            jobTitle={jobTitle}
+            history={history}
+            onRestart={() => {
+              setHistory([]); setAnalysis(null); setQuestion(""); turnRef.current = 0; durationRef.current = 0;
+              answerRef.current = ""; setInterim(""); setPhase("preflight");
+            }}
+          />
         )}
 
         {/* Error */}
@@ -431,7 +438,53 @@ export default function VoiceInterviewPage({ params }: { params: Promise<{ jobId
 }
 
 // ── Results screen ─────────────────────────────────────────────────────────────
-function VoiceResults({ analysis, onRestart }: { analysis: VoiceAnalysis; onRestart: () => void }) {
+function VoiceResults({
+  analysis,
+  jobTitle,
+  history,
+  onRestart,
+}: {
+  analysis: VoiceAnalysis;
+  jobTitle: string;
+  history: Turn[];
+  onRestart: () => void;
+}) {
+  const router = useRouter();
+  const [savingReport, setSavingReport] = useState(false);
+
+  const handleSaveReport = async () => {
+    setSavingReport(true);
+    try {
+      // Filter to only candidate answers
+      const candidateAnswers = history.filter((t) => t.role === "candidate");
+      const interviewerQuestions = history.filter((t) => t.role === "interviewer");
+
+      // Convert to response format
+      const responses = candidateAnswers.map((answer, idx) => ({
+        question_number: idx + 1,
+        question: interviewerQuestions[idx]?.content || `Question ${idx + 1}`,
+        user_answer: answer.content,
+        star_score: Math.round((analysis.behavioral / 100) * 100), // behavioral ≈ STAR adherence
+        clarity_score: analysis.communication,
+        technical_score: analysis.technical,
+        confidence_score: analysis.confidence,
+        ai_feedback: `${analysis.summary || "Good response."}`,
+      }));
+
+      const sessionId = await saveInterviewSession({
+        job_title: jobTitle || "Voice Interview Practice",
+        mode: "voice",
+        responses,
+      });
+
+      router.push(`/dashboard/interview/results/${sessionId}`);
+    } catch (err) {
+      console.error("Failed to save report:", err);
+      alert("Failed to save report. Please try again.");
+      setSavingReport(false);
+    }
+  };
+
   const dims: { label: string; value: number }[] = [
     { label: "Communication", value: analysis.communication },
     { label: "Technical", value: analysis.technical },
@@ -509,8 +562,23 @@ function VoiceResults({ analysis, onRestart }: { analysis: VoiceAnalysis; onRest
         </div>
       </div>
 
-      <div className="flex justify-center">
-        <Button variant="outline" onClick={onRestart}><RotateCcw className="mr-1.5 h-4 w-4" /> Practice again</Button>
+      <div className="flex justify-center gap-3">
+        <Button
+          variant="outline"
+          onClick={onRestart}
+          disabled={savingReport}
+        >
+          <RotateCcw className="mr-1.5 h-4 w-4" /> Practice again
+        </Button>
+        <Button
+          onClick={handleSaveReport}
+          disabled={savingReport}
+          className="gap-2"
+        >
+          {savingReport && <Loader2 className="h-4 w-4 animate-spin" />}
+          <BarChart3 className="h-4 w-4" />
+          View Detailed Report
+        </Button>
       </div>
     </div>
   );

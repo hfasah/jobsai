@@ -1,10 +1,11 @@
 "use client";
 
 import { use, useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   Video, VideoOff, ArrowLeft, Loader2, Volume2, Lock, Coins, Camera,
-  CheckCircle2, AlertCircle, RotateCcw, ChevronRight, Eye, Gauge, Sparkles, Play,
+  CheckCircle2, AlertCircle, RotateCcw, ChevronRight, Eye, Gauge, Sparkles, Play, BarChart3,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,7 @@ import { TokenBalance } from "@/components/ui/token-balance";
 import { AudioBars } from "@/components/ui/audio-bars";
 import { PERSONAS, type AvatarPersona } from "@/lib/avatar";
 import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
+import { saveInterviewSession, convertInterviewAnalysisToResponses } from "@/lib/interview-utils";
 import type { Turn, AvatarAnalysis, BodyLanguage } from "@/app/api/jobs/[jobId]/avatar-interview/route";
 
 const TOKEN_PER_TURN = 250;
@@ -601,11 +603,17 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
 
         {/* Results */}
         {phase === "results" && analysis && (
-          <AvatarResults analysis={analysis} recordedUrl={recordedUrl} onRestart={() => {
-            setHistory([]); setAnalysis(null); setQuestion(""); turnRef.current = 0; mainRef.current = 0; lastFollowupRef.current = false; setMainNum(1); setIsFollowup(false); durationRef.current = 0;
-            answerRef.current = ""; setInterim(""); faceStatsRef.current = { total: 0, presence: 0, eye: 0, steady: 0, lastX: -1 };
-            setRecordedUrl(null); setCameraReady(false); setPhase("preflight");
-          }} />
+          <AvatarResults
+            analysis={analysis}
+            recordedUrl={recordedUrl}
+            jobTitle={jobTitle}
+            history={history}
+            onRestart={() => {
+              setHistory([]); setAnalysis(null); setQuestion(""); turnRef.current = 0; mainRef.current = 0; lastFollowupRef.current = false; setMainNum(1); setIsFollowup(false); durationRef.current = 0;
+              answerRef.current = ""; setInterim(""); faceStatsRef.current = { total: 0, presence: 0, eye: 0, steady: 0, lastX: -1 };
+              setRecordedUrl(null); setCameraReady(false); setPhase("preflight");
+            }}
+          />
         )}
 
         {/* Error */}
@@ -624,7 +632,52 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
 }
 
 // ── Results ────────────────────────────────────────────────────────────────────
-function AvatarResults({ analysis, recordedUrl, onRestart }: { analysis: AvatarAnalysis; recordedUrl: string | null; onRestart: () => void }) {
+function AvatarResults({
+  analysis,
+  recordedUrl,
+  jobTitle,
+  history,
+  onRestart,
+}: {
+  analysis: AvatarAnalysis;
+  recordedUrl: string | null;
+  jobTitle: string;
+  history: Turn[];
+  onRestart: () => void;
+}) {
+  const router = useRouter();
+  const [savingReport, setSavingReport] = useState(false);
+
+  const handleSaveReport = async () => {
+    setSavingReport(true);
+    try {
+      const candidateAnswers = history.filter((t) => t.role === "candidate");
+      const interviewerQuestions = history.filter((t) => t.role === "interviewer");
+
+      const responses = candidateAnswers.map((answer, idx) => ({
+        question_number: idx + 1,
+        question: interviewerQuestions[idx]?.content || `Question ${idx + 1}`,
+        user_answer: answer.content,
+        star_score: Math.round((analysis.behavioral / 5) * 100),
+        clarity_score: Math.round((analysis.communication / 5) * 100),
+        technical_score: Math.round((analysis.technical / 5) * 100),
+        confidence_score: Math.round((analysis.confidence / 5) * 100),
+        ai_feedback: analysis.summary || "Avatar interview complete. Great job!",
+      }));
+
+      const sessionId = await saveInterviewSession({
+        job_title: jobTitle || "Avatar Interview Practice",
+        mode: "avatar",
+        responses,
+      });
+
+      router.push(`/dashboard/interview/results/${sessionId}`);
+    } catch (err) {
+      console.error("Failed to save report:", err);
+      alert("Failed to save report. Please try again.");
+      setSavingReport(false);
+    }
+  };
   const bl = analysis.body_language;
   const tone = analysis.overall >= 4 ? "success" : analysis.overall >= 3 ? "warning" : "brand";
   const dims = [
@@ -694,8 +747,23 @@ function AvatarResults({ analysis, recordedUrl, onRestart }: { analysis: AvatarA
         </div>
       </div>
 
-      <div className="flex justify-center">
-        <Button variant="outline" onClick={onRestart}><RotateCcw className="mr-1.5 h-4 w-4" /> Practice again</Button>
+      <div className="flex justify-center gap-3">
+        <Button
+          variant="outline"
+          onClick={onRestart}
+          disabled={savingReport}
+        >
+          <RotateCcw className="mr-1.5 h-4 w-4" /> Practice again
+        </Button>
+        <Button
+          onClick={handleSaveReport}
+          disabled={savingReport}
+          className="gap-2"
+        >
+          {savingReport && <Loader2 className="h-4 w-4 animate-spin" />}
+          <BarChart3 className="h-4 w-4" />
+          View Detailed Report
+        </Button>
       </div>
     </div>
   );
