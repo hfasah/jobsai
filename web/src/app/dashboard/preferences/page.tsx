@@ -97,7 +97,7 @@ export default function PreferencesPage() {
       const json = await res.json().catch(() => null);
       if (res.ok) {
         setSaved(true);
-        setTimeout(() => setSaved(false), 3000); // reset after 3s
+        setTimeout(() => setSaved(false), 5000); // reset after 5s
       } else {
         setError(json?.error || "Failed to save preferences");
         console.error("Preferences save failed:", json);
