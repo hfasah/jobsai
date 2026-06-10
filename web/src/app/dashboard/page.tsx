@@ -210,17 +210,13 @@ export default async function DashboardPage() {
           </div>
 
           {/* Journey */}
-          <GlassCard className="relative overflow-hidden p-4 flex flex-col">
+          <GlassCard className="relative overflow-hidden p-4">
             <GradientBg variant="mesh" className="opacity-60" />
-            <div className="mb-3 flex items-center justify-between">
-              <div>
-                <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
-                <p className="mt-1 text-xs text-muted-foreground">Practice like it&apos;s the real thing — each level gets you closer.</p>
-              </div>
+            <div className="mb-2">
+              <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
+              <p className="mt-0.5 text-xs text-muted-foreground">Practice like it&apos;s the real thing — each level gets you closer.</p>
             </div>
-            <div className="flex-shrink-0">
-              <Journey steps={journey} />
-            </div>
+            <Journey steps={journey} />
           </GlassCard>
         </div>
 
