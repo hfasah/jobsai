@@ -149,7 +149,6 @@ export function SetupGateModal({
                       )}
                     </div>
                   </div>
-                </div>
               );
             })}
           </div>
