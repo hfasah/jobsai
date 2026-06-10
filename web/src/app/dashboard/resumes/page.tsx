@@ -323,6 +323,18 @@ export default function ResumesPage() {
                   <span className="block">Estimated time: <strong>~30 seconds</strong></span>
                   <span className="mt-1 block">Feel free to navigate the app — we'll silently update your resume when parsing is complete. Check back in the resume list to see it with extracted skills and experience.</span>
                 </p>
+                <div className="mt-3 flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setUploadState({ type: "idle" });
+                      fetchDocs();
+                    }}
+                  >
+                    Continue without waiting
+                  </Button>
+                </div>
               </div>
               <button
                 onClick={() => setUploadState({ ...uploadState, dismissed: true })}

@@ -4,11 +4,11 @@ import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 import { parseResumeText } from "@/lib/resume-parser";
 
-export const maxDuration = 60;
+export const maxDuration = 70; // Vercel max
+
+const PARSE_TIMEOUT = 60000; // 60 second timeout
 
 // POST /api/resumes/versions/[versionId]/parse — run text extraction + OpenAI parse
-// Called by the client immediately after upload, runs independently so the user
-// can navigate away while it completes.
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ versionId: string }> }
@@ -78,78 +78,92 @@ export async function POST(
       tokens_count: Math.ceil(plainText.length / 4),
     });
   } catch (err) {
-    const code = err instanceof Error ? err.message : "EXTRACTION_FAILED";
-    await supabaseAdmin.from("resume_versions").update({ parse_status: "failed", parse_error_code: code }).eq("id", versionId);
-    return NextResponse.json({ error: code }, { status: 500 });
+    console.error("Text extraction error:", err);
+    await supabaseAdmin.from("resume_versions").update({
+      parse_status: "failed",
+      parse_error_code: "EXTRACTION_FAILED",
+      parse_error_msg: "Failed to extract text. Try another file format.",
+    }).eq("id", versionId);
+    return NextResponse.json({ error: "Text extraction failed." }, { status: 500 });
   }
 
-  // ── OpenAI parse ─────────────────────────────────────────────────────────────
+  // ── AI parsing (with timeout) ────────────────────────────────────────────────
   try {
-    const parsed = await parseResumeText(plainText);
-    const isPartial = !parsed.name && !parsed.email && (!parsed.experience || parsed.experience.length === 0);
+    const parsePromise = parseResumeText(plainText);
+    
+    // Race: parsing vs timeout
+    const parsed = await Promise.race([
+      parsePromise,
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("PARSE_TIMEOUT")), PARSE_TIMEOUT)
+      ),
+    ]) as any;
+
+    if (!parsed) throw new Error("Empty parse result");
 
     await supabaseAdmin.from("resume_parsed_profile").upsert({
       version_id: versionId,
-      full_name: parsed.name ?? null,
-      email: parsed.email ?? null,
-      phone: parsed.phone ?? null,
-      location: parsed.location ?? null,
-      headline: parsed.headline ?? null,
-      summary: parsed.summary ?? null,
-      links: parsed.links ?? {},
-      years_experience: parsed.years_experience ?? null,
       parsed_json: parsed,
+      full_name: parsed.name,
+      email: parsed.email,
+      phone: parsed.phone,
+      location: parsed.location,
+      links: parsed.links,
     });
 
-    if (parsed.experience?.length) {
-      await supabaseAdmin.from("resume_experiences").delete().eq("version_id", versionId);
-      await supabaseAdmin.from("resume_experiences").insert(
-        parsed.experience.map((exp, idx) => ({
-          version_id: versionId, idx,
-          title: exp.title ?? null, company: exp.company ?? null,
-          employment_type: exp.employment_type ?? null, location: exp.location ?? null,
-          start_date: exp.start_date ?? null, end_date: exp.end_date ?? null,
-          is_current: exp.is_current ?? false, description: exp.description ?? null,
-        }))
-      );
-    }
-
-    if (parsed.education?.length) {
-      await supabaseAdmin.from("resume_educations").delete().eq("version_id", versionId);
-      await supabaseAdmin.from("resume_educations").insert(
-        parsed.education.map((edu, idx) => ({
-          version_id: versionId, idx,
-          school: edu.school ?? null, degree: edu.degree ?? null,
-          field_of_study: edu.field_of_study ?? null,
-          start_date: edu.start_date ?? null, end_date: edu.end_date ?? null,
-          grade: edu.grade ?? null, description: edu.description ?? null,
-        }))
-      );
-    }
-
-    if (parsed.skills?.length) {
-      await supabaseAdmin.from("resume_skills").delete().eq("version_id", versionId);
-      await supabaseAdmin.from("resume_skills").insert(
-        parsed.skills.map((s) => ({
-          version_id: versionId, skill: s.skill,
-          category: s.category ?? null, confidence: s.confidence ?? null,
-        }))
-      );
-    }
-
     await supabaseAdmin.from("resume_versions").update({
-      parse_status: isPartial ? "partial" : "parsed",
-      processed_at: new Date().toISOString(),
-      text_char_count: plainText.length,
+      parse_status: "parsed",
     }).eq("id", versionId);
 
-    return NextResponse.json({ ok: true, status: isPartial ? "partial" : "parsed" });
-  } catch (err) {
+    return NextResponse.json({ ok: true });
+  } catch (err: any) {
+    const isTimeout = err.message === "PARSE_TIMEOUT";
+    
+    console.error(`Parse ${isTimeout ? "timeout" : "error"}:`, err);
+
+    // On timeout or error: mark as partial with extracted text only
+    // At least user has basic resume data extracted
+    const minimalParse = {
+      name: null,
+      email: null,
+      phone: null,
+      location: null,
+      headline: null,
+      summary: plainText.slice(0, 500), // First 500 chars as summary
+      links: {},
+      years_experience: null,
+      experience: [],
+      education: [],
+      skills: [],
+      certifications: [],
+      languages: [],
+      confidence: { contact: 0, experience: 0, education: 0, skills: 0 },
+      warnings: [
+        isTimeout 
+          ? "Parsing took too long. We've extracted the text, but structure (skills, experience) is incomplete. You can manually add details or try re-uploading."
+          : "Parsing failed. We've extracted the text, but structure is incomplete. You can manually add details.",
+      ],
+    };
+
+    await supabaseAdmin.from("resume_parsed_profile").upsert({
+      version_id: versionId,
+      parsed_json: minimalParse,
+      full_name: null,
+      email: null,
+      phone: null,
+      location: null,
+      links: {},
+    });
+
     await supabaseAdmin.from("resume_versions").update({
-      parse_status: "failed",
-      parse_error_code: "STRUCTURE_EXTRACTION_FAILED",
-      parse_error_msg: err instanceof Error ? err.message : "Unknown error",
+      parse_status: "partial",
+      parse_error_code: isTimeout ? "PARSE_TIMEOUT" : "PARSE_FAILED",
+      parse_error_msg: isTimeout
+        ? "Parsing took too long, but your resume text is saved."
+        : "Parsing failed, but your resume text is saved.",
     }).eq("id", versionId);
-    return NextResponse.json({ error: "Parse failed." }, { status: 500 });
+
+    // Don't return error — mark as partial so user can proceed
+    return NextResponse.json({ ok: true, status: "partial" });
   }
 }
