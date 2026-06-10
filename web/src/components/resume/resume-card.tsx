@@ -105,24 +105,23 @@ export function ResumeCard({
                 <Star className="h-3 w-3" />Primary
               </span>
             )}
-            {version && (
-              <>
-                {isPending ? (
-                  <div className="w-full">
-                    <ResumeParsingStatus />
-                  </div>
-                ) : (
-                  <>
-                    <span>v{version.version_number}</span>
-                    <span>·</span>
-                    <span>{version.file_ext.toUpperCase()}</span>
-                    <span>·</span>
-                    <span className={cn("font-medium", statusColor[parseStatus ?? "pending"])}>
-                      {statusLabel[parseStatus ?? "pending"]}
-                    </span>
-                  </>
-                )}
-              </>
+            {version && isPending ? (
+              <div className="w-full mt-2">
+                <ResumeParsingStatus />
+              </div>
+            ) : (
+              version && (
+                <>
+                  <span>v{version.version_number}</span>
+                  <span>·</span>
+                  <span>{version.file_ext.toUpperCase()}</span>
+                  <span>·</span>
+                  <span className={cn("font-medium", statusColor[parseStatus ?? "pending"])}>
+                    {isPending && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}
+                    {statusLabel[parseStatus ?? "pending"]}
+                  </span>
+                </>
+              )
             )}
           </div>
         </div>
