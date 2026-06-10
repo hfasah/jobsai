@@ -40,6 +40,7 @@ export async function PUT(req: NextRequest) {
     auto_apply_mode:      ["auto", "hybrid", "review"].includes(body.auto_apply_mode) ? body.auto_apply_mode : undefined,
     auto_apply_threshold: body.auto_apply_threshold != null ? Number(body.auto_apply_threshold) : undefined,
     require_approval:     typeof body.require_approval === "boolean" ? body.require_approval : undefined,
+    cc_email_enabled:     typeof body.cc_email_enabled === "boolean" ? body.cc_email_enabled : undefined,
   };
 
   const { data, error } = await supabaseAdmin
