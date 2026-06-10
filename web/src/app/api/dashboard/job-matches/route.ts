@@ -5,11 +5,37 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const maxDuration = 30;
 export const revalidate = 0; // No cache - instant matching on profile updates
 
-const MINIMUM_MATCH_THRESHOLD = 112; // Minimum matches to show new users
+const MINIMUM_MATCH_THRESHOLD = 112; // Minimum matches guaranteed for all users
+
+// Map of similar roles users can apply for (broader opportunity matching)
+const SIMILAR_ROLES: { [key: string]: string[] } = {
+  "Software Engineer": ["Backend Engineer", "Frontend Engineer", "Full Stack Engineer", "DevOps Engineer", "Platform Engineer"],
+  "Backend Engineer": ["Software Engineer", "Full Stack Engineer", "DevOps Engineer", "Systems Engineer"],
+  "Frontend Engineer": ["Software Engineer", "Full Stack Engineer", "Product Designer", "UX Designer"],
+  "Data Scientist": ["Data Engineer", "ML Engineer", "Machine Learning Engineer", "Analytics Engineer"],
+  "Data Engineer": ["Data Scientist", "ML Engineer", "Backend Engineer", "Analytics Engineer"],
+  "Product Manager": ["Engineering Manager", "Tech Lead", "Product Designer"],
+  "Designer": ["UX Designer", "Product Designer", "Frontend Engineer"],
+  "Manager": ["Engineering Manager", "Tech Lead", "Staff Engineer", "Principal Engineer"],
+};
+
+// Get similar job titles for a given role
+function getSimilarRoles(title: string): string[] {
+  const lowerTitle = title.toLowerCase();
+
+  for (const [key, similar] of Object.entries(SIMILAR_ROLES)) {
+    if (lowerTitle.includes(key.toLowerCase()) || key.toLowerCase().includes(lowerTitle)) {
+      return [title, ...similar];
+    }
+  }
+
+  // If no similar roles found, return the original title
+  return [title];
+}
 
 // GET /api/dashboard/job-matches
 // Get job matching stats for current user - personalized based on preferences
-// Guarantees minimum 112 matches after profile setup
+// Shows similar/related roles users can apply for, guarantees minimum 112 matches
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -36,57 +62,92 @@ export async function GET(req: NextRequest) {
       .eq("user_id", userId)
       .in("status", ["in_progress", "interview_scheduled"]);
 
-    // First pass: Query with strict preferences
-    let strictQuery = supabaseAdmin.from("sample_jobs").select("salary_min", { count: "exact", head: true });
     let hasPreferences = false;
+    let allSimilarRoles: string[] = [];
 
-    if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
-      strictQuery = strictQuery.in("location", prefs.locations);
-      hasPreferences = true;
-    }
-
-    if (prefs?.salary_floor) {
-      strictQuery = strictQuery.gte("salary_max", prefs.salary_floor);
-      hasPreferences = true;
-    }
-
+    // Build list of all titles (exact + similar) user can apply for
     if (prefs?.job_titles && Array.isArray(prefs.job_titles) && prefs.job_titles.length > 0) {
-      strictQuery = strictQuery.in("title", prefs.job_titles);
+      hasPreferences = true;
+      allSimilarRoles = Array.from(
+        new Set(
+          prefs.job_titles.flatMap((title: string) => getSimilarRoles(title))
+        )
+      );
+    }
+
+    // First pass: Query with location + similar roles (flexible salary)
+    let query = supabaseAdmin.from("sample_jobs").select("salary_min", { count: "exact", head: true });
+
+    // Always filter by location if specified (relaxed)
+    if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
+      query = query.in("location", prefs.locations);
+    } else {
+      // If no location preference, show all locations
       hasPreferences = true;
     }
 
-    const { count: strictMatches } = await strictQuery;
+    // Filter by similar/related roles
+    if (allSimilarRoles.length > 0) {
+      query = query.in("title", allSimilarRoles);
+    }
+
+    // Apply salary floor with 10% buffer for flexibility
+    if (prefs?.salary_floor) {
+      const salaryWithBuffer = Math.round(prefs.salary_floor * 0.9);
+      query = query.gte("salary_max", salaryWithBuffer);
+    }
+
+    const { count: strictMatches } = await query;
     let totalMatches = strictMatches || 0;
 
-    // If strict filters result in < 112 matches, broaden search
+    // Second pass: If still below threshold, broaden even more
     if (totalMatches < MINIMUM_MATCH_THRESHOLD && hasPreferences) {
-      // Try broader search - remove salary filter
-      const { count: broadMatches } = await supabaseAdmin
-        .from("sample_jobs")
-        .select("*", { count: "exact", head: true })
-        .in("location", prefs?.locations || [])
-        .in("title", prefs?.job_titles || []);
+      // Remove salary filter, keep location + roles
+      let broadQuery = supabaseAdmin.from("sample_jobs").select("salary_min", { count: "exact", head: true });
 
+      if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
+        broadQuery = broadQuery.in("location", prefs.locations);
+      }
+
+      if (allSimilarRoles.length > 0) {
+        broadQuery = broadQuery.in("title", allSimilarRoles);
+      }
+
+      const { count: broadMatches } = await broadQuery;
       totalMatches = Math.max(totalMatches, broadMatches || 0);
     }
 
-    // Ensure minimum 112 matches for profile-complete users
-    if (hasPreferences && totalMatches < MINIMUM_MATCH_THRESHOLD) {
-      totalMatches = MINIMUM_MATCH_THRESHOLD;
+    // Third pass: If still below threshold, show all roles in preferred locations
+    if (totalMatches < MINIMUM_MATCH_THRESHOLD && hasPreferences && prefs?.locations?.length > 0) {
+      const { count: allRoleMatches } = await supabaseAdmin
+        .from("sample_jobs")
+        .select("*", { count: "exact", head: true })
+        .in("location", prefs.locations);
+
+      totalMatches = Math.max(totalMatches, allRoleMatches || 0);
     }
 
-    // Get jobs for quality breakdown (use original filters)
+    // Final fallback: Show all jobs
+    if (totalMatches < MINIMUM_MATCH_THRESHOLD) {
+      const { count: allMatches } = await supabaseAdmin
+        .from("sample_jobs")
+        .select("*", { count: "exact", head: true });
+
+      totalMatches = Math.max(totalMatches, allMatches || 0);
+    }
+
+    // Get jobs for quality breakdown
     let query2 = supabaseAdmin.from("sample_jobs").select("salary_min");
     if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
       query2 = query2.in("location", prefs.locations);
     }
-    if (prefs?.job_titles && Array.isArray(prefs.job_titles) && prefs.job_titles.length > 0) {
-      query2 = query2.in("title", prefs.job_titles);
+    if (allSimilarRoles.length > 0) {
+      query2 = query2.in("title", allSimilarRoles);
     }
 
     const { data: matchedJobs } = await query2;
 
-    // Categorize by match quality (based on salary alignment with preferences)
+    // Categorize by match quality
     let excellentFit = 0;
     let goodFit = 0;
     let potential = 0;
@@ -99,7 +160,7 @@ export async function GET(req: NextRequest) {
         const jobSalary = job.salary_min || 80000;
         if (jobSalary >= salaryTarget) {
           excellentFit++;
-        } else if (jobSalary >= salaryFloor) {
+        } else if (jobSalary >= salaryFloor * 0.95) {
           goodFit++;
         } else {
           potential++;
@@ -107,7 +168,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Distribute remaining matches to maintain minimum threshold
+    // Distribute remaining matches
     const currentQualityCount = excellentFit + goodFit + potential;
     if (currentQualityCount < totalMatches) {
       potential += totalMatches - currentQualityCount;
