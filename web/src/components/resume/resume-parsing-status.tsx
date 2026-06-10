@@ -52,6 +52,7 @@ export function ResumeParsingStatus() {
           style={{ width: `${progress}%` }}
         />
       </div>
+      <p className="text-[9px] text-muted-foreground italic">Duration varies based on your internet speed</p>
     </div>
   );
 }

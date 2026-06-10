@@ -61,6 +61,7 @@ export function ProcessingPlaceholder() {
         <span className="text-[10px] text-muted-foreground">Processing</span>
         <span className="text-[10px] font-medium text-primary">{progress}%</span>
       </div>
+      <p className="text-[9px] text-muted-foreground italic">Duration varies based on your internet speed</p>
     </div>
   );
 }
