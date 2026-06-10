@@ -3,7 +3,12 @@ import type { ParsedJson } from "@/types/resume";
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) {
+    _openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+      timeout: 30 * 1000, // 30 second timeout
+    });
+  }
   return _openai;
 }
 
@@ -75,7 +80,6 @@ export async function parseResumeText(text: string): Promise<ParsedJson> {
     ],
     temperature: 0,
     response_format: { type: "json_object" },
-    timeout: 30000, // 30 second timeout to prevent hanging forever
   });
 
   const content = response.choices[0]?.message?.content;
