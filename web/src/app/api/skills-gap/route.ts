@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getModel, logModelUsage } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 60;
@@ -201,8 +202,11 @@ Total resume skills: ${resumeSkills.length}
 Analyze the gap and fill the schema.`;
 
   try {
+    const model = getModel("skillsGap");
+    logModelUsage("skillsGap");
+
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

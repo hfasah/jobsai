@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getModel, logModelUsage } from "@/lib/ai-models";
 import type { ParsedJson } from "@/types/resume";
 
 let _openai: OpenAI | null = null;
@@ -72,8 +73,11 @@ export async function parseResumeText(text: string): Promise<ParsedJson> {
   // Truncate to ~12k tokens worth of chars to stay within context limits
   const truncated = text.slice(0, 48000);
 
+  const model = getModel("resumeParse");
+  logModelUsage("resumeParse");
+
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4-turbo",
+    model,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: truncated },

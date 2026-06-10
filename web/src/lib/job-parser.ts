@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getModel, logModelUsage } from "@/lib/ai-models";
 import type { ParsedJobJson, MatchScoreJson } from "@/types/job";
 import type { ParsedJson } from "@/types/resume";
 
@@ -33,8 +34,11 @@ Rules:
 
 export async function parseJobText(text: string): Promise<ParsedJobJson> {
   const truncated = text.slice(0, 40000);
+  const model = getModel("jobParse");
+  logModelUsage("jobParse");
+
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model,
     messages: [
       { role: "system", content: PARSE_SYSTEM },
       { role: "user", content: truncated },
@@ -108,8 +112,11 @@ export async function scoreMatch(
     },
   };
 
+  const model = getModel("jobMatch");
+  logModelUsage("jobMatch");
+
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model,
     messages: [
       { role: "system", content: MATCH_SYSTEM },
       { role: "user", content: JSON.stringify(payload) },

@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getModel, logModelUsage } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { ResumeData } from "@/components/resume/resume-preview-client";
 import type { ParsedJson } from "@/types/resume";
@@ -105,8 +106,11 @@ Rules:
   const userPrompt = JSON.stringify(sourceData, null, 2);
 
   try {
+    const model = getModel("resumeTranslate");
+    logModelUsage("resumeTranslate");
+
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
