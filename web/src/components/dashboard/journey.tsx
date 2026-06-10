@@ -18,16 +18,16 @@ export function Journey({ steps }: { steps: JourneyStep[] }) {
   const currentIdx = steps.findIndex((s) => !s.done);
 
   return (
-    <div className="flex items-start overflow-x-auto pb-1">
+    <div className="flex items-start overflow-x-auto pb-0 gap-2">
       {steps.map((s, i) => {
         const isCurrent = i === currentIdx;
         const Icon = s.done ? Check : s.icon;
         return (
           <Fragment key={s.key}>
-            <Link href={s.href} className="group flex w-20 shrink-0 flex-col items-center text-center">
+            <Link href={s.href} className="group flex flex-col items-center text-center shrink-0">
               <span
                 className={cn(
-                  "flex h-12 w-12 items-center justify-center rounded-full border-2 transition-all",
+                  "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-all",
                   s.done
                     ? "border-transparent bg-gradient-brand text-white shadow-glow"
                     : isCurrent
@@ -35,9 +35,9 @@ export function Journey({ steps }: { steps: JourneyStep[] }) {
                       : "border-border bg-card text-muted-foreground group-hover:border-primary/40"
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-4 w-4" />
               </span>
-              <span className={cn("mt-2 text-xs font-semibold leading-tight", s.done || isCurrent ? "text-foreground" : "text-muted-foreground")}>
+              <span className={cn("mt-1.5 text-xs font-semibold leading-tight", s.done || isCurrent ? "text-foreground" : "text-muted-foreground")}>
                 {s.label}
               </span>
               {isCurrent && <span className="mt-0.5 text-[10px] font-medium text-primary">{s.sub}</span>}
