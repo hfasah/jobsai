@@ -55,7 +55,6 @@ export async function PATCH(
 }
 
 // DELETE /api/resumes/[groupId] — soft delete entire document
-// Allow deletion even if extraction is in progress (happens in background)
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ groupId: string }> }
@@ -65,7 +64,6 @@ export async function DELETE(
 
   const { groupId } = await params;
 
-  // Just delete — no parsing check needed since extraction is background-only now
   const { error } = await supabaseAdmin
     .from("resume_documents")
     .update({ is_archived: true })
