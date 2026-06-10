@@ -318,10 +318,10 @@ export default function ResumesPage() {
             <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
               <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Your resume is being analyzed</p>
+                <p className="text-sm font-medium">Extracting your resume text</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  <span className="block">Estimated time: <strong>~1 minute</strong></span>
-                  <span className="mt-1 block">Feel free to navigate the app — we'll silently update your resume when parsing is complete. Check back in the resume list to see it with extracted skills and experience.</span>
+                  <span className="block">Estimated time: <strong>~10 seconds</strong></span>
+                  <span className="mt-1 block">We're extracting text from your resume. Once done, you can add skills and experience details. You'll be able to start using the app immediately.</span>
                 </p>
                 <div className="mt-3 flex gap-2">
                   <Button
