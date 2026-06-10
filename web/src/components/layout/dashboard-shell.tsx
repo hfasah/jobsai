@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { NotificationBell } from "@/components/layout/notification-bell";
+import { CreditMeter } from "@/components/layout/credit-meter";
 import { APP_NAME } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useI18n, LOCALES, type Locale } from "@/lib/i18n";
@@ -339,9 +340,12 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
         <div className="mt-2 px-1">
           <ThemeToggle />
         </div>
-        <div className="mt-2 flex items-center justify-between px-1">
-          <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
-          <NotificationBell />
+        <div className="mt-2 flex flex-col gap-3">
+          <CreditMeter />
+          <div className="flex items-center justify-between px-1">
+            <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
+            <NotificationBell />
+          </div>
         </div>
       </div>
     </div>
