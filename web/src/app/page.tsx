@@ -342,14 +342,14 @@ export default function Home() {
               </h2>
             </div>
 
-            {/* AI image slot, diverse, happy job seekers (community lifestyle) */}
+            {/* AI image slot, offers signed celebration */}
             <div className="mb-10">
               <AIImageSlot
-                path="/marketing/community-lifestyle.webp"
-                ready={publicImageExists("/marketing/community-lifestyle.webp")}
+                path="/marketing/offers-signed.png"
+                ready={publicImageExists("/marketing/offers-signed.png")}
                 alt="Job seekers who landed offers with JobsAI"
-                prompt="Wide, bright editorial photo collage of diverse happy young professionals celebrating new jobs, laptops, video calls, confident smiles."
-                ratio="aspect-[21/9]"
+                prompt="Wide editorial mockup: person sleeping peacefully with JobsAI dashboard showing successful applications, interviews booked, offers signed. Blue night theme."
+                ratio="aspect-[3/2]"
               />
             </div>
 
