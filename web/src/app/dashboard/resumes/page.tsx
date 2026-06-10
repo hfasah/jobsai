@@ -66,14 +66,9 @@ export default function ResumesPage() {
 
       if (version.parse_status === "parsed" || version.parse_status === "partial") {
         clearInterval(pollRef.current!);
-        const docRes = await fetch(`/api/resumes/${documentId}`);
-        const docJson = await docRes.json();
-        setUploadState({
-          type: "preview",
-          version,
-          documentId,
-          documentLabel: docJson.data?.label ?? "My Resume",
-        });
+        // Silent completion: just dismiss the banner and refresh the list
+        // Resume card shows the parsed data automatically
+        setUploadState({ type: "idle" });
         fetchDocs();
       } else if (version.parse_status === "failed") {
         clearInterval(pollRef.current!);
@@ -303,9 +298,9 @@ export default function ResumesPage() {
             <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
               <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Analysing your resume in the background</p>
+                <p className="text-sm font-medium">Your resume is being analyzed</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  We&apos;re extracting your profile with AI — this takes 15–30 seconds. You can freely navigate the app and we&apos;ll update your resume when it&apos;s ready.
+                  Feel free to navigate the app — we'll silently update your resume when parsing is complete. Check back in the resume list to see it with extracted skills and experience.
                 </p>
               </div>
               <button
