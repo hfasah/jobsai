@@ -122,14 +122,28 @@ export default async function DashboardPage() {
   const firstName = user?.firstName ?? "there";
   if (!user) redirect("/sign-in");
 
-  const { data: resumes } = await supabaseAdmin
-    .from("resume_documents")
-    .select("id")
-    .eq("user_id", user.id)
-    .eq("is_archived", false)
-    .limit(1);
+  const [resumesRes, prefsCheckRes, applyProfileRes] = await Promise.all([
+    supabaseAdmin
+      .from("resume_documents")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("is_archived", false)
+      .limit(1),
+    supabaseAdmin
+      .from("user_job_preferences")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+    supabaseAdmin
+      .from("user_apply_profiles")
+      .select("id")
+      .eq("user_id", user.id)
+      .maybeSingle(),
+  ]);
 
-  const hasResume = (resumes?.length ?? 0) > 0;
+  const hasResume = (resumesRes.data?.length ?? 0) > 0;
+  const hasJobPreferences = prefsCheckRes.data != null;
+  const hasApplyProfile = applyProfileRes.data != null;
 
   const [d, tokenAccount, billing] = await Promise.all([
     getDashboardData(user.id),
@@ -201,8 +215,8 @@ export default async function DashboardPage() {
         {/* Opportunity Snapshot — Full Width */}
         <OpportunitySnapshot
           hasResume={hasResume}
-          hasJobPreferences={prefs != null}
-          hasApplyProfile={false}
+          hasJobPreferences={hasJobPreferences}
+          hasApplyProfile={hasApplyProfile}
         />
 
         {/* Journey — Full Width */}
