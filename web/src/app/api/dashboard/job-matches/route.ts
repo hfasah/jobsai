@@ -7,16 +7,60 @@ export const revalidate = 0; // No cache - instant matching on profile updates
 
 const MINIMUM_MATCH_THRESHOLD = 112; // Minimum matches guaranteed for all users
 
-// Map of similar roles users can apply for (broader opportunity matching)
+// Map of similar roles users can apply for (realistic career paths & adjacent roles)
+// Software Engineer can do: support, QA, DevOps, architecture, mentoring, etc.
 const SIMILAR_ROLES: { [key: string]: string[] } = {
-  "Software Engineer": ["Backend Engineer", "Frontend Engineer", "Full Stack Engineer", "DevOps Engineer", "Platform Engineer"],
-  "Backend Engineer": ["Software Engineer", "Full Stack Engineer", "DevOps Engineer", "Systems Engineer"],
-  "Frontend Engineer": ["Software Engineer", "Full Stack Engineer", "Product Designer", "UX Designer"],
-  "Data Scientist": ["Data Engineer", "ML Engineer", "Machine Learning Engineer", "Analytics Engineer"],
-  "Data Engineer": ["Data Scientist", "ML Engineer", "Backend Engineer", "Analytics Engineer"],
-  "Product Manager": ["Engineering Manager", "Tech Lead", "Product Designer"],
-  "Designer": ["UX Designer", "Product Designer", "Frontend Engineer"],
-  "Manager": ["Engineering Manager", "Tech Lead", "Staff Engineer", "Principal Engineer"],
+  "Software Engineer": [
+    // Other engineering roles
+    "Backend Engineer", "Frontend Engineer", "Full Stack Engineer", "DevOps Engineer", "Platform Engineer",
+    "Systems Engineer", "Site Reliability Engineer", "Solutions Engineer", "Staff Engineer", "Principal Engineer",
+    // Support & customer-facing roles
+    "Technical Support Engineer", "Application Support", "Tech Support", "Help Desk",
+    "Customer Success Engineer", "Customer Support Engineer",
+    // Quality & testing
+    "QA Engineer", "Quality Assurance", "Test Engineer",
+    // Architecture & leadership
+    "Solutions Architect", "Software Architect", "Engineering Manager", "Tech Lead",
+    // Related technical
+    "Systems Administrator", "Cloud Architect", "Security Engineer", "Data Engineer"
+  ],
+  "Backend Engineer": [
+    "Software Engineer", "Full Stack Engineer", "DevOps Engineer", "Systems Engineer", "Platform Engineer",
+    "Site Reliability Engineer", "Solutions Architect", "Solutions Engineer", "Technical Support Engineer",
+    "Database Administrator", "Cloud Architect", "Security Engineer", "Data Engineer"
+  ],
+  "Frontend Engineer": [
+    "Software Engineer", "Full Stack Engineer", "UX Engineer", "Product Designer", "UX Designer",
+    "Solutions Engineer", "Technical Support Engineer", "QA Engineer", "Product Manager"
+  ],
+  "Data Scientist": [
+    "Data Engineer", "ML Engineer", "Machine Learning Engineer", "Analytics Engineer", "Software Engineer",
+    "Backend Engineer", "Solutions Engineer", "Business Analyst", "Research Engineer"
+  ],
+  "Data Engineer": [
+    "Data Scientist", "ML Engineer", "Software Engineer", "Backend Engineer", "Analytics Engineer",
+    "Systems Engineer", "DevOps Engineer", "Database Administrator", "Solutions Engineer"
+  ],
+  "Product Manager": [
+    "Engineering Manager", "Tech Lead", "Product Designer", "Product Analyst",
+    "Solutions Engineer", "Customer Success Engineer", "Business Analyst"
+  ],
+  "Designer": [
+    "UX Designer", "Product Designer", "Frontend Engineer", "Product Manager",
+    "Solutions Engineer", "Customer Success Engineer"
+  ],
+  "Manager": [
+    "Engineering Manager", "Tech Lead", "Staff Engineer", "Principal Engineer",
+    "Solutions Architect", "Product Manager", "Director"
+  ],
+  "QA": [
+    "QA Engineer", "Software Engineer", "Test Engineer", "Automation Engineer",
+    "Quality Assurance", "DevOps Engineer", "Technical Support Engineer"
+  ],
+  "Support": [
+    "Technical Support Engineer", "Application Support", "Customer Success Engineer",
+    "Solutions Engineer", "Software Engineer", "Help Desk", "Tech Support"
+  ]
 };
 
 // Get similar job titles for a given role
