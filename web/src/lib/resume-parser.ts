@@ -68,13 +68,14 @@ export async function parseResumeText(text: string): Promise<ParsedJson> {
   const truncated = text.slice(0, 48000);
 
   const response = await getOpenAI().chat.completions.create({
-    model: "gpt-4o",
+    model: "gpt-4-turbo",
     messages: [
       { role: "system", content: SYSTEM_PROMPT },
       { role: "user", content: truncated },
     ],
     temperature: 0,
     response_format: { type: "json_object" },
+    timeout: 30000, // 30 second timeout to prevent hanging forever
   });
 
   const content = response.choices[0]?.message?.content;
