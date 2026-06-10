@@ -217,14 +217,16 @@ export function OpportunitySnapshot({
         </p>
       </div>
 
-      {/* Setup Gate Modal */}
-      <SetupGateModal
-        open={showSetupModal}
-        onClose={() => setShowSetupModal(false)}
-        hasResume={hasResume}
-        hasJobPreferences={hasJobPreferences}
-        hasApplyProfile={hasApplyProfile}
-      />
+      {/* Setup Gate Modal - only show if setup not complete */}
+      {!allStepsComplete && (
+        <SetupGateModal
+          open={showSetupModal}
+          onClose={() => setShowSetupModal(false)}
+          hasResume={hasResume}
+          hasJobPreferences={hasJobPreferences}
+          hasApplyProfile={hasApplyProfile}
+        />
+      )}
     </div>
   );
 }
