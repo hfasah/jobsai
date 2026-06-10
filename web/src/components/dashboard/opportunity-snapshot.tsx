@@ -193,6 +193,13 @@ export function OpportunitySnapshot() {
           </div>
         </div>
       </div>
+
+      {/* Footer Catchphrase */}
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          💡 Our AI keeps scanning multiple sources and will update this page as soon as matches are found.
+        </p>
+      </div>
     </div>
   );
 }
