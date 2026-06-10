@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { X, CheckCircle2, Settings, User, FileText, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,10 +22,16 @@ export function SetupGateModal({
   hasJobPreferences = false,
   hasApplyProfile = false,
 }: SetupGateModalProps) {
+  const router = useRouter();
+
   if (!open) return null;
 
   const completed = [hasResume, hasJobPreferences, hasApplyProfile].filter(Boolean).length;
   const total = 3;
+
+  const handleNavigate = (href: string) => {
+    router.push(href);
+  };
 
   const steps = [
     {
@@ -98,15 +105,17 @@ export function SetupGateModal({
             {steps.map((step) => {
               const Icon = step.icon;
               return (
-                <Link key={step.id} href={step.href}>
+                <div
+                  key={step.id}
+                  onClick={() => handleNavigate(step.href)}
+                  className={cn(
+                    "group rounded-lg border-2 p-4 transition-all cursor-pointer hover:border-primary/50",
+                    step.done
+                      ? "border-emerald-500/30 bg-emerald-500/5"
+                      : "border-border hover:bg-muted/50"
+                  )}
+                >
                   <div
-                    className={cn(
-                      "group rounded-lg border-2 p-4 transition-all cursor-pointer hover:border-primary/50",
-                      step.done
-                        ? "border-emerald-500/30 bg-emerald-500/5"
-                        : "border-border hover:bg-muted/50"
-                    )}
-                  >
                     <div className="flex gap-4">
                       <div className="flex-shrink-0">
                         {step.done ? (
@@ -141,7 +150,7 @@ export function SetupGateModal({
                       )}
                     </div>
                   </div>
-                </Link>
+                </div>
               );
             })}
           </div>
