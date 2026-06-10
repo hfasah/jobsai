@@ -30,30 +30,29 @@ export default async function DashboardLayout({
   let hasApplyProfile = false;
 
   if (userId) {
-    // Check resume
-    const { count: resumeCount } = await supabaseAdmin
-      .from("resume_documents")
-      .select("id", { count: "exact" })
-      .eq("user_id", userId)
-      .eq("is_archived", false);
-    hasResume = (resumeCount ?? 0) > 0;
+    // Single source of truth: mirror /api/onboard/status exactly so this modal
+    // never disagrees with the Setup page.
+    const [resumeRes, prefsRes, profileRes] = await Promise.all([
+      supabaseAdmin
+        .from("resume_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_archived", false),
+      supabaseAdmin
+        .from("user_preferences")
+        .select("job_titles")
+        .eq("user_id", userId)
+        .maybeSingle(),
+      supabaseAdmin
+        .from("apply_profiles")
+        .select("first_name, email")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
 
-    // Check job preferences
-    const { data: prefs } = await supabaseAdmin
-      .from("user_job_preferences")
-      .select("id")
-      .eq("user_id", userId)
-      .single();
-    hasJobPreferences = !!prefs;
-
-    // Check apply profile
-    const { data: profile } = await supabaseAdmin
-      .from("apply_profiles")
-      .select("id")
-      .eq("user_id", userId)
-      .eq("is_primary", true)
-      .single();
-    hasApplyProfile = !!profile;
+    hasResume = (resumeRes.count ?? 0) > 0;
+    hasJobPreferences = (prefsRes.data?.job_titles?.length ?? 0) > 0;
+    hasApplyProfile = !!(profileRes.data?.first_name || profileRes.data?.email);
   }
 
   return (
