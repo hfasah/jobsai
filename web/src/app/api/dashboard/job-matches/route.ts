@@ -48,7 +48,7 @@ export async function GET(req: NextRequest) {
     // 4. Return categorized results
 
     // For now, return estimated matches based on heuristics
-    const totalMatches = calculateEstimatedMatches(prefs, resumes);
+    const totalMatches = calculateEstimatedMatches(prefs, resumes ?? []);
     const excellentFit = Math.round(totalMatches * 0.17); // ~17%
     const goodFit = Math.round(totalMatches * 0.38); // ~38%
     const potential = Math.round(totalMatches * 0.45); // ~45%
