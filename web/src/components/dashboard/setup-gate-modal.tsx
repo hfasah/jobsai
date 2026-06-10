@@ -141,11 +141,15 @@ export function SetupGateModal({
                         <p className="text-sm text-muted-foreground">{step.description}</p>
                       </div>
                       {!step.done && (
-                        <div className="flex-shrink-0 flex items-center">
-                          <span className="text-xs font-medium text-muted-foreground group-hover:text-primary transition-colors">
-                            Start →
-                          </span>
-                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNavigate(step.href);
+                          }}
+                          className="flex-shrink-0 px-3 py-1 rounded-md bg-primary/10 text-xs font-medium text-primary hover:bg-primary/20 transition-colors"
+                        >
+                          Start →
+                        </button>
                       )}
                     </div>
                   </div>
