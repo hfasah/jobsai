@@ -38,13 +38,13 @@ export function ResumeParsingStatus() {
     setTimeLeft(adjustedTime);
   }, [bandwidthMultiplier]);
 
-  // Animate progress with random jumps
+  // Animate progress with random jumps (up to 95%, never 100% until done)
   useEffect(() => {
     const interval = setInterval(() => {
       setProgress((p) => {
-        if (p >= 90) return p;
+        if (p >= 95) return p;
         const jump = Math.random() * 12 + 3;
-        return Math.min(p + jump, 90);
+        return Math.min(p + jump, 95);
       });
     }, 600);
     return () => clearInterval(interval);
