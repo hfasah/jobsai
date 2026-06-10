@@ -138,8 +138,10 @@ export function OpportunitySnapshot({
 
       {/* Match Breakdown — Single Line */}
       <div className="rounded-lg border border-border bg-card p-3">
-        <div className="flex items-center gap-6 text-xs justify-between">
-          <span className="font-semibold uppercase text-muted-foreground">Quality:</span>
+        <div className="mb-2">
+          <h3 className="text-sm font-semibold text-foreground">How These Jobs Match Your Profile</h3>
+        </div>
+        <div className="flex items-center gap-6 text-xs justify-between flex-wrap">
           {[
             {
               label: "Excellent Fit",
