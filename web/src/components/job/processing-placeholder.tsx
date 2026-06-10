@@ -49,13 +49,16 @@ export function ProcessingPlaceholder() {
     return () => clearInterval(interval);
   }, []);
 
-  // Countdown timer
+  // Countdown timer (minimum 10 seconds while progress bar still animating)
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((t) => Math.max(0, t - 1));
+      setTimeLeft((t) => {
+        if (progress >= 90 && t <= 10) return 10; // pause at 10s while finishing up
+        return Math.max(10, t - 1);
+      });
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [progress]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
