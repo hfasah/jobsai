@@ -129,6 +129,13 @@ export function OpportunitySnapshot({
         </div>
       </div>
 
+      {/* Marketing Message */}
+      <div className="text-center px-2">
+        <p className="text-sm text-muted-foreground">
+          🤖 Our AI scans 1000+ job sources 24/7 for your perfect matches
+        </p>
+      </div>
+
       {/* Match Breakdown — Single Line */}
       <div className="rounded-lg border border-border bg-card p-3 overflow-x-auto">
         <div className="flex items-center gap-3 text-xs whitespace-nowrap">
