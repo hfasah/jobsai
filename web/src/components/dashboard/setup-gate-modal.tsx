@@ -108,6 +108,7 @@ export function SetupGateModal({
                 <Link
                   key={step.id}
                   href={step.href}
+                  onClick={onClose}
                   className={cn(
                     "group rounded-lg border-2 p-4 transition-all cursor-pointer hover:border-primary/50 block",
                     step.done
