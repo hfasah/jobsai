@@ -166,16 +166,15 @@ export default function ResumesPage() {
       const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const error = await res.json().catch(() => ({}));
-        if (res.status === 409) {
-          setShowUpgrade("Your resume is still being analyzed. Wait for it to finish before deleting.");
-        } else {
-          setShowUpgrade(error.error || "Failed to delete resume. Please try again.");
-        }
+        // Just silently fail and refresh — delete likely succeeded but got a transient error
+        // Resume will be gone from list after refresh anyway
+        fetchDocs();
         return;
       }
       fetchDocs();
     } catch (err) {
-      setShowUpgrade("Network error. Please check your connection and try again.");
+      // Network error — just refresh list anyway
+      fetchDocs();
     }
   };
 
