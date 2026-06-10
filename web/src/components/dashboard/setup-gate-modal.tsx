@@ -115,8 +115,7 @@ export function SetupGateModal({
                       : "border-border hover:bg-muted/50"
                   )}
                 >
-                  <div
-                    <div className="flex gap-4">
+                  <div className="flex gap-4">
                       <div className="flex-shrink-0">
                         {step.done ? (
                           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/20">
