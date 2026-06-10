@@ -47,7 +47,7 @@ export function SetupGateModal({
       icon: Settings,
       title: "Set Job Preferences",
       description: "Tell us your target roles, locations, salary expectations, and auto-apply rules.",
-      href: "/dashboard/skills",
+      href: "/dashboard/preferences",
       done: hasJobPreferences,
     },
     {

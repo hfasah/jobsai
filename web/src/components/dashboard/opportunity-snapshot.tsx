@@ -28,13 +28,25 @@ interface OpportunitySnapshotProps {
 }
 
 export function OpportunitySnapshot({
-  hasResume = false,
-  hasJobPreferences = false,
-  hasApplyProfile = false,
+  hasResume: hasResumeProp = false,
+  hasJobPreferences: hasJobPreferencesProp = false,
+  hasApplyProfile: hasApplyProfileProp = false,
 }: OpportunitySnapshotProps) {
   const [data, setData] = useState<JobMatches | null>(null);
   const [loading, setLoading] = useState(true);
   const [showSetupModal, setShowSetupModal] = useState(false);
+
+  // Single source of truth: same endpoint the Setup page uses, so the popup
+  // and the Setup page can never disagree. Falls back to server props until loaded.
+  const [status, setStatus] = useState<{
+    hasResume: boolean;
+    hasJobPreferences: boolean;
+    hasApplyProfile: boolean;
+  } | null>(null);
+
+  const hasResume = status?.hasResume ?? hasResumeProp;
+  const hasJobPreferences = status?.hasJobPreferences ?? hasJobPreferencesProp;
+  const hasApplyProfile = status?.hasApplyProfile ?? hasApplyProfileProp;
 
   const allStepsComplete = hasResume && hasJobPreferences && hasApplyProfile;
 
@@ -71,7 +83,25 @@ export function OpportunitySnapshot({
       }
     };
 
+    // Source of truth for setup completion — same endpoint as the Setup page.
+    const fetchStatus = async () => {
+      try {
+        const res = await fetch("/api/onboard/status", { cache: "no-store" });
+        if (res.ok) {
+          const json = await res.json();
+          setStatus({
+            hasResume: !!json.has_resume,
+            hasJobPreferences: !!json.has_preferences,
+            hasApplyProfile: !!json.has_profile,
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch setup status:", err);
+      }
+    };
+
     fetchMatches();
+    fetchStatus();
   }, []);
 
   if (loading) {
