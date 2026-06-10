@@ -6,6 +6,10 @@ import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { checkResumeGate } from "@/lib/billing";
 
+function sha256(data: Buffer): string {
+  return createHash("sha256").update(data).digest("hex");
+}
+
 export const maxDuration = 30;
 
 const ALLOWED_TYPES = [
@@ -130,6 +134,7 @@ export async function POST(req: NextRequest) {
 
   // ── Create resume version ──────────────────────────────────────────────────────
   const versionId = uuidv4();
+  const checksum = sha256(buffer);
   const { error: versionError } = await supabaseAdmin
     .from("resume_versions")
     .insert({
@@ -141,13 +146,25 @@ export async function POST(req: NextRequest) {
       file_size_bytes: file.size,
       file_mime: file.type,
       storage_key: storagePath,
+      checksum_sha256: checksum,
       parse_status: "partial", // Mark as ready immediately
       uploaded_at: new Date().toISOString(),
     });
 
   if (versionError) {
+    console.error("Resume version insert FAILED");
+    console.error("Version ID:", versionId);
+    console.error("Document ID:", groupId);
+    console.error("File ext:", fileExt);
+    console.error("Checksum:", checksum);
+    console.error("Full error:", JSON.stringify(versionError, null, 2));
     return NextResponse.json(
-      { error: "Failed to save resume version." },
+      {
+        error: "Failed to save resume version.",
+        code: versionError.code,
+        hint: versionError.hint,
+        message: versionError.message,
+      },
       { status: 500 }
     );
   }
