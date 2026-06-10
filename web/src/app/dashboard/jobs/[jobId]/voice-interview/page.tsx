@@ -493,8 +493,26 @@ function VoiceResults({
   ];
   const tone = analysis.overall >= 4 ? "success" : analysis.overall >= 3 ? "warning" : "brand";
 
+  // Honesty guard: don't dress up fabricated scores as a real assessment when
+  // we barely captured any spoken answer.
+  const candidateWords = history
+    .filter((t) => t.role === "candidate")
+    .reduce((n, t) => n + t.content.trim().split(/\s+/).filter(Boolean).length, 0);
+  const lowSignal = candidateWords < 25;
+
   return (
     <div className="w-full space-y-5">
+      {lowSignal && (
+        <div className="flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-400" />
+          <div>
+            <p className="font-semibold text-amber-300">We couldn&apos;t capture enough to score this reliably</p>
+            <p className="mt-1 text-amber-200/80">
+              We only picked up {candidateWords} word{candidateWords === 1 ? "" : "s"} of spoken answers, so the numbers below are rough estimates — not a real assessment. Check that your microphone is on and answer each question out loud, then run it again for an accurate report.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
         <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Voice interview complete</p>
         <div className="mt-5 flex justify-center">

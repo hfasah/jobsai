@@ -725,8 +725,26 @@ function AvatarResults({
     { label: "Confidence", value: analysis.confidence },
   ];
 
+  // Honesty guard: don't present fabricated scores as a real assessment when we
+  // barely captured any spoken answer. Be upfront so the user trusts the tool.
+  const candidateWords = history
+    .filter((t) => t.role === "candidate")
+    .reduce((n, t) => n + t.content.trim().split(/\s+/).filter(Boolean).length, 0);
+  const lowSignal = candidateWords < 25;
+
   return (
     <div className="w-full space-y-5">
+      {lowSignal && (
+        <div className="flex gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-sm">
+          <AlertCircle className="h-5 w-5 shrink-0 text-amber-400" />
+          <div>
+            <p className="font-semibold text-amber-300">We couldn&apos;t capture enough to score this reliably</p>
+            <p className="mt-1 text-amber-200/80">
+              We only picked up {candidateWords} word{candidateWords === 1 ? "" : "s"} of spoken answers, so the numbers below are rough estimates — not a real assessment. Check that your microphone is on and answer each question out loud, then run it again for an accurate report.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
         <p className="text-sm font-medium uppercase tracking-wider text-muted-foreground">Avatar interview complete</p>
         <div className="mt-5 flex justify-center">
@@ -738,7 +756,7 @@ function AvatarResults({
       {/* presence / body language */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <Metric icon={Eye} label="Eye contact" value={bl.available && bl.eye_contact !== null ? `${bl.eye_contact}%` : "—"} sub={bl.available ? "centered gaze" : "no camera data"} />
-        <Metric icon={Video} label="On-camera" value={bl.available && bl.presence !== null ? `${bl.presence}%` : "—"} sub="in frame" />
+        <Metric icon={Video} label="On-camera" value={bl.available && bl.presence !== null ? `${bl.presence}%` : "—"} sub={bl.available ? "in frame" : "camera off"} />
         <Metric icon={Gauge} label="Speaking pace" value={`${analysis.speaking_pace.wpm}`} sub={`wpm · ${analysis.speaking_pace.label}`} />
         <Metric icon={Sparkles} label="Filler words" value={`${analysis.filler_words.count}`} sub={`${analysis.filler_words.per_min}/min`} />
       </div>
