@@ -130,8 +130,8 @@ export function OpportunitySnapshot({
       </div>
 
       {/* Marketing Message */}
-      <div className="text-center px-2">
-        <p className="text-sm text-muted-foreground">
+      <div className="text-center py-3 px-4">
+        <p className="text-base font-medium text-foreground">
           🤖 Our AI scans 1000+ job sources 24/7 for your perfect matches
         </p>
       </div>
