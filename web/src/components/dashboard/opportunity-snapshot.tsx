@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { TrendingUp, Zap, ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SetupGateModal } from "./setup-gate-modal";
 import { cn } from "@/lib/utils";
 
 interface JobMatches {
@@ -19,9 +20,40 @@ interface JobMatches {
   last_updated: string;
 }
 
-export function OpportunitySnapshot() {
+interface OpportunitySnapshotProps {
+  hasResume?: boolean;
+  hasJobPreferences?: boolean;
+  hasApplyProfile?: boolean;
+}
+
+export function OpportunitySnapshot({
+  hasResume = false,
+  hasJobPreferences = false,
+  hasApplyProfile = false,
+}: OpportunitySnapshotProps) {
   const [data, setData] = useState<JobMatches | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showSetupModal, setShowSetupModal] = useState(false);
+
+  const allStepsComplete = hasResume && hasJobPreferences && hasApplyProfile;
+
+  const handleBrowseMatches = () => {
+    if (!allStepsComplete) {
+      setShowSetupModal(true);
+    } else {
+      // Navigate to discover page
+      window.location.href = "/dashboard/discover";
+    }
+  };
+
+  const handleEnableAutoApply = () => {
+    if (!allStepsComplete) {
+      setShowSetupModal(true);
+    } else {
+      // Navigate to jobs page
+      window.location.href = "/dashboard/jobs";
+    }
+  };
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -178,18 +210,21 @@ export function OpportunitySnapshot() {
             Enable Auto-Apply to automatically apply to matching jobs 24/7. Never miss an opportunity again.
           </p>
           <div className="flex gap-3 justify-center">
-            <Link href="/dashboard/discover">
-              <Button variant="outline" className="gap-2">
-                <span>Browse All Matches</span>
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/dashboard/jobs">
-              <Button className="gap-2">
-                <Zap className="h-4 w-4" />
-                <span>Enable Auto-Apply</span>
-              </Button>
-            </Link>
+            <Button
+              variant="outline"
+              className="gap-2"
+              onClick={handleBrowseMatches}
+            >
+              <span>Browse All Matches</span>
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+            <Button
+              className="gap-2"
+              onClick={handleEnableAutoApply}
+            >
+              <Zap className="h-4 w-4" />
+              <span>Enable Auto-Apply</span>
+            </Button>
           </div>
         </div>
       </div>
@@ -203,6 +238,15 @@ export function OpportunitySnapshot() {
           While you sleep, our AI scans 1000+ job sources across the web 24/7, continuously finding roles that match your profile. New matches are added hourly. Check back often — fresh opportunities are always arriving.
         </p>
       </div>
+
+      {/* Setup Gate Modal */}
+      <SetupGateModal
+        open={showSetupModal}
+        onClose={() => setShowSetupModal(false)}
+        hasResume={hasResume}
+        hasJobPreferences={hasJobPreferences}
+        hasApplyProfile={hasApplyProfile}
+      />
     </div>
   );
 }

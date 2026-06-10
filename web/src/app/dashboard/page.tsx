@@ -199,7 +199,11 @@ export default async function DashboardPage() {
         )}
 
         {/* Opportunity Snapshot — Market the matches */}
-        <OpportunitySnapshot />
+        <OpportunitySnapshot
+          hasResume={hasResume}
+          hasJobPreferences={prefs != null}
+          hasApplyProfile={false}
+        />
 
         {/* Journey */}
         <GlassCard className="relative overflow-hidden p-6">
