@@ -320,7 +320,7 @@ export default function ResumesPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">Your resume is being analyzed</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  <span className="block">Estimated time: <strong>~30 seconds</strong></span>
+                  <span className="block">Estimated time: <strong>~1 minute</strong></span>
                   <span className="mt-1 block">Feel free to navigate the app — we'll silently update your resume when parsing is complete. Check back in the resume list to see it with extracted skills and experience.</span>
                 </p>
                 <div className="mt-3 flex gap-2">
