@@ -536,14 +536,48 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
                 {/* Simulated persona (fallback when no streaming avatar) */}
                 {!avatarActive && (
                   <>
-                    <div className={cn("absolute inset-0 bg-gradient-to-br opacity-90", meta.accent)} />
+                    {/* Layered backdrop for depth — gradient + top-light + vignette */}
+                    <div className={cn("absolute inset-0 bg-gradient-to-br", meta.accent)} />
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_30%,rgba(255,255,255,0.28),transparent_60%)]" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
+
                     <div className="absolute inset-0 flex flex-col items-center justify-center text-white">
-                      <div className={cn("flex h-20 w-20 items-center justify-center rounded-full bg-white/20 text-2xl font-bold backdrop-blur", phase === "speaking" && "animate-pulse-ring")}>
-                        {initials}
+                      {/* Avatar with audio-reactive rings when speaking */}
+                      <div className="relative flex items-center justify-center">
+                        {phase === "speaking" && (
+                          <>
+                            <span className="absolute h-24 w-24 rounded-full bg-white/20 animate-ping" />
+                            <span className="absolute h-24 w-24 rounded-full bg-white/10 animate-ping" style={{ animationDelay: "0.5s" }} />
+                          </>
+                        )}
+                        <div
+                          className={cn(
+                            "relative flex h-24 w-24 items-center justify-center rounded-full border border-white/30 bg-white/15 text-3xl font-bold shadow-2xl backdrop-blur-md transition-all duration-700",
+                            phase === "speaking" ? "scale-105 ring-2 ring-white/40" : "scale-100",
+                            phase === "listening" && "animate-pulse-ring"
+                          )}
+                        >
+                          {initials}
+                        </div>
                       </div>
-                      <p className="mt-3 text-sm font-semibold">{meta.label}</p>
-                      {phase === "speaking" ? <AudioBars bars={9} tone="muted" className="mt-2 h-4 opacity-90" />
-                        : <p className="mt-1 text-xs opacity-80">{phase === "thinking" ? "…" : "listening"}</p>}
+
+                      <p className="mt-4 text-base font-semibold tracking-tight drop-shadow">{meta.label}</p>
+                      <p className="text-xs text-white/75">{meta.title}</p>
+
+                      {/* Status pill */}
+                      <div className="mt-3 flex items-center gap-2 rounded-full bg-black/30 px-3 py-1 backdrop-blur">
+                        <span
+                          className={cn(
+                            "h-1.5 w-1.5 rounded-full",
+                            phase === "speaking" ? "bg-emerald-400 animate-pulse"
+                              : phase === "thinking" ? "bg-amber-400 animate-pulse"
+                                : "bg-white/70"
+                          )}
+                        />
+                        {phase === "speaking"
+                          ? <AudioBars bars={7} tone="muted" className="h-3 opacity-90" />
+                          : <span className="text-[11px] font-medium text-white/85">{phase === "thinking" ? "Thinking…" : "Listening"}</span>}
+                      </div>
                     </div>
                   </>
                 )}
