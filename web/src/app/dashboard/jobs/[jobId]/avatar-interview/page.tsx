@@ -301,6 +301,10 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
   const start = useCallback(async () => {
     setErrorMsg(null); setPhase("thinking");
     voiceRef.current = PERSONAS[persona].voice;
+    // Auto-request the camera if the user didn't enable it on the preflight
+    // screen — otherwise they enter the room with a dead "You" tile and no
+    // recording. Denial is non-fatal (we just skip body-language scoring).
+    if (!streamRef.current) await enableCamera();
     const res = await fetch(`/api/jobs/${jobId}/avatar-interview`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "start", persona }),
@@ -322,7 +326,7 @@ export default function AvatarInterviewPage({ params }: { params: Promise<{ jobI
     setHistory([{ role: "interviewer", content: json.data.question }]);
     await ensureAvatar(persona); // spin up the LiveAvatar (no-op if not configured)
     speak(json.data.question);
-  }, [jobId, persona, speak, startRecording, ensureAvatar]);
+  }, [jobId, persona, speak, startRecording, ensureAvatar, enableCamera]);
 
   const submitAnswer = useCallback(async () => {
     stopListening();
