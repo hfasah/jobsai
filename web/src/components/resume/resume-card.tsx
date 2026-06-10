@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ResumeParsingStatus } from "@/components/resume/resume-parsing-status";
 import type { ResumeDocument } from "@/types/resume";
 
 interface ResumeCardProps {
@@ -106,14 +107,21 @@ export function ResumeCard({
             )}
             {version && (
               <>
-                <span>v{version.version_number}</span>
-                <span>·</span>
-                <span>{version.file_ext.toUpperCase()}</span>
-                <span>·</span>
-                <span className={cn("font-medium", statusColor[parseStatus ?? "pending"])}>
-                  {isPending && <Loader2 className="mr-1 inline h-3 w-3 animate-spin" />}
-                  {statusLabel[parseStatus ?? "pending"]}
-                </span>
+                {isPending ? (
+                  <div className="w-full">
+                    <ResumeParsingStatus />
+                  </div>
+                ) : (
+                  <>
+                    <span>v{version.version_number}</span>
+                    <span>·</span>
+                    <span>{version.file_ext.toUpperCase()}</span>
+                    <span>·</span>
+                    <span className={cn("font-medium", statusColor[parseStatus ?? "pending"])}>
+                      {statusLabel[parseStatus ?? "pending"]}
+                    </span>
+                  </>
+                )}
               </>
             )}
           </div>
