@@ -5,7 +5,37 @@ import { Loader2, Clock } from "lucide-react";
 
 export function ProcessingPlaceholder() {
   const [progress, setProgress] = useState(15);
-  const [timeLeft, setTimeLeft] = useState(90); // 1.5 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(90);
+  const [bandwidthMultiplier, setBandwidthMultiplier] = useState(1);
+
+  // Measure bandwidth on mount
+  useEffect(() => {
+    if ("connection" in navigator) {
+      const conn = (navigator as any).connection;
+
+      // effectiveType: '4g' | '3g' | '2g' | 'slow-2g'
+      // downlink: Mbps
+      const effectiveType = conn.effectiveType || "4g";
+      const downlink = conn.downlink || 5;
+
+      // Base case: 4g at ~10 Mbps = 1.0x (normal speed)
+      // Scale inversely: slower connection = longer time
+      const speedMultiplier = Math.max(0.3, downlink / 10);
+
+      // Bonus for save-data mode
+      const saveDataMultiplier = conn.saveData ? 1.5 : 1;
+
+      const multiplier = speedMultiplier * saveDataMultiplier;
+      setBandwidthMultiplier(multiplier);
+    }
+  }, []);
+
+  // Adjust initial time based on bandwidth
+  useEffect(() => {
+    const baseTime = 90; // 1.5 minutes base
+    const adjustedTime = Math.round(baseTime / bandwidthMultiplier);
+    setTimeLeft(adjustedTime);
+  }, [bandwidthMultiplier]);
 
   // Animate progress bar with random jumps to simulate activity
   useEffect(() => {

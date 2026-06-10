@@ -5,7 +5,38 @@ import { Loader2, Clock } from "lucide-react";
 
 export function ResumeParsingStatus() {
   const [progress, setProgress] = useState(10);
-  const [timeLeft, setTimeLeft] = useState(120); // 2 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(120);
+  const [bandwidthMultiplier, setBandwidthMultiplier] = useState(1);
+
+  // Measure bandwidth on mount
+  useEffect(() => {
+    if ("connection" in navigator) {
+      const conn = (navigator as any).connection;
+
+      // effectiveType: '4g' | '3g' | '2g' | 'slow-2g'
+      // downlink: Mbps (4g ≈ 10 Mbps, 3g ≈ 1.5 Mbps, 2g ≈ 0.4 Mbps)
+      const effectiveType = conn.effectiveType || "4g";
+      const downlink = conn.downlink || 5; // default to mid-range if not available
+
+      // Base case: 4g at ~10 Mbps = 1.0x (normal speed)
+      // 3g at ~1.5 Mbps = 0.15x (slower)
+      // 2g at ~0.4 Mbps = 0.04x (much slower)
+      const speedMultiplier = Math.max(0.3, downlink / 10);
+
+      // Bonus for save-data mode (users on slow networks opted in)
+      const saveDataMultiplier = conn.saveData ? 1.5 : 1;
+
+      const multiplier = speedMultiplier * saveDataMultiplier;
+      setBandwidthMultiplier(multiplier);
+    }
+  }, []);
+
+  // Adjust initial time based on bandwidth
+  useEffect(() => {
+    const baseTime = 120; // 2 minutes base
+    const adjustedTime = Math.round(baseTime / bandwidthMultiplier);
+    setTimeLeft(adjustedTime);
+  }, [bandwidthMultiplier]);
 
   // Animate progress with random jumps
   useEffect(() => {
