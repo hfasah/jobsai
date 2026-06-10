@@ -64,6 +64,31 @@ export async function DELETE(
 
   const { groupId } = await params;
 
+  // Check if resume is still parsing — prevent deletion during parsing
+  const { data: doc, error: fetchError } = await supabaseAdmin
+    .from("resume_documents")
+    .select("active_version_id, resume_versions!resume_documents_active_version_id_fkey(parse_status)")
+    .eq("id", groupId)
+    .eq("user_id", userId)
+    .single();
+
+  if (fetchError || !doc) {
+    return NextResponse.json({ error: "Resume not found" }, { status: 404 });
+  }
+
+  // Check if active version is still parsing
+  const activeVersion = Array.isArray(doc.resume_versions) 
+    ? doc.resume_versions[0] 
+    : doc.resume_versions;
+  const parseStatus = activeVersion?.parse_status;
+
+  if (parseStatus === "pending" || parseStatus === "extracting_text") {
+    return NextResponse.json(
+      { error: "Your resume is still being analyzed. Please wait for it to complete before deleting." },
+      { status: 409 }
+    );
+  }
+
   const { error } = await supabaseAdmin
     .from("resume_documents")
     .update({ is_archived: true })
@@ -72,4 +97,6 @@ export async function DELETE(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return new NextResponse(null, { status: 204 });
+}
+
 }

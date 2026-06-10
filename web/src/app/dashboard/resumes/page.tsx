@@ -173,8 +173,21 @@ export default function ResumesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this resume? This cannot be undone.")) return;
-    await fetch(`/api/resumes/${id}`, { method: "DELETE" });
-    fetchDocs();
+    try {
+      const res = await fetch(`/api/resumes/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        if (res.status === 409) {
+          setShowUpgrade("Your resume is still being analyzed. Wait for it to finish before deleting.");
+        } else {
+          setShowUpgrade(error.error || "Failed to delete resume. Please try again.");
+        }
+        return;
+      }
+      fetchDocs();
+    } catch (err) {
+      setShowUpgrade("Network error. Please check your connection and try again.");
+    }
   };
 
   const handleDownload = async (versionId: string) => {
