@@ -302,38 +302,7 @@ export default function ResumesPage() {
             </div>
           )}
 
-          {/* Analysing banner — dismissable, user can keep using the app */}
-          {uploadState.type === "analysing" && !uploadState.dismissed && (
-            <div className="flex items-start gap-3 rounded-xl border border-primary/30 bg-primary/5 p-4">
-              <Loader2 className="mt-0.5 h-4 w-4 shrink-0 animate-spin text-primary" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium">Extracting your resume text</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  <span className="block">Estimated time: <strong>~10 seconds</strong></span>
-                  <span className="mt-1 block">We're extracting text from your resume. Once done, you can add skills and experience details. You'll be able to start using the app immediately.</span>
-                </p>
-                <div className="mt-3 flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setUploadState({ type: "idle" });
-                      fetchDocs();
-                    }}
-                  >
-                    Continue without waiting
-                  </Button>
-                </div>
-              </div>
-              <button
-                onClick={() => setUploadState({ ...uploadState, dismissed: true })}
-                className="shrink-0 rounded-md p-1 text-muted-foreground hover:text-foreground"
-                aria-label="Dismiss"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-          )}
+          {/* No analyzing banner — extraction happens silently in background */}
 
           {/* Done banner after analysis */}
           {uploadState.type === "preview" && (

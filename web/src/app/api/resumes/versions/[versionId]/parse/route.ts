@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 
-export const maxDuration = 30;
+export const maxDuration = 10; // Don't wait long
 
-// POST /api/resumes/versions/[versionId]/parse — text extraction only (no AI)
-// Skip AI parsing entirely for speed — users proceed immediately with extracted text
+// POST /api/resumes/versions/[versionId]/parse — background extraction only
+// Fire and forget — return immediately, extraction happens async
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ versionId: string }> }
@@ -16,7 +16,7 @@ export async function POST(
 
   const { versionId } = await params;
 
-  // Verify ownership and get storage key
+  // Verify ownership
   const { data: version } = await supabaseAdmin
     .from("resume_versions")
     .select("id, document_id, storage_key, file_mime, parse_status, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
@@ -27,93 +27,56 @@ export async function POST(
 
   if (!version) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Skip if already extracted
+  // Already extracted, don't re-extract
   if (version.parse_status === "parsed" || version.parse_status === "partial") {
     return NextResponse.json({ ok: true, status: version.parse_status });
   }
 
-  // Download file from storage
-  const { data: fileData, error: dlError } = await supabaseAdmin.storage
-    .from(STORAGE_BUCKET)
-    .download(version.storage_key);
+  // Return immediately — extraction happens in background
+  // Don't wait for extraction to complete
+  (async () => {
+    try {
+      const { data: fileData } = await supabaseAdmin.storage
+        .from(STORAGE_BUCKET)
+        .download(version.storage_key);
 
-  if (dlError || !fileData) {
-    return NextResponse.json({ error: "Could not retrieve file." }, { status: 500 });
-  }
+      if (!fileData) return;
 
-  const buffer = Buffer.from(await fileData.arrayBuffer());
-  const mimeType: string = version.file_mime ?? "application/pdf";
+      const buffer = Buffer.from(await fileData.arrayBuffer());
+      const mimeType = version.file_mime ?? "application/pdf";
 
-  // ── Text extraction only ──────────────────────────────────────────────────────
-  await supabaseAdmin.from("resume_versions").update({ parse_status: "extracting_text" }).eq("id", versionId);
+      const extracted = await extractText(buffer, mimeType);
+      const plainText = extracted.text;
+      const pages = extracted.pages;
+      const ocrUsed = extracted.ocrUsed;
 
-  let plainText = "";
-  let pages: number | null = null;
-  let ocrUsed = false;
+      if (!plainText) {
+        await supabaseAdmin.from("resume_versions").update({
+          parse_status: "failed",
+          parse_error_code: "NO_TEXT_DETECTED",
+        }).eq("id", versionId);
+        return;
+      }
 
-  try {
-    const extracted = await extractText(buffer, mimeType);
-    plainText = extracted.text;
-    pages = extracted.pages;
-    ocrUsed = extracted.ocrUsed;
+      // Store extracted text
+      await supabaseAdmin.from("resume_texts").upsert({
+        version_id: versionId,
+        plain_text: plainText,
+        tokens_count: Math.ceil(plainText.length / 4),
+      });
 
-    await supabaseAdmin.from("resume_versions")
-      .update({ pages_count: pages, ocr_used: ocrUsed })
-      .eq("id", versionId);
-
-    if (!plainText) {
+      // Update version with extraction details
       await supabaseAdmin.from("resume_versions").update({
-        parse_status: "failed",
-        parse_error_code: "NO_TEXT_DETECTED",
-        parse_error_msg: "No readable text found. Try a DOCX or text-based PDF.",
+        parse_status: "partial",
+        pages_count: pages,
+        ocr_used: ocrUsed,
       }).eq("id", versionId);
-      return NextResponse.json({ error: "No text detected." }, { status: 422 });
+    } catch (err) {
+      console.error("Background extraction error:", err);
+      // Silently fail — user has minimal resume already
     }
+  })();
 
-    // Store extracted text
-    await supabaseAdmin.from("resume_texts").upsert({
-      version_id: versionId,
-      plain_text: plainText,
-      tokens_count: Math.ceil(plainText.length / 4),
-    });
-
-    // Create minimal parsed profile so user can proceed immediately
-    const minimalParse = {
-      name: null,
-      email: null,
-      phone: null,
-      location: null,
-      headline: null,
-      summary: plainText.slice(0, 500),
-      links: {},
-      years_experience: null,
-      experience: [],
-      education: [],
-      skills: [],
-      certifications: [],
-      languages: [],
-      confidence: { contact: 0, experience: 0, education: 0, skills: 0 },
-      warnings: ["Resume text extracted. You can manually add skills, experience, and other details to improve matches."],
-    };
-
-    await supabaseAdmin.from("resume_parsed_profile").upsert({
-      version_id: versionId,
-      parsed_json: minimalParse,
-    });
-
-    // Mark as ready immediately (not parsed — just extracted)
-    await supabaseAdmin.from("resume_versions").update({
-      parse_status: "partial",
-    }).eq("id", versionId);
-
-    return NextResponse.json({ ok: true, status: "partial" });
-  } catch (err) {
-    console.error("Text extraction error:", err);
-    await supabaseAdmin.from("resume_versions").update({
-      parse_status: "failed",
-      parse_error_code: "EXTRACTION_FAILED",
-      parse_error_msg: "Failed to extract text. Try another file format.",
-    }).eq("id", versionId);
-    return NextResponse.json({ error: "Text extraction failed." }, { status: 500 });
-  }
+  // Return immediately, don't wait for extraction
+  return NextResponse.json({ ok: true, status: "partial" });
 }
