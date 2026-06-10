@@ -156,7 +156,7 @@ export function OnboardingChecklist({
         </div>
 
         {/* Footer */}
-        <div className="pt-4 border-t border-border">
+        <div className="pt-4 border-t border-border space-y-3">
           {allComplete ? (
             <div className="text-center py-2">
               <p className="text-sm text-emerald-600 font-medium">
@@ -171,6 +171,13 @@ export function OnboardingChecklist({
               </p>
             </div>
           )}
+
+          {/* Tip */}
+          <div className="bg-primary/5 rounded-lg p-3 border border-primary/20">
+            <p className="text-xs text-muted-foreground">
+              💡 <strong>Pro tip:</strong> For best results and experience, use a desktop and download our Chrome extension for automated job applications.
+            </p>
+          </div>
         </div>
       </div>
     </div>
