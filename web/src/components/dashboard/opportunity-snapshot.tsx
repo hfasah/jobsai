@@ -134,7 +134,7 @@ export function OpportunitySnapshot({
       </div>
 
       {/* Line 2: Journey */}
-      {journeySteps.length > 0 && (
+      {journeySteps && journeySteps.length > 0 && (
         <div className="rounded-lg border border-border bg-card/50 p-3 space-y-2">
           <div>
             <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
