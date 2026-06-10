@@ -198,24 +198,29 @@ export default async function DashboardPage() {
           </Link>
         )}
 
-        {/* Opportunity Snapshot — Market the matches */}
-        <OpportunitySnapshot
-          hasResume={hasResume}
-          hasJobPreferences={prefs != null}
-          hasApplyProfile={false}
-        />
-
-        {/* Journey */}
-        <GlassCard className="relative overflow-hidden p-6">
-          <GradientBg variant="mesh" className="opacity-60" />
-          <div className="mb-5 flex items-center justify-between">
-            <div>
-              <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
-              <p className="mt-2 text-sm text-muted-foreground">Practice like it&apos;s the real thing — each level gets you closer.</p>
-            </div>
+        {/* Top Row: Opportunity Snapshot + Journey */}
+        <div className="grid lg:grid-cols-2 gap-6">
+          {/* Opportunity Snapshot — Compact half-width */}
+          <div>
+            <OpportunitySnapshot
+              hasResume={hasResume}
+              hasJobPreferences={prefs != null}
+              hasApplyProfile={false}
+            />
           </div>
-          <Journey steps={journey} />
-        </GlassCard>
+
+          {/* Journey */}
+          <GlassCard className="relative overflow-hidden p-6">
+            <GradientBg variant="mesh" className="opacity-60" />
+            <div className="mb-5 flex items-center justify-between">
+              <div>
+                <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
+                <p className="mt-2 text-sm text-muted-foreground">Practice like it&apos;s the real thing — each level gets you closer.</p>
+              </div>
+            </div>
+            <Journey steps={journey} />
+          </GlassCard>
+        </div>
 
         {/* Stat cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

@@ -90,72 +90,52 @@ export function OpportunitySnapshot({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2 mb-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          <h2 className="text-2xl font-bold">Your Opportunity Snapshot</h2>
+        <div className="flex items-center gap-2 mb-1">
+          <TrendingUp className="h-4 w-4 text-primary" />
+          <h2 className="text-lg font-bold">Opportunity Snapshot</h2>
         </div>
-        <p className="text-muted-foreground">
-          {data.total_matches.toLocaleString()} matching jobs found based on your profile
+        <p className="text-xs text-muted-foreground">
+          {data.total_matches.toLocaleString()} matching jobs found
         </p>
       </div>
 
       {/* Main Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 gap-2">
         {/* Jobs Matched */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">
-            Jobs Matched
-          </p>
-          <p className="text-4xl font-bold text-primary mb-1">
-            {data.total_matches.toLocaleString()}
-          </p>
-          <p className="text-xs text-muted-foreground">to your profile</p>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Matched</p>
+          <p className="text-2xl font-bold text-primary">{data.total_matches.toLocaleString()}</p>
         </div>
 
         {/* Applications Submitted */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">
-            Applied
-          </p>
-          <p className="text-4xl font-bold text-emerald-600 mb-1">
-            {data.applications_submitted.toLocaleString()}
-          </p>
-          <p className="text-xs text-muted-foreground">submitted</p>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Applied</p>
+          <p className="text-2xl font-bold text-emerald-600">{data.applications_submitted.toLocaleString()}</p>
         </div>
 
         {/* Opportunity Gap */}
-        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-          <p className="text-xs font-semibold uppercase text-amber-700 mb-3">
-            Opportunity Gap
-          </p>
-          <p className="text-4xl font-bold text-amber-600 mb-1">
-            {data.opportunity_gap.toLocaleString()}
-          </p>
-          <p className="text-xs text-amber-700">{gapPercentage}% waiting</p>
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
+          <p className="text-xs font-semibold uppercase text-amber-700 mb-2">Gap</p>
+          <p className="text-2xl font-bold text-amber-600">{data.opportunity_gap.toLocaleString()}</p>
         </div>
 
         {/* Pending */}
-        <div className="rounded-xl border border-border bg-card p-4">
-          <p className="text-xs font-semibold uppercase text-muted-foreground mb-3">
-            In Progress
-          </p>
-          <p className="text-4xl font-bold text-blue-600 mb-1">
-            {data.pending_applications}
-          </p>
-          <p className="text-xs text-muted-foreground">interviews/reviews</p>
+        <div className="rounded-lg border border-border bg-card p-3">
+          <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">In Progress</p>
+          <p className="text-2xl font-bold text-blue-600">{data.pending_applications}</p>
         </div>
       </div>
 
       {/* Match Breakdown */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="font-semibold mb-4">Match Quality Breakdown</h3>
-        <div className="space-y-3">
+      <div className="rounded-lg border border-border bg-card p-3">
+        <h3 className="text-xs font-semibold mb-2 uppercase text-muted-foreground">Quality</h3>
+        <div className="space-y-2">
           {[
             {
-              label: "Excellent Fit",
+              label: "Excellent",
               count: data.match_breakdown.excellent_fit,
               color: "bg-emerald-500",
               percent:
@@ -164,7 +144,7 @@ export function OpportunitySnapshot({
                 ) || 0,
             },
             {
-              label: "Good Fit",
+              label: "Good",
               count: data.match_breakdown.good_fit,
               color: "bg-blue-500",
               percent:
@@ -183,13 +163,13 @@ export function OpportunitySnapshot({
             },
           ].map((item) => (
             <div key={item.label}>
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-medium">{item.label}</span>
-                <span className="text-sm font-semibold">
-                  {item.count.toLocaleString()} ({item.percent}%)
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium">{item.label}</span>
+                <span className="text-xs text-muted-foreground">
+                  {item.percent}%
                 </span>
               </div>
-              <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                 <div
                   className={cn("h-full rounded-full transition-all", item.color)}
                   style={{ width: `${item.percent}%` }}
@@ -201,41 +181,33 @@ export function OpportunitySnapshot({
       </div>
 
       {/* CTA Section */}
-      <div className="rounded-2xl border border-primary/30 bg-primary/5 p-6 text-center">
-        <div className="max-w-md mx-auto">
-          <p className="text-lg font-semibold mb-2">
-            {data.opportunity_gap.toLocaleString()} opportunities waiting for you
-          </p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Enable Auto-Apply to automatically apply to matching jobs 24/7. Never miss an opportunity again.
-          </p>
-          <div className="flex gap-3 justify-center">
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={handleBrowseMatches}
-            >
-              <span>Browse All Matches</span>
-              <ArrowRight className="h-4 w-4" />
-            </Button>
-            <Button
-              className="gap-2"
-              onClick={handleEnableAutoApply}
-            >
-              <Zap className="h-4 w-4" />
-              <span>Enable Auto-Apply</span>
-            </Button>
-          </div>
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+        <p className="text-xs font-semibold mb-2">
+          {data.opportunity_gap.toLocaleString()} waiting
+        </p>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 text-xs flex-1"
+            onClick={handleBrowseMatches}
+          >
+            Browse <ArrowRight className="h-3 w-3" />
+          </Button>
+          <Button
+            size="sm"
+            className="gap-1 text-xs flex-1"
+            onClick={handleEnableAutoApply}
+          >
+            <Zap className="h-3 w-3" /> Auto-Apply
+          </Button>
         </div>
       </div>
 
       {/* Footer Catchphrase */}
-      <div className="text-center space-y-2">
-        <p className="text-sm font-medium text-foreground">
-          🤖 Your AI Job Hunter Never Stops
-        </p>
-        <p className="text-xs text-muted-foreground leading-relaxed max-w-2xl mx-auto">
-          While you sleep, our AI scans 1000+ job sources across the web 24/7, continuously finding roles that match your profile. New matches are added hourly. Check back often — fresh opportunities are always arriving.
+      <div className="text-center">
+        <p className="text-xs text-muted-foreground leading-tight">
+          🤖 AI scans 1000+ sources 24/7 for your matches
         </p>
       </div>
 
