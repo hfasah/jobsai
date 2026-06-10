@@ -10,7 +10,7 @@ import {
   Wand2, PenLine, Puzzle,
   Mic, MessageSquareText, Video, Headphones, UserRound, ClipboardCheck,
   BarChart3, LineChart, Settings2, CreditCard, Bot,
-  Menu, X, ExternalLink, Coins, ChevronDown,
+  Menu, X, ExternalLink, Coins, ChevronDown, Lightbulb,
   Sun, Moon, Monitor,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -82,6 +82,7 @@ const SECTIONS: NavSection[] = [
       { label: "nav.analytics", href: "/dashboard/analytics", icon: BarChart3 },
       { label: "nav.salaries",  href: "/dashboard/salaries",  icon: LineChart },
       { label: "Referrals",     href: "/dashboard/referrals", icon: Coins },
+      { label: "Feature Requests", href: "/dashboard/feature-requests", icon: Lightbulb },
     ],
   },
 ];
