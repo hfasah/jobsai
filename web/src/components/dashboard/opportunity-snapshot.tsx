@@ -103,27 +103,27 @@ export function OpportunitySnapshot({
       </div>
 
       {/* Main Stats */}
-      <div className="flex gap-2 overflow-x-auto pb-1">
+      <div className="grid grid-cols-4 gap-2">
         {/* Jobs Matched */}
-        <div className="rounded-lg border border-border bg-card p-3 shrink-0 min-w-fit">
+        <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Matched</p>
           <p className="text-2xl font-bold text-primary">{data.total_matches.toLocaleString()}</p>
         </div>
 
         {/* Applications Submitted */}
-        <div className="rounded-lg border border-border bg-card p-3 shrink-0 min-w-fit">
+        <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">Applied</p>
           <p className="text-2xl font-bold text-emerald-600">{data.applications_submitted.toLocaleString()}</p>
         </div>
 
         {/* Opportunity Gap */}
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 shrink-0 min-w-fit">
+        <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3">
           <p className="text-xs font-semibold uppercase text-amber-700 mb-2">Gap</p>
           <p className="text-2xl font-bold text-amber-600">{data.opportunity_gap.toLocaleString()}</p>
         </div>
 
         {/* Pending */}
-        <div className="rounded-lg border border-border bg-card p-3 shrink-0 min-w-fit">
+        <div className="rounded-lg border border-border bg-card p-3">
           <p className="text-xs font-semibold uppercase text-muted-foreground mb-2">In Progress</p>
           <p className="text-2xl font-bold text-blue-600">{data.pending_applications}</p>
         </div>
