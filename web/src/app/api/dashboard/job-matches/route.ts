@@ -88,10 +88,10 @@ export async function GET(req: NextRequest) {
   try {
     // Get user's job preferences
     const { data: prefs } = await supabaseAdmin
-      .from("user_job_preferences")
+      .from("user_preferences")
       .select("*")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     // Get applications submitted
     const { count: applicationsCount } = await supabaseAdmin

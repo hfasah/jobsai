@@ -130,12 +130,12 @@ export default async function DashboardPage() {
       .eq("is_archived", false)
       .limit(1),
     supabaseAdmin
-      .from("user_job_preferences")
+      .from("user_preferences")
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle(),
     supabaseAdmin
-      .from("user_apply_profiles")
+      .from("apply_profiles")
       .select("id")
       .eq("user_id", user.id)
       .maybeSingle(),
