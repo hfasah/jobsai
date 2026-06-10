@@ -203,10 +203,19 @@ export default function ResumesPage() {
             <p className="text-sm font-medium uppercase tracking-wider text-desyn-accent">
               Resume manager
             </p>
-            <h1 className="mt-1 text-2xl font-bold tracking-tight">Your Resumes</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Upload PDF, DOC, or DOCX — AI extracts your profile automatically.
-            </p>
+            <div className="flex items-center gap-3">
+              <div>
+                <h1 className="mt-1 text-2xl font-bold tracking-tight">Your Resumes</h1>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Upload PDF, DOC, or DOCX — AI extracts your profile automatically.
+                </p>
+              </div>
+              <div className="mt-2 rounded-lg bg-primary/10 px-3 py-1.5">
+                <p className="text-xs font-medium text-primary">
+                  {docs.length} of {userPlan === "free" ? 1 : 5}
+                </p>
+              </div>
+            </div>
           </div>
           {!showUpload && uploadState.type === "idle" && (
             <div className="flex items-center gap-2">
