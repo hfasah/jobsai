@@ -198,13 +198,22 @@ export default async function DashboardPage() {
           </Link>
         )}
 
-        {/* Opportunity Snapshot — Full Width, 3 Lines */}
+        {/* Opportunity Snapshot — Full Width */}
         <OpportunitySnapshot
           hasResume={hasResume}
           hasJobPreferences={prefs != null}
           hasApplyProfile={false}
-          journeySteps={journey}
         />
+
+        {/* Journey — Full Width */}
+        <GlassCard className="relative overflow-hidden p-4">
+          <GradientBg variant="mesh" className="opacity-60" />
+          <div className="mb-2">
+            <SectionBadge variant="soft" icon={Sparkles}>Your path to an offer</SectionBadge>
+            <p className="mt-0.5 text-xs text-muted-foreground">Practice like it&apos;s the real thing — each level gets you closer.</p>
+          </div>
+          <Journey steps={journey} />
+        </GlassCard>
 
         {/* Stat cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
