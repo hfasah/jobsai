@@ -129,14 +129,13 @@ export function OpportunitySnapshot({
         </div>
       </div>
 
-      {/* Match Breakdown */}
+      {/* Match Breakdown — Horizontal Bars */}
       <div className="rounded-lg border border-border bg-card p-3">
         <h3 className="text-xs font-semibold mb-2 uppercase text-muted-foreground">Quality</h3>
-        <div className="space-y-2">
+        <div className="flex gap-2 items-end h-8">
           {[
             {
               label: "Excellent",
-              count: data.match_breakdown.excellent_fit,
               color: "bg-emerald-500",
               percent:
                 Math.round(
@@ -145,7 +144,6 @@ export function OpportunitySnapshot({
             },
             {
               label: "Good",
-              count: data.match_breakdown.good_fit,
               color: "bg-blue-500",
               percent:
                 Math.round(
@@ -154,7 +152,6 @@ export function OpportunitySnapshot({
             },
             {
               label: "Potential",
-              count: data.match_breakdown.potential,
               color: "bg-purple-500",
               percent:
                 Math.round(
@@ -162,18 +159,16 @@ export function OpportunitySnapshot({
                 ) || 0,
             },
           ].map((item) => (
-            <div key={item.label}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-medium">{item.label}</span>
-                <span className="text-xs text-muted-foreground">
-                  {item.percent}%
-                </span>
-              </div>
-              <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                <div
-                  className={cn("h-full rounded-full transition-all", item.color)}
-                  style={{ width: `${item.percent}%` }}
-                />
+            <div key={item.label} className="flex-1 flex flex-col items-center gap-1">
+              <div
+                className={cn("w-full rounded-t transition-all", item.color)}
+                style={{ height: `${Math.max(4, item.percent / 4)}px` }}
+              />
+              <div className="text-center">
+                <p className="text-[9px] font-semibold text-foreground whitespace-nowrap">
+                  {item.label}
+                </p>
+                <p className="text-[9px] text-muted-foreground">{item.percent}%</p>
               </div>
             </div>
           ))}
