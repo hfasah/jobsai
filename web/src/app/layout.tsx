@@ -7,6 +7,7 @@ import { MarketingPopups } from "@/components/marketing/marketing-popups";
 import { SupportWidget } from "@/components/marketing/support-widget";
 import { AffiliateTracker } from "@/components/affiliate-tracker";
 import { CookieConsent } from "@/components/cookie-consent";
+import { PostHogTracker } from "@/components/analytics/posthog-provider";
 import "./globals.css";
 
 // Body — Notion's primary font: clean, highly legible, modern
@@ -99,6 +100,7 @@ export default function RootLayout({
               <SupportWidget />
               <AffiliateTracker />
               <CookieConsent />
+              <PostHogTracker />
             </I18nProvider>
           </ThemeProvider>
         </body>
