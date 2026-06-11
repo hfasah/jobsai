@@ -10,7 +10,7 @@ import {
   Wand2, PenLine, Puzzle,
   Mic, MessageSquareText, Video, Headphones, UserRound, ClipboardCheck,
   BarChart3, LineChart, Settings2, CreditCard, Bot,
-  Menu, X, ExternalLink, Coins, ChevronDown, Lightbulb,
+  Menu, X, ExternalLink, Coins, ChevronDown, Lightbulb, PlayCircle,
   Sun, Moon, Monitor,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -28,7 +28,7 @@ function LinkedInIcon({ className }: { className?: string }) {
   );
 }
 
-type NavItem = { label: string; href: string; icon: React.ElementType };
+type NavItem = { label: string; href: string; icon: React.ElementType; external?: boolean };
 type NavSection = { heading: string; icon: React.ElementType; items: NavItem[] };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -83,6 +83,7 @@ const SECTIONS: NavSection[] = [
       { label: "nav.salaries",  href: "/dashboard/salaries",  icon: LineChart },
       { label: "Referrals",     href: "/dashboard/referrals", icon: Coins },
       { label: "Feature Requests", href: "/dashboard/feature-requests", icon: Lightbulb },
+      { label: "Watch Demo", href: "https://youtu.be/5XXL3VFrRis", icon: PlayCircle, external: true },
     ],
   },
 ];
@@ -183,18 +184,27 @@ function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
 function NavLink({ item, active, onNavigate, sub }: { item: NavItem; active: boolean; onNavigate?: () => void; sub?: boolean }) {
   const Icon = item.icon;
   const { t } = useI18n();
+  const className = cn(
+    "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
+    sub ? "px-3 py-1.5" : "px-3 py-2",
+    active
+      ? "bg-gradient-brand text-white shadow-glow"
+      : "text-muted-foreground hover:bg-muted hover:text-foreground"
+  );
+
+  // External links (e.g. the demo video) open in a new tab.
+  if (item.external) {
+    return (
+      <a href={item.href} target="_blank" rel="noopener noreferrer" onClick={onNavigate} className={className}>
+        <Icon className="h-4 w-4 shrink-0" />
+        {t(item.label)}
+        <ExternalLink className="ml-auto h-3.5 w-3.5 opacity-60" />
+      </a>
+    );
+  }
+
   return (
-    <Link
-      href={item.href}
-      onClick={onNavigate}
-      className={cn(
-        "flex items-center gap-3 rounded-lg text-sm font-medium transition-colors",
-        sub ? "px-3 py-1.5" : "px-3 py-2",
-        active
-          ? "bg-gradient-brand text-white shadow-glow"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
-      )}
-    >
+    <Link href={item.href} onClick={onNavigate} className={className}>
       <Icon className="h-4 w-4 shrink-0" />
       {t(item.label)}
     </Link>

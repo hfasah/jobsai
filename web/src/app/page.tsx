@@ -158,13 +158,15 @@ export default function Home() {
               <AuthCta href="/sign-up" className="btn-cta inline-flex items-center rounded-full px-7 py-3 text-base">
                 Get started
               </AuthCta>
-              <Link
-                href="#how"
+              <a
+                href="https://youtu.be/5XXL3VFrRis"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-card/60 px-7 py-3 text-base font-semibold text-foreground backdrop-blur transition-colors hover:bg-white/5"
               >
                 <PlayCircle className="h-5 w-5 text-primary" />
                 Watch demo
-              </Link>
+              </a>
             </div>
 
             {/* Product frame */}
