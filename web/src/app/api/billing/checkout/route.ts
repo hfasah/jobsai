@@ -34,19 +34,38 @@ function parseCurrency(raw: unknown): string | undefined {
 // Ensures the user has a Stripe customer, creating + persisting one if needed.
 async function ensureCustomer(userId: string): Promise<string> {
   const billing = await getUserBilling(userId);
-  if (billing.stripe_customer_id) return billing.stripe_customer_id;
+  const stripe = getStripe();
+
+  // Only reuse the stored customer if it still exists in the CURRENT Stripe mode.
+  // After a test→live key switch, old test-mode customer IDs 404 ("No such
+  // customer … exists in test mode, but a live mode key was used"), so we detect
+  // the stale ID and mint a fresh live customer instead of failing checkout.
+  if (billing.stripe_customer_id) {
+    try {
+      const existing = await stripe.customers.retrieve(billing.stripe_customer_id);
+      if (!("deleted" in existing && existing.deleted)) return billing.stripe_customer_id;
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      if (code !== "resource_missing") throw err; // genuine error — don't mask it
+      // resource_missing → stale/test customer; fall through and recreate.
+    }
+  }
 
   const client = await clerkClient();
   const user = await client.users.getUser(userId);
   const email = user.emailAddresses[0]?.emailAddress;
 
-  const customer = await getStripe().customers.create({
+  const customer = await stripe.customers.create({
     email,
     metadata: { clerk_user_id: userId },
   });
+  // Also clear any stale subscription ID tied to the old (test) customer.
   await supabaseAdmin
     .from("user_billing")
-    .upsert({ user_id: userId, stripe_customer_id: customer.id }, { onConflict: "user_id" });
+    .upsert(
+      { user_id: userId, stripe_customer_id: customer.id, stripe_subscription_id: null },
+      { onConflict: "user_id" }
+    );
   return customer.id;
 }
 
