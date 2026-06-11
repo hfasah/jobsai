@@ -79,7 +79,7 @@ const SECTIONS: LegalSection[] = [
       "We do not sell or rent your personal data. We share it only as needed to run the service:",
     ],
     bullets: [
-      "Service providers (processors) acting on our behalf — e.g. Clerk (authentication), Supabase (database/storage), OpenAI (AI text and voice generation), HeyGen/LiveAvatar (streaming video avatar for avatar interviews), Skyvern (browser automation that fills and submits applications for Auto-Apply), Stripe (payments), Resend (email), and job-data providers such as Adzuna.",
+      "Service providers (processors) acting on our behalf — e.g. Clerk (authentication), Supabase (database/storage), OpenAI (AI text and voice generation), HeyGen/LiveAvatar (streaming video avatar for avatar interviews), Skyvern (browser automation that fills and submits applications for Auto-Apply), Stripe (payments), Resend (email), PostHog (product/visitor analytics), and job-data providers such as Adzuna.",
       "Job platforms and employer application systems (ATS) when you apply or auto-apply to a role.",
       "Authorities or third parties when required by law, or to protect our rights, users, or the security of the service.",
     ],
@@ -99,7 +99,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Cookies & similar technologies",
     body: [
-      "We use cookies and similar technologies for sign-in/session management, remembering preferences, and basic analytics to understand and improve usage. You can control cookies through your browser settings.",
+      "We use cookies and similar technologies for sign-in/session management, remembering preferences, and product analytics (via PostHog) to understand how visitors — signed-in or not — navigate and engage with the site, including pages viewed, clicks, time on page, and approximate location (country/region/city) derived from IP. You can control cookies through your browser settings.",
     ],
   },
   {
