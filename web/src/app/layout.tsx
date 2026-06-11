@@ -71,11 +71,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/logo.png", type: "image/png", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "any" },
       { url: "/favicon.ico", sizes: "64x64" },
     ],
-    apple: { url: "/logo.png", sizes: "180x180" },
-    shortcut: "/logo.png",
+    apple: { url: "/apple-icon.png", sizes: "180x180" },
+    shortcut: "/icon.png",
   },
 };
 
