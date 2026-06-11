@@ -55,13 +55,18 @@ export async function getTrafficStats(): Promise<TrafficStats | null> {
 
   const [v24, v7, p24, p7] = (counts[0] ?? [0, 0, 0, 0]).map((n) => Number(n) || 0);
 
-  // Average session duration (seconds) — best-effort; omit if the query errors.
+  // Average session duration (seconds). Compute per-session span from raw events
+  // (max - min timestamp grouped by $session_id) and average it — avoids relying
+  // on the special `sessions` table schema. Best-effort; null if it errors.
   const durRows = await hogql(`
-    SELECT round(avg(session.$session_duration))
-    FROM sessions
-    WHERE session.$start_timestamp > now() - INTERVAL 7 DAY
+    SELECT round(avg(dur)) FROM (
+      SELECT dateDiff('second', min(timestamp), max(timestamp)) AS dur
+      FROM events
+      WHERE timestamp > now() - INTERVAL 7 DAY AND properties.$session_id IS NOT NULL
+      GROUP BY properties.$session_id
+    )
   `).catch(() => null);
-  const avgSessionSec = durRows && durRows[0] ? Number(durRows[0][0]) || null : null;
+  const avgSessionSec = durRows && durRows[0] && durRows[0][0] != null ? Number(durRows[0][0]) || null : null;
 
   // Top countries (7d) — best-effort.
   const countryRows = await hogql(`
