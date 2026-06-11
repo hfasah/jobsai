@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import type { ApplyProfileUpdate } from "@/types/apply";
 
 const EMPTY: ApplyProfileUpdate = {
+  display_name: null,
   first_name: null, last_name: null, email: null, phone: null,
   linkedin_url: null, github_url: null, portfolio_url: null, website_url: null,
   city: null, country: null, authorized_to_work: true, requires_sponsorship: false,
@@ -197,15 +198,18 @@ export default function ApplyProfilePage() {
       <div className="mt-8 space-y-6">
         {/* Personal */}
         <SectionCard icon={<User className="h-4 w-4" />} title="Personal details">
+          <div className="mb-4">
+            <Field label="Display name" value={str(form.display_name)} onChange={(v) => set("display_name", v)} placeholder="e.g. Dimmy" />
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              How we greet you on your dashboard. Optional — set it to whatever you like to be called. (Your legal first/last name below is what we use on job applications.)
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="First name" value={str(form.first_name)} onChange={(v) => set("first_name", v)} placeholder="Jane" />
             <Field label="Last name" value={str(form.last_name)} onChange={(v) => set("last_name", v)} placeholder="Smith" />
             <Field label="Email" type="email" value={str(form.email)} onChange={(v) => set("email", v)} placeholder="jane@example.com" />
             <Field label="Phone" type="tel" value={str(form.phone)} onChange={(v) => set("phone", v)} placeholder="+1 555 000 0000" />
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Your first name is how we greet you on your dashboard — set it to whatever you&apos;d like to be called.
-          </p>
         </SectionCard>
 
         {/* Role & experience */}

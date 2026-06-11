@@ -135,7 +135,7 @@ export default async function DashboardPage() {
       .maybeSingle(),
     supabaseAdmin
       .from("apply_profiles")
-      .select("id, first_name")
+      .select("id, display_name, first_name")
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -144,11 +144,12 @@ export default async function DashboardPage() {
   const hasJobPreferences = prefsCheckRes.data != null;
   const hasApplyProfile = applyProfileRes.data != null;
 
-  // Greeting name: prefer the name the user set in their Apply Profile (editable
-  // anytime), then Clerk's first name, then a neutral fallback — never the raw
-  // email local-part, which is what Clerk often auto-fills at sign-up.
+  // Greeting name: prefer the user's chosen Display name, then their profile
+  // first name, then Clerk's name, then a neutral fallback — never the raw email
+  // local-part, which is what Clerk often auto-fills at sign-up.
+  const displayName = (applyProfileRes.data?.display_name as string | null)?.trim();
   const profileFirstName = (applyProfileRes.data?.first_name as string | null)?.trim();
-  const firstName = profileFirstName || user.firstName || "there";
+  const firstName = displayName || profileFirstName || user.firstName || "there";
 
   const [d, tokenAccount, billing] = await Promise.all([
     getDashboardData(user.id),

@@ -64,6 +64,7 @@ export async function PUT(req: NextRequest) {
 
   const s = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   const update: ApplyProfileUpdate = {
+    display_name:        s(body.display_name),
     first_name:          s(body.first_name),
     last_name:           s(body.last_name),
     email:               s(body.email),
