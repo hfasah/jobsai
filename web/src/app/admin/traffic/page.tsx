@@ -1,4 +1,4 @@
-import { Globe, ExternalLink, CheckCircle2, Circle, MousePointerClick, Clock, MapPin, Users, Eye } from "lucide-react";
+import { Globe, ExternalLink, CheckCircle2, Circle, MousePointerClick, Clock, MapPin, Users, Eye, FileText, Link2, UserCheck } from "lucide-react";
 import { getTrafficStats } from "@/lib/posthog-stats";
 
 export const revalidate = 300; // refresh the numbers every 5 minutes
@@ -50,27 +50,31 @@ export default async function AdminTrafficPage() {
             <Stat icon={MapPin} label="Top country" value={stats.topCountries[0]?.country ?? "—"} sub={stats.topCountries[0] ? `${stats.topCountries[0].views.toLocaleString()} views` : "no data yet"} />
           </div>
 
-          {/* Top countries */}
-          <div className="rounded-xl border border-border bg-card p-5">
-            <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><MapPin className="h-4 w-4 text-primary" /> Top locations (7 days)</h2>
-            {stats.topCountries.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No location data yet — once visitors arrive, their countries appear here.</p>
-            ) : (
-              <ul className="space-y-2">
-                {stats.topCountries.map((c) => {
-                  const max = stats.topCountries[0].views || 1;
-                  return (
-                    <li key={c.country} className="flex items-center gap-3">
-                      <span className="w-40 shrink-0 truncate text-sm">{c.country}</span>
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((c.views / max) * 100)}%` }} />
-                      </div>
-                      <span className="w-16 shrink-0 text-right text-sm font-semibold tabular-nums">{c.views.toLocaleString()}</span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+          {/* Signed-in vs anonymous */}
+          {(() => {
+            const total = stats.signedIn + stats.anonymous;
+            const pct = total ? Math.round((stats.signedIn / total) * 100) : 0;
+            return (
+              <div className="rounded-xl border border-border bg-card p-5">
+                <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Users className="h-4 w-4 text-primary" /> Visitor type (7 days)</h2>
+                <div className="mb-2 flex items-center justify-between text-sm">
+                  <span className="flex items-center gap-1.5"><UserCheck className="h-3.5 w-3.5 text-emerald-500" /> Signed-in <strong className="tabular-nums">{stats.signedIn.toLocaleString()}</strong></span>
+                  <span className="flex items-center gap-1.5 text-muted-foreground">Anonymous <strong className="tabular-nums text-foreground">{stats.anonymous.toLocaleString()}</strong></span>
+                </div>
+                <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
+                  <div className="bg-emerald-500" style={{ width: `${pct}%` }} />
+                  <div className="bg-primary/60" style={{ width: `${100 - pct}%` }} />
+                </div>
+                <p className="mt-1.5 text-xs text-muted-foreground">{total === 0 ? "No visitors yet" : `${pct}% of visitors are signed in`}</p>
+              </div>
+            );
+          })()}
+
+          {/* Breakdowns: locations, pages, referrers */}
+          <div className="grid gap-3 lg:grid-cols-3">
+            <BreakdownList icon={MapPin} title="Top locations" empty="No location data yet." items={stats.topCountries.map((c) => ({ label: c.country, value: c.views }))} />
+            <BreakdownList icon={FileText} title="Top pages" empty="No page data yet." items={stats.topPages.map((p) => ({ label: p.path, value: p.views }))} />
+            <BreakdownList icon={Link2} title="Top referrers" empty="No referrer data yet." items={stats.topReferrers.map((r) => ({ label: r.referrer, value: r.views }))} />
           </div>
         </>
       ) : embedUrl ? (
@@ -96,6 +100,30 @@ export default async function AdminTrafficPage() {
           </ol>
           <p className="mt-4 text-xs text-muted-foreground">Until then, all traffic still flows into PostHog — use “Open in PostHog” above.</p>
         </div>
+      )}
+    </div>
+  );
+}
+
+function BreakdownList({ icon: Icon, title, items, empty }: { icon: React.ElementType; title: string; items: { label: string; value: number }[]; empty: string }) {
+  const max = items[0]?.value || 1;
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4 text-primary" /> {title} (7 days)</h2>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{empty}</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((it) => (
+            <li key={it.label} className="flex items-center gap-3">
+              <span className="w-28 shrink-0 truncate text-sm" title={it.label}>{it.label}</span>
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary" style={{ width: `${Math.round((it.value / max) * 100)}%` }} />
+              </div>
+              <span className="w-12 shrink-0 text-right text-sm font-semibold tabular-nums">{it.value.toLocaleString()}</span>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
