@@ -107,6 +107,38 @@ export async function GET(req: NextRequest) {
       .eq("user_id", userId)
       .in("status", ["in_progress", "interview_scheduled"]);
 
+    // Profile-completion gate. Per spec: a new user starts at 0 and only unlocks
+    // the guaranteed minimum (112+) once their profile is complete — résumé, job
+    // preferences, and apply profile. Before that we honestly show 0.
+    const [resumeCountRes, applyProfileRes] = await Promise.all([
+      supabaseAdmin
+        .from("resume_documents")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("is_archived", false),
+      supabaseAdmin
+        .from("apply_profiles")
+        .select("first_name, email")
+        .eq("user_id", userId)
+        .maybeSingle(),
+    ]);
+    const hasResume = (resumeCountRes.count ?? 0) > 0;
+    const hasJobTitles = Array.isArray(prefs?.job_titles) && prefs.job_titles.length > 0;
+    const hasApplyProfile = !!(applyProfileRes.data?.first_name || applyProfileRes.data?.email);
+    const profileComplete = hasResume && hasJobTitles && hasApplyProfile;
+
+    if (!profileComplete) {
+      return NextResponse.json({
+        total_matches: 0,
+        applications_submitted: applicationsCount || 0,
+        pending_applications: pendingCount || 0,
+        opportunity_gap: 0,
+        match_breakdown: { excellent_fit: 0, good_fit: 0, potential: 0 },
+        total_jobs_in_system: TOTAL_JOBS_IN_SYSTEM,
+        last_updated: new Date().toISOString(),
+      });
+    }
+
     let hasPreferences = false;
     let allSimilarRoles: string[] = [];
 
@@ -180,6 +212,11 @@ export async function GET(req: NextRequest) {
 
       totalMatches = Math.max(totalMatches, allMatches || 0);
     }
+
+    // Guaranteed minimum: a set-up profile always sees at least 112 matches,
+    // even if the sample catalog itself is smaller. (Profile completeness was
+    // already verified above; new/incomplete users returned 0 earlier.)
+    totalMatches = Math.max(totalMatches, MINIMUM_MATCH_THRESHOLD);
 
     // Get jobs for quality breakdown
     let query2 = supabaseAdmin.from("sample_jobs").select("salary_min");
