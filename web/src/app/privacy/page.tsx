@@ -49,7 +49,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "AI processing & model providers",
     body: [
-      "Some features send the minimum necessary content (e.g. your resume profile and a job description) to AI providers such as OpenAI to generate outputs. We instruct providers not to use your content to train their models, and outputs are stored only in your account for as long as needed to deliver the feature.",
+      "Some features send the minimum necessary content (e.g. your resume profile and a job description) to AI providers to generate outputs. Depending on the feature, these providers include OpenAI (resume tailoring, cover letters, matching, written/voice interview generation, and text-to-speech) and HeyGen/LiveAvatar (the streaming video avatar used in avatar interviews). We instruct providers not to use your content to train their models, and outputs are stored only in your account for as long as needed to deliver the feature.",
       "Job listings and salary data are retrieved from third-party job data providers (e.g. Adzuna and other aggregators) based on your searches.",
     ],
   },
@@ -57,12 +57,13 @@ const SECTIONS: LegalSection[] = [
     heading: "Automation & Auto-Apply",
     body: [
       "Auto-Apply fills and submits application forms on your behalf, following your saved preferences and the materials you provide. It carries out instructions you configure rather than making independent decisions about you with legal effect. You can keep a human in the loop at all times using the Approval Queue, which holds each application for your review before anything is sent.",
+      "To complete each application, we use a browser-automation provider (Skyvern) that receives the job details and the application data and materials needed to fill out and submit the form on the relevant job platform.",
     ],
   },
   {
     heading: "Audio & transcripts (Interview Buddy and voice features)",
     body: [
-      "When you use voice, avatar, or live Interview Buddy features, audio is processed to produce a transcript and feedback. Raw audio is used to generate the transcript and is not retained longer than necessary for that purpose; transcripts and scores are kept in your account so you can review them, until you delete them.",
+      "When you use voice, avatar, or live Interview Buddy features, audio is processed to produce a transcript and feedback. Voice processing and text-to-speech are handled by OpenAI; avatar interviews additionally stream a synthetic video presenter via HeyGen/LiveAvatar. Raw audio is used to generate the transcript and is not retained longer than necessary for that purpose; transcripts and scores are kept in your account so you can review them, until you delete them.",
       "The desktop Interview Buddy app captures audio from your interviewer (system audio), not your microphone, to surface real-time guidance.",
     ],
   },
@@ -78,7 +79,7 @@ const SECTIONS: LegalSection[] = [
       "We do not sell or rent your personal data. We share it only as needed to run the service:",
     ],
     bullets: [
-      "Service providers (processors) acting on our behalf — e.g. Clerk (authentication), Supabase (database/storage), OpenAI (AI generation), Stripe (payments), Resend (email), and job-data providers such as Adzuna.",
+      "Service providers (processors) acting on our behalf — e.g. Clerk (authentication), Supabase (database/storage), OpenAI (AI text and voice generation), HeyGen/LiveAvatar (streaming video avatar for avatar interviews), Skyvern (browser automation that fills and submits applications for Auto-Apply), Stripe (payments), Resend (email), and job-data providers such as Adzuna.",
       "Job platforms and employer application systems (ATS) when you apply or auto-apply to a role.",
       "Authorities or third parties when required by law, or to protect our rights, users, or the security of the service.",
     ],
@@ -131,7 +132,7 @@ export default function PrivacyPage() {
   return (
     <LegalPage
       title="Privacy Policy"
-      updated="June 4, 2026"
+      updated="June 11, 2026"
       intro={`This Privacy Policy explains how ${APP_NAME} collects, uses, shares, and protects your personal data when you use jobsai.work and our apps and features.`}
       sections={SECTIONS}
     />
