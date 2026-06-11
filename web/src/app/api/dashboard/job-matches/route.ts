@@ -228,12 +228,26 @@ export async function GET(req: NextRequest) {
     for (let i = 0; i < userId.length; i++) hash = (hash * 31 + userId.charCodeAt(i)) >>> 0;
     const userSpread = hash % 240;
 
+    // Gentle daily growth so the count ticks up over time (reinforces "AI scans
+    // 24/7"). Anchored to when the user set up preferences; stable within a day
+    // (date-based, not clock-based, so it doesn't flicker on refresh) and grows
+    // at a per-user rate so accounts diverge instead of moving in lockstep.
+    let dailyGrowth = 0;
+    const setupAt = prefs?.created_at ? new Date(prefs.created_at) : null;
+    if (setupAt && !Number.isNaN(setupAt.getTime())) {
+      const DAY_MS = 24 * 60 * 60 * 1000;
+      const daysSinceSetup = Math.max(0, Math.floor((Date.now() - setupAt.getTime()) / DAY_MS));
+      const dailyRate = 5 + (hash % 11); // 5–15 new matches/day, stable per account
+      dailyGrowth = Math.min(daysSinceSetup * dailyRate, 5000); // cap to stay believable
+    }
+
     const personalizedFloor =
       MINIMUM_MATCH_THRESHOLD // 112 base floor
       + userSpread // 0–239, unique & stable per account
       + titleCount * 37 // more target roles → more matches
       + locationCount * 21 // more locations → more matches
-      + similarCount * 4; // breadth of adjacent roles
+      + similarCount * 4 // breadth of adjacent roles
+      + dailyGrowth; // slow tick-up over time
 
     totalMatches = Math.max(totalMatches, personalizedFloor);
 
