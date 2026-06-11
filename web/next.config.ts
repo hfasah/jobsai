@@ -39,6 +39,17 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname, ".."),
   },
+  // Don't redirect on trailing slash so PostHog's API requests proxy cleanly.
+  skipTrailingSlashRedirect: true,
+  // Reverse-proxy PostHog through our own origin (/ingest → PostHog US cloud).
+  // First-party requests satisfy our CSP (connect-src 'self') and slip past ad/
+  // privacy blockers that would otherwise drop analytics for many real visitors.
+  async rewrites() {
+    return [
+      { source: "/ingest/static/:path*", destination: "https://us-assets.i.posthog.com/static/:path*" },
+      { source: "/ingest/:path*", destination: "https://us.i.posthog.com/:path*" },
+    ];
+  },
   async headers() {
     return [
       {

@@ -24,7 +24,10 @@ export function PostHogTracker() {
     if (!key || initialized) return;
     initialized = true;
     posthog.init(key, {
-      api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+      // Send through our first-party reverse proxy (next.config rewrites) so the
+      // CSP (connect-src 'self') allows it and ad/privacy blockers don't drop it.
+      api_host: "/ingest",
+      ui_host: "https://us.posthog.com", // keeps PostHog's in-app links pointing to the real host
       defaults: "2025-05-24", // modern defaults: history-based $pageview + $pageleave (duration)
       person_profiles: "identified_only",
       loaded: (ph) => {
