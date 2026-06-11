@@ -203,6 +203,9 @@ export default function ApplyProfilePage() {
             <Field label="Email" type="email" value={str(form.email)} onChange={(v) => set("email", v)} placeholder="jane@example.com" />
             <Field label="Phone" type="tel" value={str(form.phone)} onChange={(v) => set("phone", v)} placeholder="+1 555 000 0000" />
           </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            Your first name is how we greet you on your dashboard — set it to whatever you&apos;d like to be called.
+          </p>
         </SectionCard>
 
         {/* Role & experience */}

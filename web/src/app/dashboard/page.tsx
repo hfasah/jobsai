@@ -119,7 +119,6 @@ function timeAgo(dateStr: string) {
 
 export default async function DashboardPage() {
   const user = await currentUser();
-  const firstName = user?.firstName ?? "there";
   if (!user) redirect("/sign-in");
 
   const [resumesRes, prefsCheckRes, applyProfileRes] = await Promise.all([
@@ -136,7 +135,7 @@ export default async function DashboardPage() {
       .maybeSingle(),
     supabaseAdmin
       .from("apply_profiles")
-      .select("id")
+      .select("id, first_name")
       .eq("user_id", user.id)
       .maybeSingle(),
   ]);
@@ -144,6 +143,12 @@ export default async function DashboardPage() {
   const hasResume = (resumesRes.data?.length ?? 0) > 0;
   const hasJobPreferences = prefsCheckRes.data != null;
   const hasApplyProfile = applyProfileRes.data != null;
+
+  // Greeting name: prefer the name the user set in their Apply Profile (editable
+  // anytime), then Clerk's first name, then a neutral fallback — never the raw
+  // email local-part, which is what Clerk often auto-fills at sign-up.
+  const profileFirstName = (applyProfileRes.data?.first_name as string | null)?.trim();
+  const firstName = profileFirstName || user.firstName || "there";
 
   const [d, tokenAccount, billing] = await Promise.all([
     getDashboardData(user.id),
