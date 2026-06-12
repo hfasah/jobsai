@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requireFeature } from "@/lib/enterprise-entitlements";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
@@ -23,6 +24,8 @@ function bucket(dateStr: string, range: string): string {
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "executive_analytics");
+  if (gate) return gate;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 

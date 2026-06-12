@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requireFeature } from "@/lib/enterprise-entitlements";
 import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -32,6 +33,8 @@ export async function GET() {
 export async function PUT(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "sso");
+  if (gate) return gate;
   const denied = await requirePermission(userId, "can_manage_settings");
   if (denied) return denied;
   const membership = await getMyMembership(userId);
@@ -125,6 +128,8 @@ Status: pending → needs Clerk Enterprise Connection</p>
 export async function DELETE() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "sso");
+  if (gate) return gate;
   const denied = await requirePermission(userId, "can_manage_settings");
   if (denied) return denied;
   const membership = await getMyMembership(userId);

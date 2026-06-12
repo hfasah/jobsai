@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requireFeature } from "@/lib/enterprise-entitlements";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
@@ -8,6 +9,8 @@ type Ctx = { params: Promise<{ id: string }> };
 export async function PUT(req: NextRequest, { params }: Ctx) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "workflow_automation");
+  if (gate) return gate;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
   const { id } = await params;
@@ -38,6 +41,8 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 export async function DELETE(_req: NextRequest, { params }: Ctx) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "workflow_automation");
+  if (gate) return gate;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
   const { id } = await params;
