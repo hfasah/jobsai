@@ -229,9 +229,12 @@ export default function HiringManagerWorkspace() {
 
   const load = async () => {
     setLoading(true);
-    const res = await fetch("/api/enterprise/hiring-manager/workspace");
-    const json = await res.json();
-    setData(json);
+    try {
+      const res = await fetch("/api/enterprise/hiring-manager/workspace");
+      const json = await res.json();
+      if (!res.ok || json.error) { setLoading(false); return; }
+      setData(json);
+    } catch { /* ignore */ }
     setLoading(false);
   };
 
@@ -254,7 +257,7 @@ export default function HiringManagerWorkspace() {
 
   if (!data) return null;
 
-  const { stats, jobs, pending_applications, upcoming_interviews, pending_feedback } = data;
+  const { stats, jobs = [], pending_applications = [], upcoming_interviews = [], pending_feedback = [] } = data;
   const visibleApps = pending_applications.filter((a) => !dismissed.has(a.id));
 
   const SECTIONS = [
