@@ -66,8 +66,8 @@ export default async function EnterpriseLoginPage({
         </div>
 
         <div className="w-full max-w-sm">
-          <h1 className="text-2xl font-bold text-foreground">Recruiter sign in</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Use the work email your invite was sent to. Enterprise accounts use email sign-in only.</p>
+          <h1 className="text-2xl font-bold text-foreground">{org ? `Sign in to ${org.name}` : "Sign in to JobsAI Enterprise"}</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Create an account or sign in with your work email to start your recruiting workspace.</p>
           <div className="mt-6">
             <SignIn
               appearance={enterpriseAppearance}
