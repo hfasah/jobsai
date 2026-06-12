@@ -5,6 +5,11 @@ const APP_HOST = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work")
   .replace(/^https?:\/\//, "")
   .replace(/\/$/, "");
 
+// Domain that serves the enterprise/recruiter experience. Its root should land
+// on the recruiter sign-in, not the consumer marketing page. Keyed off this
+// specific host so jobsai.work (consumer) is unaffected.
+const ENTERPRISE_PORTAL_HOST = "app.jobsai.work";
+
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
   "/onboarding(.*)",
@@ -37,6 +42,13 @@ async function resolveCustomDomain(hostname: string): Promise<string | null> {
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   const hostname = req.headers.get("host")?.split(":")[0] ?? "";
+
+  // Enterprise portal domain: send the homepage to the recruiter sign-in.
+  if (hostname === ENTERPRISE_PORTAL_HOST && req.nextUrl.pathname === "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = "/enterprise-login";
+    return NextResponse.redirect(url);
+  }
 
   const isKnownHost =
     hostname === APP_HOST ||
