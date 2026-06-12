@@ -32,7 +32,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ jobI
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  const fields = ["title","department","location","employment_type","description","responsibilities","qualifications","nice_to_have","salary_min","salary_max","salary_currency","status","closes_at"];
+  const fields = ["title","department","location","employment_type","description","responsibilities","qualifications","nice_to_have","salary_min","salary_max","salary_currency","status","closes_at","hiring_manager_id"];
   for (const f of fields) if (body[f] !== undefined) update[f] = body[f];
   if (body.status === "active" && body.published_at === undefined) update.published_at = new Date().toISOString();
 

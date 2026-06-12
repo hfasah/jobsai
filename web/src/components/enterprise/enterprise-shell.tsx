@@ -6,15 +6,16 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
 import { AskAI } from "@/components/enterprise/ask-ai";
 
 const NAV = [
-  { href: "/enterprise/dashboard", icon: LayoutGrid,       label: "Dashboard" },
-  { href: "/enterprise/inbox",     icon: Inbox,            label: "Inbox" },
+  { href: "/enterprise/dashboard",        icon: LayoutGrid,       label: "Dashboard" },
+  { href: "/enterprise/hiring-manager",   icon: ClipboardCheck,   label: "My Workspace" },
+  { href: "/enterprise/inbox",            icon: Inbox,            label: "Inbox" },
   { href: "/enterprise/jobs",      icon: Briefcase,        label: "Jobs" },
   { href: "/enterprise/boards",    icon: Globe,            label: "Job Boards" },
   { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },

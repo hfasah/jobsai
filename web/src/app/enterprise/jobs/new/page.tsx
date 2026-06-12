@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2, Globe } from "lucide-react";
+import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2, Globe, UserCog } from "lucide-react";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const DEPARTMENTS = ["Engineering", "Product", "Design", "Marketing", "Sales", "Operations", "Finance", "HR", "Legal", "Customer Success", "Other"];
+
+interface TeamMember { user_id: string; name: string; email: string; role: string }
 
 export default function NewJobPage() {
   const router = useRouter();
@@ -14,7 +16,21 @@ export default function NewJobPage() {
     title: "", department: "", location: "", employment_type: "full-time",
     description: "", responsibilities: "", qualifications: "", nice_to_have: "",
     salary_min: "", salary_max: "", extra_context: "", status: "draft",
+    hiring_manager_id: "",
   });
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+
+  useEffect(() => {
+    fetch("/api/enterprise/team")
+      .then((r) => r.json())
+      .then((j) => {
+        const hms = (j.data ?? []).filter((m: TeamMember) =>
+          ["owner", "admin", "recruiter", "hiring_manager", "department_head"].includes(m.role)
+        );
+        setTeamMembers(hms);
+      })
+      .catch(() => {});
+  }, []);
   const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -78,6 +94,7 @@ export default function NewJobPage() {
           ...form,
           salary_min: form.salary_min ? Number(form.salary_min) : null,
           salary_max: form.salary_max ? Number(form.salary_max) : null,
+          hiring_manager_id: form.hiring_manager_id || null,
           status: publish ? "active" : "draft",
         }),
       });
@@ -133,6 +150,18 @@ export default function NewJobPage() {
                 <input value={form.location} onChange={(e) => set("location", e.target.value)}
                   placeholder="Toronto, ON · Remote"
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">
+                  <span className="flex items-center gap-1.5"><UserCog className="h-3.5 w-3.5 text-primary" />Hiring manager</span>
+                </label>
+                <select value={form.hiring_manager_id} onChange={(e) => set("hiring_manager_id", e.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <option value="">Unassigned</option>
+                  {teamMembers.map((m) => (
+                    <option key={m.user_id} value={m.user_id}>{m.name || m.email}</option>
+                  ))}
+                </select>
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Salary range</label>
