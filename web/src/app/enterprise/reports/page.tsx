@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Download, Filter, Briefcase, Users, TrendingUp, Clock,
   Target, CheckCircle2, ShieldCheck, BarChart3, Calendar, FileSpreadsheet,
-  Printer, Mail, X, Send, Plus,
+  Printer, Mail, X, Send, Plus, Share2, Bell, Copy, Check, Trash2, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -80,6 +80,8 @@ export default function ReportsPage() {
   const [job, setJob] = useState("");
   const [dept, setDept] = useState("");
   const [emailOpen, setEmailOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [scheduleOpen, setScheduleOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -145,6 +147,12 @@ export default function ReportsPage() {
             </button>
             <button onClick={() => setEmailOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
               <Mail className="h-4 w-4" /> Email
+            </button>
+            <button onClick={() => setShareOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <Share2 className="h-4 w-4" /> Share link
+            </button>
+            <button onClick={() => setScheduleOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+              <Bell className="h-4 w-4" /> Schedule
             </button>
             <button onClick={exportFull} className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
               <FileSpreadsheet className="h-4 w-4" /> CSV
@@ -348,6 +356,8 @@ export default function ReportsPage() {
       </div>
 
       {emailOpen && <EmailReportModal filters={{ from, to, job, department: dept }} onClose={() => setEmailOpen(false)} />}
+      {shareOpen && <ShareReportModal filters={{ from, to, job, department: dept }} onClose={() => setShareOpen(false)} />}
+      {scheduleOpen && <ScheduleReportModal filters={{ from, to, job, department: dept }} onClose={() => setScheduleOpen(false)} />}
     </main>
   );
 }
@@ -430,6 +440,212 @@ function EmailReportModal({ filters, onClose }: { filters: { from: string; to: s
               {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send report
             </button>
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Share report modal ────────────────────────────────────────────────────────
+function ShareReportModal({ filters, onClose }: { filters: { from: string; to: string; job: string; department: string }; onClose: () => void }) {
+  const [shares, setShares] = useState<{ id: string; token: string; label: string; created_at: string; expires_at: string; view_count: number }[]>([]);
+  const [label, setLabel] = useState(`Report ${new Date().toLocaleDateString()}`);
+  const [expiresDays, setExpiresDays] = useState(30);
+  const [creating, setCreating] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const origin = typeof window !== "undefined" ? window.location.origin : "https://jobsai.work";
+
+  const load = async () => {
+    const r = await fetch("/api/enterprise/reports/share");
+    const j = await r.json();
+    setShares(j.data ?? []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const create = async () => {
+    setCreating(true);
+    await fetch("/api/enterprise/reports/share", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, filters, expires_days: expiresDays }),
+    });
+    await load();
+    setCreating(false);
+  };
+
+  const revoke = async (id: string) => {
+    await fetch("/api/enterprise/reports/share", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setShares((s) => s.filter((x) => x.id !== id));
+  };
+
+  const copy = (token: string, id: string) => {
+    navigator.clipboard.writeText(`${origin}/report/${token}`);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-semibold"><Share2 className="h-4 w-4 text-primary" /> Share report link</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">Generate a read-only link that hiring managers or clients can view without logging in.</p>
+
+        <div className="flex flex-wrap gap-2 mb-4">
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Link label"
+            className="flex-1 min-w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <select value={expiresDays} onChange={(e) => setExpiresDays(Number(e.target.value))}
+            className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+            {[7, 14, 30, 90].map((d) => <option key={d} value={d}>Expires in {d}d</option>)}
+          </select>
+          <button onClick={create} disabled={creating}
+            className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+            {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create
+          </button>
+        </div>
+
+        {shares.length > 0 && (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {shares.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">{s.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{s.view_count} views · expires {new Date(s.expires_at).toLocaleDateString()}</p>
+                </div>
+                <button onClick={() => copy(s.token, s.id)}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted">
+                  {copiedId === s.id ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedId === s.id ? "Copied!" : "Copy"}
+                </button>
+                <button onClick={() => revoke(s.id)} className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Schedule report modal ─────────────────────────────────────────────────────
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function ScheduleReportModal({ filters, onClose }: { filters: { from: string; to: string; job: string; department: string }; onClose: () => void }) {
+  const [schedules, setSchedules] = useState<{ id: string; label: string; recipients: string[]; frequency: string; next_send_at: string; active: boolean }[]>([]);
+  const [recipients, setRecipients] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState("");
+  const [frequency, setFrequency] = useState<"weekly" | "monthly">("weekly");
+  const [dayOfWeek, setDayOfWeek] = useState(1);
+  const [label, setLabel] = useState("Weekly hiring report");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const load = async () => {
+    const r = await fetch("/api/enterprise/reports/schedule");
+    const j = await r.json();
+    setSchedules(j.data ?? []);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const addEmail = () => {
+    const e = emailInput.trim();
+    if (e && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e) && !recipients.includes(e)) {
+      setRecipients((r) => [...r, e]); setEmailInput("");
+    }
+  };
+
+  const save = async () => {
+    if (!recipients.length) return;
+    setSaving(true);
+    await fetch("/api/enterprise/reports/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, recipients, frequency, day_of_week: dayOfWeek, filters }),
+    });
+    setSaved(true);
+    setSaving(false);
+    await load();
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const remove = async (id: string) => {
+    await fetch("/api/enterprise/reports/schedule", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setSchedules((s) => s.filter((x) => x.id !== id));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-lg rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-semibold"><Bell className="h-4 w-4 text-primary" /> Scheduled reports</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        </div>
+        <p className="mb-4 text-xs text-muted-foreground">Automatically email this report to stakeholders on a set schedule.</p>
+
+        <div className="space-y-3 mb-4">
+          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Schedule label"
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+
+          <div className="flex gap-2">
+            <select value={frequency} onChange={(e) => setFrequency(e.target.value as "weekly" | "monthly")}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+            {frequency === "weekly" && (
+              <select value={dayOfWeek} onChange={(e) => setDayOfWeek(Number(e.target.value))}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                {DAY_LABELS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+              </select>
+            )}
+          </div>
+
+          <div className="flex gap-2">
+            <input value={emailInput} onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEmail(); } }}
+              type="email" placeholder="manager@company.com"
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <button onClick={addEmail} className="rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted"><Plus className="h-4 w-4" /></button>
+          </div>
+
+          {recipients.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {recipients.map((e) => (
+                <span key={e} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">
+                  {e}<button onClick={() => setRecipients((r) => r.filter((x) => x !== e))}><X className="h-3 w-3" /></button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          <button onClick={save} disabled={saving || recipients.length === 0}
+            className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : <RefreshCw className="h-4 w-4" />}
+            {saved ? "Scheduled!" : "Create schedule"}
+          </button>
+        </div>
+
+        {schedules.length > 0 && (
+          <div className="space-y-2 border-t border-border pt-4">
+            <p className="text-xs font-semibold text-muted-foreground">Active schedules</p>
+            {schedules.map((s) => (
+              <div key={s.id} className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">{s.label}</p>
+                  <p className="text-[10px] text-muted-foreground capitalize">{s.frequency} · next: {new Date(s.next_send_at).toLocaleDateString()} · {s.recipients.length} recipient{s.recipients.length !== 1 ? "s" : ""}</p>
+                </div>
+                <button onClick={() => remove(s.id)} className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
         )}
       </div>
     </div>
