@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2, GripVertical, ChevronRight } from "lucide-react";
+import { Sparkles, Loader2, GripVertical, ChevronRight, Mic } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, AppStage } from "@/types/enterprise";
 import { STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
@@ -48,7 +48,7 @@ function scoreColor(n: number) {
 
 // ── Kanban card ───────────────────────────────────────────────────────────────
 function KanbanCard({
-  app, screening, isDragging, onDragStart, onDragEnd, onScreen, onReport,
+  app, screening, isDragging, onDragStart, onDragEnd, onScreen, onReport, onVoiceScreen,
 }: {
   app: EnterpriseApplication;
   screening: boolean;
@@ -57,6 +57,7 @@ function KanbanCard({
   onDragEnd: () => void;
   onScreen: (id: string) => void;
   onReport: (app: EnterpriseApplication) => void;
+  onVoiceScreen: (app: EnterpriseApplication) => void;
 }) {
   return (
     <div
@@ -135,6 +136,18 @@ function KanbanCard({
           <span className="text-[10px] text-muted-foreground">Screened</span>
         )}
         <button
+          onClick={(e) => { e.stopPropagation(); onVoiceScreen(app); }}
+          className={cn(
+            "inline-flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium",
+            (app as unknown as Record<string, unknown>).voice_screen_status === "complete"
+              ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
+              : "bg-muted text-muted-foreground hover:text-foreground",
+          )}
+        >
+          <Mic className="h-2.5 w-2.5" />
+          {(app as unknown as Record<string, unknown>).voice_screen_status === "complete" ? "Voice ✓" : "Voice"}
+        </button>
+        <button
           onClick={(e) => { e.stopPropagation(); onReport(app); }}
           className="ml-auto inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
         >
@@ -152,9 +165,10 @@ export interface KanbanBoardProps {
   onScreen: (id: string) => void;
   screeningIds: Set<string>;
   onReport: (app: EnterpriseApplication) => void;
+  onVoiceScreen: (app: EnterpriseApplication) => void;
 }
 
-export function KanbanBoard({ apps, onMove, onScreen, screeningIds, onReport }: KanbanBoardProps) {
+export function KanbanBoard({ apps, onMove, onScreen, screeningIds, onReport, onVoiceScreen }: KanbanBoardProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<AppStage | null>(null);
 
@@ -234,6 +248,7 @@ export function KanbanBoard({ apps, onMove, onScreen, screeningIds, onReport }: 
                     onDragEnd={() => setDraggedId(null)}
                     onScreen={onScreen}
                     onReport={onReport}
+                    onVoiceScreen={onVoiceScreen}
                   />
                 ))}
 

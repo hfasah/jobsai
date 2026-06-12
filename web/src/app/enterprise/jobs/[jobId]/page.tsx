@@ -18,6 +18,7 @@ import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligen
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
 import { CompareModal } from "@/components/enterprise/compare-modal";
 import { SmsModal } from "@/components/enterprise/sms-modal";
+import { VoiceScreenModal } from "@/components/enterprise/voice-screen-modal";
 import { CandidateSearch } from "@/components/enterprise/candidate-search";
 import { KanbanBoard } from "@/components/enterprise/kanban-board";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
@@ -52,7 +53,7 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
 }
 
 function CandidateCard({
-  app, selected, onSelect, onMove, onScreen, screening, onAddToPool, onReport,
+  app, selected, onSelect, onMove, onScreen, screening, onAddToPool, onReport, onVoiceScreen,
 }: {
   app: EnterpriseApplication;
   selected: boolean;
@@ -62,6 +63,7 @@ function CandidateCard({
   screening: boolean;
   onAddToPool: (id: string) => void;
   onReport: (app: EnterpriseApplication) => void;
+  onVoiceScreen: (app: EnterpriseApplication) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -148,6 +150,16 @@ function CandidateCard({
             <button onClick={() => onReport(app)}
               className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
               <ClipboardList className="h-3 w-3" /> Reports
+            </button>
+            <button onClick={() => onVoiceScreen(app)}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-medium",
+                (app as unknown as Record<string, unknown>).voice_screen_status === "complete"
+                  ? "bg-green-500/10 text-green-400 hover:bg-green-500/20"
+                  : "bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80",
+              )}>
+              <Mic className="h-3 w-3" />
+              {(app as unknown as Record<string, unknown>).voice_screen_status === "complete" ? "Voice result" : "Voice screen"}
             </button>
             {(app.match_score ?? 0) >= 50 && (
               <button onClick={() => onAddToPool(app.id)}
@@ -760,6 +772,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search">("pools");
   const [compareOpen, setCompareOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
+  const [voiceScreenApp, setVoiceScreenApp] = useState<EnterpriseApplication | null>(null);
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
   const [preboardApp, setPreboardApp] = useState<EnterpriseApplication | null>(null);
@@ -968,6 +981,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           onScreen={screenApp}
           screeningIds={screeningIds}
           onReport={setReportApp}
+          onVoiceScreen={setVoiceScreenApp}
         />
       )}
 
@@ -1089,6 +1103,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           apps={apps.filter((a) => selectedIds.has(a.id))}
           jobId={jobId}
           onClose={() => setSmsOpen(false)}
+        />
+      )}
+
+      {/* AI Voice Screen modal */}
+      {voiceScreenApp && (
+        <VoiceScreenModal
+          app={voiceScreenApp}
+          jobId={jobId}
+          onClose={() => setVoiceScreenApp(null)}
+          onUpdate={(patch) => {
+            setApps((prev) => prev.map((a) => a.id === voiceScreenApp.id ? { ...a, ...patch } as EnterpriseApplication : a));
+            setVoiceScreenApp((prev) => prev ? { ...prev, ...patch } as EnterpriseApplication : null);
+          }}
         />
       )}
 
