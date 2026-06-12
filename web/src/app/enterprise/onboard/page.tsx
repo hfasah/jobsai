@@ -28,7 +28,7 @@ export default function EnterpriseOnboard() {
       });
       const json = await res.json();
       if (!res.ok) { setError(json.error ?? "Something went wrong."); return; }
-      router.push("/enterprise/dashboard");
+      router.push("/enterprise/plans");
     } finally {
       setSaving(false);
     }

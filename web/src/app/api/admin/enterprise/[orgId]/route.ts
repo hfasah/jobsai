@@ -75,7 +75,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  for (const f of ["admin_notes", "status", "plan_label", "onboarding_done", "industry", "name",
+  for (const f of ["admin_notes", "status", "plan_label", "plan_id", "onboarding_done", "industry", "name",
     "contact_name", "contact_email", "contact_phone", "contact2_name", "contact2_email", "contact2_phone"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }

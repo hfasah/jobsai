@@ -28,13 +28,19 @@ export default async function EnterpriseLockedPage() {
       </p>
       <div className="mt-8 flex flex-col items-center gap-3">
         <a
-          href="mailto:support@jobsai.work?subject=Activate%20my%20enterprise%20workspace"
+          href="/enterprise/plans"
           className="rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground hover:opacity-90"
         >
-          Contact us to activate
+          Choose a plan & start your trial
+        </a>
+        <a
+          href="mailto:support@jobsai.work?subject=Activate%20my%20enterprise%20workspace"
+          className="text-sm font-medium text-primary hover:underline"
+        >
+          Or contact us to activate
         </a>
         <p className="text-xs text-muted-foreground">
-          Already subscribed? Activation is usually instant — refresh in a moment, or reach out above.
+          Already subscribed? Activation is usually instant — refresh in a moment.
         </p>
       </div>
     </div>
