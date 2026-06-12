@@ -26,6 +26,7 @@ import { PoolsPanel } from "@/components/enterprise/pools-panel";
 import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
 import { CsvImportModal } from "@/components/enterprise/csv-import-modal";
 import OfferModal from "@/components/enterprise/offer-modal";
+import { ScheduleModal } from "@/components/enterprise/schedule-modal";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -789,6 +790,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
   const [preboardApp, setPreboardApp] = useState<EnterpriseApplication | null>(null);
   const [offerApp, setOfferApp] = useState<EnterpriseApplication | null>(null);
+  const [scheduleApp, setScheduleApp] = useState<EnterpriseApplication | null>(null);
 
   const load = useCallback(async () => {
     const [jRes, aRes, fRes] = await Promise.all([
@@ -1004,6 +1006,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           onReport={setReportApp}
           onVoiceScreen={setVoiceScreenApp}
           onSendOffer={setOfferApp}
+          onSchedule={setScheduleApp}
         />
       )}
 
@@ -1167,6 +1170,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
       {/* Pre-boarding modal */}
       {preboardApp && (
         <PreboardingModal app={preboardApp} onClose={() => setPreboardApp(null)} />
+      )}
+
+      {/* Schedule interview modal */}
+      {scheduleApp && (
+        <ScheduleModal
+          candidate={{ id: scheduleApp.id, name: scheduleApp.candidate_name, email: scheduleApp.candidate_email }}
+          jobId={jobId}
+          onClose={() => setScheduleApp(null)}
+          onScheduled={() => setScheduleApp(null)}
+        />
       )}
 
       {/* Offer letter modal */}

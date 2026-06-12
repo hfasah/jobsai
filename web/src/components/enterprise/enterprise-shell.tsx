@@ -18,6 +18,7 @@ const NAV = [
   { href: "/enterprise/jobs",      icon: Briefcase,        label: "Jobs" },
   { href: "/enterprise/boards",    icon: Globe,            label: "Job Boards" },
   { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },
+  { href: "/enterprise/sourcing",  icon: Sparkles,         label: "Sourcing" },
   { href: "/enterprise/schedule",  icon: CalendarDays,     label: "Schedule" },
   { href: "/enterprise/offers",    icon: FileText,         label: "Offers" },
   { href: "/enterprise/workflows", icon: Zap,              label: "Workflows" },

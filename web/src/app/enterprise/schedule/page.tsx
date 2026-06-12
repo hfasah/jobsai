@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   CalendarDays, Loader2, Video, Phone, MapPin, X, Clock, CheckCircle2, AlertCircle,
-  Plus, Settings2, Check, Link2, Calendar, Copy, Trash2,
+  Plus, Settings2, Check, Link2, Calendar, Copy, Trash2, MessageSquare, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScheduleModal } from "@/components/enterprise/schedule-modal";
@@ -40,6 +40,10 @@ export default function SchedulePage() {
   const [scope, setScope] = useState<"upcoming" | "all">("upcoming");
   const [newOpen, setNewOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [feedbackId, setFeedbackId] = useState<string | null>(null);
+  const [feedbackForm, setFeedbackForm] = useState({ overall_rating: 0, hire_rec: "", technical_rating: 0, communication_rating: 0, culture_rating: 0, notes: "" });
+  const [submittingFeedback, setSubmittingFeedback] = useState(false);
+  const [feedbackSaved, setFeedbackSaved] = useState(false);
   const [profile, setProfile] = useState({ default_meeting_link: "", calendar_provider: "zoom" });
   const [profileSaved, setProfileSaved] = useState(false);
 
@@ -110,6 +114,25 @@ export default function SchedulePage() {
     if (!confirm("Cancel this interview and notify the candidate?")) return;
     await fetch(`/api/enterprise/schedule/${id}`, { method: "DELETE" });
     setItems((it) => it.map((x) => x.id === id ? { ...x, status: "cancelled" } : x));
+  };
+
+  const openFeedback = (id: string) => {
+    setFeedbackForm({ overall_rating: 0, hire_rec: "", technical_rating: 0, communication_rating: 0, culture_rating: 0, notes: "" });
+    setFeedbackSaved(false);
+    setFeedbackId(id);
+  };
+
+  const submitFeedback = async () => {
+    if (!feedbackId) return;
+    setSubmittingFeedback(true);
+    await fetch(`/api/enterprise/schedule/${feedbackId}/feedback`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(feedbackForm),
+    });
+    setItems((it) => it.map((x) => x.id === feedbackId ? { ...x, status: "completed" } : x));
+    setFeedbackSaved(true);
+    setSubmittingFeedback(false);
+    setTimeout(() => setFeedbackId(null), 1200);
   };
 
   // group by date
@@ -300,7 +323,7 @@ export default function SchedulePage() {
                           <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-border pt-2.5">
                             {past && i.status !== "completed" && (
                               <>
-                                <button onClick={() => update(i.id, { status: "completed" })} className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2.5 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20"><CheckCircle2 className="h-3 w-3" /> Completed</button>
+                                <button onClick={() => openFeedback(i.id)} className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2.5 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20"><CheckCircle2 className="h-3 w-3" /> Completed + feedback</button>
                                 <button onClick={() => update(i.id, { status: "no_show" })} className="inline-flex items-center gap-1 rounded-lg bg-amber-500/10 px-2.5 py-1 text-[11px] font-medium text-amber-400 hover:bg-amber-500/20"><AlertCircle className="h-3 w-3" /> No-show</button>
                               </>
                             )}
@@ -320,6 +343,85 @@ export default function SchedulePage() {
       </div>
 
       {newOpen && <ScheduleModal onClose={() => setNewOpen(false)} onScheduled={load} />}
+
+      {/* Post-interview feedback modal */}
+      {feedbackId && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setFeedbackId(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 font-semibold"><MessageSquare className="h-4 w-4 text-primary" /> Interview Feedback</h2>
+              <button onClick={() => setFeedbackId(null)}><X className="h-4 w-4 text-muted-foreground" /></button>
+            </div>
+
+            {feedbackSaved ? (
+              <div className="py-6 text-center">
+                <CheckCircle2 className="mx-auto mb-3 h-10 w-10 text-green-400" />
+                <p className="font-semibold">Feedback saved</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Overall rating */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Overall rating</label>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <button key={n} onClick={() => setFeedbackForm((f) => ({ ...f, overall_rating: n }))}
+                        className={cn("flex h-9 w-9 items-center justify-center rounded-lg border text-sm transition-colors",
+                          feedbackForm.overall_rating >= n ? "border-amber-400 bg-amber-400/10 text-amber-400" : "border-border text-muted-foreground")}>
+                        <Star className="h-4 w-4" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Hire recommendation */}
+                <div>
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-muted-foreground">Hire recommendation</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[["strong_yes", "Strong Yes"], ["yes", "Yes"], ["maybe", "Maybe"], ["no", "No"]].map(([v, l]) => (
+                      <button key={v} onClick={() => setFeedbackForm((f) => ({ ...f, hire_rec: v }))}
+                        className={cn("rounded-lg border py-1.5 text-xs font-medium transition-colors",
+                          feedbackForm.hire_rec === v ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground")}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Dimension ratings */}
+                <div className="grid grid-cols-3 gap-2">
+                  {[["technical_rating", "Technical"], ["communication_rating", "Comms"], ["culture_rating", "Culture"]].map(([key, label]) => (
+                    <div key={key}>
+                      <label className="mb-1 block text-xs text-muted-foreground text-center">{label}</label>
+                      <select value={(feedbackForm as Record<string, unknown>)[key] as number}
+                        onChange={(e) => setFeedbackForm((f) => ({ ...f, [key]: Number(e.target.value) }))}
+                        className="w-full rounded-lg border border-border bg-background px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary">
+                        <option value={0}>—</option>
+                        {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{n}/5</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Notes */}
+                <textarea
+                  value={feedbackForm.notes}
+                  onChange={(e) => setFeedbackForm((f) => ({ ...f, notes: e.target.value }))}
+                  rows={3}
+                  placeholder="Interviewer notes (shared with hiring team)…"
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                />
+
+                <button onClick={submitFeedback} disabled={submittingFeedback || (!feedbackForm.overall_rating && !feedbackForm.hire_rec)}
+                  className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60">
+                  {submittingFeedback ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                  Save feedback &amp; mark completed
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   );
 }
