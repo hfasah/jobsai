@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
+import { runWorkflows } from "@/lib/workflow-engine";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
@@ -152,6 +153,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     candidate_name: app.candidate_name,
     candidate_email: app.candidate_email,
     source: app.source,
+  }).catch(() => {});
+
+  runWorkflows("application_created", {
+    org_id: job.org_id,
+    org_name: orgName,
+    application_id: app.id,
+    job_id: jobId,
+    job_title: job.title,
+    candidate_name: app.candidate_name,
+    candidate_email: app.candidate_email,
   }).catch(() => {});
 
   return NextResponse.json({ data: app }, { status: 201 });

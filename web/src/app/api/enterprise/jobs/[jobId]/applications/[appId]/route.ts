@@ -6,6 +6,7 @@ import { resend } from "@/lib/resend";
 import type { AppStage } from "@/types/enterprise";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
+import { runWorkflows } from "@/lib/workflow-engine";
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
@@ -68,6 +69,19 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       candidate_email: data.candidate_email,
       stage: body.stage,
     }).catch(() => {});
+
+    const jobTitle = (data.job as { title: string } | null)?.title ?? "";
+    runWorkflows("stage_change", {
+      org_id: org.id,
+      org_name: org.name,
+      application_id: appId,
+      job_id: jobId,
+      job_title: jobTitle,
+      candidate_name: data.candidate_name as string,
+      candidate_email: data.candidate_email as string,
+      stage: body.stage,
+      recruiter_id: userId,
+    }, body.stage).catch(() => {});
   }
 
   return NextResponse.json({ data });

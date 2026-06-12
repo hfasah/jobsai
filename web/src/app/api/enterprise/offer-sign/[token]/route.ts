@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
+import { runWorkflows } from "@/lib/workflow-engine";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -16,7 +17,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tok
   // Fetch org name
   const { data: org } = await supabaseAdmin
     .from("enterprise_orgs")
-    .select("name")
+    .select("name,id")
     .eq("id", data.org_id)
     .maybeSingle();
 
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
 
   const { data: offer, error: fetchErr } = await supabaseAdmin
     .from("enterprise_offer_letters")
-    .select("id,status,candidate_name,job_title,org_id")
+    .select("id,status,candidate_name,candidate_email,job_title,org_id,application_id")
     .eq("sign_token", token)
     .maybeSingle();
 
@@ -63,6 +64,16 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       .select()
       .single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    // Fetch org for workflow context
+    const { data: dOrg } = await supabaseAdmin.from("enterprise_orgs").select("name").eq("id", offer.org_id).maybeSingle();
+    runWorkflows("offer_declined", {
+      org_id: offer.org_id,
+      org_name: dOrg?.name ?? "",
+      candidate_name: offer.candidate_name as string,
+      candidate_email: offer.candidate_email as string,
+      job_title: offer.job_title as string,
+      application_id: (offer.application_id as string) ?? undefined,
+    }).catch(() => {});
     return NextResponse.json({ data });
   }
 
@@ -96,5 +107,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Fetch org for workflow context
+  const { data: sOrg } = await supabaseAdmin.from("enterprise_orgs").select("name").eq("id", offer.org_id).maybeSingle();
+  runWorkflows("offer_signed", {
+    org_id: offer.org_id,
+    org_name: sOrg?.name ?? "",
+    candidate_name: offer.candidate_name as string,
+    candidate_email: offer.candidate_email as string,
+    job_title: offer.job_title as string,
+    application_id: (offer.application_id as string) ?? undefined,
+  }).catch(() => {});
   return NextResponse.json({ data });
 }
