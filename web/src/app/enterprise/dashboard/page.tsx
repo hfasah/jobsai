@@ -2,18 +2,26 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Briefcase, Users, CheckCircle2, Clock, Plus, ArrowRight, Loader2, TrendingUp, Target } from "lucide-react";
+import { Briefcase, Users, Clock, Plus, ArrowRight, Loader2, TrendingUp, Target, AlertTriangle, Star, CalendarDays, MessageSquare, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication } from "@/types/enterprise";
 import { STAGE_COLORS, STAGE_LABELS, ATS_TIERS, atsTier } from "@/types/enterprise";
+
+interface Nudge { type: string; message: string; count: number; href: string; color: string }
 
 export default function EnterpriseDashboard() {
   const [jobs, setJobs] = useState<EnterpriseJob[]>([]);
   const [recentApps, setRecentApps] = useState<EnterpriseApplication[]>([]);
   const [recentAll, setRecentAll] = useState<EnterpriseApplication[]>([]);
+  const [nudges, setNudges] = useState<Nudge[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    fetch("/api/enterprise/dashboard/nudges")
+      .then((r) => r.json())
+      .then((j) => setNudges(j.nudges ?? []))
+      .catch(() => {});
+
     Promise.all([
       fetch("/api/enterprise/jobs").then((r) => r.json()),
     ]).then(([j]) => {
@@ -74,6 +82,31 @@ export default function EnterpriseDashboard() {
             </div>
           ))}
         </div>
+
+        {/* Smart nudges */}
+        {nudges.length > 0 && (
+          <div className="mt-6 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {nudges.map((n) => (
+              <Link key={n.type} href={n.href}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:opacity-90",
+                  n.color === "amber"  && "border-amber-500/30 bg-amber-500/5 text-amber-400",
+                  n.color === "green"  && "border-green-500/30 bg-green-500/5 text-green-400",
+                  n.color === "violet" && "border-violet-500/30 bg-violet-500/5 text-violet-400",
+                  n.color === "cyan"   && "border-cyan-500/30 bg-cyan-500/5 text-cyan-400",
+                  n.color === "blue"   && "border-blue-500/30 bg-blue-500/5 text-blue-400",
+                )}>
+                {n.color === "amber"  && <AlertTriangle className="h-4 w-4 shrink-0" />}
+                {n.color === "green"  && <Star className="h-4 w-4 shrink-0" />}
+                {n.color === "violet" && <CalendarDays className="h-4 w-4 shrink-0" />}
+                {n.color === "cyan"   && <MessageSquare className="h-4 w-4 shrink-0" />}
+                {n.color === "blue"   && <FileText className="h-4 w-4 shrink-0" />}
+                <span className="flex-1 truncate">{n.message}</span>
+                <ArrowRight className="h-3.5 w-3.5 shrink-0 opacity-60" />
+              </Link>
+            ))}
+          </div>
+        )}
 
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
           {/* Active jobs */}
