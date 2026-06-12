@@ -143,13 +143,13 @@ export function CandidateSearch({ jobId }: CandidateSearchProps) {
           {(filtersApplied.skills as string[] | undefined)?.map((s) => (
             <span key={s} className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{s}</span>
           ))}
-          {filtersApplied.min_score && (
+          {filtersApplied.min_score != null && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs">score ≥ {filtersApplied.min_score as number}%</span>
           )}
           {(filtersApplied.stages as string[] | undefined)?.map((s) => (
             <span key={s} className={cn("rounded-full border px-2 py-0.5 text-xs font-medium", STAGE_COLORS[s as AppStage])}>{STAGE_LABELS[s as AppStage] ?? s}</span>
           ))}
-          {filtersApplied.recommendation && (
+          {filtersApplied.recommendation != null && (
             <span className="rounded-full bg-muted px-2 py-0.5 text-xs capitalize">{String(filtersApplied.recommendation)}</span>
           )}
         </div>

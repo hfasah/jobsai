@@ -17,6 +17,7 @@ import type { CompetencyFramework, RoleType } from "@/types/interview-intelligen
 import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
 import { CompareModal } from "@/components/enterprise/compare-modal";
+import { SmsModal } from "@/components/enterprise/sms-modal";
 import { CandidateSearch } from "@/components/enterprise/candidate-search";
 import { KanbanBoard } from "@/components/enterprise/kanban-board";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
@@ -758,6 +759,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [bulkLoading, setBulkLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search">("pools");
   const [compareOpen, setCompareOpen] = useState(false);
+  const [smsOpen, setSmsOpen] = useState(false);
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
   const [preboardApp, setPreboardApp] = useState<EnterpriseApplication | null>(null);
@@ -932,6 +934,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                 <Scale className="h-3 w-3" /> Compare {selectedIds.size}
               </button>
             )}
+            <button onClick={() => setSmsOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+              <Send className="h-3 w-3" /> Message
+            </button>
             <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
               Clear
             </button>
@@ -1074,6 +1080,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           apps={apps.filter((a) => selectedIds.has(a.id))}
           jobId={jobId}
           onClose={() => setCompareOpen(false)}
+        />
+      )}
+
+      {/* SMS / WhatsApp modal */}
+      {smsOpen && (
+        <SmsModal
+          apps={apps.filter((a) => selectedIds.has(a.id))}
+          jobId={jobId}
+          onClose={() => setSmsOpen(false)}
         />
       )}
 

@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import {
-  CalendarDays, Loader2, Video, Phone, MapPin, ExternalLink, X, Clock, CheckCircle2, AlertCircle,
-  Plus, Settings2, Check, Link2,
+  CalendarDays, Loader2, Video, Phone, MapPin, X, Clock, CheckCircle2, AlertCircle,
+  Plus, Settings2, Check, Link2, Calendar, Copy, Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScheduleModal } from "@/components/enterprise/schedule-modal";
@@ -13,6 +13,12 @@ interface Interview {
   interview_type: string; provider: string | null; meeting_link: string | null; location: string | null;
   scheduled_at: string; duration_min: number; interviewers: string | null; interviewer_emails: string[];
   status: string; notes: string | null;
+}
+
+interface AvailabilitySlot {
+  id: string; starts_at: string; ends_at: string | null; duration_min: number;
+  booked: boolean; booking_token: string; job_id: string | null;
+  booked_by_name: string | null; booked_by_email: string | null;
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -25,7 +31,10 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 
 const TYPE_ICON: Record<string, React.ElementType> = { video: Video, phone: Phone, onsite: MapPin };
 
+const APP_URL = typeof window !== "undefined" ? window.location.origin : "https://jobsai.work";
+
 export default function SchedulePage() {
+  const [tab, setTab] = useState<"interviews" | "availability">("interviews");
   const [items, setItems] = useState<Interview[]>([]);
   const [loading, setLoading] = useState(true);
   const [scope, setScope] = useState<"upcoming" | "all">("upcoming");
@@ -34,9 +43,50 @@ export default function SchedulePage() {
   const [profile, setProfile] = useState({ default_meeting_link: "", calendar_provider: "zoom" });
   const [profileSaved, setProfileSaved] = useState(false);
 
+  // Availability slots state
+  const [slots, setSlots] = useState<AvailabilitySlot[]>([]);
+  const [slotsLoading, setSlotsLoading] = useState(false);
+  const [newSlot, setNewSlot] = useState({ starts_at: "", duration_min: 45 });
+  const [addingSlot, setAddingSlot] = useState(false);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   useEffect(() => {
     fetch("/api/enterprise/my-profile").then((r) => r.json()).then((j) => { if (j.data) setProfile(j.data); }).catch(() => {});
   }, []);
+
+  const loadSlots = useCallback(async () => {
+    setSlotsLoading(true);
+    const r = await fetch("/api/enterprise/availability");
+    const j = await r.json();
+    setSlots(j.data ?? []);
+    setSlotsLoading(false);
+  }, []);
+
+  useEffect(() => { if (tab === "availability") loadSlots(); }, [tab, loadSlots]);
+
+  const addSlot = async () => {
+    if (!newSlot.starts_at) return;
+    setAddingSlot(true);
+    await fetch("/api/enterprise/availability", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ slots: [{ starts_at: newSlot.starts_at, duration_min: newSlot.duration_min }] }),
+    });
+    setNewSlot({ starts_at: "", duration_min: 45 });
+    await loadSlots();
+    setAddingSlot(false);
+  };
+
+  const deleteSlot = async (id: string) => {
+    await fetch("/api/enterprise/availability", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setSlots((s) => s.filter((x) => x.id !== id));
+  };
+
+  const copyLink = (token: string, id: string) => {
+    navigator.clipboard.writeText(`${APP_URL}/enterprise/book/${token}`);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const saveProfile = async () => {
     await fetch("/api/enterprise/my-profile", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(profile) });
@@ -80,13 +130,110 @@ export default function SchedulePage() {
           <div className="flex items-center gap-2">
             <button onClick={() => setSettingsOpen((o) => !o)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted hover:text-foreground"><Settings2 className="h-4 w-4" /> My link</button>
             <button onClick={() => setNewOpen(true)} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"><Plus className="h-4 w-4" /> Schedule interview</button>
-            <div className="inline-flex rounded-xl border border-border bg-muted/40 p-1">
-              {(["upcoming", "all"] as const).map((s) => (
-                <button key={s} onClick={() => setScope(s)} className={cn("rounded-lg px-3 py-1.5 text-sm font-medium capitalize transition-colors", scope === s ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>{s}</button>
-              ))}
-            </div>
           </div>
         </div>
+
+        {/* Tabs */}
+        <div className="mb-5 inline-flex rounded-xl border border-border bg-muted/40 p-1 gap-1">
+          <button onClick={() => setTab("interviews")} className={cn("rounded-lg px-4 py-1.5 text-sm font-medium transition-colors", tab === "interviews" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
+            Interviews
+          </button>
+          <button onClick={() => setTab("availability")} className={cn("flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-medium transition-colors", tab === "availability" ? "bg-card text-foreground shadow-sm" : "text-muted-foreground")}>
+            <Calendar className="h-3.5 w-3.5" /> Availability Slots
+          </button>
+        </div>
+
+        {/* Availability Slots tab */}
+        {tab === "availability" && (
+          <div>
+            {/* Add slot form */}
+            <div className="mb-5 rounded-2xl border border-border bg-card p-4">
+              <h2 className="mb-3 text-sm font-semibold">Add Open Slot</h2>
+              <p className="mb-3 text-xs text-muted-foreground">Create a time slot and share the booking link with candidates — they self-book their preferred time.</p>
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="flex-1 min-w-48">
+                  <label className="mb-1 block text-xs text-muted-foreground">Date & Time</label>
+                  <input
+                    type="datetime-local"
+                    value={newSlot.starts_at}
+                    onChange={(e) => setNewSlot((s) => ({ ...s, starts_at: e.target.value }))}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-muted-foreground">Duration</label>
+                  <select
+                    value={newSlot.duration_min}
+                    onChange={(e) => setNewSlot((s) => ({ ...s, duration_min: Number(e.target.value) }))}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    {[15, 30, 45, 60, 90].map((m) => <option key={m} value={m}>{m} min</option>)}
+                  </select>
+                </div>
+                <button
+                  onClick={addSlot}
+                  disabled={addingSlot || !newSlot.starts_at}
+                  className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50"
+                >
+                  {addingSlot ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Add Slot
+                </button>
+              </div>
+            </div>
+
+            {/* Slots list */}
+            {slotsLoading ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : slots.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-12 text-center">
+                <Calendar className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No open slots yet. Add one above.</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {slots.map((s) => {
+                  const dt = new Date(s.starts_at);
+                  const bookingUrl = `${APP_URL}/enterprise/book/${s.booking_token}`;
+                  return (
+                    <div key={s.id} className="flex items-center gap-3 rounded-xl border border-border bg-card p-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium">
+                          {dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })}
+                          {" · "}
+                          {dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}
+                          <span className="ml-2 text-xs text-muted-foreground">{s.duration_min} min</span>
+                        </p>
+                        {s.booked ? (
+                          <p className="text-xs text-green-400">Booked by {s.booked_by_name} ({s.booked_by_email})</p>
+                        ) : (
+                          <p className="truncate text-xs text-muted-foreground">{bookingUrl}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {!s.booked && (
+                          <button
+                            onClick={() => copyLink(s.booking_token, s.id)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted"
+                          >
+                            {copiedId === s.id ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                            {copiedId === s.id ? "Copied!" : "Copy link"}
+                          </button>
+                        )}
+                        {!s.booked && (
+                          <button onClick={() => deleteSlot(s.id)} className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10">
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {tab === "interviews" && <>
 
         {/* My default meeting link */}
         {settingsOpen && (
@@ -168,6 +315,8 @@ export default function SchedulePage() {
             ))}
           </div>
         )}
+        </>}
+
       </div>
 
       {newOpen && <ScheduleModal onClose={() => setNewOpen(false)} onScheduled={load} />}
