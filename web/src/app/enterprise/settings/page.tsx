@@ -5,7 +5,7 @@ import {
   Bot, Send, Loader2, Sparkles, Copy, Check, RefreshCw,
   Users, Plus, Trash2, Link2, Download, Shield, Mail,
   CheckCircle2, AlertCircle, RotateCcw, Clock,
-  Palette, Code2, ExternalLink,
+  Palette, Code2, ExternalLink, Globe, Eye, EyeOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -198,6 +198,62 @@ const PROVIDERS = [
 
 interface Integration { id: string; provider: string; enabled: boolean; last_sync: string | null }
 
+// ── Microsoft Calendar card ───────────────────────────────────────────────────
+function MicrosoftCalendarCard() {
+  const [status, setStatus] = useState<{ configured: boolean; connected: boolean; email?: string | null } | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/enterprise/microsoft/status").then((r) => r.json()).then(setStatus);
+  }, []);
+
+  const disconnect = async () => {
+    setDisconnecting(true);
+    await fetch("/api/enterprise/microsoft/status", { method: "DELETE" });
+    setStatus((s) => s ? { ...s, connected: false, email: null } : s);
+    setDisconnecting(false);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">🪟</span>
+          <div>
+            <p className="font-semibold">Microsoft 365 / Outlook</p>
+            <p className="text-xs text-muted-foreground">Calendar sync + send emails from your Outlook inbox</p>
+          </div>
+        </div>
+        {status?.connected && (
+          <span className="flex items-center gap-1 rounded-full bg-green-500/15 px-2.5 py-1 text-xs font-medium text-green-400">
+            <CheckCircle2 className="h-3 w-3" /> Connected
+          </span>
+        )}
+      </div>
+      {status === null && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      {status !== null && !status.configured && (
+        <p className="text-xs text-amber-400">MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET not set in environment.</p>
+      )}
+      {status?.configured && status.connected && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">{status.email}</span>
+          <button onClick={disconnect} disabled={disconnecting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50">
+            {disconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Disconnect
+          </button>
+        </div>
+      )}
+      {status?.configured && !status.connected && (
+        <a href="/api/enterprise/microsoft/connect"
+          className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
+          <Link2 className="h-4 w-4" /> Connect Microsoft account
+        </a>
+      )}
+    </div>
+  );
+}
+
 function IntegrationsSettings() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -244,6 +300,7 @@ function IntegrationsSettings() {
 
   return (
     <div className="space-y-4">
+      <MicrosoftCalendarCard />
       {PROVIDERS.map((p) => {
         const connected = integrations.find((i) => i.provider === p.id);
         const f = form[p.id] ?? { api_key: "", subdomain: "" };
@@ -677,6 +734,137 @@ function BrandingSettings() {
 }
 
 // ── Enterprise API ────────────────────────────────────────────────────────────
+// ── Webhooks ──────────────────────────────────────────────────────────────────
+interface WebhookEndpoint {
+  id: string; url: string; secret: string; active: boolean;
+  created_at: string; last_triggered_at: string | null; last_status: number | null;
+}
+
+function WebhooksSettings() {
+  const [endpoints, setEndpoints] = useState<WebhookEndpoint[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [newUrl, setNewUrl] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [revealedSecrets, setRevealedSecrets] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/enterprise/webhooks").then((r) => r.json())
+      .then((j) => setEndpoints(j.data ?? []))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const add = async () => {
+    if (!newUrl.trim()) return;
+    setAdding(true); setError(null);
+    const res = await fetch("/api/enterprise/webhooks", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: newUrl.trim() }),
+    });
+    const json = await res.json();
+    if (!res.ok) { setError(json.error); setAdding(false); return; }
+    setEndpoints((e) => [json.data, ...e]);
+    setNewUrl(""); setAdding(false);
+  };
+
+  const remove = async (id: string) => {
+    await fetch("/api/enterprise/webhooks", {
+      method: "DELETE", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    setEndpoints((e) => e.filter((x) => x.id !== id));
+  };
+
+  const copySecret = (id: string, secret: string) => {
+    navigator.clipboard.writeText(secret);
+    setCopied(id); setTimeout(() => setCopied(null), 1500);
+  };
+
+  const toggleReveal = (id: string) => {
+    setRevealedSecrets((s) => {
+      const n = new Set(s);
+      n.has(id) ? n.delete(id) : n.add(id);
+      return n;
+    });
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 space-y-5">
+      <div>
+        <h2 className="font-semibold">Outbound webhooks</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          POST requests to your endpoints when key events happen. Signed with <code className="rounded bg-muted px-1 py-0.5 text-xs">X-JobsAI-Signature: sha256=…</code>
+        </p>
+      </div>
+
+      {/* Events reference */}
+      <div className="rounded-lg bg-muted/40 p-3 text-xs space-y-1">
+        <p className="font-semibold text-muted-foreground uppercase tracking-wide text-[10px] mb-1.5">Events delivered</p>
+        {["application.created", "application.stage_changed", "application.hired", "interview.scheduled"].map((e) => (
+          <div key={e} className="flex items-center gap-1.5">
+            <Globe className="h-3 w-3 text-primary" />
+            <code className="text-foreground">{e}</code>
+          </div>
+        ))}
+      </div>
+
+      {/* Add endpoint */}
+      <div className="flex gap-2">
+        <input value={newUrl} onChange={(e) => setNewUrl(e.target.value)}
+          placeholder="https://your-app.com/webhooks/jobsai"
+          className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          onKeyDown={(e) => e.key === "Enter" && add()} />
+        <button onClick={add} disabled={adding || !newUrl.trim()}
+          className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+          {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          Add
+        </button>
+      </div>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {/* Endpoint list */}
+      {loading ? (
+        <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+      ) : endpoints.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No endpoints yet.</p>
+      ) : (
+        <div className="space-y-3">
+          {endpoints.map((ep) => (
+            <div key={ep.id} className="rounded-xl border border-border bg-background/60 p-4 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm font-medium break-all">{ep.url}</p>
+                <button onClick={() => remove(ep.id)}
+                  className="shrink-0 rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              {ep.last_triggered_at && (
+                <p className="text-[11px] text-muted-foreground">
+                  Last delivery: {new Date(ep.last_triggered_at).toLocaleString()} — HTTP {ep.last_status ?? "?"}
+                </p>
+              )}
+              <div className="flex items-center gap-2">
+                <code className="flex-1 overflow-hidden rounded bg-muted px-2 py-1 font-mono text-[11px] truncate">
+                  {revealedSecrets.has(ep.id) ? ep.secret : ep.secret.slice(0, 12) + "•".repeat(20)}
+                </code>
+                <button onClick={() => toggleReveal(ep.id)}
+                  className="rounded-lg border border-border p-1.5 hover:bg-muted">
+                  {revealedSecrets.has(ep.id) ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                </button>
+                <button onClick={() => copySecret(ep.id, ep.secret)}
+                  className="rounded-lg border border-border p-1.5 hover:bg-muted">
+                  {copied === ep.id ? <Check className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ApiSettings() {
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -743,6 +931,7 @@ function ApiSettings() {
   -H "Authorization: Bearer YOUR_API_KEY"`}</pre>
         </div>
       </div>
+      <WebhooksSettings />
     </div>
   );
 }

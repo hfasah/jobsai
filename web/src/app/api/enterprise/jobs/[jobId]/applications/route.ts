@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
+import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
@@ -142,6 +143,15 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
   fetch(`${process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work"}/api/enterprise/jobs/${jobId}/applications/${app.id}/screen`, {
     method: "POST",
     headers: { "x-internal-auto-screen": "1" },
+  }).catch(() => {});
+
+  sendWebhookEvent(job.org_id, "application.created", {
+    application_id: app.id,
+    job_id: jobId,
+    job_title: job.title,
+    candidate_name: app.candidate_name,
+    candidate_email: app.candidate_email,
+    source: app.source,
   }).catch(() => {});
 
   return NextResponse.json({ data: app }, { status: 201 });

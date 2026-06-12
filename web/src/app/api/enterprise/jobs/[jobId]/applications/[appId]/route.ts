@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import type { AppStage } from "@/types/enterprise";
+import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
@@ -55,6 +56,17 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   // Send stage-change email if stage moved
   if (body.stage && body.send_email !== false) {
     await sendStageEmail(data, body.stage as AppStage);
+  }
+
+  if (body.stage) {
+    const event = body.stage === "hired" ? "application.hired" : "application.stage_changed";
+    sendWebhookEvent(org.id, event, {
+      application_id: appId,
+      job_id: jobId,
+      candidate_name: data.candidate_name,
+      candidate_email: data.candidate_email,
+      stage: body.stage,
+    }).catch(() => {});
   }
 
   return NextResponse.json({ data });
