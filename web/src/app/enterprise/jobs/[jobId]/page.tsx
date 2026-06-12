@@ -16,6 +16,8 @@ import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
 import type { CompetencyFramework, RoleType } from "@/types/interview-intelligence";
 import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
+import { CompareModal } from "@/components/enterprise/compare-modal";
+import { CandidateSearch } from "@/components/enterprise/candidate-search";
 import { KanbanBoard } from "@/components/enterprise/kanban-board";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
 import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
@@ -754,7 +756,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews">("pools");
+  const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search">("pools");
+  const [compareOpen, setCompareOpen] = useState(false);
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
   const [preboardApp, setPreboardApp] = useState<EnterpriseApplication | null>(null);
@@ -893,9 +896,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               { key: "ats",        label: "ATS Score" },
               { key: "scorecard",  label: "Scorecard" },
               { key: "all",        label: `All (${apps.length})` },
+              { key: "search",     label: "AI Search" },
               { key: "distribute", label: "Distribution" },
               { key: "analytics",  label: "Analytics" },
-            { key: "interviews", label: "Interview Kit" },
+              { key: "interviews", label: "Interview Kit" },
             ] as const).map(({ key, label }) => (
               <button key={key} onClick={() => setActiveTab(key)}
                 className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors",
@@ -922,6 +926,12 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               className={cn("rounded-full border px-2.5 py-1 text-xs font-medium", STAGE_COLORS["rejected"])}>
               <XCircle className="mr-1 inline h-3 w-3" />Reject
             </button>
+            {selectedIds.size >= 2 && selectedIds.size <= 3 && (
+              <button onClick={() => setCompareOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20">
+                <Scale className="h-3 w-3" /> Compare {selectedIds.size}
+              </button>
+            )}
             <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
               Clear
             </button>
@@ -1033,6 +1043,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
         </div>
       )}
 
+      {/* AI Candidate Search tab */}
+      {activeTab === "search" && (
+        <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
+          <div className="mx-auto max-w-5xl">
+            <div className="mb-5">
+              <h2 className="font-semibold">AI Candidate Search</h2>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Ask in plain English — find candidates by skills, score, stage, or any criteria.
+              </p>
+            </div>
+            <CandidateSearch jobId={jobId} />
+          </div>
+        </div>
+      )}
+
       {/* Candidate report modal */}
       {reportApp && (
         <CandidateReportModal
@@ -1040,6 +1065,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           app={reportApp}
           hasFramework={!!framework}
           onClose={() => setReportApp(null)}
+        />
+      )}
+
+      {/* AI Compare modal */}
+      {compareOpen && (
+        <CompareModal
+          apps={apps.filter((a) => selectedIds.has(a.id))}
+          jobId={jobId}
+          onClose={() => setCompareOpen(false)}
         />
       )}
 

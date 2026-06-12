@@ -1,0 +1,94 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
+import OpenAI from "openai";
+import { supabaseAdmin } from "@/lib/supabase";
+import { getMyOrg } from "@/lib/enterprise";
+
+export const maxDuration = 20;
+
+let _ai: OpenAI | null = null;
+const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+
+// POST /api/enterprise/candidates/search
+// body: { query: string, jobId?: string }
+// Natural-language search over the org's candidate database.
+export async function POST(req: NextRequest) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const org = await getMyOrg(userId);
+  if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
+
+  const body = await req.json().catch(() => ({}));
+  const query: string = (body.query ?? "").trim();
+  const jobId: string | undefined = body.jobId;
+
+  if (!query) return NextResponse.json({ error: "Query required." }, { status: 400 });
+
+  // Step 1: use GPT to extract structured filters from the natural-language query
+  const filterPrompt = `Extract search filters from this recruiter query. Return ONLY valid JSON.
+
+Query: "${query}"
+
+Return:
+{
+  "skills": ["<skill>"],          // tech skills or keywords mentioned
+  "min_score": <number|null>,      // minimum match score 0-100
+  "stages": ["<stage>"],           // applied/screened/interview/offer/hired/rejected
+  "recommendation": "<string|null>", // strong_yes/yes/maybe/no
+  "limit": <number>                // how many results requested, default 10
+}`;
+
+  const filterRes = await ai().chat.completions.create({
+    model: "gpt-4o-mini",
+    max_tokens: 200,
+    response_format: { type: "json_object" },
+    messages: [{ role: "user", content: filterPrompt }],
+  });
+
+  let filters: {
+    skills?: string[];
+    min_score?: number | null;
+    stages?: string[];
+    recommendation?: string | null;
+    limit?: number;
+  } = {};
+  try {
+    filters = JSON.parse(filterRes.choices[0]?.message?.content ?? "{}");
+  } catch { /* use empty filters */ }
+
+  // Step 2: query Supabase with extracted filters
+  let dbQuery = supabaseAdmin
+    .from("enterprise_applications")
+    .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,source,created_at,job:enterprise_jobs(id,title)")
+    .eq("org_id", org.id)
+    .order("match_score", { ascending: false, nullsFirst: false })
+    .limit(filters.limit ?? 10);
+
+  if (jobId) dbQuery = dbQuery.eq("job_id", jobId);
+  if (filters.min_score) dbQuery = dbQuery.gte("match_score", filters.min_score);
+  if (filters.stages?.length) dbQuery = dbQuery.in("stage", filters.stages);
+  if (filters.recommendation) dbQuery = dbQuery.eq("ai_recommendation", filters.recommendation);
+
+  const { data: candidates, error } = await dbQuery;
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Step 3: post-filter by skills/keywords client-side (Postgres full-text on tags + summary)
+  const skills = (filters.skills ?? []).map((s) => s.toLowerCase());
+  const filtered = skills.length
+    ? (candidates ?? []).filter((c) => {
+        const haystack = [
+          ...(c.tags ?? []),
+          c.ai_summary ?? "",
+          c.candidate_name,
+        ].join(" ").toLowerCase();
+        return skills.some((s) => haystack.includes(s));
+      })
+    : (candidates ?? []);
+
+  return NextResponse.json({
+    data: filtered,
+    filters_applied: filters,
+    total: filtered.length,
+  });
+}
