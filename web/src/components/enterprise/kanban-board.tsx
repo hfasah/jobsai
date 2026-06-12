@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Sparkles, Loader2, GripVertical, ChevronRight, Mic } from "lucide-react";
+import { Sparkles, Loader2, GripVertical, ChevronRight, Mic, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, AppStage } from "@/types/enterprise";
 import { STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
@@ -48,7 +48,7 @@ function scoreColor(n: number) {
 
 // ── Kanban card ───────────────────────────────────────────────────────────────
 function KanbanCard({
-  app, screening, isDragging, onDragStart, onDragEnd, onScreen, onReport, onVoiceScreen,
+  app, screening, isDragging, onDragStart, onDragEnd, onScreen, onReport, onVoiceScreen, onSendOffer,
 }: {
   app: EnterpriseApplication;
   screening: boolean;
@@ -58,6 +58,7 @@ function KanbanCard({
   onScreen: (id: string) => void;
   onReport: (app: EnterpriseApplication) => void;
   onVoiceScreen: (app: EnterpriseApplication) => void;
+  onSendOffer: (app: EnterpriseApplication) => void;
 }) {
   return (
     <div
@@ -147,6 +148,14 @@ function KanbanCard({
           <Mic className="h-2.5 w-2.5" />
           {(app as unknown as Record<string, unknown>).voice_screen_status === "complete" ? "Voice ✓" : "Voice"}
         </button>
+        {["offer", "hired"].includes(app.stage) && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onSendOffer(app); }}
+            className="inline-flex items-center gap-1 rounded-md bg-blue-500/10 px-2 py-1 text-[10px] font-medium text-blue-400 hover:bg-blue-500/20"
+          >
+            <FileText className="h-2.5 w-2.5" /> Offer
+          </button>
+        )}
         <button
           onClick={(e) => { e.stopPropagation(); onReport(app); }}
           className="ml-auto inline-flex items-center gap-0.5 rounded-md px-2 py-1 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground"
@@ -166,9 +175,10 @@ export interface KanbanBoardProps {
   screeningIds: Set<string>;
   onReport: (app: EnterpriseApplication) => void;
   onVoiceScreen: (app: EnterpriseApplication) => void;
+  onSendOffer?: (app: EnterpriseApplication) => void;
 }
 
-export function KanbanBoard({ apps, onMove, onScreen, screeningIds, onReport, onVoiceScreen }: KanbanBoardProps) {
+export function KanbanBoard({ apps, onMove, onScreen, screeningIds, onReport, onVoiceScreen, onSendOffer }: KanbanBoardProps) {
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<AppStage | null>(null);
 
@@ -249,6 +259,7 @@ export function KanbanBoard({ apps, onMove, onScreen, screeningIds, onReport, on
                     onScreen={onScreen}
                     onReport={onReport}
                     onVoiceScreen={onVoiceScreen}
+                    onSendOffer={onSendOffer ?? (() => {})}
                   />
                 ))}
 

@@ -25,6 +25,7 @@ import { KanbanBoard } from "@/components/enterprise/kanban-board";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
 import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
 import { CsvImportModal } from "@/components/enterprise/csv-import-modal";
+import OfferModal from "@/components/enterprise/offer-modal";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -55,7 +56,7 @@ function ScoreBar({ label, value }: { label: string; value: number | null }) {
 }
 
 function CandidateCard({
-  app, selected, onSelect, onMove, onScreen, screening, onAddToPool, onReport, onVoiceScreen,
+  app, selected, onSelect, onMove, onScreen, screening, onAddToPool, onReport, onVoiceScreen, onSendOffer,
 }: {
   app: EnterpriseApplication;
   selected: boolean;
@@ -66,6 +67,7 @@ function CandidateCard({
   onAddToPool: (id: string) => void;
   onReport: (app: EnterpriseApplication) => void;
   onVoiceScreen: (app: EnterpriseApplication) => void;
+  onSendOffer: (app: EnterpriseApplication) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -163,6 +165,12 @@ function CandidateCard({
               <Mic className="h-3 w-3" />
               {(app as unknown as Record<string, unknown>).voice_screen_status === "complete" ? "Voice result" : "Voice screen"}
             </button>
+            {["offer", "hired"].includes(app.stage) && (
+              <button onClick={() => onSendOffer(app)}
+                className="inline-flex items-center gap-1 rounded-lg bg-blue-500/10 px-2.5 py-1 text-[11px] font-medium text-blue-400 hover:bg-blue-500/20">
+                <FileText className="h-3 w-3" /> Send Offer
+              </button>
+            )}
             {(app.match_score ?? 0) >= 50 && (
               <button onClick={() => onAddToPool(app.id)}
                 className="inline-flex items-center gap-1 rounded-lg bg-green-500/10 px-2.5 py-1 text-[11px] font-medium text-green-400 hover:bg-green-500/20">
@@ -780,6 +788,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
   const [preboardApp, setPreboardApp] = useState<EnterpriseApplication | null>(null);
+  const [offerApp, setOfferApp] = useState<EnterpriseApplication | null>(null);
 
   const load = useCallback(async () => {
     const [jRes, aRes, fRes] = await Promise.all([
@@ -994,6 +1003,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           screeningIds={screeningIds}
           onReport={setReportApp}
           onVoiceScreen={setVoiceScreenApp}
+          onSendOffer={setOfferApp}
         />
       )}
 
@@ -1157,6 +1167,19 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
       {/* Pre-boarding modal */}
       {preboardApp && (
         <PreboardingModal app={preboardApp} onClose={() => setPreboardApp(null)} />
+      )}
+
+      {/* Offer letter modal */}
+      {offerApp && (
+        <OfferModal
+          defaultCandidateName={offerApp.candidate_name}
+          defaultCandidateEmail={offerApp.candidate_email}
+          defaultJobTitle={job?.title ?? ""}
+          jobId={jobId}
+          applicationId={offerApp.id}
+          onClose={() => setOfferApp(null)}
+          onSaved={() => setOfferApp(null)}
+        />
       )}
     </main>
   );

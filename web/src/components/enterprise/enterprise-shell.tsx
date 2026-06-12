@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -19,6 +19,7 @@ const NAV = [
   { href: "/enterprise/boards",    icon: Globe,            label: "Job Boards" },
   { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },
   { href: "/enterprise/schedule",  icon: CalendarDays,     label: "Schedule" },
+  { href: "/enterprise/offers",    icon: FileText,         label: "Offers" },
   { href: "/enterprise/analytics", icon: BarChart3,        label: "Analytics" },
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports" },
   { href: "/enterprise/team",      icon: UsersRound,       label: "Team & Access" },
