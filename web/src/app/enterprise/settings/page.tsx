@@ -198,6 +198,62 @@ const PROVIDERS = [
 
 interface Integration { id: string; provider: string; enabled: boolean; last_sync: string | null }
 
+// ── Google Calendar card ──────────────────────────────────────────────────────
+function GoogleCalendarCard() {
+  const [status, setStatus] = useState<{ configured: boolean; connected: boolean; email?: string | null } | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/enterprise/google/status").then((r) => r.json()).then(setStatus);
+  }, []);
+
+  const disconnect = async () => {
+    setDisconnecting(true);
+    await fetch("/api/enterprise/google/status", { method: "DELETE" });
+    setStatus((s) => s ? { ...s, connected: false, email: null } : s);
+    setDisconnecting(false);
+  };
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl">📅</span>
+          <div>
+            <p className="font-semibold">Google Calendar</p>
+            <p className="text-xs text-muted-foreground">Sync interviews directly to your Google Calendar</p>
+          </div>
+        </div>
+        {status?.connected && (
+          <span className="flex items-center gap-1 rounded-full bg-green-500/15 px-2.5 py-1 text-xs font-medium text-green-400">
+            <CheckCircle2 className="h-3 w-3" /> Connected
+          </span>
+        )}
+      </div>
+      {status === null && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+      {status !== null && !status.configured && (
+        <p className="text-xs text-amber-400">GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set in environment.</p>
+      )}
+      {status?.configured && status.connected && (
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs text-muted-foreground">{status.email}</span>
+          <button onClick={disconnect} disabled={disconnecting}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-destructive/30 px-3 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50">
+            {disconnecting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            Disconnect
+          </button>
+        </div>
+      )}
+      {status?.configured && !status.connected && (
+        <a href="/api/enterprise/google/connect"
+          className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
+          <Link2 className="h-4 w-4" /> Connect Google Calendar
+        </a>
+      )}
+    </div>
+  );
+}
+
 // ── Microsoft Calendar card ───────────────────────────────────────────────────
 function MicrosoftCalendarCard() {
   const [status, setStatus] = useState<{ configured: boolean; connected: boolean; email?: string | null } | null>(null);
@@ -300,6 +356,7 @@ function IntegrationsSettings() {
 
   return (
     <div className="space-y-4">
+      <GoogleCalendarCard />
       <MicrosoftCalendarCard />
       {PROVIDERS.map((p) => {
         const connected = integrations.find((i) => i.provider === p.id);

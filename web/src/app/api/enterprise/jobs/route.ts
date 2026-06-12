@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 
 export async function GET() {
   const { userId } = await auth();
@@ -66,5 +67,13 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  sendWebhookEvent(org.id, "job.created", {
+    job_id: data.id,
+    title: data.title,
+    department: data.department,
+    status: data.status,
+  }).catch(() => {});
+
   return NextResponse.json({ data }, { status: 201 });
 }

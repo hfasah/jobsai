@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
+import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { buildIcs } from "@/lib/ics";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
@@ -54,6 +55,17 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await sendInterviewInvite(org.name, row);
+
+  sendWebhookEvent(org.id, "interview.scheduled", {
+    interview_id: row.id,
+    candidate_name: row.candidate_name,
+    candidate_email: row.candidate_email,
+    scheduled_at: row.scheduled_at,
+    duration_min: row.duration_min,
+    interview_type: row.interview_type,
+    job_id: row.job_id ?? null,
+  }).catch(() => {});
+
   return NextResponse.json({ data: row }, { status: 201 });
 }
 

@@ -6,6 +6,9 @@ export type WebhookEventType =
   | "application.stage_changed"
   | "application.hired"
   | "interview.scheduled"
+  | "interview.completed"
+  | "job.created"
+  | "job.closed"
   | "offer.sent";
 
 export interface WebhookPayload {

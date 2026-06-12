@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
@@ -44,6 +45,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ jobI
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  if (body.status === "closed" || body.status === "paused") {
+    sendWebhookEvent(org.id, "job.closed", {
+      job_id: jobId,
+      title: data.title,
+      status: data.status,
+    }).catch(() => {});
+  }
+
   return NextResponse.json({ data });
 }
 
