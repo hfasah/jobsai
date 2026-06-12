@@ -80,6 +80,19 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     if (body[f] !== undefined) update[f] = body[f];
   }
 
+  // Admin override for access gating: activate / comp / suspend a workspace.
+  const ACCESS = ["pending", "active", "comped", "trialing", "past_due", "canceled"];
+  if (typeof body.access_status === "string") {
+    if (!ACCESS.includes(body.access_status)) {
+      return NextResponse.json({ error: "Invalid access_status." }, { status: 400 });
+    }
+    update.access_status = body.access_status;
+    update.activated_by = admin.userId;
+    update.activated_at = ["active", "comped", "trialing"].includes(body.access_status)
+      ? new Date().toISOString()
+      : null;
+  }
+
   const { data, error } = await supabaseAdmin.from("enterprise_orgs").update(update).eq("id", orgId).select("*").single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data });

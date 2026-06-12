@@ -38,6 +38,13 @@ export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40);
 }
 
+// Org access gating: statuses that grant a usable workspace.
+export const ENTERPRISE_ACTIVE_STATUSES = ["active", "comped", "trialing"] as const;
+
+export function orgHasAccess(accessStatus: string | null | undefined): boolean {
+  return !!accessStatus && (ENTERPRISE_ACTIVE_STATUSES as readonly string[]).includes(accessStatus);
+}
+
 export async function uniqueSlug(base: string): Promise<string> {
   let slug = slugify(base);
   let suffix = 0;

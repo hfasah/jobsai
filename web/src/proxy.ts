@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { orgHasAccess } from "@/lib/enterprise";
 
 const APP_HOST = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work")
   .replace(/^https?:\/\//, "")
@@ -15,6 +16,50 @@ const isProtectedRoute = createRouteMatcher([
   "/onboarding(.*)",
   "/admin(.*)",
 ]);
+
+// Enterprise workspace pages require an org with an active/comped subscription.
+// Segment-scoped so it never matches /enterprise-login or /enterprise-signup.
+const isEnterprisePage = createRouteMatcher(["/enterprise", "/enterprise/(.*)"]);
+// …except these, which must stay reachable for pending orgs and candidates:
+// onboarding (create workspace), the locked screen, invite acceptance, and the
+// public token-based candidate flows (booking, references, interviews, offers).
+const isEnterprisePreAccess = createRouteMatcher([
+  "/enterprise/onboard(.*)",
+  "/enterprise/locked(.*)",
+  "/enterprise/invite(.*)",
+  "/enterprise/book(.*)",
+  "/enterprise/confirm(.*)",
+  "/enterprise/reference(.*)",
+  "/enterprise/interview(.*)",
+  "/enterprise/offer-sign(.*)",
+]);
+
+// Resolve the signed-in user's org access status. Returns the status string,
+// "NO_MEMBERSHIP" if they belong to no org, or null on any error (fail-open so
+// a transient/pre-migration failure never locks people out of their workspace).
+async function getOrgAccessStatus(userId: string): Promise<string | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) return null;
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/enterprise_members?user_id=eq.${encodeURIComponent(userId)}&select=enterprise_orgs(access_status)&limit=1`,
+      {
+        headers: {
+          apikey: serviceKey,
+          Authorization: `Bearer ${serviceKey}`,
+          Accept: "application/json",
+        },
+      },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as { enterprise_orgs?: { access_status?: string } | null }[];
+    if (rows.length === 0) return "NO_MEMBERSHIP";
+    return rows[0]?.enterprise_orgs?.access_status ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function resolveCustomDomain(hostname: string): Promise<string | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -64,6 +109,25 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
       const path = url.pathname === "/" ? "" : url.pathname;
       url.pathname = `/careers/${slug}${path}`;
       return NextResponse.rewrite(url);
+    }
+  }
+
+  // Gate the enterprise workspace behind an active/comped org subscription.
+  if (isEnterprisePage(req) && !isEnterprisePreAccess(req)) {
+    const { userId } = await auth();
+    if (userId) {
+      const status = await getOrgAccessStatus(userId);
+      if (status === "NO_MEMBERSHIP") {
+        const url = req.nextUrl.clone();
+        url.pathname = "/enterprise/onboard";
+        return NextResponse.redirect(url);
+      }
+      // status === null => fail-open (don't lock out on transient errors).
+      if (status && !orgHasAccess(status)) {
+        const url = req.nextUrl.clone();
+        url.pathname = "/enterprise/locked";
+        return NextResponse.redirect(url);
+      }
     }
   }
 
