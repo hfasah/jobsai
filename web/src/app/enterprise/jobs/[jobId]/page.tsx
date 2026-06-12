@@ -16,6 +16,7 @@ import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
 import type { CompetencyFramework, RoleType } from "@/types/interview-intelligence";
 import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
+import { KanbanBoard } from "@/components/enterprise/kanban-board";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
 import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
 
@@ -943,68 +944,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
         <ScorecardPanel jobId={jobId} framework={framework} onChange={setFramework} />
       )}
 
-      {/* Pipeline */}
+      {/* Pipeline — drag-and-drop kanban */}
       {activeTab === "pipeline" && (
-        <div className="flex-1 overflow-x-auto">
-          <div className="inline-flex min-w-full gap-4 p-4 sm:p-6">
-            {PIPELINE_STAGES.map((stage) => {
-              const stageApps = byStage(stage);
-              return (
-                <div key={stage} className="w-64 shrink-0">
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", STAGE_COLORS[stage])}>
-                        {STAGE_LABELS[stage]}
-                      </span>
-                      <span className="text-xs text-muted-foreground">{stageApps.length}</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    {stageApps.map((app) => (
-                      <CandidateCard key={app.id} app={app}
-                        selected={selectedIds.has(app.id)}
-                        onSelect={toggleSelect}
-                        onMove={moveApp}
-                        onScreen={screenApp}
-                        screening={screeningIds.has(app.id)}
-                        onAddToPool={addToPool}
-                        onReport={setReportApp}
-                      />
-                    ))}
-                    {stageApps.length === 0 && (
-                      <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
-                        No candidates
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Rejected column */}
-            <div className="w-64 shrink-0">
-              <div className="mb-3 flex items-center gap-2">
-                <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", STAGE_COLORS["rejected"])}>
-                  Rejected
-                </span>
-                <span className="text-xs text-muted-foreground">{byStage("rejected").length}</span>
-              </div>
-              <div className="space-y-2 opacity-60">
-                {byStage("rejected").map((app) => (
-                  <CandidateCard key={app.id} app={app}
-                    selected={selectedIds.has(app.id)}
-                    onSelect={toggleSelect}
-                    onMove={moveApp}
-                    onScreen={screenApp}
-                    onAddToPool={addToPool}
-                    onReport={setReportApp}
-                    screening={screeningIds.has(app.id)}
-                  />
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
+        <KanbanBoard
+          apps={apps}
+          onMove={moveApp}
+          onScreen={screenApp}
+          screeningIds={screeningIds}
+          onReport={setReportApp}
+        />
       )}
 
       {/* Interview Kit tab */}
