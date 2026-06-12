@@ -6,6 +6,7 @@ import {
   Users, Plus, Trash2, Link2, Download, Shield, Mail,
   CheckCircle2, AlertCircle, RotateCcw, Clock,
   Palette, Code2, ExternalLink, Globe, Eye, EyeOff,
+  KeyRound, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -1049,8 +1050,342 @@ function ApiSettings() {
   );
 }
 
+// ── SSO ───────────────────────────────────────────────────────────────────────
+const SSO_PROVIDERS = [
+  { value: "okta",      label: "Okta",             hint: "SAML 2.0 via Okta" },
+  { value: "azure_ad",  label: "Microsoft Entra ID (Azure AD)", hint: "SAML 2.0 via Azure" },
+  { value: "google",    label: "Google Workspace", hint: "SAML 2.0 via Google" },
+  { value: "saml",      label: "Generic SAML 2.0", hint: "Any SAML 2.0 IdP" },
+  { value: "oidc",      label: "Generic OIDC",     hint: "OpenID Connect IdP" },
+];
+
+const PROVIDER_GUIDES: Record<string, { steps: string[] }> = {
+  okta: { steps: [
+    "In Okta Admin, go to Applications → Create App Integration → SAML 2.0.",
+    'Set Single sign-on URL to the ACS URL below.',
+    'Set Audience URI (SP Entity ID) to the Entity ID below.',
+    "Download the IdP metadata XML or copy the Metadata URL.",
+    "Paste the metadata URL or entity ID + SSO URL + certificate below.",
+  ]},
+  azure_ad: { steps: [
+    "In Azure Portal, go to Enterprise Applications → New Application → Create your own.",
+    "Choose 'Non-gallery' → Set up Single sign-on → SAML.",
+    "Set Reply URL (ACS URL) and Identifier (Entity ID) to the values below.",
+    "Download the Federation Metadata XML or copy the App Federation Metadata URL.",
+    "Paste the metadata URL below.",
+  ]},
+  google: { steps: [
+    "In Google Admin, go to Apps → Web and mobile apps → Add app → Add custom SAML app.",
+    "Download the IdP metadata or copy the SSO URL and certificate.",
+    "Set ACS URL and Entity ID to the values below.",
+    "Assign the app to your users.",
+    "Paste the IdP metadata URL below.",
+  ]},
+  saml: { steps: [
+    "Configure your IdP with the ACS URL and Entity ID shown below.",
+    "Obtain the IdP metadata URL (or entity ID + SSO URL + X.509 certificate).",
+    "Paste the details in the form below.",
+  ]},
+  oidc: { steps: [
+    "Register a new OIDC application in your identity provider.",
+    "Set the redirect URI to the ACS URL shown below.",
+    "Obtain the Discovery URL (e.g. https://your-idp.com/.well-known/openid-configuration).",
+    "Copy the Client ID and Client Secret.",
+  ]},
+};
+
+function SsoSettings() {
+  type SsoConfig = {
+    id?: string;
+    sso_domain: string;
+    enforce_sso: boolean;
+    provider: string;
+    status: string;
+    status_message?: string;
+    idp_metadata_url?: string;
+    idp_entity_id?: string;
+    idp_sso_url?: string;
+    oidc_discovery_url?: string;
+    oidc_client_id?: string;
+  };
+  const [config, setConfig] = useState<SsoConfig | null>(null);
+  const [sp, setSp] = useState<{ entity_id: string; acs_url: string; sp_metadata_url: string } | null>(null);
+  const [form, setForm] = useState({
+    sso_domain: "", provider: "okta", enforce_sso: false,
+    idp_metadata_url: "", idp_entity_id: "", idp_sso_url: "",
+    oidc_discovery_url: "", oidc_client_id: "", oidc_client_secret: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [requesting, setRequesting] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState("");
+  const [showGuide, setShowGuide] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/enterprise/sso").then((r) => r.json()).then((j) => {
+      setSp(j.sp ?? null);
+      if (j.data) {
+        setConfig(j.data);
+        setForm((f) => ({
+          ...f,
+          sso_domain: j.data.sso_domain ?? "",
+          provider: j.data.provider ?? "okta",
+          enforce_sso: j.data.enforce_sso ?? false,
+          idp_metadata_url: j.data.idp_metadata_url ?? "",
+          idp_entity_id: j.data.idp_entity_id ?? "",
+          idp_sso_url: j.data.idp_sso_url ?? "",
+          oidc_discovery_url: j.data.oidc_discovery_url ?? "",
+          oidc_client_id: j.data.oidc_client_id ?? "",
+        }));
+      }
+    }).finally(() => setLoading(false));
+  }, []);
+
+  const copy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(key);
+    setTimeout(() => setCopiedField(null), 1500);
+  };
+
+  const save = async () => {
+    if (!form.sso_domain.trim()) { setError("Domain is required."); return; }
+    setSaving(true); setError(""); setSaved(false);
+    const res = await fetch("/api/enterprise/sso", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    const j = await res.json();
+    if (!res.ok) { setError(j.error ?? "Failed to save."); setSaving(false); return; }
+    setConfig(j.data); setSaved(true); setSaving(false);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  const requestActivation = async () => {
+    if (!form.sso_domain.trim()) { setError("Save your configuration first."); return; }
+    setRequesting(true); setError("");
+    const res = await fetch("/api/enterprise/sso", {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, action: "request_activation" }),
+    });
+    const j = await res.json();
+    if (!res.ok) { setError(j.error ?? "Failed to request."); setRequesting(false); return; }
+    setConfig(j.data); setRequesting(false);
+  };
+
+  const deleteConfig = async () => {
+    if (!confirm("Remove SSO configuration? This will disable SSO for your domain.")) return;
+    await fetch("/api/enterprise/sso", { method: "DELETE" });
+    setConfig(null);
+    setForm({ sso_domain: "", provider: "okta", enforce_sso: false, idp_metadata_url: "", idp_entity_id: "", idp_sso_url: "", oidc_discovery_url: "", oidc_client_id: "", oidc_client_secret: "" });
+  };
+
+  const isSaml = ["okta", "azure_ad", "google", "saml"].includes(form.provider);
+  const guide = PROVIDER_GUIDES[form.provider];
+
+  const STATUS_META: Record<string, { color: string; label: string }> = {
+    pending: { color: "text-amber-400 bg-amber-500/10 border-amber-500/20", label: "Pending activation" },
+    active:  { color: "text-green-400 bg-green-500/10 border-green-500/20", label: "Active" },
+    error:   { color: "text-red-400 bg-red-500/10 border-red-500/20", label: "Error" },
+  };
+
+  if (loading) return <div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="mb-1 font-semibold">SAML / SSO</h2>
+            <p className="text-sm text-muted-foreground">
+              Connect your identity provider so team members sign in with their company credentials.
+              Supports Okta, Azure AD, Google Workspace, and any SAML 2.0 / OIDC provider.
+            </p>
+          </div>
+          {config && (
+            <span className={cn("shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium", STATUS_META[config.status]?.color)}>
+              {STATUS_META[config.status]?.label ?? config.status}
+            </span>
+          )}
+        </div>
+        {config?.status_message && (
+          <p className="mt-2 text-xs text-muted-foreground border border-border rounded-lg px-3 py-2 bg-muted/40">{config.status_message}</p>
+        )}
+      </div>
+
+      {/* SP metadata — shown when config exists or as a preview */}
+      {sp && (
+        <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+          <h3 className="font-semibold text-sm">Service Provider (SP) Metadata</h3>
+          <p className="text-xs text-muted-foreground">Copy these values into your identity provider when setting up the application.</p>
+          {[
+            { label: "ACS URL (Reply URL)", value: sp.acs_url, key: "acs" },
+            { label: "Entity ID (Audience URI)", value: sp.entity_id, key: "entity" },
+            { label: "SP Metadata URL", value: sp.sp_metadata_url, key: "meta" },
+          ].map(({ label, value, key }) => (
+            <div key={key}>
+              <p className="mb-1 text-xs font-medium text-muted-foreground">{label}</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 overflow-x-auto rounded-lg border border-border bg-background px-3 py-2 text-xs">{value}</code>
+                <button onClick={() => copy(value, key)} className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-border hover:bg-muted">
+                  {copiedField === key ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5 text-muted-foreground" />}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Configuration form */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <h3 className="font-semibold text-sm">IdP Configuration</h3>
+
+        {error && <div className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-400">{error}</div>}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label className="label-xs">SSO Domain *</label>
+            <input
+              value={form.sso_domain}
+              onChange={(e) => setForm((f) => ({ ...f, sso_domain: e.target.value.trim().toLowerCase() }))}
+              className="input-field mt-1"
+              placeholder="acme.com"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">Users with this email domain will be offered SSO login.</p>
+          </div>
+
+          <div className="sm:col-span-2">
+            <label className="label-xs">Identity Provider</label>
+            <select
+              value={form.provider}
+              onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value }))}
+              className="input-field mt-1"
+            >
+              {SSO_PROVIDERS.map((p) => (
+                <option key={p.value} value={p.value}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Setup guide toggle */}
+        <button
+          onClick={() => setShowGuide((v) => !v)}
+          className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+        >
+          {showGuide ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+          {showGuide ? "Hide" : "Show"} setup guide for {SSO_PROVIDERS.find((p) => p.value === form.provider)?.label}
+        </button>
+
+        {showGuide && guide && (
+          <ol className="space-y-1.5 rounded-xl border border-border bg-muted/30 p-4">
+            {guide.steps.map((step, i) => (
+              <li key={i} className="flex gap-2 text-xs text-muted-foreground">
+                <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[10px] font-bold text-primary">{i + 1}</span>
+                {step}
+              </li>
+            ))}
+          </ol>
+        )}
+
+        {/* SAML fields */}
+        {isSaml && (
+          <div className="space-y-3">
+            <div>
+              <label className="label-xs">IdP Metadata URL <span className="text-muted-foreground">(recommended)</span></label>
+              <input
+                value={form.idp_metadata_url}
+                onChange={(e) => setForm((f) => ({ ...f, idp_metadata_url: e.target.value }))}
+                className="input-field mt-1"
+                placeholder="https://your-idp.com/app/metadata"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">Or enter IdP details manually:</p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label-xs">IdP Entity ID</label>
+                <input value={form.idp_entity_id} onChange={(e) => setForm((f) => ({ ...f, idp_entity_id: e.target.value }))} className="input-field mt-1" placeholder="https://your-idp.com/entity" />
+              </div>
+              <div>
+                <label className="label-xs">IdP SSO URL</label>
+                <input value={form.idp_sso_url} onChange={(e) => setForm((f) => ({ ...f, idp_sso_url: e.target.value }))} className="input-field mt-1" placeholder="https://your-idp.com/sso" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* OIDC fields */}
+        {!isSaml && (
+          <div className="space-y-3">
+            <div>
+              <label className="label-xs">Discovery URL</label>
+              <input value={form.oidc_discovery_url} onChange={(e) => setForm((f) => ({ ...f, oidc_discovery_url: e.target.value }))} className="input-field mt-1" placeholder="https://your-idp.com/.well-known/openid-configuration" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label className="label-xs">Client ID</label>
+                <input value={form.oidc_client_id} onChange={(e) => setForm((f) => ({ ...f, oidc_client_id: e.target.value }))} className="input-field mt-1" />
+              </div>
+              <div>
+                <label className="label-xs">Client Secret</label>
+                <input type="password" value={form.oidc_client_secret} onChange={(e) => setForm((f) => ({ ...f, oidc_client_secret: e.target.value }))} className="input-field mt-1" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Enforce SSO toggle */}
+        <label className="flex cursor-pointer items-center gap-2.5 pt-1">
+          <input
+            type="checkbox"
+            checked={form.enforce_sso}
+            onChange={(e) => setForm((f) => ({ ...f, enforce_sso: e.target.checked }))}
+            className="h-4 w-4 rounded border-border accent-primary"
+          />
+          <div>
+            <span className="text-sm font-medium">Enforce SSO for {form.sso_domain || "this domain"}</span>
+            <p className="text-xs text-muted-foreground">When enabled, team members with this domain must sign in via SSO. Password login is disabled for them.</p>
+          </div>
+        </label>
+
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <button onClick={save} disabled={saving} className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : null}
+            {saved ? "Saved" : "Save configuration"}
+          </button>
+
+          {config && config.status !== "active" && (
+            <button
+              onClick={requestActivation}
+              disabled={requesting}
+              className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:opacity-60"
+            >
+              {requesting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              Request activation
+            </button>
+          )}
+
+          {config && (
+            <button onClick={deleteConfig} className="ml-auto rounded-xl border border-border px-3 py-2 text-xs font-medium text-red-400 hover:bg-red-500/10">
+              Remove SSO
+            </button>
+          )}
+        </div>
+
+        {!config && (
+          <p className="text-xs text-muted-foreground border-t border-border pt-3">
+            Save your configuration, then click <strong>Request activation</strong> to notify our team. We&apos;ll enable the SSO connection within 1 business day and update your status to Active.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
-type Tab = "copilot" | "outreach" | "branding" | "api" | "integrations" | "emails" | "data";
+type Tab = "copilot" | "outreach" | "branding" | "api" | "integrations" | "emails" | "data" | "sso";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "copilot",      label: "Copilot",      icon: Bot },
@@ -1060,6 +1395,7 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "integrations", label: "Integrations", icon: Link2 },
   { id: "emails",       label: "Emails",       icon: Mail },
   { id: "data",         label: "Data & Privacy", icon: Shield },
+  { id: "sso",          label: "SSO",            icon: KeyRound },
 ];
 
 export default function SettingsPage() {
@@ -1092,6 +1428,7 @@ export default function SettingsPage() {
         {tab === "integrations" && <IntegrationsSettings />}
         {tab === "emails"       && <EmailTemplatesSettings />}
         {tab === "data"         && <DataPrivacySettings />}
+        {tab === "sso"          && <SsoSettings />}
       </div>
     </main>
   );
