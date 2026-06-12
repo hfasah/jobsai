@@ -510,20 +510,47 @@ function DataPrivacySettings() {
 
 // ── White-label Branding ──────────────────────────────────────────────────────
 function BrandingSettings() {
-  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "" });
+  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "", cover_image_url: "", culture_text: "", benefits_raw: "", social_twitter: "", social_linkedin: "", social_instagram: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     fetch("/api/enterprise/branding").then((r) => r.json()).then((j) => {
-      if (j.data) setForm((f) => ({ ...f, ...j.data, logo_url: j.data.logo_url ?? "", portal_title: j.data.portal_title ?? "", tagline: j.data.tagline ?? "", careers_intro: j.data.careers_intro ?? "", website: j.data.website ?? "" }));
+      if (j.data) {
+        const d = j.data;
+        const sl: Record<string, string> = d.social_links ?? {};
+        setForm((f) => ({
+          ...f, ...d,
+          logo_url: d.logo_url ?? "",
+          portal_title: d.portal_title ?? "",
+          tagline: d.tagline ?? "",
+          careers_intro: d.careers_intro ?? "",
+          website: d.website ?? "",
+          cover_image_url: d.cover_image_url ?? "",
+          culture_text: d.culture_text ?? "",
+          benefits_raw: Array.isArray(d.benefits) ? d.benefits.join("\n") : "",
+          social_twitter: sl.twitter ?? "",
+          social_linkedin: sl.linkedin ?? "",
+          social_instagram: sl.instagram ?? "",
+        }));
+      }
     }).finally(() => setLoading(false));
   }, []);
 
   const save = async () => {
     setSaving(true); setSaved(false);
-    await fetch("/api/enterprise/branding", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const benefits = form.benefits_raw.split("\n").map((s) => s.trim()).filter(Boolean);
+    const social_links = {
+      ...(form.social_twitter ? { twitter: form.social_twitter } : {}),
+      ...(form.social_linkedin ? { linkedin: form.social_linkedin } : {}),
+      ...(form.social_instagram ? { instagram: form.social_instagram } : {}),
+    };
+    await fetch("/api/enterprise/branding", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...form, benefits, social_links }),
+    });
     setSaved(true); setSaving(false);
     setTimeout(() => setSaved(false), 2000);
   };
@@ -578,6 +605,44 @@ function BrandingSettings() {
             <textarea value={form.careers_intro} onChange={(e) => setForm((f) => ({ ...f, careers_intro: e.target.value }))} rows={2}
               placeholder="A sentence inviting candidates to apply…"
               className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Cover image URL</label>
+            <input value={form.cover_image_url} onChange={(e) => setForm((f) => ({ ...f, cover_image_url: e.target.value }))}
+              placeholder="https://yourcompany.com/hero.jpg"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <p className="mt-1 text-xs text-muted-foreground">Hero banner shown at the top of your careers page. Recommended: 1440×400px.</p>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Why work here</label>
+            <textarea value={form.culture_text} onChange={(e) => setForm((f) => ({ ...f, culture_text: e.target.value }))} rows={3}
+              placeholder="Describe your culture, mission, and team…"
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div className="sm:col-span-2">
+            <label className="mb-1.5 block text-sm font-medium">Perks & benefits</label>
+            <textarea value={form.benefits_raw} onChange={(e) => setForm((f) => ({ ...f, benefits_raw: e.target.value }))} rows={4}
+              placeholder={"Remote-first culture\nUnlimited PTO\nHealth & dental insurance\nAnnual learning budget"}
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <p className="mt-1 text-xs text-muted-foreground">One benefit per line. Shown as a grid on your careers page.</p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Twitter / X URL</label>
+            <input value={form.social_twitter} onChange={(e) => setForm((f) => ({ ...f, social_twitter: e.target.value }))}
+              placeholder="https://x.com/yourcompany"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">LinkedIn URL</label>
+            <input value={form.social_linkedin} onChange={(e) => setForm((f) => ({ ...f, social_linkedin: e.target.value }))}
+              placeholder="https://linkedin.com/company/…"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Instagram URL</label>
+            <input value={form.social_instagram} onChange={(e) => setForm((f) => ({ ...f, social_instagram: e.target.value }))}
+              placeholder="https://instagram.com/yourcompany"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
         </div>
 

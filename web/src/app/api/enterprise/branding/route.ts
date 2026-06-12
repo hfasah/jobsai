@@ -9,14 +9,20 @@ export async function GET() {
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
+  const o = org as unknown as Record<string, unknown>;
   return NextResponse.json({ data: {
     name: org.name, slug: org.slug,
-    logo_url: org.logo_url, brand_color: (org as { brand_color?: string }).brand_color ?? "#2563eb",
-    portal_title: (org as { portal_title?: string }).portal_title ?? null,
-    tagline: (org as { tagline?: string }).tagline ?? null,
-    careers_intro: (org as { careers_intro?: string }).careers_intro ?? null,
-    show_powered_by: (org as { show_powered_by?: boolean }).show_powered_by ?? true,
+    logo_url: org.logo_url,
+    brand_color: o.brand_color ?? "#2563eb",
+    portal_title: o.portal_title ?? null,
+    tagline: o.tagline ?? null,
+    careers_intro: o.careers_intro ?? null,
+    show_powered_by: o.show_powered_by ?? true,
     website: org.website,
+    cover_image_url: o.cover_image_url ?? null,
+    culture_text: o.culture_text ?? null,
+    benefits: o.benefits ?? [],
+    social_links: o.social_links ?? {},
   } });
 }
 
@@ -32,7 +38,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website"]) {
+  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }
 
