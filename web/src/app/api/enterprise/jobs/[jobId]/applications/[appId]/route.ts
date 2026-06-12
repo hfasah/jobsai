@@ -46,6 +46,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   }
   if (body.tags !== undefined) update.tags = body.tags;
   if (body.notes !== undefined) update.notes = body.notes;
+  if (body.legal_hold !== undefined) { update.legal_hold = !!body.legal_hold; if (body.legal_hold_reason !== undefined) update.legal_hold_reason = body.legal_hold_reason || null; }
 
   const { data, error } = await supabaseAdmin
     .from("enterprise_applications")

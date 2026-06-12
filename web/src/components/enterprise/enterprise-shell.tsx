@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -27,6 +27,7 @@ const NAV = [
   { href: "/enterprise/workflows", icon: Zap,              label: "Workflows" },
   { href: "/enterprise/analytics", icon: BarChart3,        label: "Analytics" },
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports" },
+  { href: "/enterprise/compliance", icon: Shield,           label: "Compliance" },
   { href: "/enterprise/team",      icon: UsersRound,       label: "Team & Access" },
   { href: "/enterprise/settings",  icon: Settings,         label: "Settings" },
 ];
