@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -17,6 +18,8 @@ export async function GET() {
 export async function POST() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requirePermission(userId, "can_manage_settings");
+  if (denied) return denied;
   const membership = await getMyMembership(userId);
   if (!membership || membership.role !== "owner") {
     return NextResponse.json({ error: "Only the owner can manage the API key." }, { status: 403 });

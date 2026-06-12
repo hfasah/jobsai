@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
@@ -26,6 +27,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ job
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requirePermission(userId, "can_manage_jobs");
+  if (denied) return denied;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
   const { jobId } = await params;
@@ -60,6 +63,8 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ jobI
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requirePermission(userId, "can_manage_jobs");
+  if (denied) return denied;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
   const { jobId } = await params;

@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { getMyOrg } from "@/lib/enterprise";
 import OpenAI from "openai";
@@ -8,6 +9,8 @@ const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requirePermission(userId, "can_send_offers");
+  if (denied) return denied;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 

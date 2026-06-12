@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
@@ -7,6 +8,8 @@ import { getMyOrg } from "@/lib/enterprise";
 export async function POST(req: NextRequest, { params }: { params: Promise<{ appId: string }> }) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const denied = await requirePermission(userId, "can_move_stages");
+  if (denied) return denied;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
   const { appId } = await params;
