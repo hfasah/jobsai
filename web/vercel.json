@@ -19,6 +19,10 @@
     {
       "path": "/api/enterprise/schedule/reminders",
       "schedule": "*/30 * * * *"
+    },
+    {
+      "path": "/api/enterprise/sourcing/follow-up",
+      "schedule": "0 9 * * *"
     }
   ]
 }

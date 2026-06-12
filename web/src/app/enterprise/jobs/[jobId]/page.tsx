@@ -27,6 +27,7 @@ import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
 import { CsvImportModal } from "@/components/enterprise/csv-import-modal";
 import OfferModal from "@/components/enterprise/offer-modal";
 import { ScheduleModal } from "@/components/enterprise/schedule-modal";
+import { SourcingTab } from "@/components/enterprise/sourcing-tab";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -780,7 +781,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search">("pools");
+  const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search" | "sourcing">("pools");
   const [compareOpen, setCompareOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [gmailOpen, setGmailOpen] = useState(false);
@@ -930,6 +931,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               { key: "ats",        label: "ATS Score" },
               { key: "scorecard",  label: "Scorecard" },
               { key: "all",        label: `All (${apps.length})` },
+              { key: "sourcing",   label: "✦ Sourcing" },
               { key: "search",     label: "AI Search" },
               { key: "distribute", label: "Distribution" },
               { key: "analytics",  label: "Analytics" },
@@ -1086,6 +1088,11 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
             </div>
           </div>
         </div>
+      )}
+
+      {/* AI Sourcing tab */}
+      {activeTab === "sourcing" && job && (
+        <SourcingTab jobId={jobId} jobTitle={job.title} />
       )}
 
       {/* AI Candidate Search tab */}

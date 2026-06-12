@@ -127,6 +127,18 @@ Return JSON: { "subject": "...", "body": "..." }`;
           .eq("org_id", org.id);
       }
 
+      // Track outreach send for follow-up sequences
+      await supabaseAdmin.from("enterprise_sourcing_outreach").insert({
+        org_id: org.id,
+        job_id: job_id ?? null,
+        candidate_name: cand.name,
+        candidate_email: cand.email,
+        candidate_source: cand.source,
+        source_id: cand.id,
+        subject,
+        sent_by: userId,
+      });
+
       results.push({ email: cand.email, ok: true });
     } catch (err) {
       results.push({ email: cand.email, ok: false, error: String(err) });
