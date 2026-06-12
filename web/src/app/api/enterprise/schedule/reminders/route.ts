@@ -6,7 +6,7 @@ import { buildIcs } from "@/lib/ics";
 // Called by Vercel Cron: every 30 minutes
 // Sends 24h and 1h reminder emails to candidates whose interviews are upcoming
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

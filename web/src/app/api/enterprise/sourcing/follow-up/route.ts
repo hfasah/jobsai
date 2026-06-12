@@ -7,7 +7,7 @@ import { wrapEmail } from "@/lib/email-utils";
 // Sends follow-up 1 (3 days after initial) and follow-up 2 (7 days after initial)
 // to sourced candidates who haven't replied
 
-export async function POST(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
