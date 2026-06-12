@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { enforceLimit } from "@/lib/enterprise-limits";
 import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -38,6 +39,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lim = await enforceLimit(userId, "jobs");
+  if (lim) return lim;
   const denied = await requirePermission(userId, "can_manage_jobs");
   if (denied) return denied;
 

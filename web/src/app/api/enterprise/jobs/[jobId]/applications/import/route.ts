@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { enforceLimit } from "@/lib/enterprise-limits";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
@@ -20,6 +21,8 @@ interface ImportRow {
 export async function POST(req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lim = await enforceLimit(userId, "candidates");
+  if (lim) return lim;
 
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });

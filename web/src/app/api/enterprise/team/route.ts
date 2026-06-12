@@ -1,4 +1,5 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { enforceLimit } from "@/lib/enterprise-limits";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg, getMyMembership, inviteToken } from "@/lib/enterprise";
@@ -53,6 +54,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lim = await enforceLimit(userId, "recruiters");
+  if (lim) return lim;
 
   const membership = await getMyMembership(userId);
   if (!membership || !["owner", "admin"].includes(membership.role)) {
