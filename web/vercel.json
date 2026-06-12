@@ -1,20 +1,8 @@
 {
   "crons": [
     {
-      "path": "/api/cron/discover",
-      "schedule": "0 8 * * *"
-    },
-    {
       "path": "/api/cron/auto-apply",
       "schedule": "0 10 * * *"
-    },
-    {
-      "path": "/api/cron/inbox-sync",
-      "schedule": "0 9 * * *"
-    },
-    {
-      "path": "/api/cron/interview-reminders",
-      "schedule": "0 13 * * *"
     },
     {
       "path": "/api/enterprise/schedule/reminders",
