@@ -115,12 +115,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     ? Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(k, v), template.subject)
     : `Application received — ${job.title}`;
 
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
+  const statusUrl = app.status_token ? `${APP_URL}/candidate/status/${app.status_token}` : null;
+  const statusLinkHtml = statusUrl
+    ? `<p>You can track your application status anytime here: <a href="${statusUrl}" style="color:#2563eb">${statusUrl}</a></p>`
+    : "";
+
   const bodyHtml = template?.active && template.body
     ? Object.entries(vars)
         .reduce((s, [k, v]) => s.replaceAll(k, v), template.body)
         .replace(/\n/g, "<br>")
     : `<p>Hi ${app.candidate_name},</p>
        <p>Thank you for applying for <strong>${job.title}</strong> at <strong>${orgName}</strong>. We've received your application and our team will review it carefully. We'll be in touch soon with next steps.</p>
+       ${statusLinkHtml}
        <p>In the meantime, if you have any questions about the role, feel free to use the chat assistant on the job page.</p>`;
 
   await resend.emails.send({
