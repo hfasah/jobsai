@@ -18,6 +18,7 @@ import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligen
 import { CandidateReportModal } from "@/components/enterprise/candidate-report-modal";
 import { CompareModal } from "@/components/enterprise/compare-modal";
 import { SmsModal } from "@/components/enterprise/sms-modal";
+import { GmailComposeModal } from "@/components/enterprise/gmail-compose-modal";
 import { VoiceScreenModal } from "@/components/enterprise/voice-screen-modal";
 import { CandidateSearch } from "@/components/enterprise/candidate-search";
 import { KanbanBoard } from "@/components/enterprise/kanban-board";
@@ -772,6 +773,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search">("pools");
   const [compareOpen, setCompareOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
+  const [gmailOpen, setGmailOpen] = useState(false);
   const [voiceScreenApp, setVoiceScreenApp] = useState<EnterpriseApplication | null>(null);
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
@@ -951,6 +953,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
               <Send className="h-3 w-3" /> Message
             </button>
+            <button onClick={() => setGmailOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+              <Mail className="h-3 w-3" /> Email
+            </button>
             <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
               Clear
             </button>
@@ -1103,6 +1109,14 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
           apps={apps.filter((a) => selectedIds.has(a.id))}
           jobId={jobId}
           onClose={() => setSmsOpen(false)}
+        />
+      )}
+
+      {/* Gmail compose modal */}
+      {gmailOpen && (
+        <GmailComposeModal
+          apps={apps.filter((a) => selectedIds.has(a.id))}
+          onClose={() => setGmailOpen(false)}
         />
       )}
 

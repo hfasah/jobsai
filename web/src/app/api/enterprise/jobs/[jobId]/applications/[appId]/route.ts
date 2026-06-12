@@ -5,6 +5,7 @@ import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import type { AppStage } from "@/types/enterprise";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
+import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
@@ -55,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
   // Send stage-change email if stage moved
   if (body.stage && body.send_email !== false) {
-    await sendStageEmail(data, body.stage as AppStage);
+    await sendStageEmail(data, body.stage as AppStage, userId);
   }
 
   if (body.stage) {
@@ -72,7 +73,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   return NextResponse.json({ data });
 }
 
-async function sendStageEmail(app: Record<string, unknown>, stage: AppStage) {
+async function sendStageEmail(app: Record<string, unknown>, stage: AppStage, recruiterId: string) {
   const jobTitle = (app.job as { title: string } | null)?.title ?? "the role";
   const name = app.candidate_name as string;
   const email = app.candidate_email as string;
@@ -95,15 +96,22 @@ async function sendStageEmail(app: Record<string, unknown>, stage: AppStage) {
   const bodyHtml = bodies[stage];
   if (!subject || !bodyHtml) return;
 
-  await resend.emails.send({
-    from: "JobsAI Recruiting <support@jobsai.work>",
-    to: email,
-    subject,
-    html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-      <h2 style="color:#2563eb">Application Update</h2>
-      <p>Hi ${name},</p>
-      ${bodyHtml}
-      <p style="color:#888;font-size:13px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
-    </div>`,
-  }).catch(console.error);
+  const fullHtml = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
+    <h2 style="color:#2563eb">Application Update</h2>
+    <p>Hi ${name},</p>
+    ${bodyHtml}
+    <p style="color:#888;font-size:13px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
+  </div>`;
+
+  // Prefer recruiter's connected Gmail; fall back to platform Resend
+  const gmailResult = await sendFromRecruiterGmail(recruiterId, {
+    to: email, subject, html: fullHtml,
+  }).catch(() => ({ ok: false }));
+
+  if (!gmailResult.ok) {
+    await resend.emails.send({
+      from: "JobsAI Recruiting <support@jobsai.work>",
+      to: email, subject, html: fullHtml,
+    }).catch(console.error);
+  }
 }

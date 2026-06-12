@@ -220,8 +220,8 @@ function GoogleCalendarCard() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">📅</span>
           <div>
-            <p className="font-semibold">Google Calendar</p>
-            <p className="text-xs text-muted-foreground">Sync interviews directly to your Google Calendar</p>
+            <p className="font-semibold">Google Workspace</p>
+            <p className="text-xs text-muted-foreground">Calendar sync + send emails from your Gmail</p>
           </div>
         </div>
         {status?.connected && (
