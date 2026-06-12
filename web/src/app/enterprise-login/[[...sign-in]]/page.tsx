@@ -1,15 +1,16 @@
 import { SignIn } from "@clerk/nextjs";
 import Image from "next/image";
-import { Building2, Users, BarChart3, ShieldCheck, CalendarDays, Globe } from "lucide-react";
+import { Building2, Bot, Mic, Users, CalendarDays, FileSignature, ShieldCheck } from "lucide-react";
 import { enterpriseAppearance } from "@/lib/clerk-appearance";
 import { supabaseAdmin } from "@/lib/supabase";
 
 const FEATURES = [
-  { icon: Users,        label: "AI-screened candidates, ranked into pools" },
-  { icon: BarChart3,    label: "Pipeline analytics, time-to-hire & source quality" },
-  { icon: CalendarDays, label: "Interview scheduling with calendar invites" },
-  { icon: Globe,        label: "Post once, syndicate to every job board" },
-  { icon: ShieldCheck,  label: "References, background checks & compliance" },
+  { icon: Bot,           label: "Autonomous AI sourcing & outreach agent" },
+  { icon: Mic,           label: "AI voice screening, auto-scored & ranked" },
+  { icon: Users,         label: "Kanban pipeline with candidate pools" },
+  { icon: CalendarDays,  label: "Interview scheduling with calendar invites" },
+  { icon: FileSignature, label: "Offer letters with built-in e-signature" },
+  { icon: ShieldCheck,   label: "SSO, white-label, audit logs & compliance" },
 ];
 
 export default async function EnterpriseLoginPage({
@@ -90,6 +91,7 @@ export default async function EnterpriseLoginPage({
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
             <Building2 className="h-7 w-7" />
           </div>
+          <p className="mb-3 text-base font-bold tracking-wide text-white">AI-Powered Talent Acquisition Operating System</p>
           <h2 className="text-4xl font-bold leading-tight">
             {org ? `${org.name}'s` : "Your AI"} recruiting<br />command center.
           </h2>
