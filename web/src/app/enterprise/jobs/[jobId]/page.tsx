@@ -7,7 +7,7 @@ import {
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
   Share2, BarChart3, Copy, Check, TrendingUp, Mic, Send,
-  ClipboardList, Scale, FileText, ChevronDown,
+  ClipboardList, Scale, FileText, ChevronDown, Upload,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
@@ -24,6 +24,7 @@ import { CandidateSearch } from "@/components/enterprise/candidate-search";
 import { KanbanBoard } from "@/components/enterprise/kanban-board";
 import { PoolsPanel } from "@/components/enterprise/pools-panel";
 import { PreboardingModal } from "@/components/enterprise/preboarding-modal";
+import { CsvImportModal } from "@/components/enterprise/csv-import-modal";
 
 const PIPELINE_STAGES: AppStage[] = ["applied", "screened", "interview", "offer", "hired"];
 
@@ -774,6 +775,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [compareOpen, setCompareOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
   const [gmailOpen, setGmailOpen] = useState(false);
+  const [csvImportOpen, setCsvImportOpen] = useState(false);
   const [voiceScreenApp, setVoiceScreenApp] = useState<EnterpriseApplication | null>(null);
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
@@ -895,6 +897,10 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                 <Users className="h-4 w-4 text-muted-foreground" />
                 {apps.length}
               </div>
+              <button onClick={() => setCsvImportOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+                <Upload className="h-3.5 w-3.5" /> Import CSV
+              </button>
               {unscreenedCount > 0 && (
                 <button onClick={screenAll}
                   className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white shadow-glow">
@@ -1117,6 +1123,21 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
         <GmailComposeModal
           apps={apps.filter((a) => selectedIds.has(a.id))}
           onClose={() => setGmailOpen(false)}
+        />
+      )}
+
+      {/* CSV import modal */}
+      {csvImportOpen && (
+        <CsvImportModal
+          jobId={jobId}
+          onClose={() => setCsvImportOpen(false)}
+          onImported={(count) => {
+            // Refresh the apps list after import
+            fetch(`/api/enterprise/jobs/${jobId}/applications`)
+              .then((r) => r.json())
+              .then((j) => { if (j.data) setApps(j.data); });
+            setCsvImportOpen(false);
+          }}
         />
       )}
 

@@ -5,6 +5,8 @@ import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { buildIcs } from "@/lib/ics";
+import { createEnterpriseCalendarEvent } from "@/lib/google-calendar-enterprise";
+import { createOutlookCalendarEvent } from "@/lib/microsoft";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
@@ -55,6 +57,21 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await sendInterviewInvite(org.name, row);
+
+  // Add to recruiter's calendar (Google or Microsoft — fire-and-forget)
+  const endISO = new Date(
+    new Date(row.scheduled_at).getTime() + (row.duration_min ?? 45) * 60_000
+  ).toISOString();
+  const calEvent = {
+    summary: row.title,
+    subject: row.title,
+    startISO: row.scheduled_at,
+    endISO,
+    location: (row.meeting_link ?? row.location) || null,
+    attendees: [{ email: row.candidate_email, name: row.candidate_name }],
+  };
+  createEnterpriseCalendarEvent(userId, calEvent).catch(() => {});
+  createOutlookCalendarEvent(userId, calEvent).catch(() => {});
 
   sendWebhookEvent(org.id, "interview.scheduled", {
     interview_id: row.id,
