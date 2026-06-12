@@ -5,6 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { assignToPool } from "@/lib/enterprise-pools";
 import { recordUsage } from "@/lib/llm-usage";
+import { runPipelineAgent } from "@/lib/pipeline-agent";
 import type { ScreenResult } from "@/types/enterprise";
 
 export const maxDuration = 30;
@@ -120,6 +121,25 @@ Return JSON with:
     // Auto-triage into the matching pool (removes from inbox)
     const triageScore = result.ats_score ?? result.match_score ?? 0;
     await assignToPool(orgId, jobId, appId, triageScore);
+
+    // Run pipeline automation rules (fire-and-forget — don't block the response)
+    void runPipelineAgent(
+      {
+        id: appId,
+        org_id: orgId,
+        job_id: jobId,
+        candidate_name: app.candidate_name,
+        candidate_email: app.candidate_email,
+        stage: updated?.stage ?? app.stage,
+        match_score: result.match_score ?? null,
+        ats_score: result.ats_score ?? null,
+        ai_recommendation: result.ai_recommendation ?? null,
+        risk_flags: result.risk_flags ?? null,
+        ats_keywords_matched: result.ats_keywords_matched ?? null,
+        ats_keywords_missing: result.ats_keywords_missing ?? null,
+      },
+      job.title,
+    );
 
     const { data: finalApp } = await supabaseAdmin
       .from("enterprise_applications").select("*").eq("id", appId).maybeSingle();

@@ -23,6 +23,7 @@ const NAV = [
   { href: "/enterprise/schedule",  icon: CalendarDays,     label: "Schedule" },
   { href: "/enterprise/offers",    icon: FileText,         label: "Offers" },
   { href: "/enterprise/copilot",   icon: Bot,              label: "AI Copilot" },
+  { href: "/enterprise/agent",     icon: Bot,              label: "Agent" },
   { href: "/enterprise/workflows", icon: Zap,              label: "Workflows" },
   { href: "/enterprise/analytics", icon: BarChart3,        label: "Analytics" },
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports" },
