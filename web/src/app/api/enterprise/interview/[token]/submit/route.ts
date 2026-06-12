@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
+import { runPipelineAgent } from "@/lib/pipeline-agent";
 
 export const maxDuration = 60;
 
@@ -125,6 +126,36 @@ Return: {"score": number, "feedback": "1-2 sentence feedback"}`,
     await supabaseAdmin.from("enterprise_applications")
       .update({ match_score: overall, ai_summary: aiSummary, ai_recommendation: rec })
       .eq("id", interview.application_id);
+  }
+
+  // Fire pipeline agent for interview_completed trigger
+  const { data: fullApp } = await supabaseAdmin
+    .from("enterprise_applications")
+    .select("id,org_id,job_id,candidate_name,candidate_email,stage,match_score,ats_score,ai_recommendation,risk_flags,ats_keywords_matched,ats_keywords_missing")
+    .eq("id", interview.application_id)
+    .maybeSingle();
+
+  if (fullApp) {
+    const { data: jobRow } = await supabaseAdmin
+      .from("enterprise_jobs").select("title").eq("id", fullApp.job_id).maybeSingle();
+    void runPipelineAgent(
+      {
+        id: fullApp.id,
+        org_id: fullApp.org_id,
+        job_id: fullApp.job_id,
+        candidate_name: fullApp.candidate_name,
+        candidate_email: fullApp.candidate_email,
+        stage: fullApp.stage,
+        match_score: overall, // use fresh interview score
+        ats_score: fullApp.ats_score,
+        ai_recommendation: rec,
+        risk_flags: fullApp.risk_flags,
+        ats_keywords_matched: fullApp.ats_keywords_matched,
+        ats_keywords_missing: fullApp.ats_keywords_missing,
+      },
+      jobRow?.title ?? "",
+      "interview_completed",
+    );
   }
 
   return NextResponse.json({ data: { overall_score: overall, summary: aiSummary } });

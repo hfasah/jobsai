@@ -13,7 +13,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const { ruleId } = await params;
 
   const body = await req.json().catch(() => ({}));
-  const allowed = ["name", "description", "conditions", "action", "action_config", "active", "job_id"];
+  const allowed = ["name", "description", "conditions", "action", "action_config", "actions", "trigger_event", "trigger_config", "active", "job_id"];
   const update: Record<string, unknown> = {};
   for (const k of allowed) if (body[k] !== undefined) update[k] = body[k];
 

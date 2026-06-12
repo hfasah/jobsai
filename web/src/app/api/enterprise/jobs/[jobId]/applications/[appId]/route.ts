@@ -8,6 +8,7 @@ import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
 import { runWorkflows } from "@/lib/workflow-engine";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
+import { runPipelineAgent } from "@/lib/pipeline-agent";
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
@@ -90,6 +91,27 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       show_powered_by: (orgData2.show_powered_by as boolean) ?? true,
       email_from_name: orgData2.white_label_email_from as string | null,
     }, body.stage).catch(() => {});
+  }
+
+  if (body.stage) {
+    void runPipelineAgent(
+      {
+        id: appId,
+        org_id: org.id,
+        job_id: jobId,
+        candidate_name: data.candidate_name as string,
+        candidate_email: data.candidate_email as string,
+        stage: body.stage as string,
+        match_score: data.match_score as number | null,
+        ats_score: data.ats_score as number | null,
+        ai_recommendation: data.ai_recommendation as string | null,
+        risk_flags: data.risk_flags as string[] | null,
+        ats_keywords_matched: data.ats_keywords_matched as string[] | null,
+        ats_keywords_missing: data.ats_keywords_missing as string[] | null,
+      },
+      (data.job as { title: string } | null)?.title ?? "",
+      "stage_changed",
+    );
   }
 
   return NextResponse.json({ data });
