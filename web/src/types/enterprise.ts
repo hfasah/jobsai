@@ -1,5 +1,5 @@
 export type OrgSize = "1-10" | "11-50" | "51-200" | "201-500" | "500+";
-export type MemberRole = "owner" | "admin" | "recruiter";
+export type MemberRole = "owner" | "admin" | "recruiter" | "hiring_manager" | "interviewer" | "department_head" | "viewer";
 export type JobStatus = "draft" | "active" | "paused" | "closed";
 export type EmploymentType = "full-time" | "part-time" | "contract" | "internship";
 export type AppStage = "applied" | "screened" | "interview" | "offer" | "hired" | "rejected";

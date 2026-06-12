@@ -18,6 +18,11 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   const { memberId } = await params;
   const body = await req.json().catch(() => ({}));
 
+  const VALID_ROLES = ["owner", "admin", "recruiter", "hiring_manager", "interviewer", "department_head", "viewer"];
+  if (!VALID_ROLES.includes(body.role)) {
+    return NextResponse.json({ error: "Invalid role." }, { status: 400 });
+  }
+
   const { data, error } = await supabaseAdmin
     .from("enterprise_members")
     .update({ role: body.role })

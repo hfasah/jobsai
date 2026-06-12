@@ -64,7 +64,8 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const email = (body.email as string | undefined)?.trim().toLowerCase();
-  const role: string = body.role ?? "recruiter";
+  const VALID_ROLES = ["owner", "admin", "recruiter", "hiring_manager", "interviewer", "department_head", "viewer"];
+  const role: string = VALID_ROLES.includes(body.role) ? body.role : "recruiter";
 
   if (!email) return NextResponse.json({ error: "Email is required." }, { status: 400 });
 

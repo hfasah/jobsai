@@ -3,31 +3,52 @@
 import { useEffect, useState } from "react";
 import {
   Users, Loader2, Plus, Trash2, Mail, Shield, ShieldCheck, UserCog,
-  Crown, Clock, RotateCw, X, Check, Lock,
+  Crown, Clock, RotateCw, X, Check, Lock, Eye, Briefcase, Star,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  ROLE_LABELS, ROLE_DESCRIPTIONS, ASSIGNABLE_ROLES,
+  type Permission, ROLE_PERMISSIONS,
+} from "@/lib/enterprise-rbac";
+import type { MemberRole } from "@/types/enterprise";
 
 interface Member {
   id: string; user_id: string; role: string; name: string; email: string; image_url: string | null; created_at: string;
 }
 interface Invitation { id: string; email: string; role: string; created_at: string }
 
-const ROLE_META: Record<string, { label: string; icon: React.ElementType; color: string; desc: string }> = {
-  owner:     { label: "Owner",     icon: Crown,     color: "text-amber-400",  desc: "Full control. Manage billing, members, and delete the org." },
-  admin:     { label: "Admin",     icon: ShieldCheck, color: "text-purple-400", desc: "Manage jobs, candidates, and invite members. Cannot remove members." },
-  recruiter: { label: "Recruiter", icon: UserCog,   color: "text-blue-400",   desc: "Work jobs, candidates, pools, interviews, and pre-boarding." },
+const ROLE_ICONS: Record<string, React.ElementType> = {
+  owner:           Crown,
+  admin:           ShieldCheck,
+  recruiter:       UserCog,
+  hiring_manager:  Briefcase,
+  interviewer:     Star,
+  department_head: Shield,
+  viewer:          Eye,
 };
 
-const PERMISSIONS = [
-  { action: "View jobs, candidates & pools",        owner: true, admin: true, recruiter: true },
-  { action: "Post & edit jobs",                      owner: true, admin: true, recruiter: true },
-  { action: "Screen, move & report on candidates",   owner: true, admin: true, recruiter: true },
-  { action: "Run references & background checks",    owner: true, admin: true, recruiter: true },
-  { action: "Invite team members",                   owner: true, admin: true, recruiter: false },
-  { action: "Change member roles",                   owner: true, admin: true, recruiter: false },
-  { action: "Remove members",                        owner: true, admin: false, recruiter: false },
-  { action: "Export org data & manage billing",      owner: true, admin: false, recruiter: false },
-];
+const ROLE_COLORS: Record<string, string> = {
+  owner:           "text-amber-400",
+  admin:           "text-purple-400",
+  recruiter:       "text-blue-400",
+  hiring_manager:  "text-sky-400",
+  interviewer:     "text-teal-400",
+  department_head: "text-indigo-400",
+  viewer:          "text-slate-400",
+};
+
+const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
+  can_view_applications:   "View applications",
+  can_move_stages:         "Move pipeline stages",
+  can_send_emails:         "Send candidate emails",
+  can_send_offers:         "Send offer letters",
+  can_manage_jobs:         "Post & edit jobs",
+  can_invite_members:      "Invite team members",
+  can_manage_settings:     "Manage settings",
+  can_view_reports:        "View reports & analytics",
+  can_add_notes:           "Add notes to applications",
+  can_schedule_interviews: "Schedule interviews",
+};
 
 export default function TeamPage() {
   const [members, setMembers] = useState<Member[]>([]);
@@ -88,6 +109,10 @@ export default function TeamPage() {
 
   if (loading) return <main className="flex flex-1 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></main>;
 
+  const assignableRoles: MemberRole[] = myRole === "owner"
+    ? ASSIGNABLE_ROLES
+    : ASSIGNABLE_ROLES.filter((r) => r !== "admin");
+
   return (
     <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-3xl space-y-6">
@@ -106,8 +131,8 @@ export default function TeamPage() {
           </div>
           <div className="divide-y divide-border">
             {members.map((m) => {
-              const meta = ROLE_META[m.role] ?? ROLE_META.recruiter;
-              const Icon = meta.icon;
+              const Icon = ROLE_ICONS[m.role] ?? UserCog;
+              const color = ROLE_COLORS[m.role] ?? "text-slate-400";
               const isSelf = m.user_id === myUserId;
               return (
                 <div key={m.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
@@ -124,11 +149,13 @@ export default function TeamPage() {
                     {canManage && !isSelf ? (
                       <select value={m.role} onChange={(e) => changeRole(m.id, e.target.value)}
                         className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary">
-                        {["owner", "admin", "recruiter"].map((r) => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
+                        {(myRole === "owner" ? ["owner", ...ASSIGNABLE_ROLES] : ASSIGNABLE_ROLES).map((r) => (
+                          <option key={r} value={r}>{ROLE_LABELS[r as MemberRole] ?? r}</option>
+                        ))}
                       </select>
                     ) : (
-                      <span className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium", meta.color)}>
-                        <Icon className="h-3 w-3" /> {meta.label}
+                      <span className={cn("inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-xs font-medium", color)}>
+                        <Icon className="h-3 w-3" /> {ROLE_LABELS[m.role as MemberRole] ?? m.role}
                       </span>
                     )}
                     {canRemove && !isSelf && (
@@ -154,7 +181,9 @@ export default function TeamPage() {
                 className="flex-1 min-w-48 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               <select value={inviteForm.role} onChange={(e) => setInviteForm((f) => ({ ...f, role: e.target.value }))}
                 className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
-                {(myRole === "owner" ? ["admin", "recruiter"] : ["recruiter"]).map((r) => <option key={r} value={r}>{ROLE_META[r].label}</option>)}
+                {assignableRoles.map((r) => (
+                  <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                ))}
               </select>
               <button type="submit" disabled={inviting}
                 className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
@@ -172,7 +201,9 @@ export default function TeamPage() {
                     <div className="flex items-center gap-2">
                       <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                       <p className="text-sm">{inv.email}</p>
-                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] capitalize text-muted-foreground">{inv.role}</span>
+                      <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
+                        {ROLE_LABELS[inv.role as MemberRole] ?? inv.role}
+                      </span>
                       <span className="flex items-center gap-1 text-[10px] text-amber-400"><Clock className="h-2.5 w-2.5" /> Pending</span>
                     </div>
                     <div className="flex items-center gap-1">
@@ -192,44 +223,55 @@ export default function TeamPage() {
           </section>
         )}
 
-        {/* Roles & permissions reference */}
+        {/* Roles reference */}
         <section className="rounded-2xl border border-border bg-card overflow-hidden">
           <div className="flex items-center gap-2 border-b border-border px-5 py-3.5">
             <Shield className="h-4 w-4 text-primary" />
             <h2 className="font-semibold">Roles &amp; permissions</h2>
           </div>
           <div className="p-5">
-            <div className="mb-4 grid gap-2 sm:grid-cols-3">
-              {(["owner", "admin", "recruiter"] as const).map((r) => {
-                const meta = ROLE_META[r]; const Icon = meta.icon;
+            <div className="mb-5 grid gap-2 sm:grid-cols-2">
+              {(["owner", "admin", "recruiter", "hiring_manager", "interviewer", "department_head", "viewer"] as MemberRole[]).map((r) => {
+                const Icon = ROLE_ICONS[r] ?? UserCog;
+                const color = ROLE_COLORS[r] ?? "text-slate-400";
                 return (
                   <div key={r} className="rounded-xl border border-border p-3">
-                    <p className={cn("flex items-center gap-1.5 text-sm font-semibold", meta.color)}><Icon className="h-3.5 w-3.5" /> {meta.label}</p>
-                    <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{meta.desc}</p>
+                    <p className={cn("flex items-center gap-1.5 text-sm font-semibold", color)}>
+                      <Icon className="h-3.5 w-3.5" /> {ROLE_LABELS[r]}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground leading-relaxed">{ROLE_DESCRIPTIONS[r]}</p>
                   </div>
                 );
               })}
             </div>
-            <table className="w-full text-sm">
-              <thead><tr className="border-b border-border text-left text-xs text-muted-foreground">
-                <th className="pb-2 font-medium">Permission</th>
-                <th className="pb-2 text-center font-medium">Owner</th>
-                <th className="pb-2 text-center font-medium">Admin</th>
-                <th className="pb-2 text-center font-medium">Recruiter</th>
-              </tr></thead>
-              <tbody className="divide-y divide-border">
-                {PERMISSIONS.map((p) => (
-                  <tr key={p.action}>
-                    <td className="py-2 text-muted-foreground">{p.action}</td>
-                    {(["owner", "admin", "recruiter"] as const).map((r) => (
-                      <td key={r} className="py-2 text-center">
-                        {p[r] ? <Check className="mx-auto h-4 w-4 text-green-400" /> : <span className="text-muted-foreground/30">—</span>}
-                      </td>
+
+            {/* Permission matrix */}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border text-left text-muted-foreground">
+                    <th className="pb-2 pr-3 font-medium">Permission</th>
+                    {(["owner", "admin", "recruiter", "hiring_manager", "interviewer", "department_head", "viewer"] as MemberRole[]).map((r) => (
+                      <th key={r} className="pb-2 text-center font-medium">{ROLE_LABELS[r].split(" ")[0]}</th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {(Object.keys(PERMISSION_LABELS) as Permission[]).map((perm) => (
+                    <tr key={perm}>
+                      <td className="py-1.5 pr-3 text-muted-foreground">{PERMISSION_LABELS[perm]}</td>
+                      {(["owner", "admin", "recruiter", "hiring_manager", "interviewer", "department_head", "viewer"] as MemberRole[]).map((r) => (
+                        <td key={r} className="py-1.5 text-center">
+                          {ROLE_PERMISSIONS[r][perm]
+                            ? <Check className="mx-auto h-3.5 w-3.5 text-green-400" />
+                            : <span className="text-muted-foreground/30">—</span>}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </section>
       </div>
