@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
+import { poweredByFooter, emailFromName } from "@/lib/email-utils";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
@@ -54,6 +55,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
       return NextResponse.json({ error: "Only draft offers can be sent." }, { status: 400 });
     }
     update.status = "sent";
+    const orgData = org as unknown as Record<string, unknown>;
+    const showPoweredBy = (orgData.show_powered_by as boolean) ?? true;
+    const fromName = emailFromName(org.name, orgData.white_label_email_from as string | null);
     const signingUrl = `${APP_URL}/enterprise/offer/${offer.sign_token}`;
     const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#0f172a">
       <h2 style="color:#2563eb">You have received an offer from ${org.name}</h2>
@@ -65,8 +69,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         </a>
       </p>
       <p style="color:#64748b;font-size:13px">Or copy this link: ${signingUrl}</p>
-      <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0"/>
-      <p style="color:#94a3b8;font-size:12px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
+      ${poweredByFooter(showPoweredBy)}
     </div>`;
 
     const subject = `Your offer letter — ${offer.job_title} at ${org.name}`;
@@ -77,7 +80,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     }).catch(() => ({ ok: false }));
     if (!gmailResult.ok) {
       await resend.emails.send({
-        from: `${org.name} Recruiting <support@jobsai.work>`,
+        from: `${fromName} <support@jobsai.work>`,
         to: offer.candidate_email as string,
         subject,
         html,

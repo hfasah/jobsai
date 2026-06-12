@@ -7,6 +7,7 @@ import type { AppStage } from "@/types/enterprise";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
 import { runWorkflows } from "@/lib/workflow-engine";
+import { wrapEmail, emailFromName } from "@/lib/email-utils";
 
 type Ctx = { params: Promise<{ jobId: string; appId: string }> };
 
@@ -57,7 +58,11 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
 
   // Send stage-change email if stage moved
   if (body.stage && body.send_email !== false) {
-    await sendStageEmail(data, body.stage as AppStage, userId);
+    const orgData = org as unknown as Record<string, unknown>;
+    await sendStageEmail(data, body.stage as AppStage, userId, org.name, {
+      showPoweredBy: (orgData.show_powered_by as boolean) ?? true,
+      emailFrom: orgData.white_label_email_from as string | null,
+    });
   }
 
   if (body.stage) {
@@ -71,6 +76,7 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     }).catch(() => {});
 
     const jobTitle = (data.job as { title: string } | null)?.title ?? "";
+    const orgData2 = org as unknown as Record<string, unknown>;
     runWorkflows("stage_change", {
       org_id: org.id,
       org_name: org.name,
@@ -81,13 +87,21 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
       candidate_email: data.candidate_email as string,
       stage: body.stage,
       recruiter_id: userId,
+      show_powered_by: (orgData2.show_powered_by as boolean) ?? true,
+      email_from_name: orgData2.white_label_email_from as string | null,
     }, body.stage).catch(() => {});
   }
 
   return NextResponse.json({ data });
 }
 
-async function sendStageEmail(app: Record<string, unknown>, stage: AppStage, recruiterId: string) {
+async function sendStageEmail(
+  app: Record<string, unknown>,
+  stage: AppStage,
+  recruiterId: string,
+  orgName = "the company",
+  opts: { showPoweredBy?: boolean; emailFrom?: string | null } = {},
+) {
   const jobTitle = (app.job as { title: string } | null)?.title ?? "the role";
   const name = app.candidate_name as string;
   const email = app.candidate_email as string;
@@ -110,21 +124,20 @@ async function sendStageEmail(app: Record<string, unknown>, stage: AppStage, rec
   const bodyHtml = bodies[stage];
   if (!subject || !bodyHtml) return;
 
-  const fullHtml = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-    <h2 style="color:#2563eb">Application Update</h2>
-    <p>Hi ${name},</p>
-    ${bodyHtml}
-    <p style="color:#888;font-size:13px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
-  </div>`;
+  const fullHtml = wrapEmail(
+    `<h2 style="color:#2563eb">Application Update</h2><p>Hi ${name},</p>${bodyHtml}`,
+    opts.showPoweredBy ?? true,
+  );
 
   // Prefer recruiter's connected Gmail; fall back to platform Resend
   const gmailResult = await sendFromRecruiterGmail(recruiterId, {
     to: email, subject, html: fullHtml,
   }).catch(() => ({ ok: false }));
 
+  const fromName = emailFromName(orgName, opts.emailFrom);
   if (!gmailResult.ok) {
     await resend.emails.send({
-      from: "JobsAI Recruiting <support@jobsai.work>",
+      from: `${fromName} <support@jobsai.work>`,
       to: email, subject, html: fullHtml,
     }).catch(console.error);
   }

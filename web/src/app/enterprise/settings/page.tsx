@@ -624,7 +624,7 @@ function DataPrivacySettings() {
 
 // ── White-label Branding ──────────────────────────────────────────────────────
 function BrandingSettings() {
-  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "", cover_image_url: "", culture_text: "", benefits_raw: "", social_twitter: "", social_linkedin: "", social_instagram: "" });
+  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "", cover_image_url: "", culture_text: "", benefits_raw: "", social_twitter: "", social_linkedin: "", social_instagram: "", custom_domain: "", white_label_email_from: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -647,6 +647,8 @@ function BrandingSettings() {
           social_twitter: sl.twitter ?? "",
           social_linkedin: sl.linkedin ?? "",
           social_instagram: sl.instagram ?? "",
+          custom_domain: d.custom_domain ?? "",
+          white_label_email_from: d.white_label_email_from ?? "",
         }));
       }
     }).finally(() => setLoading(false));
@@ -784,7 +786,61 @@ function BrandingSettings() {
             <ExternalLink className="h-3.5 w-3.5" /> Open
           </a>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">Want a custom domain (careers.yourcompany.com)? Point a CNAME to our servers — contact your account manager.</p>
+      </div>
+
+      {/* Custom domain */}
+      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+        <div>
+          <h2 className="mb-1 font-semibold">Custom domain</h2>
+          <p className="text-sm text-muted-foreground">
+            Serve your careers page at <code>careers.yourcompany.com</code> instead of jobsai.work.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Custom domain</label>
+          <input
+            value={form.custom_domain}
+            onChange={(e) => setForm((f) => ({ ...f, custom_domain: e.target.value.trim().toLowerCase() }))}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="careers.yourcompany.com"
+          />
+        </div>
+
+        {form.custom_domain && (
+          <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2 text-xs">
+            <p className="font-semibold text-amber-400">DNS setup required</p>
+            <p className="text-muted-foreground">Add this CNAME record at your DNS provider:</p>
+            <div className="grid grid-cols-3 gap-2 rounded-lg border border-border bg-background p-2 font-mono text-xs">
+              <span className="text-muted-foreground">Type</span>
+              <span className="text-muted-foreground">Host</span>
+              <span className="text-muted-foreground">Value</span>
+              <span className="font-semibold">CNAME</span>
+              <span className="font-semibold">{form.custom_domain.split(".").slice(0, -2).join(".") || form.custom_domain}</span>
+              <span className="font-semibold break-all">cname.jobsai.work</span>
+            </div>
+            <p className="text-muted-foreground">DNS changes can take up to 24 hours to propagate.</p>
+          </div>
+        )}
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Email &quot;From&quot; name</label>
+          <input
+            value={form.white_label_email_from}
+            onChange={(e) => setForm((f) => ({ ...f, white_label_email_from: e.target.value }))}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder={`${form.name || "Acme Corp"} Recruiting`}
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            Shown as the sender name on all candidate emails. Leave blank to use &quot;{form.name || "Your Company"} Recruiting&quot;.
+          </p>
+        </div>
+
+        <button onClick={save} disabled={saving}
+          className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : saved ? <Check className="h-4 w-4" /> : null}
+          {saved ? "Saved" : "Save"}
+        </button>
       </div>
     </div>
   );

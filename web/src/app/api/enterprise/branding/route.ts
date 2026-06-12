@@ -23,6 +23,8 @@ export async function GET() {
     culture_text: o.culture_text ?? null,
     benefits: o.benefits ?? [],
     social_links: o.social_links ?? {},
+    custom_domain: o.custom_domain ?? null,
+    white_label_email_from: o.white_label_email_from ?? null,
   } });
 }
 
@@ -38,7 +40,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links"]) {
+  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links", "custom_domain", "white_label_email_from"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }
 

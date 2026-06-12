@@ -155,6 +155,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     source: app.source,
   }).catch(() => {});
 
+  const { data: orgFull } = await supabaseAdmin.from("enterprise_orgs").select("show_powered_by,white_label_email_from").eq("id", job.org_id).maybeSingle();
   runWorkflows("application_created", {
     org_id: job.org_id,
     org_name: orgName,
@@ -163,6 +164,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
     job_title: job.title,
     candidate_name: app.candidate_name,
     candidate_email: app.candidate_email,
+    show_powered_by: (orgFull?.show_powered_by as boolean) ?? true,
+    email_from_name: (orgFull?.white_label_email_from as string) ?? null,
   }).catch(() => {});
 
   return NextResponse.json({ data: app }, { status: 201 });

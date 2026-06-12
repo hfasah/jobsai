@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
+import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import type { AppStage } from "@/types/enterprise";
 
 export type WorkflowTrigger =
@@ -21,6 +22,9 @@ export interface WorkflowContext {
   stage?: string;
   // Recruiter who triggered (for Gmail sending)
   recruiter_id?: string;
+  // White-label email settings
+  show_powered_by?: boolean;
+  email_from_name?: string | null;
 }
 
 function interpolate(template: string, ctx: WorkflowContext): string {
@@ -62,10 +66,8 @@ async function executeAction(rule: Record<string, unknown>, ctx: WorkflowContext
       if (!ctx.candidate_email) return;
       const subject = interpolate((cfg.subject as string) ?? "Update on your application", ctx);
       const bodyHtml = interpolate((cfg.body as string) ?? "<p>Hi {{name}},</p><p>We have an update on your application.</p>", ctx);
-      const html = `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
-        ${bodyHtml}
-        <p style="color:#94a3b8;font-size:12px;margin-top:20px">Powered by <a href="https://jobsai.work" style="color:#2563eb">JobsAI.Work</a></p>
-      </div>`;
+      const html = wrapEmail(bodyHtml, ctx.show_powered_by ?? true);
+      const fromName = emailFromName(ctx.org_name, ctx.email_from_name);
 
       const gmailResult = ctx.recruiter_id
         ? await sendFromRecruiterGmail(ctx.recruiter_id, { to: ctx.candidate_email, subject, html }).catch(() => ({ ok: false }))
@@ -73,7 +75,7 @@ async function executeAction(rule: Record<string, unknown>, ctx: WorkflowContext
 
       if (!gmailResult.ok) {
         await resend.emails.send({
-          from: `${ctx.org_name} Recruiting <support@jobsai.work>`,
+          from: `${fromName} <support@jobsai.work>`,
           to: ctx.candidate_email,
           subject,
           html,
