@@ -42,6 +42,7 @@ const PLATFORM = [
 
 const COMPANY = [
   { label: "About", href: "/enterprise/about" },
+  { label: "Guide", href: "/enterprise/guide" },
   { label: "Pricing", href: "/enterprise/pricing" },
   { label: "Customers", href: "/enterprise/customers" },
   { label: "Contact", href: "/enterprise/contact" },
