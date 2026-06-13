@@ -92,10 +92,12 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
   const hostname = req.headers.get("host")?.split(":")[0] ?? "";
 
   // Enterprise portal domain: the root is the enterprise marketing landing page.
+  // Redirect (not rewrite) so the client pathname is /enterprise/home — keeps the
+  // workspace shell off it and suppresses the job-seeker popup correctly.
   if (hostname === ENTERPRISE_PORTAL_HOST && req.nextUrl.pathname === "/") {
     const url = req.nextUrl.clone();
     url.pathname = "/enterprise/home";
-    return NextResponse.rewrite(url);
+    return NextResponse.redirect(url);
   }
 
   // The enterprise portal must never serve the consumer job-seeker app; route
