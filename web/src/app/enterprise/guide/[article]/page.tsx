@@ -4,7 +4,9 @@ import type { Metadata } from "next";
 import { ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
 import { GuideLayout } from "@/components/enterprise/guide-layout";
 import { GuideArticleBody } from "@/components/enterprise/guide-article";
+import { GuideMockup } from "@/components/enterprise/guide-mockup";
 import { GUIDE_ARTICLES, getGuideArticle } from "@/lib/enterprise-guide";
+import { GUIDE_MOCKS } from "@/lib/enterprise-guide-mocks";
 
 export function generateStaticParams() {
   return GUIDE_ARTICLES.map((a) => ({ article: a.slug }));
@@ -39,6 +41,9 @@ export default async function GuideArticlePage({
   const prev = idx > 0 ? GUIDE_ARTICLES[idx - 1] : null;
   const next = idx < GUIDE_ARTICLES.length - 1 ? GUIDE_ARTICLES[idx + 1] : null;
 
+  const mockEntry = GUIDE_MOCKS[a.slug];
+  const mocks = Array.isArray(mockEntry) ? mockEntry : mockEntry ? [mockEntry] : [];
+
   return (
     <GuideLayout activeSlug={a.slug}>
       {/* Breadcrumb */}
@@ -55,6 +60,8 @@ export default async function GuideArticlePage({
         </h1>
         <p className="mt-2 text-lg text-muted-foreground">{a.summary}</p>
       </header>
+
+      {mocks.map((m, i) => <GuideMockup key={i} mock={m} />)}
 
       <article className="mt-8">
         <GuideArticleBody sections={a.sections} />
