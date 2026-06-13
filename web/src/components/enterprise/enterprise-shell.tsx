@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
 import { AskAI } from "@/components/enterprise/ask-ai";
+import { NudgeBanner } from "@/components/enterprise/nudge-banner";
 
 // `feature` (when set) hides the item unless the org's plan entitles it.
 const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: string }[] = [
@@ -146,6 +147,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
           </button>
           <p className="text-sm font-semibold">{org?.name ?? "Enterprise"}</p>
         </header>
+        <NudgeBanner />
         {children}
       </div>
 
