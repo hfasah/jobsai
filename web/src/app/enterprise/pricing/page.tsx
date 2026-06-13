@@ -19,7 +19,7 @@ const PLANS = [
   },
   {
     name: "Agency", price: "$799", popular: true, sub: "For recruiting agencies, staffing firms, and executive search.",
-    highlights: ["Everything in Professional", "Recruiting CRM, talent pools & outreach", "AI sourcing & advanced search", "Client portal, reporting & white label"],
+    highlights: ["Everything in Professional", "Recruiting CRM, talent pools & email sequences", "AI sourcing & advanced search", "Client portal, reporting & white label"],
     limits: "10 recruiters · 50 active jobs · 50,000 candidates", cta: "Start free trial", href: "/enterprise-login",
   },
   {
@@ -38,6 +38,7 @@ const ADDONS = [
   { name: "AI Interview Suite", price: "+$199/mo", desc: "AI voice & avatar interviews, auto-scoring, transcripts." },
   { name: "Autonomous Recruiting Agent", price: "+$499/mo", desc: "24/7 sourcing, outreach, follow-ups & recommendations." },
   { name: "SMS & WhatsApp", price: "+$99/mo", desc: "Instant candidate messaging & automated reminders." },
+  { name: "White Label Plus", price: "+$199/mo", desc: "Custom domain, branding removal & custom email branding." },
   { name: "Additional Recruiters", price: "+$29/user/mo", desc: "Add seats beyond your plan limit." },
 ];
 
@@ -95,7 +96,7 @@ export default function PublicPricingPage() {
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-2 text-center text-2xl font-bold">Premium add-ons</h2>
           <p className="mb-8 text-center text-sm text-muted-foreground">Available on any plan — add or remove anytime from inside your workspace.</p>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {ADDONS.map((a) => (
               <div key={a.name} className="rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-semibold">{a.name}</h3>
