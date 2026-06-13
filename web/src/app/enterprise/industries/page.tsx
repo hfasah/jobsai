@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import { ArrowRight } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { INDUSTRIES } from "@/lib/enterprise-personas";
 
 export const metadata: Metadata = {
@@ -47,6 +48,8 @@ export default function IndustriesIndex() {
           ))}
         </div>
       </section>
+
+      <PublicEnterpriseFooter />
     </div>
   );
 }

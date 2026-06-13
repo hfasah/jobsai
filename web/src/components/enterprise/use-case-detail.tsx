@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, ArrowRight } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import type { Persona } from "@/lib/enterprise-personas";
 
 // Shared landing layout for a "Built For" persona or an "Industries" sector.
@@ -93,6 +94,8 @@ export function UseCaseDetail({
           </Link>
         </div>
       </section>
+
+      <PublicEnterpriseFooter />
     </div>
   );
 }

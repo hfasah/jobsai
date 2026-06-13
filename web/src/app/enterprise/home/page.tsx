@@ -4,6 +4,7 @@ import {
   Building2, Briefcase, Landmark, Check,
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 
 export const metadata = {
@@ -125,9 +126,7 @@ export default function EnterpriseHome() {
         </div>
       </section>
 
-      <footer className="border-t border-border px-6 py-8 text-center text-xs text-muted-foreground">
-        © {new Date().getFullYear()} JobsAI Enterprise · <Link href="/enterprise/pricing" className="hover:underline">Pricing</Link> · <Link href="/enterprise-login" className="hover:underline">Sign in</Link>
-      </footer>
+      <PublicEnterpriseFooter />
     </main>
   );
 }

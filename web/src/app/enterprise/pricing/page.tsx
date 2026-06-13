@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Check, Building2, Sparkles, ArrowRight } from "lucide-react";
 import { PlanComparison } from "@/components/enterprise/plan-comparison";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
   title: "JobsAI Enterprise Pricing — AI-Powered Talent Acquisition Operating System",
@@ -128,6 +129,8 @@ export default function PublicPricingPage() {
           </div>
         </div>
       </section>
+
+      <PublicEnterpriseFooter />
     </main>
   );
 }

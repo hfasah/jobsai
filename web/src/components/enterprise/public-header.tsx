@@ -58,6 +58,7 @@ export function PublicEnterpriseHeader() {
           <Link href="/enterprise/home#features" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Features</Link>
           <Link href="/enterprise/pricing" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Pricing</Link>
           <Link href="/enterprise/customers" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Customers</Link>
+          <Link href="/enterprise/about" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">About</Link>
         </nav>
 
         <div className="flex items-center gap-1 text-sm sm:gap-2">

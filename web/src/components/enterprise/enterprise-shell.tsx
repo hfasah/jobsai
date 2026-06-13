@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug, Megaphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -22,6 +22,7 @@ const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: str
   { href: "/enterprise/boards",    icon: Globe,            label: "Job Boards" },
   { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },
   { href: "/enterprise/sourcing",  icon: Sparkles,         label: "Sourcing", feature: "ai_sourcing" },
+  { href: "/enterprise/campaigns", icon: Megaphone,        label: "Campaigns", feature: "outreach_campaigns" },
   { href: "/enterprise/schedule",  icon: CalendarDays,     label: "Schedule" },
   { href: "/enterprise/offers",    icon: FileText,         label: "Offers" },
   { href: "/enterprise/copilot",   icon: Bot,              label: "AI Copilot" },
@@ -108,7 +109,7 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
 // chrome (marketing landing, pricing, onboarding, plan select, locked screen,
 // and candidate-facing token pages). They bring their own header/layout.
 const SHELL_BYPASS = [
-  "/enterprise/home", "/enterprise/built-for", "/enterprise/industries", "/enterprise/pricing", "/enterprise/demo", "/enterprise/customers",
+  "/enterprise/home", "/enterprise/built-for", "/enterprise/industries", "/enterprise/pricing", "/enterprise/demo", "/enterprise/customers", "/enterprise/about",
   "/enterprise/onboard", "/enterprise/plans",
   "/enterprise/locked", "/enterprise/invite", "/enterprise/book", "/enterprise/confirm",
   "/enterprise/reference", "/enterprise/interview", "/enterprise/offer-sign",

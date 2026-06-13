@@ -1,0 +1,283 @@
+"use client";
+
+import { useState } from "react";
+import {
+  Plus, Trash2, ChevronUp, ChevronDown, Sparkles, Clock, Mail,
+  Loader2, X, Wand2,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { CAMPAIGN_VARS, type CampaignStepInput, type CampaignPreset } from "@/lib/campaigns";
+
+export interface BuilderStep extends CampaignStepInput {
+  _key: string;
+}
+
+export interface CampaignDraft {
+  name: string;
+  description: string;
+  steps: BuilderStep[];
+}
+
+let _k = 0;
+const newKey = () => `s${Date.now()}-${_k++}`;
+
+function blankStep(delay = 2): BuilderStep {
+  return { _key: newKey(), delay_days: delay, subject: "", body: "", ai_personalize: false, ai_prompt: "" };
+}
+
+export function emptyDraft(): CampaignDraft {
+  return { name: "", description: "", steps: [{ ...blankStep(0) }] };
+}
+
+export function presetToDraft(p: CampaignPreset): CampaignDraft {
+  return {
+    name: p.name,
+    description: p.description,
+    steps: p.steps.map((s) => ({ ...s, _key: newKey(), ai_prompt: s.ai_prompt ?? "" })),
+  };
+}
+
+export function draftFromCampaign(c: {
+  name: string; description: string | null;
+  steps: { delay_days: number; subject: string; body: string; ai_personalize: boolean; ai_prompt: string | null }[];
+}): CampaignDraft {
+  return {
+    name: c.name,
+    description: c.description ?? "",
+    steps: (c.steps.length ? c.steps : [{ delay_days: 0, subject: "", body: "", ai_personalize: false, ai_prompt: "" }]).map((s) => ({
+      _key: newKey(),
+      delay_days: s.delay_days,
+      subject: s.subject,
+      body: s.body,
+      ai_personalize: s.ai_personalize,
+      ai_prompt: s.ai_prompt ?? "",
+    })),
+  };
+}
+
+export function CampaignBuilder({
+  draft, setDraft, onSave, onCancel, saving, presets,
+}: {
+  draft: CampaignDraft;
+  setDraft: (d: CampaignDraft) => void;
+  onSave: (activate: boolean) => void;
+  onCancel: () => void;
+  saving: boolean;
+  presets: CampaignPreset[];
+}) {
+  const [showPresets, setShowPresets] = useState(false);
+  const [focusedField, setFocusedField] = useState<{ i: number; field: "subject" | "body" } | null>(null);
+
+  const patchStep = (i: number, patch: Partial<BuilderStep>) => {
+    const steps = draft.steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
+    setDraft({ ...draft, steps });
+  };
+  const addStep = () => setDraft({ ...draft, steps: [...draft.steps, blankStep(3)] });
+  const removeStep = (i: number) =>
+    setDraft({ ...draft, steps: draft.steps.filter((_, idx) => idx !== i) });
+  const move = (i: number, dir: -1 | 1) => {
+    const j = i + dir;
+    if (j < 0 || j >= draft.steps.length) return;
+    const steps = [...draft.steps];
+    [steps[i], steps[j]] = [steps[j], steps[i]];
+    setDraft({ ...draft, steps });
+  };
+
+  // Insert a {{token}} into whichever field was last focused.
+  const insertVar = (token: string) => {
+    if (!focusedField) return;
+    const { i, field } = focusedField;
+    patchStep(i, { [field]: `${draft.steps[i][field]}{{${token}}}` } as Partial<BuilderStep>);
+  };
+
+  // Cumulative day offset shown on each step (day N from enrollment).
+  const cumDays: number[] = [];
+  draft.steps.reduce((sum, s) => {
+    const next = sum + Math.max(0, s.delay_days || 0);
+    cumDays.push(next);
+    return next;
+  }, 0);
+
+  return (
+    <div className="mx-auto max-w-3xl">
+      {/* Campaign meta */}
+      <div className="mb-5 rounded-2xl border border-border bg-card p-4">
+        <div className="flex items-center justify-between gap-2">
+          <input
+            value={draft.name}
+            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
+            placeholder="Campaign name (e.g. Senior Engineer Nurture)"
+            className="w-full bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground/60"
+          />
+          <button
+            onClick={() => setShowPresets((s) => !s)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:border-primary hover:text-primary"
+          >
+            <Wand2 className="h-3.5 w-3.5" /> Start from template
+          </button>
+        </div>
+        <input
+          value={draft.description}
+          onChange={(e) => setDraft({ ...draft, description: e.target.value })}
+          placeholder="Optional description — who this sequence is for"
+          className="mt-1 w-full bg-transparent text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/50"
+        />
+
+        {showPresets && (
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            {presets.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => { setDraft(presetToDraft(p)); setShowPresets(false); }}
+                className="rounded-xl border border-border bg-muted/30 p-3 text-left transition-colors hover:border-primary"
+              >
+                <p className="text-sm font-medium">{p.name}</p>
+                <p className="mt-0.5 text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+                <p className="mt-1.5 text-[11px] font-medium text-primary">{p.steps.length} steps</p>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Variable chips */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-muted-foreground">Insert:</span>
+        {CAMPAIGN_VARS.map((v) => (
+          <button
+            key={v}
+            onClick={() => insertVar(v)}
+            disabled={!focusedField}
+            className="rounded-md border border-border bg-muted/40 px-1.5 py-0.5 font-mono text-[11px] text-muted-foreground hover:border-primary hover:text-primary disabled:opacity-40"
+          >
+            {`{{${v}}}`}
+          </button>
+        ))}
+      </div>
+
+      {/* Steps */}
+      <div className="space-y-3">
+        {draft.steps.map((step, i) => {
+          const cum = cumDays[i];
+          return (
+            <div key={step._key} className="relative rounded-2xl border border-border bg-card p-4">
+              {/* Step header */}
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                    {i + 1}
+                  </span>
+                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Mail className="h-3.5 w-3.5" /> Email
+                  </span>
+                  <span className="text-[11px] text-muted-foreground">·</span>
+                  <span className="text-[11px] text-muted-foreground">Day {cum}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
+                  <button onClick={() => move(i, 1)} disabled={i === draft.steps.length - 1} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
+                  <button onClick={() => removeStep(i)} disabled={draft.steps.length === 1} className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30"><Trash2 className="h-4 w-4" /></button>
+                </div>
+              </div>
+
+              {/* Delay */}
+              <div className="mb-3 flex items-center gap-2 text-sm">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                <span className="text-muted-foreground">{i === 0 ? "Send" : "Wait"}</span>
+                <input
+                  type="number" min={0} max={60}
+                  value={step.delay_days}
+                  onChange={(e) => patchStep(i, { delay_days: Math.max(0, Math.min(60, Number(e.target.value) || 0)) })}
+                  className="w-16 rounded-lg border border-border bg-background px-2 py-1 text-center text-sm outline-none focus:border-primary"
+                />
+                <span className="text-muted-foreground">
+                  {i === 0 ? "days after enrollment" : "days after the previous step"}
+                </span>
+              </div>
+
+              {/* Subject */}
+              <input
+                value={step.subject}
+                onChange={(e) => patchStep(i, { subject: e.target.value })}
+                onFocus={() => setFocusedField({ i, field: "subject" })}
+                placeholder="Subject line"
+                className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium outline-none focus:border-primary"
+              />
+
+              {/* Body */}
+              <textarea
+                value={step.body}
+                onChange={(e) => patchStep(i, { body: e.target.value })}
+                onFocus={() => setFocusedField({ i, field: "body" })}
+                rows={5}
+                placeholder="Write your email. Use the variable chips above to personalize."
+                className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus:border-primary"
+              />
+
+              {/* AI personalization */}
+              <div className={cn("mt-2 rounded-xl border p-2.5 transition-colors", step.ai_personalize ? "border-primary/40 bg-primary/5" : "border-border")}>
+                <label className="flex cursor-pointer items-start gap-2.5">
+                  <button
+                    type="button"
+                    onClick={() => patchStep(i, { ai_personalize: !step.ai_personalize })}
+                    className={cn("mt-0.5 relative h-5 w-9 shrink-0 rounded-full transition-colors", step.ai_personalize ? "bg-primary" : "bg-muted")}
+                  >
+                    <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all", step.ai_personalize ? "left-[18px]" : "left-0.5")} />
+                  </button>
+                  <div className="min-w-0">
+                    <p className="flex items-center gap-1.5 text-sm font-medium">
+                      <Sparkles className={cn("h-3.5 w-3.5", step.ai_personalize ? "text-primary" : "text-muted-foreground")} />
+                      AI-personalize each email
+                    </p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      The LLM rewrites this email for every candidate at send time — warmer, more natural, still on-message.
+                    </p>
+                  </div>
+                </label>
+                {step.ai_personalize && (
+                  <input
+                    value={step.ai_prompt ?? ""}
+                    onChange={(e) => patchStep(i, { ai_prompt: e.target.value })}
+                    placeholder="Optional AI guidance (e.g. 'reference their open-source work, keep it under 80 words')"
+                    className="mt-2 w-full rounded-lg border border-border bg-background px-3 py-1.5 text-xs outline-none focus:border-primary"
+                  />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <button
+        onClick={addStep}
+        className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border py-3 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+      >
+        <Plus className="h-4 w-4" /> Add step
+      </button>
+
+      {/* Footer actions */}
+      <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-2 border-t border-border bg-background/95 py-3 backdrop-blur">
+        <button onClick={onCancel} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+          <X className="h-4 w-4" /> Cancel
+        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onSave(false)}
+            disabled={saving}
+            className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+          >
+            Save draft
+          </button>
+          <button
+            onClick={() => onSave(true)}
+            disabled={saving}
+            className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            Save & activate
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

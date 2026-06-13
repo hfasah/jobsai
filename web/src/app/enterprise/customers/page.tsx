@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles, ArrowRight, Quote, Check } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
   title: "Customers — JobsAI Enterprise",
@@ -66,6 +67,8 @@ export default function EnterpriseCustomersPage() {
           Want to be featured? <a href={BOOKING} target="_blank" rel="noreferrer" className="font-semibold text-primary hover:underline">Talk to us →</a>
         </p>
       </section>
+
+      <PublicEnterpriseFooter />
     </main>
   );
 }
