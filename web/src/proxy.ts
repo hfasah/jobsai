@@ -25,6 +25,7 @@ const isEnterprisePage = createRouteMatcher(["/enterprise", "/enterprise/(.*)"])
 // public token-based candidate flows (booking, references, interviews, offers).
 const isEnterprisePreAccess = createRouteMatcher([
   "/enterprise/home(.*)",
+  "/enterprise/built-for(.*)",
   "/enterprise/onboard(.*)",
   "/enterprise/plans(.*)",
   "/enterprise/pricing(.*)",
