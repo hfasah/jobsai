@@ -6,6 +6,7 @@ export type AuditAction =
   | "interview.kit_generated" | "interview.invited" | "interview.completed"
   | "member.invited" | "member.role_changed" | "member.removed"
   | "integration.connected" | "integration.synced" | "integration.disconnected"
+  | "ats.connected" | "ats.synced" | "ats.disconnected"
   | "data.exported" | "data.deleted";
 
 interface AuditEntry {
