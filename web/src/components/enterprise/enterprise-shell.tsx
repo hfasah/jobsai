@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
 import { AskAI } from "@/components/enterprise/ask-ai";
 import { NudgeBanner } from "@/components/enterprise/nudge-banner";
+import { AppearanceMenu } from "@/components/enterprise/appearance-menu";
 
 // `feature` (when set) hides the item unless the org's plan entitles it.
 const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: string }[] = [
@@ -92,6 +93,7 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
             )}
           </Link>
         )}
+        <AppearanceMenu />
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
           <SignOutButton redirectUrl={org?.slug ? `/e/${org.slug}` : "/enterprise-login"}>
