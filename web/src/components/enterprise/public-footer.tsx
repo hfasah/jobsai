@@ -43,6 +43,7 @@ const COMPANY = [
   { label: "About", href: "/enterprise/about" },
   { label: "Pricing", href: "/enterprise/pricing" },
   { label: "Customers", href: "/enterprise/customers" },
+  { label: "Contact", href: "/enterprise/contact" },
   { label: "Book a demo", href: "/enterprise/demo" },
   { label: "Sign in", href: "/enterprise-login" },
   { label: "Privacy", href: "/enterprise/privacy" },
