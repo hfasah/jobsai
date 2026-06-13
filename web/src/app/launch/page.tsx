@@ -1,9 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getMyMembership } from "@/lib/enterprise";
 
 // Post-login router. Priority: platform admin → /admin, enterprise member →
-// their workspace, everyone else → job-seeker dashboard. Email + OAuth sign-in.
+// their workspace. Non-members go to enterprise onboarding on the recruiter
+// portal (app.jobsai.work), or the job-seeker dashboard on the consumer site.
 export default async function Launch() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
@@ -12,5 +14,9 @@ export default async function Launch() {
   if (adminIds.includes(userId)) redirect("/admin");
 
   const membership = await getMyMembership(userId);
-  redirect(membership ? "/enterprise/dashboard" : "/dashboard");
+  if (membership) redirect("/enterprise/dashboard");
+
+  const host = ((await headers()).get("host") ?? "").split(":")[0];
+  const onEnterprisePortal = host === "app.jobsai.work";
+  redirect(onEnterprisePortal ? "/enterprise/onboard" : "/dashboard");
 }

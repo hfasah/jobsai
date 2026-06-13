@@ -96,6 +96,14 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
     return NextResponse.redirect(url);
   }
 
+  // The enterprise portal must never serve the consumer job-seeker app; route
+  // those paths back through /launch (which sends them to the enterprise side).
+  if (hostname === ENTERPRISE_PORTAL_HOST && /^\/(dashboard|onboarding)(\/|$)/.test(req.nextUrl.pathname)) {
+    const url = req.nextUrl.clone();
+    url.pathname = "/launch";
+    return NextResponse.redirect(url);
+  }
+
   const isKnownHost =
     hostname === APP_HOST ||
     hostname.endsWith(`.${APP_HOST}`) ||
