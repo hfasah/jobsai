@@ -1,5 +1,31 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { getStripe } from "@/lib/stripe";
 import type Stripe from "stripe";
+
+export interface InvoicePreview {
+  date: number | null; // unix seconds — when the next charge happens
+  amountDue: number; // cents
+  currency: string;
+  lines: { description: string; amount: number }[];
+}
+
+// Stripe-calculated preview of the org's next invoice (reflects add-ons,
+// prorations, and removed items automatically). Null if no subscription / error.
+export async function getUpcomingInvoice(customerId: string): Promise<InvoicePreview | null> {
+  try {
+    const inv = await getStripe().invoices.createPreview({ customer: customerId });
+    return {
+      date: inv.next_payment_attempt ?? inv.period_end ?? null,
+      amountDue: inv.amount_due,
+      currency: inv.currency ?? "usd",
+      lines: (inv.lines?.data ?? [])
+        .filter((l) => l.amount !== 0)
+        .map((l) => ({ description: l.description ?? "Subscription", amount: l.amount })),
+    };
+  } catch {
+    return null;
+  }
+}
 
 // Map a Stripe subscription status to our org access_status.
 function accessFromStatus(status: string): string {

@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getMyMembership } from "@/lib/enterprise";
 import { getOrgEntitlements } from "@/lib/enterprise-entitlements";
 import { getOrgUsage } from "@/lib/enterprise-limits";
-import { CreditCard, Sparkles } from "lucide-react";
+import { getUpcomingInvoice } from "@/lib/enterprise-billing";
+import { supabaseAdmin } from "@/lib/supabase";
+import { CreditCard, Sparkles, Receipt } from "lucide-react";
 import { ManageBilling } from "./billing-actions";
 
 export const dynamic = "force-dynamic";
@@ -48,7 +50,14 @@ export default async function EnterpriseBillingPage() {
   const member = await getMyMembership(userId);
   if (!member) redirect("/enterprise/onboard");
 
-  const [ent, usage] = await Promise.all([getOrgEntitlements(member.org_id), getOrgUsage(member.org_id)]);
+  const [ent, usage, orgRow] = await Promise.all([
+    getOrgEntitlements(member.org_id),
+    getOrgUsage(member.org_id),
+    supabaseAdmin.from("enterprise_orgs").select("stripe_customer_id").eq("id", member.org_id).maybeSingle(),
+  ]);
+  const customerId = (orgRow.data as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
+  const invoice = customerId ? await getUpcomingInvoice(customerId) : null;
+  const money = (cents: number, cur = "usd") => new Intl.NumberFormat(undefined, { style: "currency", currency: cur.toUpperCase() }).format(cents / 100);
   const status = STATUS_STYLE[ent.accessStatus ?? "pending"] ?? STATUS_STYLE.pending;
   const trialDays = ent.accessStatus === "trialing" ? daysLeft(ent.trialEndsAt) : null;
   const trialDate = ent.trialEndsAt ? new Date(ent.trialEndsAt).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" }) : null;
@@ -80,6 +89,34 @@ export default async function EnterpriseBillingPage() {
         )}
         <div className="mt-6"><ManageBilling hasBilling={ent.hasBilling} /></div>
       </div>
+
+      {/* Next invoice */}
+      {invoice && (
+        <div className="mt-6 rounded-2xl border border-border bg-card p-6">
+          <div className="flex items-center gap-2">
+            <Receipt className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">{ent.accessStatus === "trialing" ? "First charge after trial" : "Next invoice"}</h2>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-2xl font-bold">{money(invoice.amountDue, invoice.currency)}</span>
+            {invoice.date && <span className="text-sm text-muted-foreground">{new Date(invoice.date * 1000).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}</span>}
+          </div>
+          {ent.accessStatus === "trialing" && <p className="mt-1 text-xs text-blue-700">You won&apos;t be charged until your trial ends.</p>}
+          {invoice.lines.length > 0 && (
+            <div className="mt-4 space-y-1.5 border-t border-border pt-4">
+              {invoice.lines.map((l, i) => (
+                <div key={i} className="flex items-start justify-between gap-4 text-sm">
+                  <span className="text-muted-foreground">{l.description}</span>
+                  <span className="whitespace-nowrap font-medium">{money(l.amount, invoice.currency)}</span>
+                </div>
+              ))}
+              <div className="flex items-center justify-between border-t border-border pt-2 text-sm font-bold">
+                <span>Total</span><span>{money(invoice.amountDue, invoice.currency)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Usage */}
       <div className="mt-6 rounded-2xl border border-border bg-card p-6">
