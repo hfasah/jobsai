@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const kind = (fd?.get("kind") as string) === "cover" ? "cover" : "logo";
   if (!file) return NextResponse.json({ error: "No file provided." }, { status: 400 });
   if (!file.type.startsWith("image/")) return NextResponse.json({ error: "File must be an image." }, { status: 400 });
-  if (file.size > 5 * 1024 * 1024) return NextResponse.json({ error: "Image must be under 5MB." }, { status: 400 });
+  if (file.size > 4 * 1024 * 1024) return NextResponse.json({ error: "Image must be under 4MB." }, { status: 400 });
 
   // Ensure the public bucket exists (no-op if it already does).
   await supabaseAdmin.storage.createBucket(BUCKET, { public: true });
@@ -31,9 +31,9 @@ export async function POST(req: NextRequest) {
   const path = `${org.id}/${kind}-${Date.now()}.${ext}`;
   const { error } = await supabaseAdmin.storage.from(BUCKET).upload(path, buffer, {
     upsert: true,
-    contentType: file.type,
+    contentType: file.type || "image/png",
   });
-  if (error) return NextResponse.json({ error: "Upload failed." }, { status: 500 });
+  if (error) return NextResponse.json({ error: `Upload failed: ${error.message}` }, { status: 500 });
 
   const { data } = supabaseAdmin.storage.from(BUCKET).getPublicUrl(path);
   return NextResponse.json({ url: data.publicUrl });
