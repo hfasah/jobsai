@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -30,12 +30,17 @@ const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: str
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports", feature: "client_reporting" },
   { href: "/enterprise/compliance", icon: Shield,           label: "Compliance", feature: "compliance_gdpr" },
   { href: "/enterprise/team",      icon: UsersRound,       label: "Team & Access" },
+  { href: "/enterprise/addons",    icon: Package,          label: "Add-ons" },
+  { href: "/enterprise/billing",   icon: CreditCard,       label: "Billing" },
   { href: "/enterprise/settings",  icon: Settings,         label: "Settings" },
 ];
 
-function Sidebar({ org, features, onNavigate }: { org: EnterpriseOrg | null; features: string[] | null; onNavigate?: () => void }) {
+interface Ent { planName: string | null; accessStatus: string | null; trialEndsAt: string | null; features: string[] }
+
+function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent | null; onNavigate?: () => void }) {
   const pathname = usePathname();
-  // features === null => entitlements not loaded yet, show everything optimistically.
+  // ent === null => entitlements not loaded yet, show everything optimistically.
+  const features = ent?.features ?? null;
   const nav = NAV.filter((item) => !item.feature || features === null || features.includes(item.feature));
   return (
     <div className="flex h-full flex-col">
@@ -71,6 +76,19 @@ function Sidebar({ org, features, onNavigate }: { org: EnterpriseOrg | null; fea
 
       {/* Footer */}
       <div className="border-t border-border p-3 space-y-2">
+        {ent?.planName && (
+          <Link href="/enterprise/billing" onClick={onNavigate} className="block rounded-lg border border-border bg-muted/40 px-3 py-2 hover:bg-muted">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-xs font-semibold text-foreground">{ent.planName}</span>
+              <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold capitalize text-primary">{ent.accessStatus ?? "—"}</span>
+            </div>
+            {ent.accessStatus === "trialing" && ent.trialEndsAt && (
+              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                Trial ends {new Date(ent.trialEndsAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · Upgrade →
+              </p>
+            )}
+          </Link>
+        )}
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
           <SignOutButton redirectUrl={org?.slug ? `/e/${org.slug}` : "/enterprise-login"}>
@@ -86,14 +104,14 @@ function Sidebar({ org, features, onNavigate }: { org: EnterpriseOrg | null; fea
 
 export function EnterpriseShell({ children }: { children: React.ReactNode }) {
   const [org, setOrg] = useState<EnterpriseOrg | null>(null);
-  const [features, setFeatures] = useState<string[] | null>(null);
+  const [ent, setEnt] = useState<Ent | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/enterprise/org").then((r) => r.json()).then((j) => setOrg(j.data)).catch(() => {});
     fetch("/api/enterprise/me/entitlements")
       .then((r) => r.json())
-      .then((j) => setFeatures(j.data?.features ?? []))
+      .then((j) => setEnt(j.data ? { planName: j.data.planName ?? null, accessStatus: j.data.accessStatus ?? null, trialEndsAt: j.data.trialEndsAt ?? null, features: j.data.features ?? [] } : { planName: null, accessStatus: null, trialEndsAt: null, features: [] }))
       .catch(() => {});
   }, []);
 
@@ -102,7 +120,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 border-r border-border bg-card md:block print:!hidden">
         <div className="sticky top-0 h-screen">
-          <Sidebar org={org} features={features} />
+          <Sidebar org={org} ent={ent} />
         </div>
       </aside>
 
@@ -115,7 +133,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
               className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-muted">
               <X className="h-5 w-5" />
             </button>
-            <Sidebar org={org} features={features} onNavigate={() => setMobileOpen(false)} />
+            <Sidebar org={org} ent={ent} onNavigate={() => setMobileOpen(false)} />
           </aside>
         </div>
       )}

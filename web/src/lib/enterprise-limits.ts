@@ -9,6 +9,16 @@ const LABELS: Record<string, string> = {
   candidates: "candidates",
 };
 
+// Current usage across all metered limits (for the billing/usage display).
+export async function getOrgUsage(orgId: string): Promise<Record<string, number>> {
+  const [recruiters, jobs, candidates] = await Promise.all([
+    countUsage(orgId, "recruiters"),
+    countUsage(orgId, "jobs"),
+    countUsage(orgId, "candidates"),
+  ]);
+  return { recruiters, jobs, candidates };
+}
+
 // Current usage for a limit key, counted against the org's actual data.
 async function countUsage(orgId: string, limitKey: string): Promise<number> {
   if (limitKey === "recruiters") {

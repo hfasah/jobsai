@@ -37,6 +37,7 @@ export async function syncSubscriptionToOrg(sub: Stripe.Subscription): Promise<v
   const update: Record<string, unknown> = {
     stripe_subscription_id: sub.id,
     access_status: accessFromStatus(sub.status),
+    trial_ends_at: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
   };
   if (planId) {
     update.plan_id = planId;

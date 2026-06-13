@@ -5,6 +5,9 @@ import { getMyMembership } from "@/lib/enterprise";
 export interface OrgEntitlements {
   planSlug: string | null;
   planName: string | null;
+  accessStatus: string | null; // pending | trialing | active | past_due | canceled
+  trialEndsAt: string | null;
+  hasBilling: boolean; // org has a Stripe customer (can open the billing portal)
   features: string[]; // effective feature_keys (plan ∪ active add-ons ∪ overrides)
   limits: Record<string, number>; // -1 = unlimited
   addons: string[];
@@ -15,10 +18,11 @@ export interface OrgEntitlements {
 export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements> {
   const { data: orgRow } = await supabaseAdmin
     .from("enterprise_orgs")
-    .select("plan_id")
+    .select("plan_id, access_status, trial_ends_at, stripe_customer_id")
     .eq("id", orgId)
     .maybeSingle();
-  const planId = (orgRow as { plan_id?: string | null } | null)?.plan_id ?? null;
+  const org = orgRow as { plan_id?: string | null; access_status?: string | null; trial_ends_at?: string | null; stripe_customer_id?: string | null } | null;
+  const planId = org?.plan_id ?? null;
 
   let planSlug: string | null = null;
   let planName: string | null = null;
@@ -72,7 +76,16 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements
     else features.delete(row.feature_key);
   }
 
-  return { planSlug, planName, features: [...features], limits, addons };
+  return {
+    planSlug,
+    planName,
+    accessStatus: org?.access_status ?? null,
+    trialEndsAt: org?.trial_ends_at ?? null,
+    hasBilling: !!org?.stripe_customer_id,
+    features: [...features],
+    limits,
+    addons,
+  };
 }
 
 // True if the org's plan (or add-on/override) includes the feature. Fails OPEN
