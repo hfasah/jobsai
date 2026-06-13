@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { PERSONAS, INDUSTRIES, type Persona } from "@/lib/enterprise-personas";
+import { AppearanceMenu } from "@/components/enterprise/appearance-menu";
 
 function MenuColumn({ label, basePath, items, seeAll }: { label: string; basePath: string; items: Persona[]; seeAll: string }) {
   return (
@@ -64,6 +65,7 @@ export function PublicEnterpriseHeader() {
         </nav>
 
         <div className="flex items-center gap-1 text-sm sm:gap-2">
+          <AppearanceMenu variant="compact" />
           <Link href="/enterprise/demo" className="hidden rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground sm:inline">Book a demo</Link>
           <Link href="/enterprise-login" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Sign in</Link>
           <Link href="/enterprise-login" className="rounded-lg bg-gradient-brand px-4 py-1.5 font-semibold text-white shadow-glow">Start free trial</Link>
