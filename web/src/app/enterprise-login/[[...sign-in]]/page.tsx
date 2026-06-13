@@ -79,9 +79,14 @@ export default async function EnterpriseLoginPage({
           </div>
         </div>
 
-        <p className="mt-8 text-center text-xs text-muted-foreground">
-          Looking for the job-seeker app? <a href="/sign-in" className="font-medium text-primary hover:underline">Sign in here</a>
-        </p>
+        <div className="mt-8 flex flex-col items-center gap-2 text-center text-xs text-muted-foreground">
+          <p>
+            New here? <a href="/enterprise/pricing" className="font-medium text-primary hover:underline">View plans &amp; pricing</a>
+            {" · "}
+            <a href="https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F" target="_blank" rel="noreferrer" className="font-medium text-primary hover:underline">Book a demo</a>
+          </p>
+          <p>Looking for the job-seeker app? <a href="/sign-in" className="font-medium text-primary hover:underline">Sign in here</a></p>
+        </div>
       </div>
 
       {/* Right: branded marketing */}

@@ -26,6 +26,7 @@ const isEnterprisePage = createRouteMatcher(["/enterprise", "/enterprise/(.*)"])
 const isEnterprisePreAccess = createRouteMatcher([
   "/enterprise/onboard(.*)",
   "/enterprise/plans(.*)",
+  "/enterprise/pricing(.*)",
   "/enterprise/locked(.*)",
   "/enterprise/invite(.*)",
   "/enterprise/book(.*)",

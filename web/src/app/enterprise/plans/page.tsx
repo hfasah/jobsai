@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { Check } from "lucide-react";
 import { ChoosePlan } from "./choose-plan";
+import { PlanComparison } from "@/components/enterprise/plan-comparison";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +89,11 @@ export default async function EnterprisePlansPage() {
             </div>
           );
         })}
+      </div>
+
+      <div className="mt-14">
+        <h2 className="mb-6 text-center text-2xl font-bold">Compare every plan</h2>
+        <PlanComparison />
       </div>
     </main>
   );
