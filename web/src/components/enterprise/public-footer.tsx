@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { PERSONAS, INDUSTRIES } from "@/lib/enterprise-personas";
+import { COMPARISONS } from "@/lib/enterprise-comparisons";
 
 // Social glyphs as inline SVGs (this lucide version dropped brand icons).
 type IconProps = { className?: string };
@@ -84,7 +85,7 @@ export function PublicEnterpriseFooter() {
   return (
     <footer className="border-t border-border bg-card/40">
       <div className="mx-auto max-w-6xl px-6 py-14">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-6">
           <Column heading="Platform">
             {PLATFORM.map((p) => (
               <FooterLink key={p} href="/enterprise/home#features">{p}</FooterLink>
@@ -100,6 +101,12 @@ export function PublicEnterpriseFooter() {
           <Column heading="Industries">
             {INDUSTRIES.map((p) => (
               <FooterLink key={p.slug} href={`/enterprise/industries/${p.slug}`}>{p.name}</FooterLink>
+            ))}
+          </Column>
+
+          <Column heading="Compare">
+            {COMPARISONS.map((c) => (
+              <FooterLink key={c.slug} href={`/enterprise/compare/${c.slug}`}>JobsAI vs {c.competitor}</FooterLink>
             ))}
           </Column>
 
