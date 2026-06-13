@@ -9,6 +9,7 @@ import {
   KeyRound, ChevronDown, ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ImageUpload } from "./image-upload";
 
 // ── Recruiter Copilot ─────────────────────────────────────────────────────────
 function RecruiterCopilot() {
@@ -691,10 +692,8 @@ function BrandingSettings() {
             <p className="mt-1 text-xs text-muted-foreground">The bold headline on your portal home page (<code>/e/{form.slug || "your-company"}</code>). Leave blank to use the default.</p>
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-sm font-medium">Logo URL</label>
-            <input value={form.logo_url} onChange={(e) => setForm((f) => ({ ...f, logo_url: e.target.value }))}
-              placeholder="https://yourcompany.com/logo.png"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <label className="mb-1.5 block text-sm font-medium">Logo</label>
+            <ImageUpload value={form.logo_url} onChange={(url) => setForm((f) => ({ ...f, logo_url: url }))} kind="logo" placeholder="Upload an image or paste a URL" />
           </div>
           <div>
             <label className="mb-1.5 block text-sm font-medium">Brand color</label>
@@ -724,10 +723,8 @@ function BrandingSettings() {
               className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
           <div className="sm:col-span-2">
-            <label className="mb-1.5 block text-sm font-medium">Cover image URL</label>
-            <input value={form.cover_image_url} onChange={(e) => setForm((f) => ({ ...f, cover_image_url: e.target.value }))}
-              placeholder="https://yourcompany.com/hero.jpg"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <label className="mb-1.5 block text-sm font-medium">Cover image</label>
+            <ImageUpload value={form.cover_image_url} onChange={(url) => setForm((f) => ({ ...f, cover_image_url: url }))} kind="cover" placeholder="Upload an image or paste a URL" />
             <p className="mt-1 text-xs text-muted-foreground">Hero banner shown at the top of your careers page. Recommended: 1440×400px.</p>
           </div>
           <div className="sm:col-span-2">
