@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Briefcase, Users, Clock, Plus, ArrowRight, Loader2, TrendingUp, Target, AlertTriangle, Star, CalendarDays, MessageSquare, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { OnboardingChecklist } from "@/components/enterprise/onboarding-checklist";
 import type { EnterpriseJob, EnterpriseApplication } from "@/types/enterprise";
 import { STAGE_COLORS, STAGE_LABELS, ATS_TIERS, atsTier } from "@/types/enterprise";
 
@@ -53,6 +54,7 @@ export default function EnterpriseDashboard() {
   return (
     <main className="flex-1 overflow-y-auto px-4 py-8 sm:px-6">
       <div className="mx-auto max-w-5xl">
+        <OnboardingChecklist />
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
