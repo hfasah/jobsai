@@ -103,18 +103,33 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
   );
 }
 
+// Public / pre-access routes that render WITHOUT the authenticated workspace
+// chrome (marketing landing, pricing, onboarding, plan select, locked screen,
+// and candidate-facing token pages). They bring their own header/layout.
+const SHELL_BYPASS = [
+  "/enterprise/home", "/enterprise/pricing", "/enterprise/onboard", "/enterprise/plans",
+  "/enterprise/locked", "/enterprise/invite", "/enterprise/book", "/enterprise/confirm",
+  "/enterprise/reference", "/enterprise/interview", "/enterprise/offer-sign",
+];
+
 export function EnterpriseShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const bypass = SHELL_BYPASS.some((p) => pathname === p || pathname.startsWith(p + "/"));
   const [org, setOrg] = useState<EnterpriseOrg | null>(null);
   const [ent, setEnt] = useState<Ent | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
+    if (bypass) return;
     fetch("/api/enterprise/org").then((r) => r.json()).then((j) => setOrg(j.data)).catch(() => {});
     fetch("/api/enterprise/me/entitlements")
       .then((r) => r.json())
       .then((j) => setEnt(j.data ? { planName: j.data.planName ?? null, accessStatus: j.data.accessStatus ?? null, trialEndsAt: j.data.trialEndsAt ?? null, features: j.data.features ?? [] } : { planName: null, accessStatus: null, trialEndsAt: null, features: [] }))
       .catch(() => {});
-  }, []);
+  }, [bypass]);
+
+  // Public/pre-access pages: render bare (no sidebar/Sign-out chrome).
+  if (bypass) return <>{children}</>;
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
