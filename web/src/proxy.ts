@@ -24,6 +24,7 @@ const isEnterprisePage = createRouteMatcher(["/enterprise", "/enterprise/(.*)"])
 // onboarding (create workspace), the locked screen, invite acceptance, and the
 // public token-based candidate flows (booking, references, interviews, offers).
 const isEnterprisePreAccess = createRouteMatcher([
+  "/enterprise/home(.*)",
   "/enterprise/onboard(.*)",
   "/enterprise/plans(.*)",
   "/enterprise/pricing(.*)",
@@ -90,11 +91,11 @@ async function resolveCustomDomain(hostname: string): Promise<string | null> {
 export default clerkMiddleware(async (auth, req: NextRequest) => {
   const hostname = req.headers.get("host")?.split(":")[0] ?? "";
 
-  // Enterprise portal domain: send the homepage to the recruiter sign-in.
+  // Enterprise portal domain: the root is the enterprise marketing landing page.
   if (hostname === ENTERPRISE_PORTAL_HOST && req.nextUrl.pathname === "/") {
     const url = req.nextUrl.clone();
-    url.pathname = "/enterprise-login";
-    return NextResponse.redirect(url);
+    url.pathname = "/enterprise/home";
+    return NextResponse.rewrite(url);
   }
 
   // The enterprise portal must never serve the consumer job-seeker app; route

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Check, Building2, Sparkles, ArrowRight } from "lucide-react";
 import { PlanComparison } from "@/components/enterprise/plan-comparison";
+import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 
 export const metadata = {
   title: "JobsAI Enterprise Pricing — AI-Powered Talent Acquisition Operating System",
@@ -44,6 +45,7 @@ const WHY = ["ATS", "Recruiting CRM", "AI Sourcing", "AI Screening", "AI Intervi
 export default function PublicPricingPage() {
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <PublicEnterpriseHeader />
       {/* Hero */}
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-16 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand"><Building2 className="h-6 w-6 text-white" /></div>
