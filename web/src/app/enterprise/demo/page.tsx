@@ -1,6 +1,7 @@
 import { Play, Check, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
   title: "Book a demo — JobsAI Enterprise",
@@ -60,6 +61,8 @@ export default function EnterpriseDemoPage() {
           </p>
         </div>
       </section>
+
+      <PublicEnterpriseFooter />
     </main>
   );
 }
