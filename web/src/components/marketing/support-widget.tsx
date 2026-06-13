@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { usePathname } from "next/navigation";
 import { MessageCircle, X, Send, Bot, Loader2, Paperclip, ImageIcon, ChevronRight, ExternalLink } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { cn } from "@/lib/utils";
@@ -78,6 +79,7 @@ function MarkdownText({ text }: { text: string }) {
 }
 
 export function SupportWidget() {
+  const pathname = usePathname();
   const { user, isSignedIn } = useUser();
   const firstName = user?.firstName ?? null;
 
@@ -148,6 +150,9 @@ export function SupportWidget() {
   };
 
   const isEmpty = messages.length === 0;
+
+  // Consumer (job-seeker) support chat — hide on the enterprise portal.
+  if (pathname.startsWith("/enterprise") || pathname.startsWith("/e/")) return null;
 
   return (
     <div className="dark fixed bottom-5 right-5 z-[60] flex flex-col items-end">
