@@ -105,9 +105,10 @@ export function PublicEnterpriseFooter() {
           </Column>
 
           <Column heading="Compare">
-            {COMPARISONS.map((c) => (
+            {COMPARISONS.filter((c) => c.featured).map((c) => (
               <FooterLink key={c.slug} href={`/enterprise/compare/${c.slug}`}>JobsAI vs {c.competitor}</FooterLink>
             ))}
+            <FooterLink href="/enterprise/compare">All comparisons →</FooterLink>
           </Column>
 
           <Column heading="Company">
