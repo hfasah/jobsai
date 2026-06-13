@@ -17,6 +17,11 @@ export async function getOrgNudges(orgId: string): Promise<Nudge[]> {
   const info: Nudge[] = [];
   const upsell: Nudge[] = [];
 
+  // Payment failed (grace period — Stripe retrying)
+  if (ent.accessStatus === "past_due") {
+    warn.push({ id: "past-due", message: "Your last payment failed. Update your card to keep your workspace active.", cta: "Update card", href: "/enterprise/billing", tone: "warn" });
+  }
+
   // Trial ending
   if (ent.accessStatus === "trialing" && ent.trialEndsAt) {
     const days = Math.ceil((new Date(ent.trialEndsAt).getTime() - Date.now()) / 86_400_000);

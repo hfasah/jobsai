@@ -38,8 +38,10 @@ export function slugify(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 40);
 }
 
-// Org access gating: statuses that grant a usable workspace.
-export const ENTERPRISE_ACTIVE_STATUSES = ["active", "comped", "trialing"] as const;
+// Org access gating: statuses that grant a usable workspace. `past_due` keeps
+// access during Stripe's retry/dunning window (grace); the org only locks once
+// Stripe gives up and the subscription is canceled/unpaid.
+export const ENTERPRISE_ACTIVE_STATUSES = ["active", "comped", "trialing", "past_due"] as const;
 
 export function orgHasAccess(accessStatus: string | null | undefined): boolean {
   return !!accessStatus && (ENTERPRISE_ACTIVE_STATUSES as readonly string[]).includes(accessStatus);

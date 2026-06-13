@@ -60,10 +60,13 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements
   let extraRecruiters = 0;
   const { data: ad } = await supabaseAdmin
     .from("org_addons")
-    .select("addon_key, quantity")
+    .select("addon_key, quantity, status, removal_at")
     .eq("org_id", orgId)
-    .eq("status", "active");
-  for (const row of (ad ?? []) as { addon_key: string; quantity?: number }[]) {
+    .in("status", ["active", "scheduled_removal"]);
+  const now = Date.now();
+  for (const row of (ad ?? []) as { addon_key: string; quantity?: number; status: string; removal_at?: string | null }[]) {
+    // Scheduled-for-removal add-ons keep their feature until the renewal date.
+    if (row.status === "scheduled_removal" && (!row.removal_at || new Date(row.removal_at).getTime() <= now)) continue;
     addons.push(row.addon_key);
     features.add(row.addon_key);
     if (row.addon_key === "extra_recruiter") extraRecruiters += row.quantity ?? 0;

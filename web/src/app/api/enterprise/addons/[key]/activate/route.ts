@@ -52,10 +52,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: e instanceof Error ? e.message : "Stripe error." }, { status: 500 });
   }
 
-  // Instant local update (webhook will also reconcile).
+  // Instant local update (webhook will also reconcile). Clears any prior
+  // scheduled removal if the customer re-adds.
   await supabaseAdmin
     .from("org_addons")
-    .upsert({ org_id: org.id, addon_key: key, status: "active", quantity }, { onConflict: "org_id,addon_key" });
+    .upsert({ org_id: org.id, addon_key: key, status: "active", quantity, removal_at: null }, { onConflict: "org_id,addon_key" });
 
   return NextResponse.json({ ok: true });
 }

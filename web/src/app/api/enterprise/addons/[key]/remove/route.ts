@@ -6,8 +6,11 @@ import { getMyOrg } from "@/lib/enterprise";
 
 type Ctx = { params: Promise<{ key: string }> };
 
-// Remove an add-on: deletes its Stripe subscription item; marks org_addons
-// canceled immediately (webhook reconciles too).
+// Schedule an add-on for removal at the next renewal (not immediate, so running
+// work — e.g. interviews — isn't cut off mid-cycle). We remove the Stripe
+// subscription item now with NO proration (so it won't renew and the customer
+// keeps what they already paid for), and keep the entitlement until the period
+// end via org_addons.removal_at (getOrgEntitlements honors it).
 export async function POST(_req: NextRequest, { params }: Ctx) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,22 +27,28 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     .maybeSingle();
   const priceId = (feature as { stripe_price_id?: string } | null)?.stripe_price_id;
 
+  let removalAt: string | null = null;
   if (org.stripe_subscription_id && priceId) {
     try {
       const stripe = getStripe();
       const sub = await stripe.subscriptions.retrieve(org.stripe_subscription_id);
       const item = sub.items.data.find((i) => i.price.id === priceId);
-      if (item) await stripe.subscriptionItems.del(item.id, { proration_behavior: "create_prorations" });
+      // dahlia API: the billing period lives on the subscription item.
+      const periodEnd = (item ?? sub.items.data[0])?.current_period_end;
+      removalAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+      // Mark scheduled BEFORE touching Stripe so the webhook doesn't cancel it.
+      await supabaseAdmin
+        .from("org_addons")
+        .update({ status: "scheduled_removal", removal_at: removalAt })
+        .eq("org_id", org.id)
+        .eq("addon_key", key);
+      if (item) await stripe.subscriptionItems.del(item.id, { proration_behavior: "none" });
     } catch (e) {
       return NextResponse.json({ error: e instanceof Error ? e.message : "Stripe error." }, { status: 500 });
     }
+  } else {
+    await supabaseAdmin.from("org_addons").update({ status: "canceled" }).eq("org_id", org.id).eq("addon_key", key);
   }
 
-  await supabaseAdmin
-    .from("org_addons")
-    .update({ status: "canceled" })
-    .eq("org_id", org.id)
-    .eq("addon_key", key);
-
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, removal_at: removalAt });
 }

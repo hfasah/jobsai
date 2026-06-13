@@ -5,8 +5,8 @@ import type Stripe from "stripe";
 function accessFromStatus(status: string): string {
   if (status === "active") return "active";
   if (status === "trialing") return "trialing";
-  if (status === "past_due" || status === "unpaid") return "past_due";
-  return "canceled"; // canceled, incomplete_expired, paused, …
+  if (status === "past_due") return "past_due"; // grace: Stripe still retrying
+  return "canceled"; // unpaid (retries exhausted), canceled, incomplete_expired, paused
 }
 
 function customerId(sub: Stripe.Subscription): string {
