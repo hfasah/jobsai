@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug, Megaphone,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug, Megaphone, BookOpen, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -93,6 +93,17 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
             )}
           </Link>
         )}
+        <Link
+          href="/enterprise/guide"
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onNavigate}
+          className="flex w-full items-center gap-2.5 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium transition-colors hover:bg-muted"
+        >
+          <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+          Help &amp; Guide
+          <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </Link>
         <AppearanceMenu />
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
