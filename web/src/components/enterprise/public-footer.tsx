@@ -45,8 +45,8 @@ const COMPANY = [
   { label: "Customers", href: "/enterprise/customers" },
   { label: "Book a demo", href: "/enterprise/demo" },
   { label: "Sign in", href: "/enterprise-login" },
-  { label: "Privacy", href: "/privacy" },
-  { label: "Terms", href: "/terms" },
+  { label: "Privacy", href: "/enterprise/privacy" },
+  { label: "Terms", href: "/enterprise/terms" },
 ];
 
 const SOCIALS = [
