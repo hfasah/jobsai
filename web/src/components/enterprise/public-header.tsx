@@ -1,9 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 
-const BOOK_DEMO = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
-
-// Public marketing nav for the unauthenticated enterprise site (home, pricing, sign-in).
+// Public marketing nav for the unauthenticated enterprise site (home, pricing, demo, customers).
 export function PublicEnterpriseHeader() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
@@ -18,11 +16,11 @@ export function PublicEnterpriseHeader() {
           <Link href="/enterprise/home#features" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Features</Link>
           <Link href="/enterprise/home#solutions" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Solutions</Link>
           <Link href="/enterprise/pricing" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Pricing</Link>
-          <Link href="/enterprise/home#roi" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">ROI</Link>
+          <Link href="/enterprise/customers" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Customers</Link>
         </nav>
 
         <div className="flex items-center gap-1 text-sm sm:gap-2">
-          <a href={BOOK_DEMO} target="_blank" rel="noreferrer" className="hidden rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground sm:inline">Book a demo</a>
+          <Link href="/enterprise/demo" className="hidden rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground sm:inline">Book a demo</Link>
           <Link href="/enterprise-login" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Sign in</Link>
           <Link href="/enterprise-login" className="rounded-lg bg-gradient-brand px-4 py-1.5 font-semibold text-white shadow-glow">Start free trial</Link>
         </div>
