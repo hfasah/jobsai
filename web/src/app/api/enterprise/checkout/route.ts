@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { hasUsedTrial } from "@/lib/enterprise-trial";
 
 // Start a subscription checkout (14-day trial) for the caller's org + chosen
 // plan. The webhook (/api/enterprise/stripe/webhook) flips the org to
@@ -34,14 +35,15 @@ export async function POST(req: NextRequest) {
 
   const stripe = getStripe();
 
+  const client = await clerkClient();
+  const user = await client.users.getUser(userId).catch(() => null);
+  const email = user?.emailAddresses?.[0]?.emailAddress ?? null;
+
   // Reuse or create the Stripe customer for this org.
   let customerId = org.stripe_customer_id ?? null;
   if (!customerId) {
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId).catch(() => null);
-    const email = user?.emailAddresses?.[0]?.emailAddress;
     const customer = await stripe.customers.create({
-      email,
+      email: email ?? undefined,
       name: org.name,
       metadata: { org_id: org.id },
     });
@@ -49,12 +51,17 @@ export async function POST(req: NextRequest) {
     await supabaseAdmin.from("enterprise_orgs").update({ stripe_customer_id: customerId }).eq("id", org.id);
   }
 
+  // One free trial per company — block a second trial by email / customer / domain.
+  const trialUsed = await hasUsedTrial({ email, customerId });
+
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
-    subscription_data: { trial_period_days: 14, metadata: { org_id: org.id } },
+    subscription_data: trialUsed
+      ? { metadata: { org_id: org.id } }
+      : { trial_period_days: 14, metadata: { org_id: org.id } },
     allow_promotion_codes: true, // lets founding customers apply the coupon
     success_url: `${base}/enterprise/dashboard?welcome=1`,
     cancel_url: `${base}/enterprise/plans`,

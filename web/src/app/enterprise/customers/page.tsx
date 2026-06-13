@@ -7,7 +7,7 @@ export const metadata = {
   description: "Join the founding customers shaping the AI-Powered Talent Acquisition Operating System.",
 };
 
-const BOOKING = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
+const BOOKING = "/enterprise/demo";
 
 const PERKS = [
   "50% off for life",

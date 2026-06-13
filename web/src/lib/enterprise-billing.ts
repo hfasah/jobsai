@@ -60,10 +60,19 @@ export async function syncSubscriptionToOrg(sub: Stripe.Subscription): Promise<v
     .in("stripe_price_id", priceIds);
   const planId = (planRows as { id: string }[] | null)?.[0]?.id ?? null;
 
+  const periodEnd = (sub.items.data[0] as unknown as { current_period_end?: number } | undefined)?.current_period_end ?? null;
   const update: Record<string, unknown> = {
     stripe_subscription_id: sub.id,
     access_status: accessFromStatus(sub.status),
     trial_ends_at: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
+    // Surface a scheduled cancellation so the UI can say "Cancels on <date>"
+    // while access correctly continues until the period ends.
+    cancel_at: sub.cancel_at_period_end
+      ? new Date(((sub.cancel_at ?? periodEnd ?? 0) as number) * 1000).toISOString()
+      : null,
+    paused_until: sub.pause_collection?.resumes_at
+      ? new Date(sub.pause_collection.resumes_at * 1000).toISOString()
+      : null,
   };
   if (planId) {
     update.plan_id = planId;

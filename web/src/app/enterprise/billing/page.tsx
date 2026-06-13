@@ -5,8 +5,9 @@ import { getOrgEntitlements } from "@/lib/enterprise-entitlements";
 import { getOrgUsage } from "@/lib/enterprise-limits";
 import { getUpcomingInvoice } from "@/lib/enterprise-billing";
 import { supabaseAdmin } from "@/lib/supabase";
-import { CreditCard, Sparkles, Receipt } from "lucide-react";
+import { CreditCard, Sparkles, Receipt, PauseCircle, CalendarX } from "lucide-react";
 import { ManageBilling } from "./billing-actions";
+import { CancelFlow, ResumeButton } from "./cancel-flow";
 
 export const dynamic = "force-dynamic";
 
@@ -53,9 +54,19 @@ export default async function EnterpriseBillingPage() {
   const [ent, usage, orgRow] = await Promise.all([
     getOrgEntitlements(member.org_id),
     getOrgUsage(member.org_id),
-    supabaseAdmin.from("enterprise_orgs").select("stripe_customer_id").eq("id", member.org_id).maybeSingle(),
+    supabaseAdmin.from("enterprise_orgs").select("stripe_customer_id,cancel_at,paused_until,trial_extended").eq("id", member.org_id).maybeSingle(),
   ]);
-  const customerId = (orgRow.data as { stripe_customer_id?: string | null } | null)?.stripe_customer_id ?? null;
+  const org = orgRow.data as {
+    stripe_customer_id?: string | null;
+    cancel_at?: string | null;
+    paused_until?: string | null;
+    trial_extended?: boolean | null;
+  } | null;
+  const customerId = org?.stripe_customer_id ?? null;
+  const cancelAt = org?.cancel_at ?? null;
+  const pausedUntil = org?.paused_until ?? null;
+  const canManage = member.role === "owner" || member.role === "admin";
+  const longDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
   const invoice = customerId ? await getUpcomingInvoice(customerId) : null;
   const money = (cents: number, cur = "usd") => new Intl.NumberFormat(undefined, { style: "currency", currency: cur.toUpperCase() }).format(cents / 100);
   const status = STATUS_STYLE[ent.accessStatus ?? "pending"] ?? STATUS_STYLE.pending;
@@ -87,7 +98,34 @@ export default async function EnterpriseBillingPage() {
             <span>Trial ends in <strong>{trialDays} day{trialDays === 1 ? "" : "s"}</strong>{trialDate ? ` — ${trialDate}` : ""}. Upgrade to keep your workspace active.</span>
           </div>
         )}
+        {cancelAt && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 text-sm text-amber-900">
+            <span className="flex items-center gap-2">
+              <CalendarX className="h-4 w-4" />
+              Scheduled to cancel on <strong>{longDate(cancelAt)}</strong>. You keep full access until then.
+            </span>
+            {canManage && <ResumeButton label="Resume subscription" />}
+          </div>
+        )}
+        {pausedUntil && !cancelAt && (
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-300 bg-blue-50 px-3 py-2.5 text-sm text-blue-900">
+            <span className="flex items-center gap-2">
+              <PauseCircle className="h-4 w-4" />
+              Paused until <strong>{longDate(pausedUntil)}</strong> — no charges. Your data is kept.
+            </span>
+            {canManage && <ResumeButton label="Resume now" />}
+          </div>
+        )}
         <div className="mt-6"><ManageBilling hasBilling={ent.hasBilling} /></div>
+        {canManage && ent.hasBilling && !cancelAt && !pausedUntil && (
+          <div className="mt-4 border-t border-border pt-4">
+            <CancelFlow
+              planName={ent.planName}
+              trialing={ent.accessStatus === "trialing"}
+              trialExtended={Boolean(org?.trial_extended)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Next invoice */}

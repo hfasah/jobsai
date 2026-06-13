@@ -8,7 +8,7 @@ export const metadata = {
   description: "Source. Engage. Screen. Interview. Hire. Plans from $299/mo with a 14-day free trial.",
 };
 
-const BOOK_DEMO = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
+const BOOK_DEMO = "/enterprise/demo";
 
 const PLANS = [
   {

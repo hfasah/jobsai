@@ -11,7 +11,7 @@ export const metadata = {
   description: "Source, engage, screen, interview, and hire top talent from a single AI-powered platform. 14-day free trial.",
 };
 
-const BOOK_DEMO = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
+const BOOK_DEMO = "/enterprise/demo";
 
 const FEATURES = [
   { icon: Database, name: "Applicant Tracking System", desc: "Kanban pipeline, candidate database, career pages, and resume parsing." },

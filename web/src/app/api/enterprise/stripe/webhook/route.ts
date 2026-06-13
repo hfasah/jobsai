@@ -5,6 +5,7 @@ import {
   markSubscriptionCanceled,
   linkCustomerToOrg,
 } from "@/lib/enterprise-billing";
+import { recordTrialFromSubscription } from "@/lib/enterprise-trial";
 import type Stripe from "stripe";
 
 // Enterprise billing webhook. Separate endpoint + secret from the consumer
@@ -29,7 +30,12 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (event.type) {
-      case "customer.subscription.created":
+      case "customer.subscription.created": {
+        const sub = event.data.object as Stripe.Subscription;
+        await syncSubscriptionToOrg(sub);
+        if (sub.status === "trialing") await recordTrialFromSubscription(sub);
+        break;
+      }
       case "customer.subscription.updated":
         await syncSubscriptionToOrg(event.data.object as Stripe.Subscription);
         break;
