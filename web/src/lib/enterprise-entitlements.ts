@@ -57,14 +57,20 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements
   }
 
   const addons: string[] = [];
+  let extraRecruiters = 0;
   const { data: ad } = await supabaseAdmin
     .from("org_addons")
-    .select("addon_key")
+    .select("addon_key, quantity")
     .eq("org_id", orgId)
     .eq("status", "active");
-  for (const row of (ad ?? []) as { addon_key: string }[]) {
+  for (const row of (ad ?? []) as { addon_key: string; quantity?: number }[]) {
     addons.push(row.addon_key);
     features.add(row.addon_key);
+    if (row.addon_key === "extra_recruiter") extraRecruiters += row.quantity ?? 0;
+  }
+  // Purchased extra recruiter seats raise the plan's recruiter limit.
+  if (extraRecruiters > 0 && typeof limits.recruiters === "number" && limits.recruiters >= 0) {
+    limits.recruiters += extraRecruiters;
   }
 
   const { data: ov } = await supabaseAdmin

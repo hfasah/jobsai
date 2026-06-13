@@ -46,17 +46,25 @@ export async function syncSubscriptionToOrg(sub: Stripe.Subscription): Promise<v
   await supabaseAdmin.from("enterprise_orgs").update(update).eq("id", orgId);
 
   // Add-ons: features flagged is_addon whose price is on the subscription.
+  // Capture quantity (for per-seat add-ons like extra_recruiter).
+  const qtyByPrice = new Map<string, number>();
+  for (const it of sub.items.data) qtyByPrice.set(it.price.id, it.quantity ?? 1);
+
   const { data: addonFeatures } = await supabaseAdmin
     .from("features")
     .select("feature_key,stripe_price_id")
     .eq("is_addon", true)
     .in("stripe_price_id", priceIds);
-  const activeKeys = new Set((addonFeatures as { feature_key: string }[] | null ?? []).map((f) => f.feature_key));
+  const addonRows = (addonFeatures as { feature_key: string; stripe_price_id: string }[] | null) ?? [];
+  const activeKeys = new Set(addonRows.map((f) => f.feature_key));
 
-  for (const key of activeKeys) {
+  for (const f of addonRows) {
     await supabaseAdmin
       .from("org_addons")
-      .upsert({ org_id: orgId, addon_key: key, status: "active" }, { onConflict: "org_id,addon_key" });
+      .upsert(
+        { org_id: orgId, addon_key: f.feature_key, status: "active", quantity: qtyByPrice.get(f.stripe_price_id) ?? 1 },
+        { onConflict: "org_id,addon_key" },
+      );
   }
 
   // Cancel add-ons that dropped off the subscription.
