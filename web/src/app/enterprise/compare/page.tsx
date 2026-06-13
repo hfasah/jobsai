@@ -8,7 +8,7 @@ import { COMPARISONS } from "@/lib/enterprise-comparisons";
 export const metadata: Metadata = {
   title: "Compare — JobsAI Enterprise vs. the alternatives",
   description:
-    "See how JobsAI Enterprise — the all-in-one AI talent acquisition platform — compares to point solutions like LinkedIn Recruiter, hireEZ, Gem, Paradox, HireVue, and Juicebox.",
+    "See how JobsAI Enterprise — the AI-native talent acquisition platform — compares to Loxo, Ashby, Pin, Greenhouse, Lever, and Teamtailor.",
 };
 
 const PILLARS = [
@@ -35,12 +35,12 @@ export default function CompareIndexPage() {
             <Trophy className="h-3.5 w-3.5" /> Compare
           </span>
           <h1 className="mt-5 text-4xl font-bold tracking-tight sm:text-5xl">
-            One platform vs. a stack of point tools
+            How JobsAI compares
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Most recruiting tools do one thing well. JobsAI Enterprise does the whole job — sourcing,
-            screening, interviewing, outreach, and hiring — in a single AI-powered platform. See how it
-            stacks up.
+            Evaluating recruiting platforms? JobsAI Enterprise is AI-native and all-in-one — sourcing,
+            screening, AI interviews, outreach, and hiring in one system. See how it stacks up against
+            the tools you&apos;re considering.
           </p>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             {PILLARS.map((p) => (

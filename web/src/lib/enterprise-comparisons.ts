@@ -1,9 +1,13 @@
-// "Compare" — JobsAI Enterprise vs. competitors. SEO/decision pages that help a
-// prospect choose JobsAI. The angle is honest positioning: JobsAI is an
-// all-in-one AI talent-acquisition platform (ATS + CRM + sourcing + AI
-// interviews + outreach + analytics), while most competitors are strong point
-// solutions. We acknowledge what each competitor is genuinely good at (builds
-// trust) and compare at the capability/category level rather than asserting
+// "Compare" — JobsAI Enterprise vs. competitors. SEO/decision pages that
+// intercept buyers actively evaluating recruiting platforms and convert them.
+// Scope is deliberately the direct platform competitors (not point tools).
+// Order reflects strategic priority:
+//   Phase 1 (most strategic): Loxo, Ashby, Pin
+//   Phase 2: Greenhouse, Lever, Teamtailor
+// Positioning is honest: JobsAI is an AI-native all-in-one talent-acquisition
+// platform; competitors are strong but typically lack native AI voice/avatar
+// interviews and/or agency white-label. We acknowledge each one's real strength
+// (builds trust) and compare at the capability level rather than asserting
 // specific competitor prices (which change and would be fabricated here).
 //
 // `cmp` values: true = has it, false = doesn't, "partial" = limited / add-on /
@@ -19,10 +23,10 @@ export type FaqItem = { q: string; a: string };
 
 export type Comparison = {
   slug: string;
-  competitor: string;        // "LinkedIn Recruiter"
+  competitor: string;        // "Ashby"
   category: string;          // what they're known for — shown as their strength
   tagline: string;           // dropdown / footer subcopy
-  headline: string;          // hero H1 ("JobsAI vs LinkedIn Recruiter")
+  headline: string;          // hero H1 ("JobsAI vs Ashby")
   intro: string;             // hero subcopy
   verdict: string;           // TL;DR callout
   rows: CompareRow[];        // capability matrix (competitor column)
@@ -53,14 +57,45 @@ function row(label: string, cmp: Cmp): CompareRow {
 }
 
 export const COMPARISONS: Comparison[] = [
+  // ── Phase 1: most strategic ───────────────────────────────────
+  {
+    slug: "loxo",
+    competitor: "Loxo",
+    category: "Talent-intelligence platform for agencies",
+    tagline: "AI-native all-in-one vs. sourcing-led platform",
+    headline: "JobsAI vs Loxo",
+    intro: "Loxo is a strong all-in-one for staffing and executive search, combining ATS, CRM, AI sourcing, and contact data. JobsAI Enterprise matches that breadth and adds native AI voice & avatar interviews, workflow automation, compliance, and an autonomous recruiting agent.",
+    verdict: "Loxo is a great fit for agencies that live in sourcing and outbound. JobsAI delivers the same all-in-one agency toolkit plus native AI interviews, deeper automation and compliance, and an autonomous agent — one platform from source to placement.",
+    rows: [
+      row("Applicant Tracking System (ATS)", true),
+      row("AI candidate sourcing", true),
+      row("Recruiting CRM & talent pools", true),
+      row("AI screening & scoring", "partial"),
+      row("AI voice & avatar interviews", false),
+      row("Automated outreach & email sequences", true),
+      row("Interview scheduling", true),
+      row("Offer letters & e-signature", "partial"),
+      row("Workflow automation", true),
+      row("Executive analytics & reporting", true),
+      row("White-label & client portals", "partial"),
+      row("All-in-one — no extra tools to stitch together", true),
+    ],
+    why: [
+      { title: "Native AI interviews", body: "Run AI voice and avatar screens with scoring — not just sourcing and outreach." },
+      { title: "Compliance & automation built in", body: "Workflow automation, audit logs, and retention policies come native, not bolted on." },
+      { title: "End-to-end for agencies", body: "Source, screen, interview, present to clients, and place — all in one workspace." },
+    ],
+    competitorStrength: "Loxo is excellent at AI sourcing, contact-data enrichment, and outbound for staffing and executive-search firms.",
+    featured: true,
+  },
   {
     slug: "ashby",
     competitor: "Ashby",
     category: "Analytics-first all-in-one ATS",
     tagline: "AI-native platform vs. analytics-led ATS",
     headline: "JobsAI vs Ashby",
-    intro: "Ashby is a powerful all-in-one ATS known for its scheduling and analytics. JobsAI Enterprise is AI-native — it adds deep AI sourcing and built-in AI voice & avatar interviews on top of the same all-in-one foundation.",
-    verdict: "Ashby is excellent for analytics-driven in-house teams. Choose JobsAI when you want that all-in-one foundation plus native AI sourcing, AI voice/avatar interviews, and agency-grade white-label client portals — without bolting on extra tools.",
+    intro: "Ashby and JobsAI both position themselves as modern recruiting operating systems. Ashby is known for its scheduling and analytics; JobsAI is AI-native — adding deep AI sourcing and built-in AI voice & avatar interviews on the same all-in-one foundation.",
+    verdict: "Ashby is excellent for analytics-driven in-house teams. Choose JobsAI when you want that all-in-one foundation plus native AI sourcing, AI voice/avatar interviews, an autonomous recruiting agent, and agency-grade white-label client portals — without bolting on extra tools.",
     rows: [
       row("Applicant Tracking System (ATS)", true),
       row("AI candidate sourcing", "partial"),
@@ -83,6 +118,37 @@ export const COMPARISONS: Comparison[] = [
     competitorStrength: "Ashby's reporting and analytics are best-in-class, and its scheduling is among the smoothest available for structured in-house hiring.",
     featured: true,
   },
+  {
+    slug: "pin",
+    competitor: "Pin",
+    category: "AI recruiting tool",
+    tagline: "AI talent acquisition OS vs. AI recruiting tool",
+    headline: "JobsAI vs Pin",
+    intro: "Pin markets an AI recruiting tool focused on sourcing and outreach. JobsAI Enterprise is a full AI talent acquisition operating system — ATS, CRM, AI sourcing, AI interviews, offers, automation, and analytics in one place.",
+    verdict: "Pin is a slick AI recruiting tool for finding and reaching candidates. JobsAI is the operating system around it — applicant tracking, AI interviews, offers, automation, and reporting — so candidates go from sourced to hired without leaving the platform.",
+    rows: [
+      row("Applicant Tracking System (ATS)", "partial"),
+      row("AI candidate sourcing", true),
+      row("Recruiting CRM & talent pools", "partial"),
+      row("AI screening & scoring", "partial"),
+      row("AI voice & avatar interviews", false),
+      row("Automated outreach & email sequences", true),
+      row("Interview scheduling", true),
+      row("Offer letters & e-signature", false),
+      row("Workflow automation", "partial"),
+      row("Executive analytics & reporting", "partial"),
+      row("White-label & client portals", false),
+      row("All-in-one — no extra tools to stitch together", false),
+    ],
+    why: [
+      { title: "An OS, not a tool", body: "Sourced candidates flow into a real ATS with screening, interviews, offers, and analytics — not a standalone list." },
+      { title: "Native AI interviews", body: "Run AI voice and avatar interviews with scoring — beyond sourcing and outreach." },
+      { title: "One system of record", body: "No exporting candidates to a separate ATS to actually hire them." },
+    ],
+    competitorStrength: "Pin offers a fast, modern AI sourcing and outreach-agent experience for proactive recruiting.",
+    featured: true,
+  },
+  // ── Phase 2: established ATS benchmarks ───────────────────────
   {
     slug: "greenhouse",
     competitor: "Greenhouse",
@@ -172,240 +238,6 @@ export const COMPARISONS: Comparison[] = [
     ],
     competitorStrength: "Teamtailor is outstanding at employer branding, customizable career sites, and a friendly candidate experience.",
     featured: true,
-  },
-  {
-    slug: "loxo",
-    competitor: "Loxo",
-    category: "Talent-intelligence platform for agencies",
-    tagline: "AI-native all-in-one vs. sourcing-led platform",
-    headline: "JobsAI vs Loxo",
-    intro: "Loxo is a strong all-in-one for staffing and executive search, combining ATS, CRM, AI sourcing, and contact data. JobsAI Enterprise matches that breadth and adds native AI voice & avatar interviews with scoring.",
-    verdict: "Loxo is a great fit for agencies that live in sourcing and outbound. JobsAI delivers the same all-in-one agency toolkit plus native AI interviews and deeper screening — one platform from source to placement.",
-    rows: [
-      row("Applicant Tracking System (ATS)", true),
-      row("AI candidate sourcing", true),
-      row("Recruiting CRM & talent pools", true),
-      row("AI screening & scoring", "partial"),
-      row("AI voice & avatar interviews", false),
-      row("Automated outreach & email sequences", true),
-      row("Interview scheduling", true),
-      row("Offer letters & e-signature", "partial"),
-      row("Workflow automation", true),
-      row("Executive analytics & reporting", true),
-      row("White-label & client portals", "partial"),
-      row("All-in-one — no extra tools to stitch together", true),
-    ],
-    why: [
-      { title: "Native AI interviews", body: "Run AI voice and avatar screens with scoring — not just sourcing and outreach." },
-      { title: "Deeper AI screening", body: "Auto-score and rank candidates against each role, with explainable recommendations." },
-      { title: "End-to-end for agencies", body: "Source, screen, interview, present to clients, and place — all in one workspace." },
-    ],
-    competitorStrength: "Loxo is excellent at AI sourcing, contact-data enrichment, and outbound for staffing and executive-search firms.",
-    featured: true,
-  },
-  {
-    slug: "pin",
-    competitor: "Pin",
-    category: "AI sourcing & recruiting agent",
-    tagline: "Full platform vs. AI sourcing agent",
-    headline: "JobsAI vs Pin",
-    intro: "Pin is a slick AI sourcing and recruiting-agent tool focused on finding and reaching candidates. JobsAI Enterprise wraps that AI sourcing and outreach in a complete platform — ATS, AI interviews, offers, and analytics.",
-    verdict: "Pin is a strong AI sourcing and outreach agent. JobsAI gives you that plus the full hiring system — applicant tracking, AI interviews, offers, and reporting — so candidates go from sourced to hired in one place.",
-    rows: [
-      row("Applicant Tracking System (ATS)", "partial"),
-      row("AI candidate sourcing", true),
-      row("Recruiting CRM & talent pools", "partial"),
-      row("AI screening & scoring", "partial"),
-      row("AI voice & avatar interviews", false),
-      row("Automated outreach & email sequences", true),
-      row("Interview scheduling", true),
-      row("Offer letters & e-signature", false),
-      row("Workflow automation", "partial"),
-      row("Executive analytics & reporting", "partial"),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "The full funnel, not just the top", body: "Sourced candidates flow into a real ATS with screening, interviews, offers, and analytics." },
-      { title: "Native AI interviews", body: "Run AI voice and avatar interviews with scoring — beyond sourcing and outreach." },
-      { title: "One system of record", body: "No exporting candidates to a separate ATS to actually hire them." },
-    ],
-    competitorStrength: "Pin offers a fast, modern AI sourcing and outreach-agent experience for proactive recruiting.",
-    featured: true,
-  },
-  {
-    slug: "linkedin-recruiter",
-    competitor: "LinkedIn Recruiter",
-    category: "Candidate sourcing on LinkedIn",
-    tagline: "An all-in-one hiring platform vs. a sourcing seat",
-    headline: "JobsAI vs LinkedIn Recruiter",
-    intro: "LinkedIn Recruiter is built for searching and messaging candidates on LinkedIn. JobsAI Enterprise runs the entire hiring lifecycle — sourcing, screening, interviewing, and hiring — in one AI-powered platform.",
-    verdict: "Choose LinkedIn Recruiter to message people on LinkedIn. Choose JobsAI when you want sourcing, an ATS, AI screening, AI interviews, outreach, and analytics in one place — without paying for premium seats on top of your other recruiting tools.",
-    rows: [
-      row("Applicant Tracking System (ATS)", false),
-      row("AI candidate sourcing", "partial"),
-      row("Recruiting CRM & talent pools", "partial"),
-      row("AI screening & scoring", false),
-      row("AI voice & avatar interviews", false),
-      row("Automated outreach & email sequences", "partial"),
-      row("Interview scheduling", false),
-      row("Offer letters & e-signature", false),
-      row("Workflow automation", false),
-      row("Executive analytics & reporting", "partial"),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "One platform, not one channel", body: "Source beyond a single network, then screen, interview, and hire in the same system — no exporting to an ATS." },
-      { title: "AI does the heavy lifting", body: "Auto-score and rank applicants, run AI voice/avatar interviews, and draft personalized outreach — work LinkedIn Recruiter leaves to you." },
-      { title: "Predictable pricing", body: "No per-seat premium licenses layered on top of your ATS and CRM. JobsAI replaces several tools at once." },
-    ],
-    competitorStrength: "LinkedIn Recruiter has unmatched access to LinkedIn's professional graph and is excellent for InMail outreach to passive candidates on that network.",
-  },
-  {
-    slug: "hireez",
-    competitor: "hireEZ",
-    category: "AI sourcing & talent intelligence",
-    tagline: "Sourcing tool vs. full hiring platform",
-    headline: "JobsAI vs hireEZ",
-    intro: "hireEZ is a strong AI sourcing and outbound tool. JobsAI Enterprise adds everything that happens after you find a candidate — applicant tracking, AI interviews, scheduling, offers, and analytics.",
-    verdict: "hireEZ shines at outbound sourcing. JobsAI gives you that sourcing plus a full ATS, AI screening and interviews, scheduling, and offer management — so candidates move from sourced to hired without leaving the platform.",
-    rows: [
-      row("Applicant Tracking System (ATS)", false),
-      row("AI candidate sourcing", true),
-      row("Recruiting CRM & talent pools", true),
-      row("AI screening & scoring", "partial"),
-      row("AI voice & avatar interviews", false),
-      row("Automated outreach & email sequences", true),
-      row("Interview scheduling", "partial"),
-      row("Offer letters & e-signature", false),
-      row("Workflow automation", "partial"),
-      row("Executive analytics & reporting", "partial"),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "From sourced to hired in one system", body: "Keep candidates in the same platform through screening, interviews, offers, and onboarding — no separate ATS required." },
-      { title: "AI interviews built in", body: "Run AI voice and avatar screens with automatic scoring, not just outbound messaging." },
-      { title: "Built for agencies too", body: "White-label client portals and reporting come standard on Agency plans." },
-    ],
-    competitorStrength: "hireEZ is excellent at outbound sourcing breadth and contact-data enrichment for proactive recruiting teams.",
-  },
-  {
-    slug: "gem",
-    competitor: "Gem",
-    category: "Recruiting CRM & sourcing analytics",
-    tagline: "CRM layer vs. complete platform",
-    headline: "JobsAI vs Gem",
-    intro: "Gem is a well-loved recruiting CRM and analytics layer that sits alongside your ATS. JobsAI Enterprise is the ATS, the CRM, and the AI — one system instead of two.",
-    verdict: "Gem is a great CRM if you already run a separate ATS and want better pipeline analytics. JobsAI gives you the CRM and the ATS together, plus AI sourcing, screening, and interviews — fewer tools, fewer integrations, one source of truth.",
-    rows: [
-      row("Applicant Tracking System (ATS)", "partial"),
-      row("AI candidate sourcing", true),
-      row("Recruiting CRM & talent pools", true),
-      row("AI screening & scoring", "partial"),
-      row("AI voice & avatar interviews", false),
-      row("Automated outreach & email sequences", true),
-      row("Interview scheduling", true),
-      row("Offer letters & e-signature", false),
-      row("Workflow automation", true),
-      row("Executive analytics & reporting", true),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "ATS + CRM in one", body: "No syncing candidates between your ATS and a separate CRM — it's the same record everywhere." },
-      { title: "AI interviews and scoring", body: "Screen and rank candidates with AI, then run voice/avatar interviews — beyond CRM nurture and analytics." },
-      { title: "One bill, one login", body: "Replace the ATS + CRM + sourcing stack with a single platform and a single contract." },
-    ],
-    competitorStrength: "Gem is outstanding at sourcing analytics, pipeline reporting, and email nurture for teams committed to a separate ATS.",
-  },
-  {
-    slug: "paradox",
-    competitor: "Paradox (Olivia)",
-    category: "Conversational AI for screening & scheduling",
-    tagline: "Chat assistant vs. full hiring platform",
-    headline: "JobsAI vs Paradox",
-    intro: "Paradox's Olivia automates conversational screening and scheduling, often layered on an existing ATS. JobsAI Enterprise is the ATS itself, with AI sourcing, voice/avatar interviews, outreach, and analytics built in.",
-    verdict: "Paradox is great for high-volume conversational screening and scheduling on top of your current ATS. JobsAI delivers that automation as part of a complete platform — so you're not paying for and integrating a separate assistant.",
-    rows: [
-      row("Applicant Tracking System (ATS)", "partial"),
-      row("AI candidate sourcing", false),
-      row("Recruiting CRM & talent pools", "partial"),
-      row("AI screening & scoring", true),
-      row("AI voice & avatar interviews", "partial"),
-      row("Automated outreach & email sequences", true),
-      row("Interview scheduling", true),
-      row("Offer letters & e-signature", "partial"),
-      row("Workflow automation", true),
-      row("Executive analytics & reporting", "partial"),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "Sourcing the assistant can't do", body: "Find candidates with AI sourcing and talent rediscovery, not just screen the ones who already applied." },
-      { title: "Real AI interviews", body: "Run structured AI voice and avatar interviews with scoring — beyond chat-based Q&A." },
-      { title: "No ATS underneath required", body: "JobsAI is the system of record, so there's nothing to bolt the assistant onto." },
-    ],
-    competitorStrength: "Paradox is excellent at high-volume, conversational candidate experiences and frictionless scheduling, especially for hourly and frontline hiring.",
-  },
-  {
-    slug: "hirevue",
-    competitor: "HireVue",
-    category: "Video interviews & assessments",
-    tagline: "Interview tool vs. end-to-end platform",
-    headline: "JobsAI vs HireVue",
-    intro: "HireVue specializes in video interviewing and assessments. JobsAI Enterprise includes AI voice and avatar interviews as one part of a complete sourcing-to-hire platform.",
-    verdict: "HireVue is a focused interview and assessment product. JobsAI gives you AI interviews plus the sourcing, ATS, outreach, and analytics around them — so interviewing is connected to the rest of your hiring, not a separate step.",
-    rows: [
-      row("Applicant Tracking System (ATS)", false),
-      row("AI candidate sourcing", false),
-      row("Recruiting CRM & talent pools", false),
-      row("AI screening & scoring", true),
-      row("AI voice & avatar interviews", true),
-      row("Automated outreach & email sequences", false),
-      row("Interview scheduling", true),
-      row("Offer letters & e-signature", false),
-      row("Workflow automation", "partial"),
-      row("Executive analytics & reporting", "partial"),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "Interviews in context", body: "Candidate, scores, and interview live on one record — no exporting results back to an ATS." },
-      { title: "Source and nurture too", body: "Find and engage candidates before the interview, all in the same platform." },
-      { title: "One platform cost", body: "Replace a standalone interview tool plus your ATS and CRM with a single subscription." },
-    ],
-    competitorStrength: "HireVue offers deep, validated assessments and structured video interviewing at enterprise scale.",
-  },
-  {
-    slug: "juicebox",
-    competitor: "Juicebox (PeopleGPT)",
-    category: "Natural-language AI sourcing",
-    tagline: "AI search vs. complete hiring platform",
-    headline: "JobsAI vs Juicebox",
-    intro: "Juicebox's PeopleGPT is a natural-language candidate search tool. JobsAI Enterprise includes AI sourcing like that — and the ATS, screening, interviews, outreach, and analytics to act on the results.",
-    verdict: "Juicebox is a slick way to search for people in plain English. JobsAI gives you that AI search inside a full platform, so the candidates you find flow straight into screening, interviews, and your pipeline.",
-    rows: [
-      row("Applicant Tracking System (ATS)", false),
-      row("AI candidate sourcing", true),
-      row("Recruiting CRM & talent pools", "partial"),
-      row("AI screening & scoring", "partial"),
-      row("AI voice & avatar interviews", false),
-      row("Automated outreach & email sequences", "partial"),
-      row("Interview scheduling", false),
-      row("Offer letters & e-signature", false),
-      row("Workflow automation", false),
-      row("Executive analytics & reporting", false),
-      row("White-label & client portals", false),
-      row("All-in-one — no extra tools to stitch together", false),
-    ],
-    why: [
-      { title: "Search that goes somewhere", body: "Candidates you find with AI search land in your pipeline, ready to screen and interview — no copy-paste into another tool." },
-      { title: "Screen and interview with AI", body: "Auto-score sourced candidates and run AI voice/avatar interviews, not just build a list." },
-      { title: "The whole funnel", body: "Sourcing is step one — JobsAI carries candidates all the way to offer." },
-    ],
-    competitorStrength: "Juicebox makes natural-language candidate discovery fast and intuitive, with strong search-quality for proactive sourcing.",
   },
 ];
 
