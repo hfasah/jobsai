@@ -62,11 +62,12 @@ export default async function EnterpriseHome({ params }: { params: Promise<{ slu
         </Link>
       </div>
 
-      <footer className="pb-8 pt-12 text-xs text-muted-foreground">
-        Powered by{" "}
-        <a href="https://www.jobsai.work" className="font-medium hover:underline" target="_blank" rel="noopener noreferrer">
-          JobsAI.Work
-        </a>
+      <footer className="flex flex-col items-center gap-2 pb-8 pt-12 text-xs text-muted-foreground">
+        <a href="/enterprise/home" className="font-medium text-primary hover:underline">Explore JobsAI Enterprise →</a>
+        <span>
+          Powered by{" "}
+          <a href="/enterprise/home" className="font-medium hover:underline">JobsAI Enterprise</a>
+        </span>
       </footer>
     </main>
   );
