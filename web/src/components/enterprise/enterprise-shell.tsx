@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, SignOutButton } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -30,6 +30,7 @@ const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: str
   { href: "/enterprise/analytics", icon: BarChart3,        label: "Analytics", feature: "executive_analytics" },
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports", feature: "client_reporting" },
   { href: "/enterprise/compliance", icon: Shield,           label: "Compliance", feature: "compliance_gdpr" },
+  { href: "/enterprise/ats",       icon: Plug,             label: "ATS Integration" },
   { href: "/enterprise/team",      icon: UsersRound,       label: "Team & Access" },
   { href: "/enterprise/addons",    icon: Package,          label: "Add-ons" },
   { href: "/enterprise/billing",   icon: CreditCard,       label: "Billing" },
