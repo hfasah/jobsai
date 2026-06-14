@@ -20,7 +20,7 @@ export default async function PartnerPortalPage({ params }: { params: Promise<{ 
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <PublicEnterpriseHeader />
+      <PublicEnterpriseHeader partnerMode />
       <div className="mx-auto max-w-4xl px-6 py-12">
         {!partner || partner.status === "suspended" ? (
           <div className="mx-auto max-w-md">
@@ -72,7 +72,7 @@ async function PortalView({
             <p className="text-sm text-muted-foreground">Track referrals, earnings, and payouts.</p>
           </div>
         </div>
-        {partner.email && <PortalActions email={partner.email} />}
+        {partner.email && <PortalActions token={token} email={partner.email} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -115,7 +115,7 @@ async function PortalView({
           There&apos;s no password — this private link <em>is</em> your sign-in. Bookmark it to come straight back, or use <strong>Email me this link</strong> above to send it to yourself.
         </p>
         <p className="mt-1">
-          Lost it? Go to <Link href="/enterprise/partners/portal" className="text-primary hover:underline">the dashboard sign-in page</Link> and enter your email to get a fresh link. <strong>Sign out</strong> returns you to that sign-in page.
+          Lost it? Go to <Link href="/enterprise/partners/portal" className="text-primary hover:underline">the dashboard sign-in page</Link> and enter your email to get a fresh link. <strong>Sign out</strong> disables this link (use it on shared computers) — request a fresh one by email to return.
         </p>
       </div>
     </div>

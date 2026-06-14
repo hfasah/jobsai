@@ -4,33 +4,47 @@ import { useState } from "react";
 import { Loader2, Mail, Copy, Check, Save, LogOut } from "lucide-react";
 
 // Dashboard header actions: re-send the magic link (so they never lose access)
-// and "sign out" (passwordless — just navigates away from the private link).
-export function PortalActions({ email }: { email: string }) {
-  const [busy, setBusy] = useState(false);
+// and "sign out" — which rotates the token so this private link stops working
+// (true logout for shared computers); a fresh link is then requested by email.
+export function PortalActions({ token, email }: { token: string; email: string }) {
+  const [busy, setBusy] = useState<null | "send" | "out">(null);
   const [sent, setSent] = useState(false);
 
   const sendLink = async () => {
-    setBusy(true);
+    setBusy("send");
     try {
       await fetch("/api/enterprise/partner/portal-link", {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
       });
       setSent(true);
       setTimeout(() => setSent(false), 4000);
-    } finally { setBusy(false); }
+    } finally { setBusy(null); }
+  };
+
+  const signOut = async () => {
+    if (!confirm("Sign out and disable this link? You'll need to request a fresh link by email to get back in. (Recommended on shared computers.)")) return;
+    setBusy("out");
+    try {
+      await fetch("/api/enterprise/partner/portal/signout", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }),
+      });
+      window.location.href = "/enterprise/partners/portal?signedout=1";
+    } catch {
+      setBusy(null);
+    }
   };
 
   return (
     <div className="flex items-center gap-2">
-      <button onClick={sendLink} disabled={busy}
+      <button onClick={sendLink} disabled={busy !== null}
         className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
-        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+        {busy === "send" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
         {sent ? "Link emailed" : "Email me this link"}
       </button>
-      <a href="/enterprise/partners/portal"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted">
-        <LogOut className="h-3.5 w-3.5" /> Sign out
-      </a>
+      <button onClick={signOut} disabled={busy !== null}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
+        {busy === "out" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />} Sign out
+      </button>
     </div>
   );
 }

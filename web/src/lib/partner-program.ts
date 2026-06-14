@@ -124,6 +124,15 @@ export async function ensurePortalToken(partner: PartnerAccount): Promise<string
   return token;
 }
 
+// Invalidate the current magic link (true sign-out on shared devices). A fresh
+// link must be requested by email afterwards.
+export async function rotatePortalToken(partnerId: string): Promise<void> {
+  await supabaseAdmin
+    .from("partner_accounts")
+    .update({ portal_token: genPortalToken() })
+    .eq("id", partnerId);
+}
+
 type ApplyFields = {
   name?: string | null;
   email: string;

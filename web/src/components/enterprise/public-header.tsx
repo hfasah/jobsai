@@ -31,16 +31,25 @@ function MenuColumn({ label, basePath, items, seeAll }: { label: string; basePat
 }
 
 // Public marketing nav for the unauthenticated enterprise site (home, built-for, pricing, demo, customers).
-export function PublicEnterpriseHeader() {
+// `partnerMode` renders a stripped-down header for the partner area: no marketing
+// nav and no customer "Sign in / Start free trial" CTAs (partners aren't customers).
+export function PublicEnterpriseHeader({ partnerMode = false }: { partnerMode?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <Link href="/enterprise/home" className="flex items-center gap-2">
+        <Link href={partnerMode ? "/enterprise/partners" : "/enterprise/home"} className="flex items-center gap-2">
           <Image src="/logo.png" alt="JobsAI" width={28} height={28} className="rounded-lg" />
           <span className="font-bold">JobsAI</span>
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">Enterprise</span>
+          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{partnerMode ? "Partners" : "Enterprise"}</span>
         </Link>
 
+        {partnerMode ? (
+          <div className="flex items-center gap-2 text-sm">
+            <AppearanceMenu variant="compact" />
+            <Link href="/enterprise/partners" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Partner Program</Link>
+          </div>
+        ) : (
+        <>
         <nav className="hidden items-center gap-1 text-sm md:flex">
           {/* Built For — persona mega-menu (CSS hover, no JS) */}
           <div className="group relative">
@@ -68,6 +77,8 @@ export function PublicEnterpriseHeader() {
           <Link href="/enterprise-login" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Sign in</Link>
           <Link href="/enterprise-login" className="rounded-lg bg-gradient-brand px-4 py-1.5 font-semibold text-white shadow-glow">Start free trial</Link>
         </div>
+        </>
+        )}
       </div>
     </header>
   );
