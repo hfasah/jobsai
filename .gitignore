@@ -33,3 +33,6 @@ web/next-env.d.ts
 # CodeSpring local config
 .codespring/
 .env*
+
+# Vercel CLI local link (per-developer)
+.vercel
