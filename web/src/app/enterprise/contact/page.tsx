@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Mail, MessageSquare, Clock, Phone, CalendarCheck, ArrowRight, MapPin } from "lucide-react";
+import { Mail, MessageSquare, Clock, Phone, CalendarCheck, ArrowRight } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { EnterpriseContactForm } from "@/components/enterprise/contact-form";
@@ -90,10 +90,7 @@ export default function EnterpriseContactPage() {
           </div>
 
           <div className="rounded-2xl border border-border bg-card p-6">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-              <MapPin className="h-5 w-5 text-primary" />
-            </div>
-            <h3 className="mt-4 font-semibold">Office location</h3>
+            <h3 className="font-semibold">Office location</h3>
             <a
               href="https://maps.google.com/?q=3800+Confederation+Pkwy,+Mississauga,+ON+L5B+4M6,+Canada"
               target="_blank"
