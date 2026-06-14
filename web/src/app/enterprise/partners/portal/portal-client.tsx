@@ -9,6 +9,7 @@ import { Loader2, Mail, Copy, Check, Save, LogOut } from "lucide-react";
 export function PortalActions({ token, email }: { token: string; email: string }) {
   const [busy, setBusy] = useState<null | "send" | "out">(null);
   const [sent, setSent] = useState(false);
+  const [confirming, setConfirming] = useState(false);
 
   const sendLink = async () => {
     setBusy("send");
@@ -22,7 +23,6 @@ export function PortalActions({ token, email }: { token: string; email: string }
   };
 
   const signOut = async () => {
-    if (!confirm("Sign out and disable this link? You'll need to request a fresh link by email to get back in. (Recommended on shared computers.)")) return;
     setBusy("out");
     try {
       await fetch("/api/enterprise/partner/portal/signout", {
@@ -35,17 +35,44 @@ export function PortalActions({ token, email }: { token: string; email: string }
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <button onClick={sendLink} disabled={busy !== null}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
-        {busy === "send" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
-        {sent ? "Link emailed" : "Email me this link"}
-      </button>
-      <button onClick={signOut} disabled={busy !== null}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
-        {busy === "out" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />} Sign out
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-2">
+        <button onClick={sendLink} disabled={busy !== null}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
+          {busy === "send" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+          {sent ? "Link emailed" : "Email me this link"}
+        </button>
+        <button onClick={() => setConfirming(true)} disabled={busy !== null}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
+          <LogOut className="h-3.5 w-3.5" /> Sign out
+        </button>
+      </div>
+
+      {confirming && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setConfirming(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 text-center shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-2xl bg-muted"><LogOut className="h-5 w-5 text-muted-foreground" /></div>
+            <h3 className="text-lg font-bold">You don&apos;t need to sign out to leave</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your dashboard link <strong>stays active and never expires</strong> — just bookmark it and come back anytime. You won&apos;t get a new link each visit.
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Only sign out on a <strong>shared or public computer</strong>. It disables <em>this</em> link so no one else can use it; we&apos;ll email you a fresh one whenever you need it.
+            </p>
+            <div className="mt-5 flex flex-col gap-2">
+              <button onClick={signOut} disabled={busy === "out"}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-60">
+                {busy === "out" ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />} Sign out & disable this link
+              </button>
+              <button onClick={() => setConfirming(false)} disabled={busy === "out"}
+                className="rounded-xl border border-border px-5 py-2.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
+                Stay signed in
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 

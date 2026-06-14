@@ -112,10 +112,10 @@ async function PortalView({
       <div className="rounded-2xl border border-border bg-muted/30 p-5 text-sm text-muted-foreground">
         <p className="font-semibold text-foreground">How sign-in works</p>
         <p className="mt-1">
-          There&apos;s no password — this private link <em>is</em> your sign-in. Bookmark it to come straight back, or use <strong>Email me this link</strong> above to send it to yourself.
+          There&apos;s no password — this private link <em>is</em> your sign-in, and it <strong>never expires</strong>. Bookmark it and reuse it as often as you like; you don&apos;t need a new link each visit. To leave, just close the tab.
         </p>
         <p className="mt-1">
-          Lost it? Go to <Link href="/enterprise/partners/portal" className="text-primary hover:underline">the dashboard sign-in page</Link> and enter your email to get a fresh link. <strong>Sign out</strong> disables this link (use it on shared computers) — request a fresh one by email to return.
+          Lost the link? Go to <Link href="/enterprise/partners/portal" className="text-primary hover:underline">the sign-in page</Link> and enter your email to get it re-sent. <strong>Sign out</strong> is only for shared computers — it disables this link so no one else can use it.
         </p>
       </div>
     </div>
