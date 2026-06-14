@@ -57,9 +57,9 @@ export const metadata: Metadata = {
     images: [
       {
         url: "/og-image.png",
-        width: 1024,
-        height: 1024,
-        alt: "JobsAI — Automatic Job Application Agent",
+        width: 680,
+        height: 680,
+        alt: "JobsAI",
       },
     ],
   },
