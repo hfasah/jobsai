@@ -62,10 +62,13 @@ export async function POST(req: NextRequest) {
   }
   const planLabel = (body.plan_label as string | undefined)?.trim() || planRow?.name || "Enterprise";
 
-  // Admin-provisioned orgs are comped (per 082: "comped by an admin") so the
-  // owner can start immediately with the plan's entitlements. Override via
-  // access_status if a different policy is wanted (e.g. "trialing").
-  const accessStatus = (body.access_status as string | undefined)?.trim() || "comped";
+  // Admin-provisioned orgs start on a 14-day trial with full plan entitlements,
+  // then must subscribe (the proxy locks expired non-Stripe trials). Pass
+  // access_status: "comped" to grant free access indefinitely instead.
+  const accessStatus = (body.access_status as string | undefined)?.trim() || "trialing";
+  const trialEndsAt = accessStatus === "trialing"
+    ? new Date(Date.now() + 14 * 24 * 60 * 60_000).toISOString()
+    : null;
 
   const { data: org, error } = await supabaseAdmin.from("enterprise_orgs").insert({
     name, slug,
@@ -83,6 +86,7 @@ export async function POST(req: NextRequest) {
     contact_phone: body.contact_phone ?? null,
     status: "active",
     access_status: accessStatus,
+    trial_ends_at: trialEndsAt,
     activated_at: new Date().toISOString(),
   }).select("*").single();
 

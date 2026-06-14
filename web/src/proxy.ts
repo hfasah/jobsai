@@ -50,7 +50,7 @@ async function getOrgAccessStatus(userId: string): Promise<string | null> {
   if (!supabaseUrl || !serviceKey) return null;
   try {
     const res = await fetch(
-      `${supabaseUrl}/rest/v1/enterprise_members?user_id=eq.${encodeURIComponent(userId)}&select=enterprise_orgs(access_status)&limit=1`,
+      `${supabaseUrl}/rest/v1/enterprise_members?user_id=eq.${encodeURIComponent(userId)}&select=enterprise_orgs(access_status,trial_ends_at,stripe_subscription_id)&limit=1`,
       {
         headers: {
           apikey: serviceKey,
@@ -60,9 +60,17 @@ async function getOrgAccessStatus(userId: string): Promise<string | null> {
       },
     );
     if (!res.ok) return null;
-    const rows = (await res.json()) as { enterprise_orgs?: { access_status?: string } | null }[];
+    const rows = (await res.json()) as { enterprise_orgs?: { access_status?: string; trial_ends_at?: string | null; stripe_subscription_id?: string | null } | null }[];
     if (rows.length === 0) return "NO_MEMBERSHIP";
-    return rows[0]?.enterprise_orgs?.access_status ?? null;
+    const org = rows[0]?.enterprise_orgs;
+    if (!org) return null;
+    // Admin-provisioned trials have no Stripe subscription to expire them, so
+    // enforce the trial end here: once it passes, the org is locked until they
+    // subscribe. Stripe-managed trials are left to the billing webhook.
+    if (org.access_status === "trialing" && !org.stripe_subscription_id && org.trial_ends_at && new Date(org.trial_ends_at) < new Date()) {
+      return "trial_expired";
+    }
+    return org.access_status ?? null;
   } catch {
     return null;
   }
