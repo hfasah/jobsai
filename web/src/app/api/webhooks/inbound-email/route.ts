@@ -51,7 +51,14 @@ export async function POST(req: NextRequest) {
   let payload: Record<string, unknown> = {};
   try { payload = JSON.parse(raw); } catch { return NextResponse.json({ error: "Bad payload" }, { status: 400 }); }
 
-  // Resend may wrap the email in { type, data } or send it flat.
+  // Only handle inbound mail. If this endpoint also receives delivery events
+  // (sent/delivered/bounced), ignore them.
+  const eventType = typeof payload.type === "string" ? payload.type : undefined;
+  if (eventType && eventType !== "email.received" && eventType !== "inbound.email") {
+    return NextResponse.json({ ok: true, skipped: `event ${eventType}` });
+  }
+
+  // Resend wraps the email in { type, data }; tolerate a flat payload too.
   const data = (payload.data ?? payload) as Record<string, unknown>;
 
   const fromField = data.from ?? data.sender ?? "";

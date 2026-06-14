@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { resend, FROM_SUPPORT, SUPPORT_EMAIL } from "@/lib/resend";
+import { resend, FROM_SUPPORT, REPLY_TO_SUPPORT } from "@/lib/resend";
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tic
   await resend.emails.send({
     from: FROM_SUPPORT,
     to: ticket.email,
-    replyTo: SUPPORT_EMAIL,
+    replyTo: REPLY_TO_SUPPORT,
     subject: `Re: ${ticket.subject} [#${ticketId.slice(0, 8)}]`,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto">

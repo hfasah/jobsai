@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
-import { resend, FROM_SUPPORT, SUPPORT_EMAIL } from "@/lib/resend";
+import { resend, FROM_SUPPORT, SUPPORT_EMAIL, REPLY_TO_SUPPORT } from "@/lib/resend";
 import { createRateLimiter, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 import { recordUsage } from "@/lib/llm-usage";
 
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
   const userSend = resend.emails.send({
     from: FROM_SUPPORT,
     to: email,
-    replyTo: SUPPORT_EMAIL,
+    replyTo: REPLY_TO_SUPPORT,
     subject: reply.subject,
     html: `
       <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a;font-size:15px;line-height:1.6">
