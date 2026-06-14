@@ -6,6 +6,7 @@ import { requirePermission } from "@/lib/enterprise-permissions";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { audit } from "@/lib/enterprise-audit";
 import { listApplications, listJobs, type MergeApplication, type MergeCandidate } from "@/lib/merge";
+import { syncLoxo } from "@/lib/loxo-sync";
 
 function jobStatus(s?: string | null): string {
   switch ((s ?? "").toUpperCase()) {
@@ -43,12 +44,26 @@ export async function POST() {
 
   const { data: conn } = await supabaseAdmin
     .from("enterprise_ats_connections")
-    .select("account_token")
+    .select("provider,account_token,agency_slug")
     .eq("org_id", org.id)
     .eq("status", "active")
     .maybeSingle();
   if (!conn?.account_token) {
     return NextResponse.json({ error: "No active ATS connection." }, { status: 400 });
+  }
+
+  // Loxo is a direct integration (own API key + agency slug), not via Merge.
+  if (conn.provider === "loxo") {
+    if (!conn.agency_slug) return NextResponse.json({ error: "Loxo connection is missing its agency slug." }, { status: 400 });
+    let r;
+    try {
+      r = await syncLoxo(org.id, conn.agency_slug, conn.account_token, userId!);
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Sync failed." }, { status: 502 });
+    }
+    await supabaseAdmin.from("enterprise_ats_connections").update({ last_synced_at: new Date().toISOString() }).eq("org_id", org.id);
+    await audit({ org_id: org.id, user_id: userId!, action: "ats.synced", resource_type: "ats_connection", resource_id: org.id, metadata: { provider: "loxo", ...r } });
+    return NextResponse.json({ ok: true, ...r });
   }
 
   let jobsRes, appsRes;

@@ -58,9 +58,34 @@ export function AtsPanel({
   initialConnection: Connection | null;
 }) {
   const [conn, setConn] = useState<Connection | null>(initialConnection);
-  const [busy, setBusy] = useState<null | "connect" | "sync" | "disconnect">(null);
+  const [busy, setBusy] = useState<null | "connect" | "sync" | "disconnect" | "loxo">(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<string | null>(null);
+  const [loxoSlug, setLoxoSlug] = useState("");
+  const [loxoKey, setLoxoKey] = useState("");
+
+  const connectLoxo = async () => {
+    setError(null);
+    setResult(null);
+    if (!loxoSlug.trim() || !loxoKey.trim()) { setError("Enter your Loxo agency slug and API key."); return; }
+    setBusy("loxo");
+    try {
+      const r = await fetch("/api/enterprise/ats/loxo/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agency_slug: loxoSlug.trim(), api_key: loxoKey.trim() }),
+      });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || "Could not connect Loxo.");
+      setConn({ provider: "loxo", integration_name: "Loxo", last_synced_at: null });
+      setLoxoKey("");
+      setResult("Loxo connected. Run a sync to import your jobs and candidates.");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not connect Loxo.");
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const connect = async () => {
     setError(null);
@@ -135,18 +160,6 @@ export function AtsPanel({
     }
   };
 
-  if (!configured) {
-    return (
-      <div className="rounded-2xl border border-amber-300 bg-amber-50 p-5 text-sm text-amber-900">
-        <div className="mb-1 flex items-center gap-2 font-semibold">
-          <AlertTriangle className="h-4 w-4" /> ATS integration isn&apos;t enabled yet
-        </div>
-        Add a <code className="rounded bg-amber-100 px-1">MERGE_API_KEY</code> in the environment to turn
-        on one-click connections to Greenhouse, Lever, Ashby, Workable, Bullhorn, Workday and 20+ more.
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-4">
       {conn ? (
@@ -183,25 +196,65 @@ export function AtsPanel({
           )}
         </div>
       ) : (
-        <div className="rounded-2xl border border-border bg-card p-6 text-center">
-          <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
-            <Plug className="h-6 w-6 text-muted-foreground" />
+        <div className="space-y-3">
+          {/* One-click via Merge */}
+          <div className="rounded-2xl border border-border bg-card p-6 text-center">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-muted">
+              <Plug className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <div className="font-semibold">No ATS connected</div>
+            <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
+              Connect in seconds — pick your ATS (Greenhouse, Lever, Ashby, Workday & 20+ more), authorize, and we&apos;ll pull your jobs and candidates in.
+            </p>
+            {!canManage ? (
+              <p className="mt-4 text-xs text-muted-foreground">Ask an owner or admin to connect your ATS.</p>
+            ) : configured ? (
+              <button
+                onClick={connect}
+                disabled={busy !== null}
+                className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+                Connect your ATS
+              </button>
+            ) : (
+              <p className="mx-auto mt-3 flex max-w-sm items-center justify-center gap-1.5 text-xs text-muted-foreground">
+                <AlertTriangle className="h-3.5 w-3.5" /> One-click ATS needs <code className="rounded bg-muted px-1">MERGE_API_KEY</code> set.
+              </p>
+            )}
           </div>
-          <div className="font-semibold">No ATS connected</div>
-          <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-            Connect in seconds — pick your ATS, authorize, and we&apos;ll pull your jobs and candidates in.
-          </p>
-          {canManage ? (
-            <button
-              onClick={connect}
-              disabled={busy !== null}
-              className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60"
-            >
-              {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
-              Connect your ATS
-            </button>
-          ) : (
-            <p className="mt-4 text-xs text-muted-foreground">Ask an owner or admin to connect your ATS.</p>
+
+          {/* Loxo — direct integration (BYO API key) */}
+          {canManage && (
+            <div className="rounded-2xl border border-border bg-card p-5">
+              <div className="font-semibold">Connect Loxo</div>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Loxo isn&apos;t on the one-click list. Connect it with your Loxo API key (Loxo → Settings → API Keys) and agency slug.
+              </p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <input
+                  value={loxoSlug}
+                  onChange={(e) => setLoxoSlug(e.target.value)}
+                  placeholder="Agency slug (e.g. acme)"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50"
+                />
+                <input
+                  value={loxoKey}
+                  onChange={(e) => setLoxoKey(e.target.value)}
+                  type="password"
+                  placeholder="Loxo API key"
+                  className="rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/50"
+                />
+              </div>
+              <button
+                onClick={connectLoxo}
+                disabled={busy !== null}
+                className="mt-3 inline-flex items-center gap-2 rounded-lg border border-border px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-60"
+              >
+                {busy === "loxo" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
+                Connect Loxo
+              </button>
+            </div>
           )}
         </div>
       )}

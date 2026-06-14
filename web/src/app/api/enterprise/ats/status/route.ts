@@ -17,5 +17,7 @@ export async function GET() {
     .eq("status", "active")
     .maybeSingle();
 
-  return NextResponse.json({ configured: mergeConfigured(), connection: data ?? null });
+  // Loxo is a direct (BYO API key) integration, so it's always available even
+  // when the Merge one-click isn't configured.
+  return NextResponse.json({ configured: mergeConfigured(), loxo: true, connection: data ?? null });
 }
