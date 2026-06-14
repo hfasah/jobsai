@@ -90,22 +90,30 @@ for (const a of addons ?? []) {
   await sb.from("features").update({ stripe_product_id: productId, stripe_price_id: priceId }).eq("feature_key", a.feature_key);
 }
 
-// ── Founding Customer coupon: 50% off forever, first 20 ──────────────────────
-console.log("\nFounding Customer coupon");
+// ── Lifetime offer coupon: 50% off, forever ─────────────────────────────────
+// The display name shows on Stripe Checkout / invoices. id is immutable, so it
+// keeps "founding-customer-50" for back-compat; we keep the name in sync.
+console.log("\nLifetime offer coupon");
 const COUPON_ID = "founding-customer-50";
+const COUPON_NAME = "Lifetime 50% Offer";
 try {
   const existing = await stripe.coupons.retrieve(COUPON_ID).catch(() => null);
   if (existing) {
-    console.log(`  ~ Coupon already exists → ${COUPON_ID}`);
+    if (existing.name !== COUPON_NAME) {
+      await stripe.coupons.update(COUPON_ID, { name: COUPON_NAME });
+      console.log(`  ✓ Renamed coupon → "${COUPON_NAME}"`);
+    } else {
+      console.log(`  ~ Coupon already named "${COUPON_NAME}"`);
+    }
   } else {
     const c = await stripe.coupons.create({
       id: COUPON_ID,
-      name: "Founding Customer Program",
+      name: COUPON_NAME,
       percent_off: 50,
       duration: "forever",
       max_redemptions: 20,
     });
-    console.log(`  ✓ Created 50%-off-forever coupon (max 20) → ${c.id}`);
+    console.log(`  ✓ Created 50%-off-forever coupon → ${c.id}`);
   }
 } catch (e) { console.error("  coupon error:", e.message); }
 
