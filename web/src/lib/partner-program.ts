@@ -17,14 +17,21 @@ export type PartnerAccount = {
   user_id: string;
   company_name: string | null;
   email: string | null;
+  website: string | null;
+  audience_type: string | null;
   referral_code: string;
   tier: string;
   commission_rate: number;
   stripe_connect_id: string | null;
+  payout_method: string | null;
+  payout_email: string | null;
+  payout_details: string | null;
   is_founding: boolean;
-  status: string;
+  status: string; // pending | active | suspended
+  approved_at: string | null;
   created_at: string;
 };
+
 
 export type PartnerStats = {
   referrals: number;
@@ -68,7 +75,12 @@ export async function getPartnerByUser(userId: string): Promise<PartnerAccount |
 // The first FOUNDING_PARTNER_LIMIT partners lock the higher founding rate.
 export async function ensurePartnerAccount(
   userId: string,
-  fields: { company_name?: string | null; email?: string | null } = {},
+  fields: {
+    company_name?: string | null;
+    email?: string | null;
+    website?: string | null;
+    audience_type?: string | null;
+  } = {},
 ): Promise<PartnerAccount> {
   const existing = await getPartnerByUser(userId);
   if (existing) return existing;
@@ -90,10 +102,13 @@ export async function ensurePartnerAccount(
       user_id: userId,
       company_name: fields.company_name ?? null,
       email: fields.email ?? null,
+      website: fields.website ?? null,
+      audience_type: fields.audience_type ?? null,
       referral_code: code,
       is_founding: founding,
       commission_rate: founding ? FOUNDING_PARTNER_RATE : PARTNER_BASE_RATE,
       tier: founding ? "growth" : "recruiting",
+      status: "pending", // admin approves before the partner goes live
     })
     .select("*")
     .single();

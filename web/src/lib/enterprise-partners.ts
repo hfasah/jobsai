@@ -37,6 +37,17 @@ export const PARTNER_MIN_PAYOUT = "$500"; // accrue, then pay out past this thre
 export const REFERRAL_CREDIT_MIN = "$100";
 export const REFERRAL_CREDIT_MAX = "$500";
 
+// Audience types collected on the partner application.
+export const PARTNER_AUDIENCE_TYPES = [
+  "HR Consultant",
+  "Recruiting Consultant",
+  "Fractional CHRO",
+  "Agency / Staffing Firm",
+  "Podcast Host",
+  "Industry Influencer",
+  "Other",
+] as const;
+
 // The two-program comparison shown up top so visitors self-select.
 export const PROGRAM_COMPARISON: {
   name: string;

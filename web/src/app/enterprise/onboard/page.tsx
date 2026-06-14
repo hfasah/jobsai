@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Building2, Loader2, ArrowRight } from "lucide-react";
+import Link from "next/link";
+import { Building2, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
 
 const INDUSTRIES = ["Technology","Finance","Healthcare","Education","Retail","Manufacturing","Media","Legal","Consulting","Other"];
 const SIZES = ["1-10","11-50","51-200","201-500","500+"];
@@ -105,6 +106,12 @@ export default function EnterpriseOnboard() {
             {saving ? "Creating…" : "Create workspace"}
           </button>
         </form>
+
+        <div className="mt-5 text-center">
+          <Link href="/enterprise/home" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+          </Link>
+        </div>
       </div>
     </main>
   );

@@ -10,10 +10,17 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => ({}));
   const company = (body.company_name as string | undefined)?.trim() || null;
+  const website = (body.website as string | undefined)?.trim() || null;
+  const audience = (body.audience_type as string | undefined)?.trim() || null;
 
   const user = await currentUser();
   const email = user?.primaryEmailAddress?.emailAddress ?? null;
 
-  const account = await ensurePartnerAccount(userId, { company_name: company, email });
+  const account = await ensurePartnerAccount(userId, {
+    company_name: company,
+    email,
+    website,
+    audience_type: audience,
+  });
   return NextResponse.json({ data: account });
 }

@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import Link from "next/link";
-import { Handshake, Sparkles, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Handshake, Sparkles, CheckCircle2, AlertTriangle, Clock } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { getPartnerByUser, getPartnerStats } from "@/lib/partner-program";
@@ -46,13 +46,30 @@ export default async function PartnerDashboardPage({
           <div className="mx-auto max-w-md">
             <div className="mb-6 text-center">
               <p className="text-sm text-muted-foreground">
-                You&apos;re not a partner yet. Join to get a referral link and start earning {" "}
+                Apply to the Partner Program to get a referral link and start earning {" "}
                 <strong>cash</strong> commission for {PARTNER_COMMISSION_MONTHS} months on every customer you refer.
               </p>
             </div>
             <JoinForm />
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              By joining you agree to the <Link href="/enterprise/partners" className="text-primary hover:underline">Partner Program</Link> terms.
+              By applying you agree to the <Link href="/enterprise/partners" className="text-primary hover:underline">Partner Program</Link> terms. We review applications before activating your link.
+            </p>
+          </div>
+        ) : partner.status === "pending" ? (
+          <div className="mx-auto max-w-md rounded-2xl border border-amber-300 bg-amber-50 p-6 text-center">
+            <Clock className="mx-auto h-7 w-7 text-amber-600" />
+            <h2 className="mt-3 text-lg font-bold text-amber-900">Application under review</h2>
+            <p className="mt-2 text-sm text-amber-800">
+              Thanks for applying! We&apos;re reviewing your application and will email you when your referral link is live.
+              You&apos;ll earn <strong>{partner.commission_rate}%</strong>{partner.is_founding ? " (Founding Partner rate)" : ""} once approved.
+            </p>
+          </div>
+        ) : partner.status === "suspended" ? (
+          <div className="mx-auto max-w-md rounded-2xl border border-border bg-card p-6 text-center">
+            <AlertTriangle className="mx-auto h-7 w-7 text-muted-foreground" />
+            <h2 className="mt-3 text-lg font-bold">Account suspended</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Your partner account is currently suspended. <Link href="/enterprise/contact" className="text-primary hover:underline">Contact us</Link> if you think this is a mistake.
             </p>
           </div>
         ) : (
