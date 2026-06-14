@@ -39,35 +39,46 @@ const fraunces = Fraunces({
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
+// The same codebase powers two deploys. NEXT_PUBLIC_SITE=enterprise (set on the
+// jobsai-enterprise project) switches the default site metadata to the recruiter
+// product so app.jobsai.work doesn't show the consumer "auto-apply" message.
+const IS_ENTERPRISE = process.env.NEXT_PUBLIC_SITE === "enterprise";
+
+const SITE_NAME = IS_ENTERPRISE ? "JobsAI Enterprise" : "JobsAI";
+const SITE_TITLE = IS_ENTERPRISE
+  ? "JobsAI Enterprise — Talent Acquisition Operating System"
+  : "JobsAI — Auto-apply to jobs and land interviews, guaranteed";
+const SITE_DESC = IS_ENTERPRISE
+  ? "The Talent Acquisition Operating System that combines applicant tracking, recruiting CRM, sourcing, interviews, outreach, and analytics in one platform."
+  : "JobsAI auto-applies to thousands of jobs and reaches recruiters directly for you — so you stop grinding applications and start landing interviews, guaranteed. Plus AI interview prep built from your resume and the role.";
+const SITE_TEMPLATE = IS_ENTERPRISE ? "%s | JobsAI Enterprise" : "%s | JobsAI";
+
 export const metadata: Metadata = {
   title: {
-    default: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
-    template: "%s | JobsAI",
+    default: SITE_TITLE,
+    template: SITE_TEMPLATE,
   },
-  description:
-    "JobsAI auto-applies to thousands of jobs and reaches recruiters directly for you — so you stop grinding applications and start landing interviews, guaranteed. Plus AI interview prep built from your resume and the role.",
+  description: SITE_DESC,
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",
     url: APP_URL,
-    siteName: "JobsAI",
-    title: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
-    description:
-      "Stop grinding applications. JobsAI auto-applies to thousands of jobs, tailors your resume, and preps you for interviews — guaranteed.",
+    siteName: SITE_NAME,
+    title: SITE_TITLE,
+    description: SITE_DESC,
     images: [
       {
         url: "/og-image.png",
         width: 680,
         height: 680,
-        alt: "JobsAI",
+        alt: SITE_NAME,
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
-    description:
-      "Stop grinding applications. JobsAI auto-applies to thousands of jobs, tailors your resume, and preps you for interviews — guaranteed.",
+    title: SITE_TITLE,
+    description: SITE_DESC,
     images: ["/og-image.png"],
   },
   icons: {
