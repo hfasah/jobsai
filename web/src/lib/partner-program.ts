@@ -1,3 +1,4 @@
+import { randomBytes } from "crypto";
 import { supabaseAdmin } from "@/lib/supabase";
 import { FOUNDING_PARTNER_LIMIT, FOUNDING_PARTNER_RATE, PARTNER_BASE_RATE, PARTNER_PAYOUT_HOLD_DAYS } from "@/lib/enterprise-partners";
 
@@ -33,6 +34,7 @@ export type PartnerAccount = {
   verified: boolean;
   verify_code: string | null;
   verify_expires_at: string | null;
+  portal_token: string | null;
   status: string; // pending | active | suspended
   approved_at: string | null;
   created_at: string;
@@ -98,6 +100,28 @@ async function foundingEligible(): Promise<boolean> {
 
 export function genVerifyCode(): string {
   return String(Math.floor(100000 + Math.random() * 900000)); // 6 digits
+}
+
+export function genPortalToken(): string {
+  return randomBytes(24).toString("base64url"); // ~32-char URL-safe magic token
+}
+
+export async function getPartnerByPortalToken(token: string): Promise<PartnerAccount | null> {
+  if (!token) return null;
+  const { data } = await supabaseAdmin
+    .from("partner_accounts")
+    .select("*")
+    .eq("portal_token", token)
+    .maybeSingle();
+  return (data as PartnerAccount | null) ?? null;
+}
+
+// Return the partner's magic-link token, minting one if absent.
+export async function ensurePortalToken(partner: PartnerAccount): Promise<string> {
+  if (partner.portal_token) return partner.portal_token;
+  const token = genPortalToken();
+  await supabaseAdmin.from("partner_accounts").update({ portal_token: token }).eq("id", partner.id);
+  return token;
 }
 
 type ApplyFields = {
@@ -201,6 +225,7 @@ export async function verifyPartnerApplication(
       tier: founding ? "growth" : "recruiting",
       verify_code: null,
       verify_expires_at: null,
+      portal_token: partner.portal_token ?? genPortalToken(),
     })
     .eq("id", partner.id)
     .select("*")

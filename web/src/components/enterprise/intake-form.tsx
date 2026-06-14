@@ -58,6 +58,9 @@ export function IntakeForm() {
             <p className="mt-1 text-xs text-muted-foreground">{suggested.reasons[0]}</p>
           </div>
         )}
+        <p className="mt-5 text-xs text-muted-foreground">
+          📩 Watch for our email — if you don&apos;t see it soon, check your <strong>spam/junk</strong> folder and mark it <strong>“Not spam”</strong> so future messages land in your inbox.
+        </p>
       </div>
     );
   }

@@ -7,7 +7,7 @@ import { PARTNER_AUDIENCE_TYPES } from "@/lib/enterprise-partners";
 
 const ESTIMATES = ["1–5 / year", "6–20 / year", "21–50 / year", "50+ / year"];
 
-type Done = { link: string; referral_code: string; commission_rate: number; is_founding: boolean };
+type Done = { link: string; portal_link: string | null; referral_code: string; commission_rate: number; is_founding: boolean };
 
 export function PartnerApplyForm() {
   const [step, setStep] = useState<"form" | "verify" | "done">("form");
@@ -83,6 +83,12 @@ export function PartnerApplyForm() {
         <p className="mt-4 text-xs text-muted-foreground">
           Bookmark this link. Anyone who signs up within 90 days of clicking it is credited to you.
         </p>
+        {done.portal_link && (
+          <Link href={done.portal_link} className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline">
+            Open your private dashboard <ArrowRight className="h-4 w-4" />
+          </Link>
+        )}
+        <p className="mt-3 text-xs text-muted-foreground">We also emailed you both links — check your spam folder if it&apos;s not in your inbox.</p>
       </div>
     );
   }
@@ -91,7 +97,10 @@ export function PartnerApplyForm() {
     return (
       <div className="rounded-2xl border border-border bg-card p-6">
         <div className="mb-2 flex items-center gap-2"><Mail className="h-5 w-5 text-primary" /><h2 className="font-bold">Check your email</h2></div>
-        <p className="mb-4 text-sm text-muted-foreground">We sent a 6-digit code to <strong>{form.email}</strong>. Enter it to activate your referral link.</p>
+        <p className="mb-2 text-sm text-muted-foreground">We sent a 6-digit code to <strong>{form.email}</strong>. Enter it to activate your referral link.</p>
+        <p className="mb-4 rounded-lg border border-amber-300/50 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+          📩 Don&apos;t see it? Check your <strong>spam/junk</strong> folder and mark it <strong>“Not spam”</strong> — it&apos;s from <strong>support@send.jobsai.work</strong>.
+        </p>
         <input
           value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
           inputMode="numeric" placeholder="123456"
@@ -157,7 +166,7 @@ export function PartnerApplyForm() {
         <Sparkles className="h-3.5 w-3.5" /> We&apos;ll email a code to verify it&apos;s really you — no spam.
       </p>
       <p className="text-center text-xs text-muted-foreground">
-        Already a partner? <Link href="/enterprise/partners/dashboard" className="text-primary hover:underline">Open your dashboard</Link>
+        Already a partner? <Link href="/enterprise/partners/portal" className="text-primary hover:underline">Open your dashboard</Link>
       </p>
     </div>
   );
