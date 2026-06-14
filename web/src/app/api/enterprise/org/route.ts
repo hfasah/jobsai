@@ -1,7 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg, uniqueSlug } from "@/lib/enterprise";
+import { attributeOrgToPartner, PARTNER_REF_COOKIE } from "@/lib/partner-program";
 
 export async function GET() {
   const { userId } = await auth();
@@ -44,6 +46,14 @@ export async function POST(req: NextRequest) {
     user_id: userId,
     role: "owner",
   });
+
+  // Credit a referring partner if this signup carried an attribution cookie.
+  try {
+    const code = (await cookies()).get(PARTNER_REF_COOKIE)?.value;
+    await attributeOrgToPartner(org.id, code, { createdByUserId: userId });
+  } catch {
+    // Attribution is best-effort — never block workspace creation.
+  }
 
   return NextResponse.json({ data: org }, { status: 201 });
 }

@@ -580,7 +580,7 @@ export const GUIDE: GuideCategory[] = [
           {
             heading: "Commission tiers",
             steps: [
-              "Referral Partner — 1–4 active customers — 20% commission.",
+              "Recruiting Partner — 1–4 active customers — 20% commission.",
               "Growth Partner — 5+ active customers — 25% commission.",
               "Strategic Partner — 20+ active customers — 30% commission, plus co-marketing and a dedicated partner manager.",
             ],

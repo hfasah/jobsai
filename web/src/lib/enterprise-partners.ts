@@ -46,7 +46,7 @@ export const COMMISSION_TABLE: CommissionRow[] = [
 export const PARTNER_TIERS: PartnerTier[] = [
   {
     level: 1,
-    name: "Referral Partner",
+    name: "Recruiting Partner",
     requirement: "1–4 active customers",
     rate: 20,
     blurb: "Start earning the moment your first referral converts.",

@@ -109,6 +109,18 @@ async function resolveCustomDomain(hostname: string): Promise<string | null> {
 }
 
 export default clerkMiddleware(async (auth, req: NextRequest) => {
+  // Partner referral attribution: ?r=CODE drops a 90-day cookie, then we
+  // redirect to the clean URL so the param doesn't linger. (Constants are
+  // inlined to keep this edge-safe — no supabase import.)
+  const ref = req.nextUrl.searchParams.get("r");
+  if (ref && /^[A-Za-z0-9_-]{4,32}$/.test(ref)) {
+    const cleanUrl = req.nextUrl.clone();
+    cleanUrl.searchParams.delete("r");
+    const refRes = NextResponse.redirect(cleanUrl);
+    refRes.cookies.set("jobsai_ref", ref, { maxAge: 60 * 60 * 24 * 90, path: "/", sameSite: "lax" });
+    return refRes;
+  }
+
   const hostname = req.headers.get("host")?.split(":")[0] ?? "";
 
   // Enterprise portal domain: the root is the enterprise marketing landing page.
