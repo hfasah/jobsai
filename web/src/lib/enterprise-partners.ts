@@ -30,8 +30,12 @@ export const FOUNDING_PARTNER_RATE = 25; // locked rate for early partners
 export const FOUNDING_PARTNER_LIMIT = 25; // first N partners
 export const PARTNER_COMMISSION_MONTHS = 12;
 export const PARTNER_ATTRIBUTION_DAYS = 90;
-export const PARTNER_PAYOUT_HOLD_DAYS = 30;
+// Commissions are held for 2 months before becoming payable — covers the refund
+// / chargeback window before any cash leaves.
+export const PARTNER_PAYOUT_HOLD_DAYS = 60;
+export const PARTNER_PAYOUT_HOLD_LABEL = "2-month";
 export const PARTNER_MIN_PAYOUT = "$500"; // accrue, then pay out past this threshold
+export const PARTNER_MIN_PAYOUT_CENTS = 50000;
 
 // ── Customer Referral Program (credits) ─────────────────────────────────────
 export const REFERRAL_CREDIT_MIN = "$100";
@@ -137,7 +141,7 @@ export const PARTNER_RULES: { label: string; detail: string }[] = [
   },
   {
     label: "Paid only after the customer pays",
-    detail: `Commissions accrue when an invoice is successfully collected and are released after a ${PARTNER_PAYOUT_HOLD_DAYS}-day hold. Refunds or chargebacks reverse the matching commission.`,
+    detail: `Commissions accrue when an invoice is successfully collected and are released after a ${PARTNER_PAYOUT_HOLD_LABEL} hold. Refunds or chargebacks reverse the matching commission.`,
   },
   {
     label: `Payouts start at ${PARTNER_MIN_PAYOUT}`,
@@ -167,7 +171,7 @@ export const PARTNER_FAQ: { q: string; a: string }[] = [
   },
   {
     q: "How and when do I get paid?",
-    a: `Commissions accrue as your referred customers pay, clear after a ${PARTNER_PAYOUT_HOLD_DAYS}-day hold, and pay out monthly once your balance passes ${PARTNER_MIN_PAYOUT}.`,
+    a: `Commissions accrue as your referred customers pay, clear after a ${PARTNER_PAYOUT_HOLD_LABEL} hold, and pay out monthly once your balance passes ${PARTNER_MIN_PAYOUT}.`,
   },
   {
     q: "What's the Founding Partner deal?",

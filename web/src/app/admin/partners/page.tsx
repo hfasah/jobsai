@@ -110,7 +110,7 @@ export default function AdminPartners() {
       {/* Payout queue */}
       <section className="rounded-2xl border border-border bg-card p-5">
         <h2 className="mb-1 font-semibold">Payout queue</h2>
-        <p className="mb-4 text-sm text-muted-foreground">Active partners with cleared balances (past the 30-day hold). Pay via PayPal/Wise/bank, then mark paid.</p>
+        <p className="mb-4 text-sm text-muted-foreground">Active partners with cleared balances (past the 2-month hold). Pay via PayPal/Wise/bank, then mark paid.</p>
         {payable.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nothing cleared to pay right now.</p>
         ) : (

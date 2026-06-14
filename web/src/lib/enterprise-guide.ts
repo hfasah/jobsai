@@ -597,7 +597,7 @@ export const GUIDE: GuideCategory[] = [
             body: [
               "If your referred customer claims the Lifetime Offer (50% off for life), you still earn — on what they pay. Example: an Agency plan ($799 list) at $399 with the Lifetime Offer earns a Founding Partner 25% of $399 = $99.75/mo, or $1,197 over 12 months. Commission is always on collected revenue, never list price, which is what makes stacking sustainable.",
             ],
-            tip: "Commissions are released after a 30-day hold and pay out monthly once your cleared balance passes $500 (so we're not sending dozens of tiny payments). Refunds or chargebacks reverse the matching commission.",
+            tip: "Commissions are released after a 2-month hold and pay out monthly once your cleared balance passes $500 (so we're not sending dozens of tiny payments). Refunds or chargebacks reverse the matching commission.",
           },
         ],
       },
