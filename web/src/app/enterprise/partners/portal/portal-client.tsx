@@ -1,7 +1,39 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Mail, Copy, Check, Save } from "lucide-react";
+import { Loader2, Mail, Copy, Check, Save, LogOut } from "lucide-react";
+
+// Dashboard header actions: re-send the magic link (so they never lose access)
+// and "sign out" (passwordless — just navigates away from the private link).
+export function PortalActions({ email }: { email: string }) {
+  const [busy, setBusy] = useState(false);
+  const [sent, setSent] = useState(false);
+
+  const sendLink = async () => {
+    setBusy(true);
+    try {
+      await fetch("/api/enterprise/partner/portal-link", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
+      });
+      setSent(true);
+      setTimeout(() => setSent(false), 4000);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="flex items-center gap-2">
+      <button onClick={sendLink} disabled={busy}
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted disabled:opacity-60">
+        {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Mail className="h-3.5 w-3.5" />}
+        {sent ? "Link emailed" : "Email me this link"}
+      </button>
+      <a href="/enterprise/partners/portal"
+        className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium text-muted-foreground hover:bg-muted">
+        <LogOut className="h-3.5 w-3.5" /> Sign out
+      </a>
+    </div>
+  );
+}
 
 // Returning partner asks for their dashboard magic link by email.
 export function RequestLinkForm() {

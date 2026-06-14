@@ -5,7 +5,7 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { getPartnerByPortalToken, getPartnerStats } from "@/lib/partner-program";
 import { PARTNER_MIN_PAYOUT } from "@/lib/enterprise-partners";
-import { CopyLink, PortalPayoutForm, RequestLinkForm } from "../portal-client";
+import { CopyLink, PortalPayoutForm, RequestLinkForm, PortalActions } from "../portal-client";
 
 export const metadata = {
   title: "Partner Dashboard — JobsAI Enterprise",
@@ -64,12 +64,15 @@ async function PortalView({
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-brand"><Handshake className="h-6 w-6 text-white" /></div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{partner.name || partner.company_name || "Partner"}&apos;s dashboard</h1>
-          <p className="text-sm text-muted-foreground">Track referrals, earnings, and payouts.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-brand"><Handshake className="h-6 w-6 text-white" /></div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">{partner.name || partner.company_name || "Partner"}&apos;s dashboard</h1>
+            <p className="text-sm text-muted-foreground">Track referrals, earnings, and payouts.</p>
+          </div>
         </div>
+        {partner.email && <PortalActions email={partner.email} />}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -106,9 +109,15 @@ async function PortalView({
         />
       </div>
 
-      <p className="text-center text-xs text-muted-foreground">
-        Bookmark this page — it&apos;s your private dashboard. Keep the link to yourself.
-      </p>
+      <div className="rounded-2xl border border-border bg-muted/30 p-5 text-sm text-muted-foreground">
+        <p className="font-semibold text-foreground">How sign-in works</p>
+        <p className="mt-1">
+          There&apos;s no password — this private link <em>is</em> your sign-in. Bookmark it to come straight back, or use <strong>Email me this link</strong> above to send it to yourself.
+        </p>
+        <p className="mt-1">
+          Lost it? Go to <Link href="/enterprise/partners/portal" className="text-primary hover:underline">the dashboard sign-in page</Link> and enter your email to get a fresh link. <strong>Sign out</strong> returns you to that sign-in page.
+        </p>
+      </div>
     </div>
   );
 }
