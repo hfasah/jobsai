@@ -26,7 +26,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tic
 
   if (!ticket) return NextResponse.json({ error: "Ticket not found." }, { status: 404 });
 
-  // Save reply + update status
+  // Save latest reply + update status (admin_reply kept for back-compat)
   await supabaseAdmin
     .from("support_tickets")
     .update({
@@ -35,6 +35,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tic
       replied_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
+
+  // Append the admin reply to the thread (best-effort).
+  supabaseAdmin.from("support_messages").insert({
+    ticket_id: ticketId, direction: "outbound", author: "admin",
+    subject: `Re: ${ticket.subject}`, body: reply,
+    email_from: "support@send.jobsai.work", email_to: ticket.email,
+  }).then(() => {}, (e) => console.error("support_messages admin insert", e));
 
   // Send reply email to user
   await resend.emails.send({

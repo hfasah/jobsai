@@ -31,17 +31,18 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").r
 // to a relevant resource; it does not promise specifics or pretend to be human.
 async function draftReply(opts: {
   name: string; email: string; subject?: string; message: string; category?: string;
-}): Promise<{ subject: string; bodyHtml: string }> {
+}): Promise<{ subject: string; bodyText: string; bodyHtml: string }> {
   const first = opts.name.trim().split(/\s+/)[0] || opts.name;
   const resource = opts.category ? RESOURCE_BY_CATEGORY[opts.category] : undefined;
   const resourceLine = resource ? `${APP_URL}${resource.path} (${resource.label})` : "";
+  const toHtml = (text: string) =>
+    `<p>${escapeHtml(text).replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br/>")}</p>`;
 
   const fallbackSubject = "Thanks for reaching out to JobsAI Enterprise";
-  const fallbackBody =
-    `Hi ${escapeHtml(first)},</p>` +
-    `<p>Thanks for reaching out — we've received your message and a member of our team will follow up personally within one business day.</p>` +
-    (resource ? `<p>In the meantime, you might find this helpful: <a href="${APP_URL}${resource.path}" style="color:#6d28d9">${resource.label}</a>.</p>` : "") +
-    `<p>Talk soon,<br/>The JobsAI Enterprise team`;
+  const fallbackText =
+    `Hi ${first},\n\nThanks for reaching out — we've received your message and a member of our team will follow up personally within one business day.` +
+    (resource ? `\n\nIn the meantime, you might find this helpful: ${APP_URL}${resource.path} (${resource.label}).` : "") +
+    `\n\nTalk soon,\nThe JobsAI Enterprise team`;
 
   try {
     const resp = await ai().chat.completions.create({
@@ -65,17 +66,13 @@ async function draftReply(opts: {
     const parsed = JSON.parse(resp.choices[0]?.message?.content ?? "{}");
     recordUsage({ feature: "contact_autoreply", model: "gpt-4o-mini", usage: { prompt_tokens: resp.usage?.prompt_tokens, completion_tokens: resp.usage?.completion_tokens } });
     if (parsed.subject && parsed.body) {
-      const bodyHtml = `Hi ${escapeHtml(first)},</p><p>` +
-        escapeHtml(String(parsed.body))
-          .replace(new RegExp(`^Hi ${first},?\\s*`, "i"), "")
-          .replace(/\n{2,}/g, "</p><p>")
-          .replace(/\n/g, "<br/>");
-      return { subject: String(parsed.subject), bodyHtml };
+      const bodyText = String(parsed.body).trim();
+      return { subject: String(parsed.subject), bodyText, bodyHtml: toHtml(bodyText) };
     }
   } catch (err) {
     console.error("contact auto-reply AI draft failed", err);
   }
-  return { subject: fallbackSubject, bodyHtml: fallbackBody };
+  return { subject: fallbackSubject, bodyText: fallbackText, bodyHtml: toHtml(fallbackText) };
 }
 
 export async function POST(req: NextRequest) {
@@ -108,6 +105,12 @@ export async function POST(req: NextRequest) {
 
   const ticketRef = ticket.id.slice(0, 8);
 
+  // Log the inbound message to the thread (best-effort).
+  supabaseAdmin.from("support_messages").insert({
+    ticket_id: ticket.id, direction: "inbound", author: "customer",
+    subject: subject || "(no subject)", body: message, email_from: email, email_to: SUPPORT_EMAIL,
+  }).then(() => {}, (e) => console.error("support_messages inbound insert", e));
+
   // Notify admin
   const adminSend = resend.emails.send({
     from: FROM_SUPPORT,
@@ -137,13 +140,19 @@ export async function POST(req: NextRequest) {
     replyTo: SUPPORT_EMAIL,
     subject: reply.subject,
     html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a">
-        <p style="font-size:15px;line-height:1.6">${reply.bodyHtml}</p>
+      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a;font-size:15px;line-height:1.6">
+        ${reply.bodyHtml}
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
         <p style="color:#888;font-size:12px">JobsAI Enterprise &middot; support@jobsai.work &middot; Ref #${ticketRef}</p>
       </div>
     `,
   });
+
+  // Log the AI auto-reply to the thread (best-effort).
+  supabaseAdmin.from("support_messages").insert({
+    ticket_id: ticket.id, direction: "outbound", author: "ai",
+    subject: reply.subject, body: reply.bodyText, email_from: "support@send.jobsai.work", email_to: email,
+  }).then(() => {}, (e) => console.error("support_messages ai insert", e));
 
   // Surface delivery results in logs. Resend returns an { error } object (it does
   // not throw) when the key is missing or the sending domain isn't verified, so
