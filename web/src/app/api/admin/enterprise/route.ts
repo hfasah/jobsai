@@ -32,7 +32,17 @@ export async function GET() {
     };
   }));
 
-  return NextResponse.json({ data: enriched, templates: ORG_TEMPLATES.map((t) => ({ id: t.id, name: t.name, description: t.description })) });
+  const { data: plans } = await supabaseAdmin
+    .from("plans")
+    .select("slug,name,price_monthly")
+    .eq("active", true)
+    .order("sort_order");
+
+  return NextResponse.json({
+    data: enriched,
+    templates: ORG_TEMPLATES.map((t) => ({ id: t.id, name: t.name, description: t.description })),
+    plans: plans ?? [],
+  });
 }
 
 // POST — create a new enterprise org from a template

@@ -17,11 +17,12 @@ interface Org {
 export default function AdminEnterprise() {
   const [orgs, setOrgs] = useState<Org[]>([]);
   const [templates, setTemplates] = useState<{ id: string; name: string; description: string }[]>([]);
+  const [plans, setPlans] = useState<{ slug: string; name: string; price_monthly: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
 
   const load = () => {
-    fetch("/api/admin/enterprise").then((r) => r.json()).then((j) => { setOrgs(j.data ?? []); setTemplates(j.templates ?? []); }).finally(() => setLoading(false));
+    fetch("/api/admin/enterprise").then((r) => r.json()).then((j) => { setOrgs(j.data ?? []); setTemplates(j.templates ?? []); setPlans(j.plans ?? []); }).finally(() => setLoading(false));
   };
   useEffect(load, []);
 
@@ -97,13 +98,13 @@ export default function AdminEnterprise() {
         </div>
       )}
 
-      {createOpen && <CreateModal templates={templates} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setLoading(true); load(); }} />}
+      {createOpen && <CreateModal templates={templates} plans={plans} onClose={() => setCreateOpen(false)} onCreated={() => { setCreateOpen(false); setLoading(true); load(); }} />}
     </div>
   );
 }
 
-function CreateModal({ templates, onClose, onCreated }: { templates: { id: string; name: string; description: string }[]; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: "", owner_email: "", contact_name: "", contact_phone: "", industry: "", template: templates[0]?.id ?? "general", plan_label: "Enterprise", admin_notes: "" });
+function CreateModal({ templates, plans, onClose, onCreated }: { templates: { id: string; name: string; description: string }[]; plans: { slug: string; name: string; price_monthly: number | null }[]; onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({ name: "", owner_email: "", contact_name: "", contact_phone: "", industry: "", template: templates[0]?.id ?? "general", plan_slug: "enterprise", access_status: "trialing", admin_notes: "" });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ onboarding_steps: string[]; invite_url: string | null } | null>(null);
@@ -187,15 +188,29 @@ function CreateModal({ templates, onClose, onCreated }: { templates: { id: strin
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Industry</label>
-                <input value={form.industry} onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))} placeholder="(optional)"
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <label className="mb-1.5 block text-sm font-medium">Plan</label>
+                <select value={form.plan_slug} onChange={(e) => setForm((f) => ({ ...f, plan_slug: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  {plans.map((p) => (
+                    <option key={p.slug} value={p.slug}>{p.name}{p.price_monthly != null ? ` — $${p.price_monthly}/mo` : " — Custom"}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">Sets the account&apos;s feature entitlements.</p>
               </div>
               <div>
-                <label className="mb-1.5 block text-sm font-medium">Plan label</label>
-                <input value={form.plan_label} onChange={(e) => setForm((f) => ({ ...f, plan_label: e.target.value }))}
-                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <label className="mb-1.5 block text-sm font-medium">Billing</label>
+                <select value={form.access_status} onChange={(e) => setForm((f) => ({ ...f, access_status: e.target.value }))}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                  <option value="trialing">14-day trial</option>
+                  <option value="comped">Free (comped — no billing)</option>
+                </select>
+                <p className="mt-1 text-[11px] text-muted-foreground">{form.access_status === "comped" ? "Free access indefinitely." : "Full access for 14 days, then must subscribe."}</p>
               </div>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Industry</label>
+              <input value={form.industry} onChange={(e) => setForm((f) => ({ ...f, industry: e.target.value }))} placeholder="(optional)"
+                className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
             </div>
             <div>
               <label className="mb-1.5 block text-sm font-medium">Admin notes / custom requests</label>
