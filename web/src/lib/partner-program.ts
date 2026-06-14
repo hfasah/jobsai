@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { FOUNDING_PARTNER_LIMIT, FOUNDING_PARTNER_RATE, PARTNER_BASE_RATE, PARTNER_PAYOUT_HOLD_DAYS } from "@/lib/enterprise-partners";
 
 // Server-side helpers for the Partner Program (referrals + commissions).
 // Public marketing copy lives in lib/enterprise-partners.ts; this module is the
@@ -20,8 +21,19 @@ export type PartnerAccount = {
   tier: string;
   commission_rate: number;
   stripe_connect_id: string | null;
+  is_founding: boolean;
   status: string;
   created_at: string;
+};
+
+export type PartnerStats = {
+  referrals: number;
+  payingCustomers: number;
+  // commission amounts in cents
+  lifetimeEarnedCents: number;
+  paidCents: number;
+  availableCents: number; // cleared past the hold, not yet paid
+  pendingCents: number; // accruing or still in the hold window
 };
 
 // Unambiguous alphabet (no 0/O/1/I/L) for human-shareable codes.
@@ -53,6 +65,7 @@ export async function getPartnerByUser(userId: string): Promise<PartnerAccount |
 }
 
 // Create a partner account with a unique referral code (idempotent per user).
+// The first FOUNDING_PARTNER_LIMIT partners lock the higher founding rate.
 export async function ensurePartnerAccount(
   userId: string,
   fields: { company_name?: string | null; email?: string | null } = {},
@@ -66,6 +79,11 @@ export async function ensurePartnerAccount(
     code = genReferralCode();
   }
 
+  const { count } = await supabaseAdmin
+    .from("partner_accounts")
+    .select("id", { count: "exact", head: true });
+  const founding = (count ?? 0) < FOUNDING_PARTNER_LIMIT;
+
   const { data, error } = await supabaseAdmin
     .from("partner_accounts")
     .insert({
@@ -73,11 +91,54 @@ export async function ensurePartnerAccount(
       company_name: fields.company_name ?? null,
       email: fields.email ?? null,
       referral_code: code,
+      is_founding: founding,
+      commission_rate: founding ? FOUNDING_PARTNER_RATE : PARTNER_BASE_RATE,
+      tier: founding ? "growth" : "recruiting",
     })
     .select("*")
     .single();
   if (error) throw new Error(error.message);
   return data as PartnerAccount;
+}
+
+// Aggregate the partner's referrals + commissions for the dashboard.
+export async function getPartnerStats(partnerId: string): Promise<PartnerStats> {
+  const { data: refs } = await supabaseAdmin
+    .from("partner_referrals")
+    .select("status")
+    .eq("partner_id", partnerId);
+  const referrals = refs?.length ?? 0;
+  const payingCustomers = (refs ?? []).filter((r) => r.status === "active").length;
+
+  const { data: comms } = await supabaseAdmin
+    .from("partner_commissions")
+    .select("amount_cents,status,available_at")
+    .eq("partner_id", partnerId);
+
+  const now = Date.now();
+  let lifetimeEarnedCents = 0;
+  let paidCents = 0;
+  let availableCents = 0;
+  let pendingCents = 0;
+  for (const c of comms ?? []) {
+    const amt = c.amount_cents ?? 0;
+    if (c.status === "reversed") continue;
+    lifetimeEarnedCents += amt;
+    if (c.status === "paid") {
+      paidCents += amt;
+    } else if (c.status === "approved" && c.available_at && new Date(c.available_at).getTime() <= now) {
+      availableCents += amt;
+    } else {
+      pendingCents += amt;
+    }
+  }
+
+  return { referrals, payingCustomers, lifetimeEarnedCents, paidCents, availableCents, pendingCents };
+}
+
+// When in the payout window a freshly-collected commission becomes available.
+export function commissionAvailableAt(from: Date = new Date()): Date {
+  return new Date(from.getTime() + PARTNER_PAYOUT_HOLD_DAYS * 24 * 60 * 60 * 1000);
 }
 
 // Attribute a newly created org to a partner by referral code. Idempotent: one

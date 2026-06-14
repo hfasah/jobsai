@@ -1,8 +1,13 @@
-// JobsAI Enterprise Partner Program — single source of truth for the public
-// partner page and the in-guide explainer. The program is the *referrer* side
-// (earn commission for sending us customers); the Lifetime Offer is the
-// *customer* side (a discount the referred customer receives). They stack, but
-// they are different things — keep that separation clear everywhere.
+// JobsAI Enterprise referral economics — single source of truth for the public
+// partner page and the in-guide explainer.
+//
+// There are TWO distinct programs for two different audiences:
+//   1. Customer Referral Program — for existing customers. Reward = account
+//      CREDITS applied to their invoice. No cash leaves the bank.
+//   2. Partner Program — for consultants, agencies, fractional CHROs, podcast
+//      guests, and influencers. Reward = real CASH commission, paid out monthly.
+// Keep that split crystal clear everywhere — partners building a business expect
+// money, not credits.
 
 export type PartnerTier = {
   level: number;
@@ -16,19 +21,50 @@ export type PartnerTier = {
 export type CommissionRow = {
   plan: string;
   monthly: string;
-  earns: string; // at the entry (20%) rate
+  earns: string; // at the entry rate
 };
 
-// Standard entry rate and how long commissions recur per referred customer.
-export const PARTNER_BASE_RATE = 20;
+// ── Partner Program (cash) ──────────────────────────────────────────────────
+export const PARTNER_BASE_RATE = 20; // standard entry rate
+export const FOUNDING_PARTNER_RATE = 25; // locked rate for early partners
+export const FOUNDING_PARTNER_LIMIT = 25; // first N partners
 export const PARTNER_COMMISSION_MONTHS = 12;
 export const PARTNER_ATTRIBUTION_DAYS = 90;
 export const PARTNER_PAYOUT_HOLD_DAYS = 30;
-export const PARTNER_MIN_PAYOUT = "$50";
+export const PARTNER_MIN_PAYOUT = "$500"; // accrue, then pay out past this threshold
+
+// ── Customer Referral Program (credits) ─────────────────────────────────────
+export const REFERRAL_CREDIT_MIN = "$100";
+export const REFERRAL_CREDIT_MAX = "$500";
+
+// The two-program comparison shown up top so visitors self-select.
+export const PROGRAM_COMPARISON: {
+  name: string;
+  audience: string;
+  reward: string;
+  rewardType: "Cash" | "Credits";
+  detail: string;
+}[] = [
+  {
+    name: "Partner Program",
+    audience: "Consultants, agencies, fractional CHROs, podcast guests & influencers",
+    reward: `${PARTNER_BASE_RATE}–30% recurring commission for ${PARTNER_COMMISSION_MONTHS} months`,
+    rewardType: "Cash",
+    detail: "Real money, paid out monthly to your bank via Stripe. Built for people who can send multiple customers.",
+  },
+  {
+    name: "Customer Referral Program",
+    audience: "Existing JobsAI Enterprise customers",
+    reward: `${REFERRAL_CREDIT_MIN}–${REFERRAL_CREDIT_MAX} account credit per referral`,
+    rewardType: "Credits",
+    detail: "A credit applied to your next invoice when a company you refer becomes a customer. No payout to set up.",
+  },
+];
 
 export const PARTNER_BENEFITS: { title: string; desc: string }[] = [
-  { title: "Recurring commissions", desc: `Earn ${PARTNER_BASE_RATE}–30% of collected revenue for ${PARTNER_COMMISSION_MONTHS} months on every customer you refer.` },
-  { title: "Partner dashboard", desc: "Track referrals, conversions, MRR generated, and earnings in real time." },
+  { title: "Real cash commissions", desc: `Earn ${PARTNER_BASE_RATE}–30% of collected revenue, in cash, for ${PARTNER_COMMISSION_MONTHS} months on every customer you refer.` },
+  { title: "Monthly payouts to your bank", desc: "Get paid via Stripe — not platform credits. Onboard once and payouts run automatically." },
+  { title: "Partner dashboard", desc: "Track referrals, conversions, earnings, and payout status in real time." },
   { title: "Unique referral links", desc: `Share a personal link; we attribute signups to you for ${PARTNER_ATTRIBUTION_DAYS} days.` },
   { title: "Marketing assets", desc: "Ready-to-use decks, one-pagers, demo videos, and email copy." },
   { title: "Priority support", desc: "A direct line for you and the customers you bring on." },
@@ -58,7 +94,7 @@ export const PARTNER_TIERS: PartnerTier[] = [
     requirement: "5+ active customers",
     rate: 25,
     blurb: "A higher rate kicks in as your book of business grows.",
-    perks: ["Everything in Referral", "25% commission rate", "Priority partner support", "Co-selling on demos"],
+    perks: ["Everything in Recruiting", "25% commission rate", "Priority partner support", "Co-selling on demos"],
   },
   {
     level: 3,
@@ -70,15 +106,19 @@ export const PARTNER_TIERS: PartnerTier[] = [
   },
 ];
 
-// The rules that keep Lifetime Offer + Partner Program from over-discounting.
+// The rules that keep credits, cash, and the Lifetime Offer from over-discounting.
 export const PARTNER_RULES: { label: string; detail: string }[] = [
   {
-    label: "Commission is paid on collected revenue — never list price",
-    detail: "If a customer pays a discounted rate (e.g. the Lifetime Offer), your commission is a percentage of what they actually pay, not the sticker price. This is what makes stacking sustainable for everyone.",
+    label: "Partners are paid in cash, customers earn credits",
+    detail: "The Partner Program pays real money via Stripe. The separate Customer Referral Program rewards existing customers with invoice credits. Different audiences, different rewards.",
   },
   {
-    label: "The two programs stack",
-    detail: "A customer you refer can still claim the Lifetime Offer (50% off for life). You earn commission on their discounted invoice for 12 months.",
+    label: "Commission is paid on collected revenue — never list price",
+    detail: "If a customer pays a discounted rate (e.g. the Lifetime Offer), your commission is a percentage of what they actually pay, not the sticker price. That's what makes stacking sustainable.",
+  },
+  {
+    label: "The programs stack",
+    detail: "A customer you refer can still claim the Lifetime Offer (50% off for life). You earn cash commission on their discounted invoice for 12 months.",
   },
   {
     label: `${PARTNER_ATTRIBUTION_DAYS}-day attribution`,
@@ -89,33 +129,38 @@ export const PARTNER_RULES: { label: string; detail: string }[] = [
     detail: `Commissions accrue when an invoice is successfully collected and are released after a ${PARTNER_PAYOUT_HOLD_DAYS}-day hold. Refunds or chargebacks reverse the matching commission.`,
   },
   {
-    label: "Monthly payouts",
-    detail: `We pay out monthly once your cleared balance passes ${PARTNER_MIN_PAYOUT}. Your tier rate applies to commissions earned while you hold that tier.`,
+    label: `Payouts start at ${PARTNER_MIN_PAYOUT}`,
+    detail: `Your earnings accrue in the dashboard and pay out monthly once your cleared balance passes ${PARTNER_MIN_PAYOUT} — so we're not sending dozens of tiny payments.`,
   },
 ];
 
-// How the customer-side Lifetime Offer and the partner-side commission interact.
+// How the customer-side Lifetime Offer and the partner-side cash commission
+// interact — using the Founding Partner rate (25%).
 export const STACKING_EXAMPLE = {
   plan: "Agency",
   list: "$799",
   customerPays: "$399", // Lifetime Offer, 50% off
-  rate: PARTNER_BASE_RATE,
-  partnerMonthly: "$79.80", // 20% of $399
-  partnerTotal: "$957.60", // × 12 months
+  rate: FOUNDING_PARTNER_RATE,
+  partnerMonthly: "$99.75", // 25% of $399
+  partnerTotal: "$1,197", // × 12 months
 };
 
 export const PARTNER_FAQ: { q: string; a: string }[] = [
   {
-    q: "Who can become a partner?",
+    q: "Who is the Partner Program for?",
     a: "Recruiting consultants, HR advisors, agency owners, fractional CHROs, recruiter coaches, podcasters, and anyone with an audience of people who hire. You don't need to be a customer.",
   },
   {
-    q: "How do customers get the Lifetime Offer?",
-    a: "The Lifetime Offer (50% off for life) is applied at checkout for eligible early customers. Your referral doesn't change it — they get the discount, and you still earn commission on what they pay.",
+    q: "Cash or credits?",
+    a: "Cash. The Partner Program pays real money to your bank via Stripe. (Existing customers who refer a company earn invoice credits through the separate Customer Referral Program.)",
   },
   {
-    q: "When and how do I get paid?",
+    q: "How and when do I get paid?",
     a: `Commissions accrue as your referred customers pay, clear after a ${PARTNER_PAYOUT_HOLD_DAYS}-day hold, and pay out monthly once your balance passes ${PARTNER_MIN_PAYOUT}.`,
+  },
+  {
+    q: "What's the Founding Partner deal?",
+    a: `The first ${FOUNDING_PARTNER_LIMIT} partners lock in a ${FOUNDING_PARTNER_RATE}% commission rate for ${PARTNER_COMMISSION_MONTHS} months — above the standard ${PARTNER_BASE_RATE}% entry rate.`,
   },
   {
     q: "How long do commissions last?",

@@ -560,25 +560,27 @@ export const GUIDE: GuideCategory[] = [
     articles: [
       {
         slug: "partner-program",
-        title: "Partner program — how referrals & commissions work",
+        title: "Partner program — earn cash for referrals",
         icon: "🤝",
-        summary: "Earn 20–30% recurring commission for 12 months on every customer you refer.",
+        summary: "Earn 20–30% recurring cash commission for 12 months, paid monthly via Stripe.",
         sections: [
           {
             body: [
-              "The Partner Program rewards you for sending recruiting agencies, staffing firms, and HR teams to JobsAI Enterprise. It's the referrer side; the Lifetime Offer is the customer's discount. They're different things, and they stack.",
+              "Two different programs reward referrals, for two different audiences. The Partner Program pays real cash to consultants, agencies, fractional CHROs, podcast guests, and influencers. The separate Customer Referral Program gives existing customers account credits ($100–$500) on their invoice. This article covers the cash Partner Program.",
+              "Founding Partners: the first 25 partners lock a 25% commission rate for 12 months — above the standard 20% entry rate.",
             ],
             heading: "How it works",
             steps: [
-              "Apply via the Partners page — tell us about your audience and we set you up.",
-              "Share your unique referral link. We attribute any signup within 90 days (last-touch) to you.",
-              "When your referral converts from trial to a paying customer, a referral and commission are created automatically.",
+              "Join from the Partner Dashboard — you get a unique referral link.",
+              "Set up payouts via Stripe Connect (Stripe handles bank/tax/ID verification).",
+              "Share your link. We attribute any signup within 90 days (last-touch) to you.",
+              "When your referral converts from trial to a paying customer, commission starts accruing.",
               "You earn a percentage of what they actually pay (collected revenue) every month for 12 months.",
-              "Track referrals, MRR generated, and earnings in your partner dashboard; payouts run monthly.",
+              "Track referrals, earnings, and payout status in your dashboard.",
             ],
           },
           {
-            heading: "Commission tiers",
+            heading: "Commission tiers (cash)",
             steps: [
               "Recruiting Partner — 1–4 active customers — 20% commission.",
               "Growth Partner — 5+ active customers — 25% commission.",
@@ -588,9 +590,9 @@ export const GUIDE: GuideCategory[] = [
           {
             heading: "Stacking with the Lifetime Offer",
             body: [
-              "If your referred customer claims the Lifetime Offer (50% off for life), you still earn — on what they pay. Example: an Agency plan ($799 list) at $399 with the Lifetime Offer earns you 20% of $399 = $79.80/mo, or $957.60 over 12 months. Commission is always on collected revenue, never list price, which is what makes stacking sustainable.",
+              "If your referred customer claims the Lifetime Offer (50% off for life), you still earn — on what they pay. Example: an Agency plan ($799 list) at $399 with the Lifetime Offer earns a Founding Partner 25% of $399 = $99.75/mo, or $1,197 over 12 months. Commission is always on collected revenue, never list price, which is what makes stacking sustainable.",
             ],
-            tip: "Commissions are released after a 30-day hold and pay out monthly once your cleared balance passes $50. Refunds or chargebacks reverse the matching commission.",
+            tip: "Commissions are released after a 30-day hold and pay out monthly once your cleared balance passes $500 (so we're not sending dozens of tiny payments). Refunds or chargebacks reverse the matching commission.",
           },
         ],
       },
