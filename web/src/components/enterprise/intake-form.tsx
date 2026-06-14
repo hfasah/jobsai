@@ -12,7 +12,7 @@ const PREF_STYLE: Record<ToolPref, string> = {
   need: "border-emerald-500 bg-emerald-500/10 text-emerald-500",
   want: "border-primary bg-primary/10 text-primary",
   unsure: "border-amber-500 bg-amber-500/10 text-amber-500",
-  no: "border-border bg-muted text-muted-foreground",
+  no: "border-red-500 bg-red-500/10 text-red-500",
 };
 
 export function IntakeForm() {
