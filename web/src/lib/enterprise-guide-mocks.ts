@@ -228,10 +228,11 @@ export const GUIDE_MOCKS: Record<string, GuideMock | GuideMock[]> = {
     items: [
       { label: "Greenhouse", sub: "Structured hiring ATS", action: "Connect" },
       { label: "Lever", sub: "ATS + CRM", badge: "Synced", highlight: true },
+      { label: "Loxo", sub: "Recruiting CRM — direct (BYO API key)", action: "Connect" },
       { label: "Workday", sub: "HCM suite", action: "Connect" },
       { label: "Ashby", sub: "All-in-one ATS", action: "Connect" },
     ],
-    annotation: "Connect your ATS securely via Merge, then choose sync direction and run an initial sync.",
+    annotation: "Connect via Merge, or link Loxo directly with your API key — then choose sync direction and run an initial sync.",
   },
   "connect-email-calendar": {
     title: "Settings → Integrations", icon: "📬", kind: "list",

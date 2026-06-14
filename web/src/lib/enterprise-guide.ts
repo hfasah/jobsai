@@ -440,14 +440,15 @@ export const GUIDE: GuideCategory[] = [
     articles: [
       {
         slug: "ats-integration",
-        title: "ATS integration (Greenhouse, Lever, Workday & more)",
+        title: "ATS integration (Greenhouse, Lever, Loxo, Workday & more)",
         icon: "🔌",
-        summary: "Sync candidates and jobs with your existing ATS via Merge.",
+        summary: "Sync candidates and jobs with your existing ATS via Merge — or connect Loxo directly.",
         sections: [
           {
             steps: [
               "Go to ATS Integration in the left navigation.",
-              "Choose your ATS (Greenhouse, Lever, Ashby, Workday, and more) and connect it securely through Merge.",
+              "Choose your ATS (Greenhouse, Lever, Ashby, Workday, and 20+ more) and connect it securely through Merge.",
+              "Using Loxo? Connect it directly with your Loxo agency slug and API key (Loxo → Settings → API Keys) — no Merge needed.",
               "Map jobs and candidates, and choose sync direction.",
               "Run an initial sync — records flow between systems so you can adopt JobsAI gradually.",
             ],
