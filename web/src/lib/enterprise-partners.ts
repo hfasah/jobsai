@@ -58,10 +58,10 @@ export const PROGRAM_COMPARISON: {
 }[] = [
   {
     name: "Partner Program",
-    audience: "Consultants, agencies, fractional CHROs, podcast guests & influencers",
+    audience: "",
     reward: `${PARTNER_BASE_RATE}–30% recurring commission for ${PARTNER_COMMISSION_MONTHS} months`,
     rewardType: "Cash",
-    detail: "Real money, paid out monthly to your bank via Stripe. Built for people who can send multiple customers.",
+    detail: "Real money, paid out monthly to your Bank Account.",
   },
   {
     name: "Customer Referral Program",
