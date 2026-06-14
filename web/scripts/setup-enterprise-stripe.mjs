@@ -50,6 +50,31 @@ for (const p of plans ?? []) {
   await sb.from("plans").update({ stripe_product_id: productId, stripe_price_id: priceId }).eq("slug", p.slug);
 }
 
+// ── Annual plan prices (20% off) — a yearly price on each plan's product ─────
+console.log("\nAnnual plan prices");
+const { data: yplans } = await sb.from("plans").select("slug,name,price_yearly,price_monthly,stripe_product_id,stripe_price_id_yearly").order("sort_order");
+for (const p of yplans ?? []) {
+  if (p.price_monthly == null) { console.log(`  – ${p.name}: custom, skipped`); continue; }
+  if (p.stripe_price_id_yearly) { console.log(`  ~ ${p.name}: already has yearly price, skipped`); continue; }
+  // Use the seeded annual total, or compute it: round(monthly × 0.8) × 12.
+  const yearly = p.price_yearly != null ? Number(p.price_yearly) : Math.round(Number(p.price_monthly) * 0.8) * 12;
+  let productId = p.stripe_product_id;
+  if (!productId) {
+    const prod = await stripe.products.create({ name: `JobsAI Enterprise — ${p.name}`, description: `${p.name} plan`, metadata: { kind: "plan", plan_slug: p.slug } });
+    productId = prod.id;
+    await sb.from("plans").update({ stripe_product_id: productId }).eq("slug", p.slug);
+  }
+  const price = await stripe.prices.create({
+    product: productId,
+    unit_amount: Math.round(yearly * 100),
+    currency: "usd",
+    recurring: { interval: "year" },
+    metadata: { kind: "plan", plan_slug: p.slug, billing: "yearly" },
+  });
+  await sb.from("plans").update({ stripe_price_id_yearly: price.id }).eq("slug", p.slug);
+  console.log(`  ✓ ${p.name}: $${yearly}/yr → ${price.id}`);
+}
+
 // ── Add-ons ─────────────────────────────────────────────────────────────────
 console.log("\nAdd-ons");
 const { data: addons } = await sb.from("features").select("feature_key,name,price_monthly,stripe_price_id").eq("is_addon", true);

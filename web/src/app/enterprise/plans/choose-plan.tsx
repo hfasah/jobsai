@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 
 // Self-serve plan button → starts Stripe Checkout (14-day trial).
-export function ChoosePlan({ slug, popular }: { slug: string; popular?: boolean }) {
+export function ChoosePlan({ slug, popular, interval = "month" }: { slug: string; popular?: boolean; interval?: "month" | "year" }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -15,7 +15,7 @@ export function ChoosePlan({ slug, popular }: { slug: string; popular?: boolean 
       const res = await fetch("/api/enterprise/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan_slug: slug }),
+        body: JSON.stringify({ plan_slug: slug, interval }),
       });
       const json = await res.json();
       if (!res.ok || !json.url) {

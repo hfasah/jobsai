@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     | null;
   if (!org) return NextResponse.json({ error: "Create your workspace first." }, { status: 404 });
 
-  const { plan_slug } = (await req.json().catch(() => ({}))) as { plan_slug?: string };
+  const { plan_slug, interval } = (await req.json().catch(() => ({}))) as { plan_slug?: string; interval?: string };
   if (!plan_slug) return NextResponse.json({ error: "plan_slug is required." }, { status: 400 });
   if (plan_slug === "enterprise") {
     return NextResponse.json({ error: "The Enterprise plan is sales-led — book a demo." }, { status: 400 });
@@ -25,10 +25,13 @@ export async function POST(req: NextRequest) {
 
   const { data: plan } = await supabaseAdmin
     .from("plans")
-    .select("name,stripe_price_id")
+    .select("name,stripe_price_id,stripe_price_id_yearly")
     .eq("slug", plan_slug)
     .maybeSingle();
-  const priceId = (plan as { stripe_price_id?: string } | null)?.stripe_price_id;
+  const p = plan as { stripe_price_id?: string; stripe_price_id_yearly?: string } | null;
+  const wantYearly = ["year", "yearly", "annual", "annually"].includes((interval ?? "").toLowerCase());
+  // Use the yearly price when requested (and provisioned); otherwise monthly.
+  const priceId = wantYearly ? (p?.stripe_price_id_yearly ?? p?.stripe_price_id) : p?.stripe_price_id;
   if (!priceId) {
     return NextResponse.json({ error: "This plan isn't available for checkout yet." }, { status: 400 });
   }

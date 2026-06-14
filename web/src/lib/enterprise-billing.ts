@@ -54,10 +54,12 @@ export async function syncSubscriptionToOrg(sub: Stripe.Subscription): Promise<v
   const priceIds = sub.items.data.map((i) => i.price.id);
 
   // Base plan
+  // Match the subscription's price against the plan's monthly OR yearly price id.
+  const priceList = priceIds.join(",");
   const { data: planRows } = await supabaseAdmin
     .from("plans")
-    .select("id,stripe_price_id")
-    .in("stripe_price_id", priceIds);
+    .select("id,stripe_price_id,stripe_price_id_yearly")
+    .or(`stripe_price_id.in.(${priceList}),stripe_price_id_yearly.in.(${priceList})`);
   const planId = (planRows as { id: string }[] | null)?.[0]?.id ?? null;
 
   const periodEnd = (sub.items.data[0] as unknown as { current_period_end?: number } | undefined)?.current_period_end ?? null;
