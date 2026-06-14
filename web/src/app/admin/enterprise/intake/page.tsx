@@ -81,6 +81,7 @@ export default function AdminIntake() {
         contact_name: selected.contact_name,
         contact_phone: selected.contact_phone ?? undefined,
         industry: selected.industry ?? undefined,
+        plan_slug: selected.suggested_plan ?? undefined, // sets plan_id → full entitlements
         plan_label: planLabel,
         admin_notes: notes,
       }),

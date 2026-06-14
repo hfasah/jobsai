@@ -48,13 +48,33 @@ export async function POST(req: NextRequest) {
   const tpl = getTemplate(body.template ?? "general");
   const slug = await uniqueSlug(name);
 
+  // Resolve the entitlement plan: prefer an explicit plan_slug (e.g. the
+  // intake's suggested plan), else match the plan_label to a plan name. Setting
+  // plan_id gives the org its full feature entitlements immediately.
+  const planSlug = (body.plan_slug as string | undefined)?.trim().toLowerCase();
+  let planRow: { id: string; name: string } | null = null;
+  if (planSlug) {
+    const { data } = await supabaseAdmin.from("plans").select("id,name").eq("slug", planSlug).maybeSingle();
+    planRow = (data as { id: string; name: string } | null) ?? null;
+  } else if (body.plan_label) {
+    const { data } = await supabaseAdmin.from("plans").select("id,name").ilike("name", (body.plan_label as string).trim()).maybeSingle();
+    planRow = (data as { id: string; name: string } | null) ?? null;
+  }
+  const planLabel = (body.plan_label as string | undefined)?.trim() || planRow?.name || "Enterprise";
+
+  // Admin-provisioned orgs are comped (per 082: "comped by an admin") so the
+  // owner can start immediately with the plan's entitlements. Override via
+  // access_status if a different policy is wanted (e.g. "trialing").
+  const accessStatus = (body.access_status as string | undefined)?.trim() || "comped";
+
   const { data: org, error } = await supabaseAdmin.from("enterprise_orgs").insert({
     name, slug,
     industry: body.industry ?? tpl.industry ?? null,
     brand_color: tpl.brand_color,
     tagline: tpl.tagline || null,
     careers_intro: tpl.careers_intro || null,
-    plan_label: body.plan_label ?? "Enterprise",
+    plan_label: planLabel,
+    plan_id: planRow?.id ?? null,
     created_by: admin.userId,
     created_by_admin: admin.userId,
     admin_notes: body.admin_notes ?? null,
@@ -62,6 +82,8 @@ export async function POST(req: NextRequest) {
     contact_email: ownerEmail ?? null,
     contact_phone: body.contact_phone ?? null,
     status: "active",
+    access_status: accessStatus,
+    activated_at: new Date().toISOString(),
   }).select("*").single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
