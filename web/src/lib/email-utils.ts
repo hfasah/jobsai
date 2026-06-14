@@ -17,3 +17,9 @@ ${poweredByFooter(showPoweredBy)}
 export function emailFromName(orgName: string, customFromName?: string | null): string {
   return customFromName?.trim() || `${orgName} Recruiting`;
 }
+
+/** Turn bare http(s) URLs in already-escaped text into clickable links. */
+export function linkifyHtml(escapedText: string): string {
+  return escapedText.replace(/(https?:\/\/[^\s<]+[^\s<.,)])/g, (url) =>
+    `<a href="${url}" style="color:#6d28d9;text-decoration:underline">${url}</a>`);
+}

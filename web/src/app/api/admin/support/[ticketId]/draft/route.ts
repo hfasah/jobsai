@@ -3,8 +3,11 @@ import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { recordUsage } from "@/lib/llm-usage";
+import { GUIDE_ARTICLES } from "@/lib/enterprise-guide";
 
 export const maxDuration = 30;
+
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
 let _ai: OpenAI | null = null;
 const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
@@ -38,6 +41,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ti
   const thread = (rows ?? []).map((m) => `${m.author.toUpperCase()}: ${m.body}`).join("\n\n")
     || `CUSTOMER: ${ticket.message}`;
   const first = String(ticket.name).trim().split(/\s+/)[0] || ticket.name;
+  const guideLinks = GUIDE_ARTICLES.map((a) => `${a.title}: ${APP_URL}/enterprise/guide/${a.slug}`).join("\n");
 
   try {
     const resp = await ai().chat.completions.create({
@@ -50,8 +54,11 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ti
           `You are a JobsAI Enterprise support agent drafting a reply for a human teammate to review and send. ` +
           `Be helpful, specific, and warm; address ${first} by name. Answer what you can from the conversation, ` +
           `but DO NOT invent prices, features, dates, or commitments — if unsure, say a teammate will confirm. ` +
-          `Plain text, under 140 words, no subject line.\n\n` +
-          `Inquiry type: ${ticket.category ?? "general"}\nSubject: ${ticket.subject}\n\nConversation so far:\n${thread}`,
+          `When a How-To Guide article is relevant, include its full URL inline so the customer can self-serve. ` +
+          `Plain text, under 160 words, no subject line.\n\n` +
+          `Inquiry type: ${ticket.category ?? "general"}\nSubject: ${ticket.subject}\n\n` +
+          `How-To Guide articles (Title: URL):\n${guideLinks}\nGuide home: ${APP_URL}/enterprise/guide\n\n` +
+          `Conversation so far:\n${thread}`,
       }],
     });
     recordUsage({ feature: "support_draft", model: "gpt-4o-mini", usage: { prompt_tokens: resp.usage?.prompt_tokens, completion_tokens: resp.usage?.completion_tokens } });

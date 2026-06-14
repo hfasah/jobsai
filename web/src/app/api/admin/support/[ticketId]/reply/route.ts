@@ -2,6 +2,11 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend, FROM_SUPPORT, REPLY_TO_SUPPORT } from "@/lib/resend";
+import { linkifyHtml } from "@/lib/email-utils";
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -33,6 +38,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tic
       admin_reply: reply,
       status: status ?? "resolved",
       replied_at: new Date().toISOString(),
+      read_at: new Date().toISOString(),
     })
     .eq("id", ticketId);
 
@@ -54,11 +60,11 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tic
         <h2 style="color:#6d28d9">Hi ${ticket.name},</h2>
         <p>We've replied to your support request:</p>
         <div style="background:#f5f3ff;padding:16px;border-radius:8px;margin:16px 0;border-left:4px solid #6d28d9">
-          <p style="margin:0;white-space:pre-wrap">${reply}</p>
+          <p style="margin:0;white-space:pre-wrap">${linkifyHtml(escapeHtml(reply))}</p>
         </div>
         <p style="color:#888;font-size:13px">Your original message:</p>
         <div style="background:#f9fafb;padding:12px;border-radius:6px;color:#666;font-size:13px">
-          <p style="margin:0;white-space:pre-wrap">${ticket.message}</p>
+          <p style="margin:0;white-space:pre-wrap">${escapeHtml(ticket.message)}</p>
         </div>
         <hr style="border:none;border-top:1px solid #e5e7eb;margin:24px 0" />
         <p style="color:#888;font-size:12px">JobsAI &middot; support@jobsai.work &middot; Ticket #${ticketId.slice(0, 8)}</p>

@@ -4,6 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { resend, FROM_SUPPORT, SUPPORT_EMAIL, REPLY_TO_SUPPORT } from "@/lib/resend";
 import { createRateLimiter, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 import { recordUsage } from "@/lib/llm-usage";
+import { linkifyHtml } from "@/lib/email-utils";
+import { GUIDE_ARTICLES } from "@/lib/enterprise-guide";
 
 export const maxDuration = 30;
 
@@ -35,8 +37,9 @@ async function draftReply(opts: {
   const first = opts.name.trim().split(/\s+/)[0] || opts.name;
   const resource = opts.category ? RESOURCE_BY_CATEGORY[opts.category] : undefined;
   const resourceLine = resource ? `${APP_URL}${resource.path} (${resource.label})` : "";
+  const guideLinks = GUIDE_ARTICLES.map((a) => `${a.title}: ${APP_URL}/enterprise/guide/${a.slug}`).join("\n");
   const toHtml = (text: string) =>
-    `<p>${escapeHtml(text).replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br/>")}</p>`;
+    `<p>${linkifyHtml(escapeHtml(text)).replace(/\n{2,}/g, "</p><p>").replace(/\n/g, "<br/>")}</p>`;
 
   const fallbackSubject = "Thanks for reaching out to JobsAI Enterprise";
   const fallbackText =
@@ -55,12 +58,15 @@ async function draftReply(opts: {
         content:
           `Write a warm, concise acknowledgment email from the JobsAI Enterprise team to someone who just submitted our contact form. ` +
           `Address them by first name (${first}). Reflect their specific inquiry so it feels personal, but DO NOT invent facts, prices, or commitments. ` +
-          `Make clear a human teammate will follow up within one business day. Keep it under 110 words, friendly and professional.` +
+          `Make clear a human teammate will follow up within one business day. Keep it under 130 words, friendly and professional.` +
           (resourceLine ? ` Naturally include this link as a helpful resource: ${resourceLine}.` : "") +
+          ` If a How-To Guide article below is clearly relevant to their question, include its full URL inline so they can self-serve.` +
           `\n\nTheir inquiry type: ${opts.category ?? "general"}` +
           `\nSubject: ${opts.subject || "(none)"}` +
           `\nMessage: ${opts.message}` +
-          `\n\nReturn JSON: { "subject": "...", "body": "plain text, use \\n for line breaks" }`,
+          `\n\nHow-To Guide articles (Title: URL):\n${guideLinks}` +
+          `\nGuide home: ${APP_URL}/enterprise/guide` +
+          `\n\nReturn JSON: { "subject": "...", "body": "plain text, use \\n for line breaks; include any URLs in full" }`,
       }],
     });
     const parsed = JSON.parse(resp.choices[0]?.message?.content ?? "{}");
@@ -94,6 +100,7 @@ export async function POST(req: NextRequest) {
       message,
       category: category || "general",
       status: "open",
+      last_inbound_at: new Date().toISOString(),
     })
     .select("id")
     .single();

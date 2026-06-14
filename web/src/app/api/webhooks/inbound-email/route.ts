@@ -118,6 +118,7 @@ export async function POST(req: NextRequest) {
         message: bodyText,
         category: "email",
         status: "open",
+        last_inbound_at: new Date().toISOString(),
       })
       .select("id")
       .single();
@@ -137,7 +138,9 @@ export async function POST(req: NextRequest) {
     ticket_id: ticket.id, direction: "inbound", author: "customer",
     subject: subject || "(no subject)", body: bodyText, email_from: sender, email_to: toStr,
   });
-  await supabaseAdmin.from("support_tickets").update({ status: "open" }).eq("id", ticket.id);
+  await supabaseAdmin.from("support_tickets")
+    .update({ status: "open", last_inbound_at: new Date().toISOString() })
+    .eq("id", ticket.id);
 
   return NextResponse.json({ ok: true, ticketId: ticket.id });
 }

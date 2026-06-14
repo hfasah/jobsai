@@ -30,6 +30,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ tic
     .single();
   if (!ticket) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
+  // Mark read — opening the thread counts as the admin seeing the latest inbound.
+  supabaseAdmin.from("support_tickets")
+    .update({ read_at: new Date().toISOString() })
+    .eq("id", ticketId)
+    .then(() => {}, (e) => console.error("mark read", e));
+
   const { data: rows } = await supabaseAdmin
     .from("support_messages")
     .select("id, direction, author, subject, body, created_at")
