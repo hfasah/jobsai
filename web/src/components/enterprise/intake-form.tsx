@@ -9,10 +9,10 @@ import {
 } from "@/lib/enterprise-intake";
 
 const PREF_STYLE: Record<ToolPref, string> = {
-  need: "border-emerald-500 bg-emerald-500/10 text-emerald-500",
-  want: "border-primary bg-primary/10 text-primary",
-  unsure: "border-amber-500 bg-amber-500/10 text-amber-500",
-  no: "border-red-500 bg-red-500/10 text-red-500",
+  need: "border-emerald-600 bg-emerald-600 text-white shadow-sm",
+  want: "border-blue-600 bg-blue-600 text-white shadow-sm",
+  unsure: "border-amber-600 bg-amber-600 text-white shadow-sm",
+  no: "border-red-600 bg-red-600 text-white shadow-sm",
 };
 
 export function IntakeForm() {
