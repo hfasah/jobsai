@@ -6,6 +6,11 @@ import {
   linkCustomerToOrg,
 } from "@/lib/enterprise-billing";
 import { recordTrialFromSubscription } from "@/lib/enterprise-trial";
+import {
+  recordCommissionForInvoice,
+  reverseCommissionForInvoice,
+  cancelReferralForCustomer,
+} from "@/lib/partner-commissions";
 import type Stripe from "stripe";
 
 // Enterprise billing webhook. Separate endpoint + secret from the consumer
@@ -39,9 +44,27 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.updated":
         await syncSubscriptionToOrg(event.data.object as Stripe.Subscription);
         break;
-      case "customer.subscription.deleted":
-        await markSubscriptionCanceled(event.data.object as Stripe.Subscription);
+      case "customer.subscription.deleted": {
+        const sub = event.data.object as Stripe.Subscription;
+        await markSubscriptionCanceled(sub);
+        // Stop future partner commissions for this customer's referral.
+        const cust = typeof sub.customer === "string" ? sub.customer : sub.customer?.id;
+        if (cust) await cancelReferralForCustomer(cust);
         break;
+      }
+      // Partner commission engine: pay on collected revenue, reverse on refund.
+      case "invoice.paid":
+        await recordCommissionForInvoice(event.data.object as Stripe.Invoice);
+        break;
+      case "charge.refunded": {
+        const charge = event.data.object as Stripe.Charge;
+        // `invoice` is present at runtime but dropped from the Charge type in
+        // this API version, so read it through a narrow cast.
+        const inv = (charge as unknown as { invoice?: string | { id: string } | null }).invoice;
+        const invoiceId = typeof inv === "string" ? inv : inv?.id;
+        if (invoiceId) await reverseCommissionForInvoice(invoiceId);
+        break;
+      }
       case "checkout.session.completed": {
         const session = event.data.object as Stripe.Checkout.Session;
         const orgId = session.metadata?.org_id;
