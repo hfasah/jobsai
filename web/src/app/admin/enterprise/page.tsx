@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2, Loader2, Plus, X, Sparkles, DollarSign, Users,
-  CheckCircle2, Copy, Check, ExternalLink,
+  CheckCircle2, Copy, Check, ExternalLink, ClipboardList,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -34,9 +34,14 @@ export default function AdminEnterprise() {
           <h1 className="text-2xl font-bold">Enterprise Accounts</h1>
           <p className="mt-1 text-sm text-muted-foreground">Manage enterprise orgs, monitor LLM cost, and create new accounts.</p>
         </div>
-        <button onClick={() => setCreateOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow">
-          <Plus className="h-4 w-4" /> Create enterprise account
-        </button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/enterprise/intake" className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted">
+            <ClipboardList className="h-4 w-4" /> Intake leads
+          </Link>
+          <button onClick={() => setCreateOpen(true)} className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow">
+            <Plus className="h-4 w-4" /> Create enterprise account
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
