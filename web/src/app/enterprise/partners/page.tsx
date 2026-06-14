@@ -21,7 +21,7 @@ export const metadata = {
   description: `Refer recruiting agencies, staffing firms, and HR teams to JobsAI Enterprise and earn ${PARTNER_BASE_RATE}–30% recurring cash commission for ${PARTNER_COMMISSION_MONTHS} months. Paid monthly via Stripe.`,
 };
 
-const APPLY = "/enterprise/partners/dashboard";
+const APPLY = "/enterprise/partners/apply";
 const BENEFIT_ICONS = [Banknote, Wallet, BarChart3, Link2, Megaphone, Headphones, Users, Rocket];
 const TIER_ICONS = [Star, TrendingUp, Crown];
 

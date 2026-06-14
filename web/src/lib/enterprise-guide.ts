@@ -569,14 +569,19 @@ export const GUIDE: GuideCategory[] = [
               "Two different programs reward referrals, for two different audiences. The Partner Program pays real cash to consultants, agencies, fractional CHROs, podcast guests, and influencers. The separate Customer Referral Program gives existing customers account credits ($100–$500) on their invoice. This article covers the cash Partner Program.",
               "Founding Partners: the first 25 partners lock a 25% commission rate for 12 months — above the standard 20% entry rate.",
             ],
+          },
+          {
             heading: "How it works",
+            body: [
+              "Create your link in minutes at /enterprise/partners/apply — fill the short form and verify your email (no JobsAI login or purchase required). The 'Become a partner' button on the Partner Program page goes straight there.",
+            ],
             steps: [
-              "Join from the Partner Dashboard — you get a unique referral link.",
-              "Set up payouts via Stripe Connect (Stripe handles bank/tax/ID verification).",
+              "Apply with your name, email, and audience type; verify the emailed code.",
+              "Get your unique referral link instantly (e.g. app.jobsai.work/partner/ABC123).",
               "Share your link. We attribute any signup within 90 days (last-touch) to you.",
               "When your referral converts from trial to a paying customer, commission starts accruing.",
               "You earn a percentage of what they actually pay (collected revenue) every month for 12 months.",
-              "Track referrals, earnings, and payout status in your dashboard.",
+              "Set up payouts and track referrals & earnings in your partner dashboard.",
             ],
           },
           {
