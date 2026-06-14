@@ -86,9 +86,14 @@ export default async function GuideArticlePage({
       {/* Help footer */}
       <div className="mt-8 rounded-2xl border border-border bg-card/60 p-5 text-center">
         <p className="text-sm text-muted-foreground">Still stuck? Our team is happy to help.</p>
-        <Link href="/enterprise/contact" className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow">
-          Contact support
-        </Link>
+        <div className="mt-3 flex flex-wrap justify-center gap-2">
+          <Link href="/enterprise/contact" className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow">
+            Contact support
+          </Link>
+          <Link href="/enterprise/intake" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-4 py-2 text-sm font-semibold hover:border-primary/40">
+            Not a customer? Get started
+          </Link>
+        </div>
       </div>
     </GuideLayout>
   );
