@@ -9,7 +9,7 @@ const SIZES = ["1-10","11-50","51-200","201-500","500+"];
 
 export default function EnterpriseOnboard() {
   const router = useRouter();
-  const [form, setForm] = useState({ name: "", industry: "", size: "", website: "" });
+  const [form, setForm] = useState({ name: "", phone: "", industry: "", size: "", website: "" });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -56,6 +56,17 @@ export default function EnterpriseOnboard() {
               placeholder="Acme Corp"
               className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
             />
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Phone number</label>
+            <input
+              type="tel"
+              value={form.phone} onChange={(e) => set("phone", e.target.value)}
+              placeholder="+1 555 000 0000"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+            <p className="mt-1 text-xs text-muted-foreground">So we can reach you about activation.</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">

@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
       industry: body.industry ?? null,
       size: body.size ?? null,
       website: body.website ?? null,
+      phone: body.phone ?? null,
       created_by: userId,
     })
     .select("*")

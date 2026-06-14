@@ -1,7 +1,9 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { Lock } from "lucide-react";
+import Link from "next/link";
+import { Lock, ArrowLeft } from "lucide-react";
 import { getMyOrg, orgHasAccess } from "@/lib/enterprise";
+import { StartOverButton } from "./start-over";
 
 // Shown when a recruiter's org exists but its subscription isn't active yet.
 export default async function EnterpriseLockedPage() {
@@ -27,21 +29,31 @@ export default async function EnterpriseLockedPage() {
         access is activated once your subscription is confirmed.
       </p>
       <div className="mt-8 flex flex-col items-center gap-3">
-        <a
+        <Link
           href="/enterprise/plans"
           className="rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground hover:opacity-90"
         >
           Choose a plan & start your trial
-        </a>
-        <a
-          href="mailto:support@jobsai.work?subject=Activate%20my%20enterprise%20workspace"
+        </Link>
+        <Link
+          href="/enterprise/contact"
           className="text-sm font-medium text-primary hover:underline"
         >
           Or contact us to activate
-        </a>
+        </Link>
         <p className="text-xs text-muted-foreground">
           Already subscribed? Activation is usually instant — refresh in a moment.
         </p>
+
+        <div className="mt-4 flex flex-col items-center gap-3 border-t border-border/60 pt-5">
+          <StartOverButton />
+          <Link
+            href="/enterprise/home"
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" /> Back to home
+          </Link>
+        </div>
       </div>
     </div>
   );
