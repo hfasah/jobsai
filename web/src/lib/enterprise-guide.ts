@@ -553,6 +553,49 @@ export const GUIDE: GuideCategory[] = [
       },
     ],
   },
+  {
+    id: "partner-program",
+    title: "Partner program",
+    description: "Refer customers and earn recurring commission.",
+    articles: [
+      {
+        slug: "partner-program",
+        title: "Partner program — how referrals & commissions work",
+        icon: "🤝",
+        summary: "Earn 20–30% recurring commission for 12 months on every customer you refer.",
+        sections: [
+          {
+            body: [
+              "The Partner Program rewards you for sending recruiting agencies, staffing firms, and HR teams to JobsAI Enterprise. It's the referrer side; the Lifetime Offer is the customer's discount. They're different things, and they stack.",
+            ],
+            heading: "How it works",
+            steps: [
+              "Apply via the Partners page — tell us about your audience and we set you up.",
+              "Share your unique referral link. We attribute any signup within 90 days (last-touch) to you.",
+              "When your referral converts from trial to a paying customer, a referral and commission are created automatically.",
+              "You earn a percentage of what they actually pay (collected revenue) every month for 12 months.",
+              "Track referrals, MRR generated, and earnings in your partner dashboard; payouts run monthly.",
+            ],
+          },
+          {
+            heading: "Commission tiers",
+            steps: [
+              "Referral Partner — 1–4 active customers — 20% commission.",
+              "Growth Partner — 5+ active customers — 25% commission.",
+              "Strategic Partner — 20+ active customers — 30% commission, plus co-marketing and a dedicated partner manager.",
+            ],
+          },
+          {
+            heading: "Stacking with the Lifetime Offer",
+            body: [
+              "If your referred customer claims the Lifetime Offer (50% off for life), you still earn — on what they pay. Example: an Agency plan ($799 list) at $399 with the Lifetime Offer earns you 20% of $399 = $79.80/mo, or $957.60 over 12 months. Commission is always on collected revenue, never list price, which is what makes stacking sustainable.",
+            ],
+            tip: "Commissions are released after a 30-day hold and pay out monthly once your cleared balance passes $50. Refunds or chargebacks reverse the matching commission.",
+          },
+        ],
+      },
+    ],
+  },
 ];
 
 export const GUIDE_ARTICLES: GuideArticle[] = GUIDE.flatMap((c) => c.articles);

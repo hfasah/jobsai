@@ -234,6 +234,16 @@ export const GUIDE_MOCKS: Record<string, GuideMock | GuideMock[]> = {
     ],
     annotation: "Connect via Merge, or link Loxo directly with your API key — then choose sync direction and run an initial sync.",
   },
+  "partner-program": {
+    title: "Partner Dashboard", icon: "🤝", kind: "stats",
+    stats: [
+      { label: "Active referrals", value: "12" },
+      { label: "Paying customers", value: "7" },
+      { label: "MRR generated", value: "$5,800" },
+      { label: "This month's earnings", value: "$1,160", highlight: true },
+    ],
+    annotation: "Track referrals, paying customers, and earnings in real time — payouts run monthly on collected revenue.",
+  },
   "connect-email-calendar": {
     title: "Settings → Integrations", icon: "📬", kind: "list",
     items: [
