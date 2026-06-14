@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Building2, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { SignOutButton } from "@clerk/nextjs";
+import { Building2, Loader2, ArrowRight, ArrowLeft, LogOut } from "lucide-react";
 
 const INDUSTRIES = ["Technology","Finance","Healthcare","Education","Retail","Manufacturing","Media","Legal","Consulting","Other"];
 const SIZES = ["1-10","11-50","51-200","201-500","500+"];
@@ -36,7 +37,26 @@ export default function EnterpriseOnboard() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
+    <main className="flex min-h-screen flex-col bg-background">
+      {/* Top bar — always-visible escape routes so users are never trapped */}
+      <header className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+        <Link href="/enterprise/home" className="flex items-center gap-2 text-sm font-semibold">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-brand"><Building2 className="h-4 w-4 text-white" /></span>
+          JobsAI <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">Enterprise</span>
+        </Link>
+        <div className="flex items-center gap-1 text-sm">
+          <Link href="/enterprise/home" className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Home
+          </Link>
+          <SignOutButton redirectUrl="/enterprise-login">
+            <button className="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+              <LogOut className="h-3.5 w-3.5" /> Sign out
+            </button>
+          </SignOutButton>
+        </div>
+      </header>
+
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="mb-8 text-center">
@@ -107,11 +127,10 @@ export default function EnterpriseOnboard() {
           </button>
         </form>
 
-        <div className="mt-5 text-center">
-          <Link href="/enterprise/home" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-3.5 w-3.5" /> Back to home
-          </Link>
-        </div>
+        <p className="mt-5 text-center text-xs text-muted-foreground">
+          Changed your mind? Use <span className="font-medium text-foreground">Home</span> or <span className="font-medium text-foreground">Sign out</span> at the top to leave.
+        </p>
+      </div>
       </div>
     </main>
   );
