@@ -41,19 +41,19 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
 export const metadata: Metadata = {
   title: {
-    default: "JobsAI — Land job interviews in 90 days, guaranteed",
+    default: "JobsAI — Get job interviews in 90 days, or your money back",
     template: "%s | JobsAI",
   },
   description:
-    "JobsAI runs your whole job search — tailoring every application, applying for you, and reaching recruiters directly — then preps you for every interview with AI coaching. Land interviews in 90 days, guaranteed.",
+    "JobsAI runs your whole job search — tailoring every application, applying for you, and reaching recruiters directly — then preps you for every interview with AI coaching. Get interviews in 90 days, or your money back.",
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",
     url: APP_URL,
     siteName: "JobsAI",
-    title: "JobsAI — Land job interviews in 90 days, guaranteed",
+    title: "JobsAI — Get job interviews in 90 days, or your money back",
     description:
-      "The complete AI job search: we apply, tailor, and reach recruiters for you, then coach you through every interview — interviews guaranteed in 90 days.",
+      "The complete AI job search: we apply, tailor, and reach recruiters for you, then coach you through every interview — interviews in 90 days, or your money back.",
     images: [
       {
         url: "/og-image.png",
@@ -65,9 +65,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "JobsAI — Land job interviews in 90 days, guaranteed",
+    title: "JobsAI — Get job interviews in 90 days, or your money back",
     description:
-      "The complete AI job search: we apply, tailor, and reach recruiters for you, then coach you through every interview — interviews guaranteed in 90 days.",
+      "The complete AI job search: we apply, tailor, and reach recruiters for you, then coach you through every interview — interviews in 90 days, or your money back.",
     images: ["/og-image.png"],
   },
   icons: {
