@@ -110,7 +110,7 @@ export default function Home() {
 
           <div className="relative mx-auto flex max-w-4xl flex-col items-center text-center">
             <span className="reveal reveal-1 inline-flex items-center gap-2 rounded-full border border-[var(--cta)]/40 bg-[var(--cta)]/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[var(--cta)]">
-              AI Auto Job Apply
+              90-Day Interview Guarantee
             </span>
             <h1 className="reveal reveal-2 mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
               Stop applying,<br />
@@ -118,9 +118,10 @@ export default function Home() {
             </h1>
 
             <p className="reveal reveal-3 mt-6 max-w-2xl text-lg text-muted-foreground">
-              {APP_NAME} auto-applies to thousands of jobs and reaches recruiters directly for
-              you, so you stop grinding applications and start landing interviews, guaranteed.
-              When they come in, we prep you to win them.
+              {APP_NAME} runs your whole job search &mdash; tailoring every application, applying
+              for you, and reaching recruiters directly &mdash; then preps you for every interview
+              with AI coaching. You stop grinding applications and start landing them,{" "}
+              <span className="font-semibold text-foreground">guaranteed in 90 days.</span>
             </p>
 
             {/* Voice orb */}
