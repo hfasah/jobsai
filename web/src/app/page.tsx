@@ -70,7 +70,7 @@ const FEATURES = [
 ];
 
 const TESTIMONIALS = [
-  { quote: "JobsAI auto-applied to 80+ roles in my first week. I had 6 interviews booked before I'd finished my coffee.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
+  { quote: "Six interviews booked in my first week — JobsAI ran every application for me while I focused on prepping. I just showed up and interviewed.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
   { quote: "I stopped spending nights on applications, the interviews just started showing up. The prep tools got me the offer.", name: "Priya S.", role: "VP Product", initials: "PS" },
   { quote: "Five interviews in two weeks without me lifting a finger on applications. This is the whole job search, automated.", name: "Daniel R.", role: "Data Scientist", initials: "DR" },
 ];

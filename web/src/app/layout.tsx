@@ -41,19 +41,19 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
 export const metadata: Metadata = {
   title: {
-    default: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
+    default: "JobsAI — Land job interviews in 90 days, guaranteed",
     template: "%s | JobsAI",
   },
   description:
-    "JobsAI auto-applies to thousands of jobs and reaches recruiters directly for you — so you stop grinding applications and start landing interviews, guaranteed. Plus AI interview prep built from your resume and the role.",
+    "JobsAI runs your whole job search — tailoring every application, applying for you, and reaching recruiters directly — then preps you for every interview with AI coaching. Land interviews in 90 days, guaranteed.",
   metadataBase: new URL(APP_URL),
   openGraph: {
     type: "website",
     url: APP_URL,
     siteName: "JobsAI",
-    title: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
+    title: "JobsAI — Land job interviews in 90 days, guaranteed",
     description:
-      "Stop grinding applications. JobsAI auto-applies to thousands of jobs, tailors your resume, and preps you for interviews — guaranteed.",
+      "The complete AI job search: we apply, tailor, and reach recruiters for you, then coach you through every interview — interviews guaranteed in 90 days.",
     images: [
       {
         url: "/og-image.png",
@@ -65,9 +65,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "JobsAI — Auto-apply to jobs and land interviews, guaranteed",
+    title: "JobsAI — Land job interviews in 90 days, guaranteed",
     description:
-      "Stop grinding applications. JobsAI auto-applies to thousands of jobs, tailors your resume, and preps you for interviews — guaranteed.",
+      "The complete AI job search: we apply, tailor, and reach recruiters for you, then coach you through every interview — interviews guaranteed in 90 days.",
     images: ["/og-image.png"],
   },
   icons: {
