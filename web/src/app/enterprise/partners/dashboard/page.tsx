@@ -52,7 +52,7 @@ export default async function PartnerDashboardPage({
             </div>
             <JoinForm />
             <p className="mt-4 text-center text-xs text-muted-foreground">
-              By applying you agree to the <Link href="/enterprise/partners" className="text-primary hover:underline">Partner Program</Link> terms. We review applications before activating your link.
+              By applying you agree to the <Link href="/enterprise/guide/partner-terms" className="text-primary hover:underline">Partner Program terms</Link>. We review applications before activating your link.
             </p>
           </div>
         ) : partner.status === "pending" ? (

@@ -601,6 +601,32 @@ export const GUIDE: GuideCategory[] = [
           },
         ],
       },
+      {
+        slug: "partner-terms",
+        title: "Partner Program terms",
+        icon: "📜",
+        summary: "The simple terms you agree to as a JobsAI Enterprise Partner.",
+        sections: [
+          {
+            body: [
+              "These are the plain-language terms of the JobsAI Enterprise Partner Program. By joining, accepting an invitation, or sharing your referral link, you agree to them.",
+            ],
+          },
+          {
+            heading: "The essentials",
+            steps: [
+              "Eligibility — partners are consultants, agencies, advisors, and other trusted voices; you don't need to be a JobsAI customer. We may approve, decline, or remove any partner at our discretion.",
+              "Your referral link — we credit you when a company signs up within 90 days of clicking your link (last-touch). Each referred company is credited to one partner. Don't refer your own organization.",
+              "Commission — you earn your tier rate (20–30%) of collected revenue for 12 months per referred customer. It's calculated on what the customer actually pays (after any discount), never list price.",
+              "Getting paid — commissions clear after a 2-month hold and pay out monthly once your balance passes $500. Refunds or chargebacks reverse the matching commission. You're responsible for your own taxes.",
+              "Fair play — no spam, no paid ads on JobsAI brand terms, no misleading claims, and no fake or incentivized signups. Breaches void affected commissions and may end your participation.",
+              "Your role — represent JobsAI honestly. You're an independent partner, not an employee or agent, and can't enter agreements on our behalf.",
+              "Changes & ending — we may update rates or terms, or end the program, with reasonable notice; we may suspend partners who breach these terms. You can leave at any time.",
+            ],
+            tip: "Questions about the program? Reach the JobsAI Enterprise Partner Team via the Contact link in the footer.",
+          },
+        ],
+      },
     ],
   },
 ];

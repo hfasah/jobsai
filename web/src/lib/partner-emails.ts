@@ -75,7 +75,8 @@ export function partnerInviteEmailHtml(opts: { name?: string | null; rate: numbe
         <li style="margin-bottom:6px">The companies you refer get <strong style="color:#fff">priority onboarding &amp; support</strong> — your name opens doors.</li>
         <li style="margin-bottom:6px">A private partner dashboard, early access to new features, and a direct line to our team.</li>
       </ul>
-      <p style="margin:0 0 6px">Accept your invitation to activate your personal referral link and dashboard. We're honoured to have you.</p>`,
+      <p style="margin:0 0 6px">Accept your invitation to activate your personal referral link and dashboard. We're honoured to have you.</p>
+      <p style="margin:10px 0 0;color:#7a7a8c;font-size:12px">By accepting you agree to the <a href="${SITE}/enterprise/guide/partner-terms" style="color:#a78bfa;text-decoration:none">Partner Program terms</a>.</p>`,
     ctaLabel: "Accept your invitation",
     ctaUrl: opts.acceptUrl,
   });

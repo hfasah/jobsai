@@ -40,7 +40,7 @@ export function AcceptInvite({ token, name, rate, isFounding }: { token: string;
         className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow disabled:opacity-60">
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} Accept your invitation
       </button>
-      <p className="mt-3 text-xs text-muted-foreground">By accepting you agree to the Partner Program terms.</p>
+      <p className="mt-3 text-xs text-muted-foreground">By accepting you agree to the <a href="/enterprise/guide/partner-terms" target="_blank" rel="noreferrer" className="underline hover:text-foreground">Partner Program terms</a>.</p>
     </div>
   );
 }
