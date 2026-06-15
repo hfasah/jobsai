@@ -19,6 +19,7 @@ type Partner = {
   website: string | null;
   audience_type: string | null;
   referral_code: string;
+  portal_token: string | null;
   tier: string;
   commission_rate: number;
   status: string;
@@ -30,6 +31,21 @@ type Partner = {
 };
 
 const usd = (c: number) => `$${(c / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const ORIGIN = typeof window !== "undefined" ? window.location.origin : "https://app.jobsai.work";
+
+// Small chip that copies a link (referral or dashboard) to the clipboard.
+function CopyChip({ label, url }: { label: string; url: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
+  };
+  return (
+    <button onClick={copy} title={url}
+      className="inline-flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground hover:bg-muted/70">
+      {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />} {copied ? "Copied" : label}
+    </button>
+  );
+}
 
 export default function AdminPartners() {
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -168,9 +184,16 @@ export default function AdminPartners() {
                     {p.is_founding && <Sparkles className="h-3.5 w-3.5 text-primary" />}
                   </div>
                   <div className="text-xs text-muted-foreground">{p.email}</div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <code className="rounded bg-muted px-1">{p.referral_code}</code>
-                    {p.website && <a href={p.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 hover:text-foreground">site <ExternalLink className="h-3 w-3" /></a>}
+                  <div className="mt-1 flex items-center gap-2">
+                    <a href={`${ORIGIN}/partner/${p.referral_code}`} target="_blank" rel="noreferrer"
+                      className="font-mono text-[11px] text-primary hover:underline" title="Referral link">
+                      {ORIGIN.replace(/^https?:\/\//, "")}/partner/{p.referral_code}
+                    </a>
+                    {p.website && <a href={p.website} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground"><ExternalLink className="h-3 w-3" /></a>}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                    <CopyChip label="Copy referral link" url={`${ORIGIN}/partner/${p.referral_code}`} />
+                    {p.portal_token && <CopyChip label="Copy dashboard link" url={`${ORIGIN}/enterprise/partners/portal/${p.portal_token}`} />}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">{p.audience_type || "—"}</td>
