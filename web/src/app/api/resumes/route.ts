@@ -1,16 +1,17 @@
 import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createHash } from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { checkResumeGate } from "@/lib/billing";
+import { runResumeParse } from "@/lib/resume-parse-pipeline";
 
 function sha256(data: Buffer): string {
   return createHash("sha256").update(data).digest("hex");
 }
 
-export const maxDuration = 30;
+export const maxDuration = 60; // upload + after() parse pipeline (extract + LLM)
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -197,11 +198,11 @@ export async function POST(req: NextRequest) {
     .update({ active_version_id: versionId })
     .eq("id", groupId);
 
-  // Fire text extraction in background (user doesn't wait)
-  fetch(`${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/api/resumes/versions/${versionId}/parse`, {
-    method: "POST",
-    keepalive: true,
-  }).catch(() => {});
+  // Run the full parse pipeline after the response is sent. `after()` keeps the
+  // serverless function alive for the work (unlike a fire-and-forget fetch/promise,
+  // which Vercel kills once the response returns), so extraction + structured parse
+  // actually complete instead of leaving the resume stuck on "partial".
+  after(() => runResumeParse(versionId));
 
   return NextResponse.json({
     resume_version_id: versionId,

@@ -1,12 +1,14 @@
 import { auth } from "@clerk/nextjs/server";
-import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
-import { extractText } from "@/lib/resume-extractor";
+import { NextRequest, NextResponse, after } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { runResumeParse } from "@/lib/resume-parse-pipeline";
 
-export const maxDuration = 10; // Don't wait long
+export const maxDuration = 60; // extraction + structured LLM parse run via after()
 
-// POST /api/resumes/versions/[versionId]/parse — background extraction only
-// Fire and forget — return immediately, extraction happens async
+// POST /api/resumes/versions/[versionId]/parse — runs the full parse pipeline
+// (extract text → structured LLM parse → persist profile) durably via after(),
+// so it completes even on serverless after the response is returned. Returns
+// immediately; the client polls the version's parse_status.
 export async function POST(
   _req: NextRequest,
   { params }: { params: Promise<{ versionId: string }> }
@@ -19,7 +21,7 @@ export async function POST(
   // Verify ownership
   const { data: version } = await supabaseAdmin
     .from("resume_versions")
-    .select("id, document_id, storage_key, file_mime, parse_status, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
+    .select("id, parse_status, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
     .eq("id", versionId)
     .eq("resume_documents!resume_versions_document_id_fkey.user_id", userId)
     .is("deleted_at", null)
@@ -27,56 +29,13 @@ export async function POST(
 
   if (!version) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Already extracted, don't re-extract
-  if (version.parse_status === "parsed" || version.parse_status === "partial") {
-    return NextResponse.json({ ok: true, status: version.parse_status });
+  // Already fully parsed — nothing to do. (A "partial" can still be re-parsed.)
+  if (version.parse_status === "parsed") {
+    return NextResponse.json({ ok: true, status: "parsed" });
   }
 
-  // Return immediately — extraction happens in background
-  // Don't wait for extraction to complete
-  (async () => {
-    try {
-      const { data: fileData } = await supabaseAdmin.storage
-        .from(STORAGE_BUCKET)
-        .download(version.storage_key);
+  // Run the full pipeline after the response is sent — survives on serverless.
+  after(() => runResumeParse(versionId));
 
-      if (!fileData) return;
-
-      const buffer = Buffer.from(await fileData.arrayBuffer());
-      const mimeType = version.file_mime ?? "application/pdf";
-
-      const extracted = await extractText(buffer, mimeType);
-      const plainText = extracted.text;
-      const pages = extracted.pages;
-      const ocrUsed = extracted.ocrUsed;
-
-      if (!plainText) {
-        await supabaseAdmin.from("resume_versions").update({
-          parse_status: "failed",
-          parse_error_code: "NO_TEXT_DETECTED",
-        }).eq("id", versionId);
-        return;
-      }
-
-      // Store extracted text
-      await supabaseAdmin.from("resume_texts").upsert({
-        version_id: versionId,
-        plain_text: plainText,
-        tokens_count: Math.ceil(plainText.length / 4),
-      });
-
-      // Update version with extraction details
-      await supabaseAdmin.from("resume_versions").update({
-        parse_status: "partial",
-        pages_count: pages,
-        ocr_used: ocrUsed,
-      }).eq("id", versionId);
-    } catch (err) {
-      console.error("Background extraction error:", err);
-      // Silently fail — user has minimal resume already
-    }
-  })();
-
-  // Return immediately, don't wait for extraction
-  return NextResponse.json({ ok: true, status: "partial" });
+  return NextResponse.json({ ok: true, status: "processing" });
 }
