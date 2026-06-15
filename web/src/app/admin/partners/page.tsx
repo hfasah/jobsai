@@ -96,7 +96,7 @@ export default function AdminPartners() {
         </div>
         <button onClick={() => setCreateOpen(true)}
           className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow">
-          <Plus className="h-4 w-4" /> Create partner
+          <Plus className="h-4 w-4" /> Invite partner
         </button>
       </div>
 
@@ -210,14 +210,14 @@ export default function AdminPartners() {
   );
 }
 
-type Created = { referralLink: string; portalLink: string | null; emailed: boolean; rate: number };
+type Created = { acceptLink: string; emailed: boolean };
 
 function CreatePartnerModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
   const [form, setForm] = useState({ name: "", email: "", company_name: "", audience_type: "", website: "", commission_rate: "", is_founding: false });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [created, setCreated] = useState<Created | null>(null);
-  const [copied, setCopied] = useState<"ref" | "portal" | null>(null);
+  const [copied, setCopied] = useState(false);
   const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
 
   const submit = async () => {
@@ -231,14 +231,14 @@ function CreatePartnerModal({ onClose, onCreated }: { onClose: () => void; onCre
         }),
       });
       const j = await r.json();
-      if (!r.ok) { setError(j.error ?? "Could not create partner."); return; }
-      setCreated({ referralLink: j.data.referralLink, portalLink: j.data.portalLink, emailed: j.data.emailed, rate: j.data.partner.commission_rate });
+      if (!r.ok) { setError(j.error ?? "Could not send invitation."); return; }
+      setCreated({ acceptLink: j.data.acceptLink, emailed: j.data.emailed });
       onCreated();
     } finally { setBusy(false); }
   };
 
-  const copy = async (text: string, which: "ref" | "portal") => {
-    try { await navigator.clipboard.writeText(text); setCopied(which); setTimeout(() => setCopied(null), 1500); } catch {}
+  const copy = async (text: string) => {
+    try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch {}
   };
 
   const input = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary";
@@ -247,26 +247,24 @@ function CreatePartnerModal({ onClose, onCreated }: { onClose: () => void; onCre
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
       <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-bold">{created ? "Partner created" : "Create a partner"}</h2>
+          <h2 className="text-lg font-bold">{created ? "Invitation sent" : "Invite a partner"}</h2>
           <button onClick={onClose} className="rounded-lg p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
         </div>
 
         {created ? (
           <div className="space-y-4">
             <p className="flex items-center gap-2 text-sm text-emerald-600">
-              {created.emailed ? <><Mail className="h-4 w-4" /> Links emailed to the partner.</> : <>Created, but the email didn&apos;t send — share these manually:</>}
+              {created.emailed ? <><Mail className="h-4 w-4" /> Invitation emailed. They&apos;re <strong>pending</strong> until they accept.</> : <>Created (pending), but the email didn&apos;t send — share this invite link:</>}
             </p>
-            {([["Referral link", created.referralLink, "ref"], ...(created.portalLink ? [["Dashboard link", created.portalLink, "portal"]] : [])] as [string, string, "ref" | "portal"][]).map(([label, url, which]) => (
-              <div key={which}>
-                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
-                <div className="flex items-center gap-2">
-                  <code className="flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 text-xs">{url}</code>
-                  <button onClick={() => copy(url, which)} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold hover:bg-muted">
-                    {copied === which ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invitation link</p>
+              <div className="flex items-center gap-2">
+                <code className="flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 text-xs">{created.acceptLink}</code>
+                <button onClick={() => copy(created.acceptLink)} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold hover:bg-muted">
+                  {copied ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                </button>
               </div>
-            ))}
+            </div>
             <button onClick={onClose} className="w-full rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white">Done</button>
           </div>
         ) : (
@@ -295,7 +293,7 @@ function CreatePartnerModal({ onClose, onCreated }: { onClose: () => void; onCre
             {error && <p className="text-sm text-destructive">{error}</p>}
             <button onClick={submit} disabled={busy || !form.email.includes("@")}
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create &amp; email partner
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />} Send invitation
             </button>
           </div>
         )}

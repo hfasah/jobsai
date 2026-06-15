@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin";
 import { supabaseAdmin } from "@/lib/supabase";
-import { resend, FROM_SUPPORT } from "@/lib/resend";
+import { resend } from "@/lib/resend";
 import { adminCreatePartner } from "@/lib/partner-program";
 import { listPartnersForAdmin } from "@/lib/partner-payouts";
+import { FROM_PARTNER_TEAM, partnerInviteEmailHtml } from "@/lib/partner-emails";
 
 const validEmail = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
@@ -41,32 +42,24 @@ export async function POST(req: NextRequest) {
   }
 
   const origin = req.nextUrl.origin;
-  const referralLink = `${origin}/partner/${partner.referral_code}`;
-  const portalLink = partner.portal_token ? `${origin}/enterprise/partners/portal/${partner.portal_token}` : null;
+  // The invitation links to the partner's portal; while pending it shows the
+  // "accept your invitation" screen, then becomes their dashboard.
+  const acceptLink = partner.portal_token ? `${origin}/enterprise/partners/portal/${partner.portal_token}` : `${origin}/enterprise/partners/portal`;
 
   let emailed = false;
   try {
     await resend.emails.send({
-      from: FROM_SUPPORT,
+      from: FROM_PARTNER_TEAM,
       to: email,
-      subject: "You've been invited to the JobsAI Partner Program 🎉",
-      html: `
-        <div style="font-family:sans-serif;max-width:520px;margin:0 auto">
-          <h2 style="color:#6d28d9">Welcome to the JobsAI Partner Program!</h2>
-          <p>${name ? name.split(" ")[0] + ", you" : "You"}'ve been set up as a partner — you'll earn <strong>${partner.commission_rate}% recurring commission</strong> on every customer you refer.</p>
-          <p>Share your referral link:</p>
-          <p style="background:#f5f3ff;padding:14px;border-radius:8px;word-break:break-all"><a href="${referralLink}">${referralLink}</a></p>
-          ${portalLink ? `<p>Track referrals & earnings in your private dashboard (no login needed — bookmark it):</p><p style="background:#f5f3ff;padding:14px;border-radius:8px;word-break:break-all"><a href="${portalLink}">${portalLink}</a></p>` : ""}
-          <p style="color:#888;font-size:13px;margin-top:20px">Tip: add <strong>support@send.jobsai.work</strong> to your contacts so our emails don't land in spam.</p>
-        </div>
-      `,
+      subject: "🎉 You're invited: JobsAI Enterprise Partner Program",
+      html: partnerInviteEmailHtml({ name, rate: partner.commission_rate, acceptUrl: acceptLink }),
     });
     emailed = true;
   } catch {
-    // Links are returned below so the admin can share manually.
+    // Link is returned below so the admin can share manually.
   }
 
-  return NextResponse.json({ data: { partner, referralLink, portalLink, emailed } });
+  return NextResponse.json({ data: { partner, acceptLink, emailed } });
 }
 
 // Update a partner: approve / suspend / reactivate, or adjust commission rate.

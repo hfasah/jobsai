@@ -1,7 +1,49 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, Mail, Copy, Check, Save, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Loader2, Mail, Copy, Check, Save, LogOut, Sparkles, ArrowRight } from "lucide-react";
+
+// Pending invitee accepts → activates their account and reloads into the dashboard.
+export function AcceptInvite({ token, name, rate, isFounding }: { token: string; name: string | null; rate: number; isFounding: boolean }) {
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const first = name?.trim()?.split(" ")[0];
+
+  const accept = async () => {
+    setBusy(true); setError("");
+    try {
+      const r = await fetch("/api/enterprise/partner/portal/accept", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }),
+      });
+      if (!r.ok) { setError((await r.json().catch(() => ({}))).error ?? "Could not accept."); return; }
+      router.refresh();
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="mx-auto max-w-xl rounded-2xl border border-primary/30 bg-gradient-to-b from-primary/10 to-transparent p-8 text-center">
+      <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-brand shadow-glow"><Sparkles className="h-7 w-7 text-white" /></div>
+      <p className="text-xs font-bold uppercase tracking-widest text-primary">You&apos;ve been chosen</p>
+      <h1 className="mt-2 text-2xl font-bold tracking-tight">{first ? `Congratulations, ${first} 🎉` : "Congratulations 🎉"}</h1>
+      <p className="mx-auto mt-3 max-w-md text-sm text-muted-foreground">
+        You&apos;ve been personally invited to the JobsAI Enterprise Partner Program — an honour we extend to only a select few. As an ambassador you&apos;ll earn <strong className="text-foreground">{rate}% recurring commission</strong>{isFounding ? " (Founding Partner rate)" : ""}, and the companies you refer get priority onboarding &amp; support.
+      </p>
+      <ul className="mx-auto mt-5 grid max-w-sm gap-2 text-left text-sm">
+        {["Earn cash for every company you refer, for 12 months", "Your referrals get priority support — your name opens doors", "A private dashboard, early access, and a direct line to our team"].map((t) => (
+          <li key={t} className="flex items-start gap-2"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />{t}</li>
+        ))}
+      </ul>
+      {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+      <button onClick={accept} disabled={busy}
+        className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow disabled:opacity-60">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} Accept your invitation
+      </button>
+      <p className="mt-3 text-xs text-muted-foreground">By accepting you agree to the Partner Program terms.</p>
+    </div>
+  );
+}
 
 // Dashboard header actions: re-send the magic link (so they never lose access)
 // and "sign out" — which rotates the token so this private link stops working

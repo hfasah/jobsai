@@ -244,14 +244,32 @@ export async function adminCreatePartner(fields: {
       commission_rate: rate,
       tier: rate >= 30 ? "strategic" : rate >= 25 ? "growth" : "recruiting",
       is_founding: founding,
-      verified: true,
-      status: "active",
-      approved_at: new Date().toISOString(),
+      verified: false,
+      status: "pending", // invited — stays pending until the partner accepts
     })
     .select("*")
     .single();
   if (error) throw new Error(error.message);
   return data as PartnerAccount;
+}
+
+// The partner accepts their invitation → activated. Returns the active partner.
+export async function acceptPartnerInvite(
+  token: string,
+): Promise<{ ok: true; partner: PartnerAccount } | { ok: false; error: string }> {
+  const partner = await getPartnerByPortalToken(token);
+  if (!partner) return { ok: false, error: "This invitation link is invalid or expired." };
+  if (partner.status === "suspended") return { ok: false, error: "This partner account is suspended." };
+  if (partner.status === "active") return { ok: true, partner };
+
+  const { data, error } = await supabaseAdmin
+    .from("partner_accounts")
+    .update({ status: "active", verified: true, approved_at: new Date().toISOString() })
+    .eq("id", partner.id)
+    .select("*")
+    .single();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, partner: data as PartnerAccount };
 }
 
 // Confirm the code → activate the partner and lock in the founding rate if they

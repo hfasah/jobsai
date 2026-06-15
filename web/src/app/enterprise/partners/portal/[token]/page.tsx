@@ -5,7 +5,7 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { getPartnerByPortalToken, getPartnerStats } from "@/lib/partner-program";
 import { PARTNER_MIN_PAYOUT } from "@/lib/enterprise-partners";
-import { CopyLink, PortalPayoutForm, RequestLinkForm, PortalActions } from "../portal-client";
+import { CopyLink, PortalPayoutForm, RequestLinkForm, PortalActions, AcceptInvite } from "../portal-client";
 
 export const metadata = {
   title: "Partner Dashboard — JobsAI Enterprise",
@@ -33,6 +33,8 @@ export default async function PartnerPortalPage({ params }: { params: Promise<{ 
             </div>
             {!partner && <RequestLinkForm />}
           </div>
+        ) : partner.status === "pending" ? (
+          <AcceptInvite token={token} name={partner.name} rate={partner.commission_rate} isFounding={partner.is_founding} />
         ) : (
           <PortalView token={token} partner={partner} />
         )}
