@@ -10,8 +10,9 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Force HTTPS for 1 year once first visited.
   { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
-  // Restrict powerful browser features we don't use.
-  { key: "Permissions-Policy", value: "camera=(), microphone=(self), geolocation=(), payment=()" },
+  // Restrict powerful browser features we don't use. Camera + mic are allowed
+  // for our own origin (self) — needed for avatar/voice mock interviews.
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(), payment=()" },
   // Basic XSS protection for older browsers.
   { key: "X-XSS-Protection", value: "1; mode=block" },
   // Content Security Policy — allows our own origin, Clerk, Stripe, Supabase,
