@@ -206,6 +206,54 @@ export async function upsertPartnerApplication(
   return { partner: data as PartnerAccount, code, alreadyVerified: false };
 }
 
+// Admin-created partner: active + verified immediately (the admin is the gate),
+// with a referral code and portal token minted up front. Throws if the email is
+// already a partner.
+export async function adminCreatePartner(fields: {
+  name?: string | null;
+  email: string;
+  company_name?: string | null;
+  audience_type?: string | null;
+  website?: string | null;
+  commission_rate?: number | null;
+  is_founding?: boolean;
+}): Promise<PartnerAccount> {
+  const email = fields.email.trim();
+  const existing = await getPartnerByEmail(email);
+  if (existing) throw new Error("A partner with that email already exists.");
+
+  let referral = genReferralCode();
+  for (let i = 0; i < 5; i++) {
+    if (!(await getPartnerByCode(referral))) break;
+    referral = genReferralCode();
+  }
+
+  const founding = fields.is_founding ?? (await foundingEligible());
+  const rate = fields.commission_rate ?? (founding ? FOUNDING_PARTNER_RATE : PARTNER_BASE_RATE);
+
+  const { data, error } = await supabaseAdmin
+    .from("partner_accounts")
+    .insert({
+      name: fields.name ?? null,
+      email,
+      company_name: fields.company_name ?? null,
+      audience_type: fields.audience_type ?? null,
+      website: fields.website ?? null,
+      referral_code: referral,
+      portal_token: genPortalToken(),
+      commission_rate: rate,
+      tier: rate >= 30 ? "strategic" : rate >= 25 ? "growth" : "recruiting",
+      is_founding: founding,
+      verified: true,
+      status: "active",
+      approved_at: new Date().toISOString(),
+    })
+    .select("*")
+    .single();
+  if (error) throw new Error(error.message);
+  return data as PartnerAccount;
+}
+
 // Confirm the code → activate the partner and lock in the founding rate if they
 // land in the first cohort. Returns the activated partner (with referral code).
 export async function verifyPartnerApplication(

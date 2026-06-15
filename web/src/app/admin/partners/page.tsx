@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { Handshake, Loader2, Sparkles, Banknote, Clock, CheckCircle2, ExternalLink } from "lucide-react";
+import { Handshake, Loader2, Sparkles, Banknote, Clock, CheckCircle2, ExternalLink, Plus, X, Copy, Check, Mail } from "lucide-react";
+import { PARTNER_AUDIENCE_TYPES } from "@/lib/enterprise-partners";
 
 type Stats = {
   referrals: number;
@@ -34,6 +35,7 @@ export default function AdminPartners() {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/admin/partners")
@@ -87,10 +89,18 @@ export default function AdminPartners() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold"><Handshake className="h-6 w-6 text-primary" /> Partners</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Approve partners, adjust commission, and process payouts.</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold"><Handshake className="h-6 w-6 text-primary" /> Partners</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Create &amp; approve partners, adjust commission, and process payouts.</p>
+        </div>
+        <button onClick={() => setCreateOpen(true)}
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow">
+          <Plus className="h-4 w-4" /> Create partner
+        </button>
       </div>
+
+      {createOpen && <CreatePartnerModal onClose={() => setCreateOpen(false)} onCreated={load} />}
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -196,6 +206,100 @@ export default function AdminPartners() {
         </table>
         {partners.length === 0 && <p className="p-6 text-center text-sm text-muted-foreground">No partners yet.</p>}
       </section>
+    </div>
+  );
+}
+
+type Created = { referralLink: string; portalLink: string | null; emailed: boolean; rate: number };
+
+function CreatePartnerModal({ onClose, onCreated }: { onClose: () => void; onCreated: () => void }) {
+  const [form, setForm] = useState({ name: "", email: "", company_name: "", audience_type: "", website: "", commission_rate: "", is_founding: false });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [created, setCreated] = useState<Created | null>(null);
+  const [copied, setCopied] = useState<"ref" | "portal" | null>(null);
+  const set = (k: string, v: string | boolean) => setForm((f) => ({ ...f, [k]: v }));
+
+  const submit = async () => {
+    setBusy(true); setError("");
+    try {
+      const r = await fetch("/api/admin/partners", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...form,
+          commission_rate: form.commission_rate === "" ? null : Number(form.commission_rate),
+        }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setError(j.error ?? "Could not create partner."); return; }
+      setCreated({ referralLink: j.data.referralLink, portalLink: j.data.portalLink, emailed: j.data.emailed, rate: j.data.partner.commission_rate });
+      onCreated();
+    } finally { setBusy(false); }
+  };
+
+  const copy = async (text: string, which: "ref" | "portal") => {
+    try { await navigator.clipboard.writeText(text); setCopied(which); setTimeout(() => setCopied(null), 1500); } catch {}
+  };
+
+  const input = "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary";
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="w-full max-w-lg rounded-2xl border border-border bg-card p-6" onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-lg font-bold">{created ? "Partner created" : "Create a partner"}</h2>
+          <button onClick={onClose} className="rounded-lg p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
+        </div>
+
+        {created ? (
+          <div className="space-y-4">
+            <p className="flex items-center gap-2 text-sm text-emerald-600">
+              {created.emailed ? <><Mail className="h-4 w-4" /> Links emailed to the partner.</> : <>Created, but the email didn&apos;t send — share these manually:</>}
+            </p>
+            {([["Referral link", created.referralLink, "ref"], ...(created.portalLink ? [["Dashboard link", created.portalLink, "portal"]] : [])] as [string, string, "ref" | "portal"][]).map(([label, url, which]) => (
+              <div key={which}>
+                <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{label}</p>
+                <div className="flex items-center gap-2">
+                  <code className="flex-1 truncate rounded-lg border border-border bg-background px-3 py-2 text-xs">{url}</code>
+                  <button onClick={() => copy(url, which)} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-2 text-xs font-semibold hover:bg-muted">
+                    {copied === which ? <Check className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+            ))}
+            <button onClick={onClose} className="w-full rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white">Done</button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className="mb-1.5 block text-sm font-medium">Name</label><input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Sarah Lee" className={input} /></div>
+              <div><label className="mb-1.5 block text-sm font-medium">Email *</label><input value={form.email} onChange={(e) => set("email", e.target.value)} type="email" placeholder="sarah@email.com" className={input} /></div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className="mb-1.5 block text-sm font-medium">Company</label><input value={form.company_name} onChange={(e) => set("company_name", e.target.value)} placeholder="Acme Advisory" className={input} /></div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Audience type</label>
+                <select value={form.audience_type} onChange={(e) => set("audience_type", e.target.value)} className={input}>
+                  <option value="">Select…</option>
+                  {PARTNER_AUDIENCE_TYPES.map((a) => <option key={a} value={a}>{a}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div><label className="mb-1.5 block text-sm font-medium">Website / LinkedIn</label><input value={form.website} onChange={(e) => set("website", e.target.value)} placeholder="https://…" className={input} /></div>
+              <div><label className="mb-1.5 block text-sm font-medium">Commission rate %</label><input value={form.commission_rate} onChange={(e) => set("commission_rate", e.target.value)} type="number" min={0} max={100} placeholder="auto (20 / 25)" className={input} /></div>
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.is_founding} onChange={(e) => set("is_founding", e.target.checked)} /> Mark as Founding Partner
+            </label>
+            {error && <p className="text-sm text-destructive">{error}</p>}
+            <button onClick={submit} disabled={busy || !form.email.includes("@")}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Create &amp; email partner
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
