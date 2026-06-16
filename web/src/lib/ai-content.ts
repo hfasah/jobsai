@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { INTERVIEW_TOOL_GUARDRAILS } from "@/lib/avatar";
+import { experienceKey } from "@/lib/elicitation";
 import type { ParsedJson } from "@/types/resume";
 import type { ParsedJobJson } from "@/types/job";
 import type {
@@ -218,6 +219,113 @@ export async function buildSkillResume(
   const content = res.choices[0]?.message?.content;
   if (!content) throw new Error("Empty resume-build response");
   return JSON.parse(content) as SkillBuildResult;
+}
+
+// ─── Resume intake: gap detection (elicitation) ───────────────────────────────
+// Finds bullets that assert activity without evidence and asks the candidate ONE
+// specific question that would surface a real number/outcome/ownership. The
+// answers (collected later) become `candidate_facts` that enrich every future
+// tailoring — see src/lib/elicitation.ts. This does NOT write a resume.
+export type GapType = "missing_metric" | "missing_outcome" | "missing_ownership" | "missing_scope";
+
+export interface ElicitQuestion {
+  experience_key: string;     // stable key matching enrichProfile() (computed server-side)
+  experience_label: string;   // "Title @ Company" for display
+  original_bullet: string;    // the weak phrasing this question targets
+  gap_type: GapType;
+  question: string;           // recruiter-style, answerable in 1-2 sentences
+  why_it_matters: string;     // short note on what a strong answer signals
+}
+
+export interface ElicitResult {
+  questions: ElicitQuestion[];
+}
+
+interface RawGapQuestion {
+  experience_index: number;
+  original_bullet?: string;
+  gap_type?: GapType;
+  question?: string;
+  why_it_matters?: string;
+}
+
+const DETECT_GAPS_SYSTEM = `You are a sharp technical recruiter doing a resume intake interview. You do NOT write
+anything — your job is to find the places where the candidate clearly DID something but the resume doesn't say
+how much, how well, or what actually changed, then ask ONE specific question that would surface a real number,
+an outcome, or their genuine ownership. Return ONLY valid JSON — no markdown.
+
+A gap is exactly one of:
+- missing_metric    : an action with no scale/number ("managed the data pipeline")
+- missing_outcome   : a task with no result ("led the AWS migration" — and then what?)
+- missing_ownership : passive/team framing that hides the candidate's own role ("was involved in")
+- missing_scope     : no size signal (team size, budget, users, volume, revenue)
+
+Input shape: { "experience": [ entries with title, company, description ], "job": {...} | undefined }.
+The "experience" array is 0-indexed; reference entries by that index.
+
+Rules:
+- Ask ONLY about things the resume IMPLIES the candidate did. NEVER ask leading questions that invite invented
+  numbers (e.g. do not ask "how much revenue did you drive?" unless revenue ownership is already implied).
+- One question per gap, phrased like a real human recruiter — answerable in 1-2 sentences. Not a form field.
+- Skip any bullet that already has a concrete number AND an outcome.
+- If a target job is given, prioritize the gaps that matter most for THAT job; hardest-hitting first.
+- Return at most 6 questions. Fewer is fine — quality over quantity.
+
+Schema:
+{
+  "questions": [{
+    "experience_index": <int, 0-based index into the input experience array>,
+    "original_bullet": "<the weak phrasing, drawn from that entry's description>",
+    "gap_type": "missing_metric|missing_outcome|missing_ownership|missing_scope",
+    "question": "recruiter-style, one sentence",
+    "why_it_matters": "<= 10 words: what a hiring manager infers from a strong answer"
+  }]
+}`;
+
+/**
+ * Detects evidence gaps in the resume and returns recruiter-style questions. The
+ * caller is expected to ATS-gate this (only worth running on weaker resumes).
+ * experience_key is computed server-side so it always matches enrichProfile().
+ */
+export async function detectGaps(resume: ParsedJson, job?: ParsedJobJson): Promise<ElicitResult> {
+  const experiences = resume.experience ?? [];
+  if (experiences.length === 0) return { questions: [] };
+
+  const payload = {
+    experience: resumeSlim(resume).experience,
+    job: job ? jobSlim(job) : undefined,
+  };
+  const res = await getOpenAI().chat.completions.create({
+    model: "gpt-4o",
+    messages: [
+      { role: "system", content: DETECT_GAPS_SYSTEM },
+      { role: "user", content: JSON.stringify(payload) },
+    ],
+    temperature: 0.2,
+    response_format: { type: "json_object" },
+  });
+  const content = res.choices[0]?.message?.content;
+  if (!content) throw new Error("Empty gap-detection response");
+
+  const raw = JSON.parse(content) as { questions?: RawGapQuestion[] };
+  const questions = (raw.questions ?? [])
+    .map((q): ElicitQuestion | null => {
+      const e = experiences[q.experience_index];
+      if (!e || !q.question) return null;
+      const label = [e.title, e.company].filter(Boolean).join(" @ ");
+      return {
+        experience_key: experienceKey(e),
+        experience_label: label,
+        original_bullet: String(q.original_bullet ?? "").trim(),
+        gap_type: q.gap_type ?? "missing_metric",
+        question: String(q.question).trim(),
+        why_it_matters: String(q.why_it_matters ?? "").trim(),
+      };
+    })
+    .filter((q): q is ElicitQuestion => q !== null && q.question.length > 0)
+    .slice(0, 6);
+
+  return { questions };
 }
 
 // ─── Interview-time extraction (for calendar) ─────────────────────────────────
