@@ -121,7 +121,7 @@ export const PARTNER_TIERS: PartnerTier[] = [
   },
 ];
 
-// The rules that keep credits, cash, and the Lifetime Offer from over-discounting.
+// The rules that keep credits, cash, and the Founding Offer from over-discounting.
 export const PARTNER_RULES: { label: string; detail: string }[] = [
   {
     label: "Partners are paid in cash, customers earn credits",
@@ -129,11 +129,11 @@ export const PARTNER_RULES: { label: string; detail: string }[] = [
   },
   {
     label: "Commission is paid on collected revenue — never list price",
-    detail: "If a customer pays a discounted rate (e.g. the Lifetime Offer), your commission is a percentage of what they actually pay, not the sticker price. That's what makes stacking sustainable.",
+    detail: "If a customer pays a discounted rate (e.g. the Founding Offer), your commission is a percentage of what they actually pay, not the sticker price. That's what makes stacking sustainable.",
   },
   {
     label: "The programs stack",
-    detail: "A customer you refer can still claim the Lifetime Offer (50% off for life). You earn cash commission on their discounted invoice for 12 months.",
+    detail: "A customer you refer can still claim the Founding Offer (50% off their first year). You earn cash commission on their discounted invoice for 12 months.",
   },
   {
     label: `${PARTNER_ATTRIBUTION_DAYS}-day attribution`,
@@ -149,12 +149,12 @@ export const PARTNER_RULES: { label: string; detail: string }[] = [
   },
 ];
 
-// How the customer-side Lifetime Offer and the partner-side cash commission
+// How the customer-side Founding Offer and the partner-side cash commission
 // interact — using the Founding Partner rate (25%).
 export const STACKING_EXAMPLE = {
   plan: "Agency",
   list: "$799",
-  customerPays: "$399", // Lifetime Offer, 50% off
+  customerPays: "$399", // Founding Offer, 50% off
   rate: FOUNDING_PARTNER_RATE,
   partnerMonthly: "$99.75", // 25% of $399
   partnerTotal: "$1,197", // × 12 months

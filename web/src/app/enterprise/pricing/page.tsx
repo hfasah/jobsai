@@ -12,7 +12,7 @@ export const metadata = {
 
 const BOOK_DEMO = "/enterprise/demo";
 
-// Limited-time launch offer — 50% off any plan for life.
+// Founding offer — 50% off your first year on annual plans, first 25 members.
 const FOUNDING = [
   { plan: "Professional", normal: "$299", founding: "$149" },
   { plan: "Agency", normal: "$799", founding: "$399" },
@@ -52,8 +52,8 @@ export default function PublicPricingPage() {
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="flex items-center gap-2 text-sm font-bold text-primary"><Sparkles className="h-4 w-4" /> Limited-Time Offer</p>
-              <p className="mt-1 text-lg font-bold">50% off any plan — for life.</p>
-              <p className="text-sm text-muted-foreground">Lock in lifetime pricing — offer ending soon.</p>
+              <p className="mt-1 text-lg font-bold">Founding offer — 50% off your first year.</p>
+              <p className="text-sm text-muted-foreground">Lock in founding pricing on annual plans. Limited to the first 25 members — closing soon.</p>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               {FOUNDING.map((f) => (
