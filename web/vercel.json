@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/auto-apply",
-      "schedule": "0 10 * * *"
-    },
-    {
       "path": "/api/enterprise/schedule/reminders",
       "schedule": "*/30 * * * *"
     },
