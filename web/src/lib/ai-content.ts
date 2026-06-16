@@ -24,6 +24,9 @@ function resumeSlim(resume: ParsedJson) {
       title: e.title, company: e.company,
       start_date: e.start_date, end_date: e.end_date, is_current: e.is_current,
       description: e.description,
+      // User-confirmed specifics from the intake interview. Omitted (undefined,
+      // dropped by JSON.stringify) when the user has none — identical payload.
+      candidate_facts: e.candidate_facts,
     })) ?? [],
     education: resume.education?.map((ed) => ({ school: ed.school, degree: ed.degree })) ?? [],
   };
@@ -141,6 +144,7 @@ Schema:
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source — copy them verbatim into each experience entry. Only the framing/wording of bullets changes.
+An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and weave the relevant ones naturally into that entry's bullets; you may rephrase them but must NOT exaggerate beyond what a fact states. The resume and candidate_facts are the ONLY sources you may draw facts from.
 For the "skills" change, "before" and "after" MUST be human-readable comma-separated lists (e.g. "Python, AWS, Docker, Kubernetes") — never run together without separators.
 Limit changes[] to the 4-6 most impactful edits.`;
 
@@ -189,6 +193,7 @@ Schema:
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source. Only reframe wording.
+An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and surface the relevant ones in that entry's bullets; rephrase if needed but never exaggerate beyond what a fact states. The resume and candidate_facts are the ONLY sources of fact.
 A target skill belongs in "covered" only if the resume genuinely supports it; otherwise put it in "missing". Limit changes[] to 4-6 edits.`;
 
 export async function buildSkillResume(

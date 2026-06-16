@@ -80,6 +80,9 @@ export interface ParsedExperience {
   end_date?: string;
   is_current?: boolean;
   description?: string;
+  // User-confirmed specifics from the resume intake interview (see
+  // src/lib/elicitation.ts). Attached by enrichProfile(); absent by default.
+  candidate_facts?: string[];
 }
 
 export interface ParsedEducation {

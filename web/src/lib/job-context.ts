@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
+import { enrichProfile } from "@/lib/elicitation";
 import type { ParsedJson } from "@/types/resume";
 import type { ParsedJobJson } from "@/types/job";
 
@@ -132,7 +133,9 @@ export async function loadJobContext(
     .maybeSingle();
 
   return {
-    resumeProfile: best.profile,
+    // Fold in any intake-confirmed accomplishment facts (no-op until the user
+    // has any — see src/lib/elicitation.ts).
+    resumeProfile: await enrichProfile(userId, best.profile),
     resumeVersionId: best.versionId,
     resumeRawText: textRow?.plain_text ?? null,
     jobParsed,
@@ -182,7 +185,9 @@ export async function loadResumeProfile(
     .maybeSingle();
 
   return {
-    resumeProfile: profile.parsed_json as ParsedJson,
+    // Fold in any intake-confirmed accomplishment facts (no-op until the user
+    // has any — see src/lib/elicitation.ts).
+    resumeProfile: await enrichProfile(userId, profile.parsed_json as ParsedJson),
     resumeVersionId,
     resumeRawText: textRow?.plain_text ?? null,
   };
