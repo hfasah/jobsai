@@ -1,11 +1,16 @@
 import Link from "next/link";
+import Script from "next/script";
 import {
   Check, ArrowRight, Phone, LayoutGrid, FileSignature,
   BarChart3, Globe, ShieldCheck, Search, MessageSquare, Zap,
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
-import { DemoBooking } from "@/components/enterprise/demo-booking";
+
+// GoHighLevel / LeadConnector booking widget — owns scheduling, calendar
+// invites, and reminder emails natively. The form_embed.js script auto-resizes
+// the iframe (allowed via CSP: script-src + frame-src in next.config.ts).
+const BOOKING_SRC = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
 
 export const metadata = {
   title: "Book a demo — JobsAI Enterprise",
@@ -100,7 +105,16 @@ export default function EnterpriseDemoPage() {
           </div>
 
           <div id="book" className="scroll-mt-24">
-            <DemoBooking source="enterprise-demo" />
+            <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-lg shadow-primary/5">
+              <iframe
+                src={BOOKING_SRC}
+                title="Book a demo with JobsAI Enterprise"
+                id="enterprise-demo-booking"
+                scrolling="no"
+                className="h-[760px] w-full border-0"
+              />
+            </div>
+            <Script src="https://link.msgsndr.com/js/form_embed.js" strategy="afterInteractive" />
             <p className="mt-3 text-center text-sm text-muted-foreground">
               Prefer to dive in?{" "}
               <Link href="/enterprise-login" className="font-semibold text-primary hover:underline">
