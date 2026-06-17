@@ -2,6 +2,7 @@ import Link from "next/link";
 import {
   ArrowRight, Workflow, Sparkles, Users, Target, Compass, Building2,
   Layers, BarChart3, ShieldCheck, Mic, Send, Check,
+  Lightbulb, Heart, Globe,
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
@@ -38,6 +39,39 @@ const SERVED = [
 const UNIFIES = [
   "Applicant Tracking", "Recruiting CRM", "AI Sourcing", "AI Interviews",
   "Workflow Automation", "Hiring Intelligence", "Analytics", "Enterprise Governance",
+];
+
+const VALUES = [
+  {
+    icon: Target,
+    title: "Customer First",
+    body: "Every decision starts with one question: does this help our customers hire better and faster? Your outcomes come before our roadmap.",
+  },
+  {
+    icon: Lightbulb,
+    title: "Relentless Innovation",
+    body: "We push the boundaries of what AI can do across the whole hiring lifecycle — from sourcing to screening to offers — so your team always has the sharpest tools.",
+  },
+  {
+    icon: Heart,
+    title: "Human-Centered AI",
+    body: "AI should amplify the human side of hiring, not erase it. We automate the busywork so recruiters build real relationships — and every candidate is treated with respect.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Trust by Default",
+    body: "We handle people's careers and your company's data. Security, privacy, and compliance aren't add-ons — they're built into everything we ship.",
+  },
+  {
+    icon: Globe,
+    title: "Access for Everyone",
+    body: "Enterprise-grade recruiting shouldn't be a luxury. A five-person agency should hire with the same intelligence as a Fortune 500 — anywhere in the world.",
+  },
+  {
+    icon: BarChart3,
+    title: "Outcomes Over Activity",
+    body: "We measure success by hires made and time saved, not vanity metrics. If a feature doesn't move your hiring forward, it doesn't belong in the product.",
+  },
 ];
 
 export default function EnterpriseAboutPage() {
@@ -145,6 +179,35 @@ export default function EnterpriseAboutPage() {
           repetitive recruiting tasks, surfaces the best candidates, accelerates hiring decisions, and empowers
           recruiting teams to focus on what matters most: people.
         </p>
+      </section>
+
+      {/* Values */}
+      <section className="border-t border-border bg-card/30 px-6 py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Values</p>
+            <h2 className="mt-2 text-2xl font-bold tracking-tight sm:text-4xl">
+              What Drives <span className="bg-gradient-brand bg-clip-text text-transparent">Us</span>
+            </h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              The principles behind every product decision, every line of code, and every customer conversation.
+            </p>
+          </div>
+          <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {VALUES.map(({ icon: Icon, title, body }) => (
+              <div
+                key={title}
+                className="group rounded-2xl border border-border bg-card p-6 transition-colors hover:border-primary/40"
+              >
+                <span className="inline-flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary transition-colors group-hover:bg-primary group-hover:text-white">
+                  <Icon className="h-5 w-5" />
+                </span>
+                <h3 className="mt-4 text-lg font-bold">{title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{body}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Who We Serve */}
