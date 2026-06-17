@@ -119,12 +119,12 @@ export default function PartnersPage() {
         </div>
       </section>
 
-      {/* Stacking with the Lifetime Offer */}
+      {/* Stacking with the Founding Offer */}
       <section className="mx-auto max-w-4xl px-6 py-14">
         <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-8">
-          <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /><h2 className="text-xl font-bold">Stacks with the Lifetime Offer</h2></div>
+          <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /><h2 className="text-xl font-bold">Stacks with the Founding Offer</h2></div>
           <p className="mt-2 text-sm text-muted-foreground">
-            The <strong>Lifetime Offer</strong> is the customer&apos;s discount (50% off for life). The <strong>Partner Program</strong> is your commission. They stack — and you earn on what the customer actually pays, which keeps it sustainable.
+            The <strong>Founding Offer</strong> is the customer&apos;s discount (50% off their first year). The <strong>Partner Program</strong> is your commission. They stack — and you earn on what the customer actually pays, which keeps it sustainable.
           </p>
           <div className="mt-5 grid gap-3 sm:grid-cols-4">
             {[

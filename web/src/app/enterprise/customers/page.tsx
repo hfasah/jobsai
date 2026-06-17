@@ -5,13 +5,13 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
   title: "Customers — JobsAI Enterprise",
-  description: "Lock in lifetime pricing on JobsAI Enterprise — 50% off any plan, for life. Limited-time launch offer.",
+  description: "Founding offer on JobsAI Enterprise — 50% off your first year on annual plans. Limited to the first 25 members.",
 };
 
 const BOOKING = "/enterprise/demo";
 
 const PERKS = [
-  "50% off for life",
+  "50% off your first year",
   "Direct line to the product team",
   "Influence the roadmap",
   "Priority onboarding & support",
@@ -25,8 +25,8 @@ export default function EnterpriseCustomersPage() {
 
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-16 text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Limited-Time Offer</p>
-        <h1 className="mx-auto mt-2 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">Lock in lifetime pricing on JobsAI Enterprise</h1>
-        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Get full access to the complete talent acquisition platform at half price — for life. Limited-time launch offer, ending soon.</p>
+        <h1 className="mx-auto mt-2 max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">Lock in founding pricing on JobsAI Enterprise</h1>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Get full access to the complete talent acquisition platform at half price for your first year on annual plans. Limited to the first 25 members — closing soon.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow">Start free trial <ArrowRight className="h-4 w-4" /></Link>
           <a href={BOOKING} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold hover:bg-muted">Book a demo</a>
@@ -36,8 +36,8 @@ export default function EnterpriseCustomersPage() {
       {/* Founding program */}
       <section className="mx-auto max-w-4xl px-6 py-14">
         <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-8">
-          <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /><h2 className="text-xl font-bold">Limited-Time Offer — 50% off for life</h2></div>
-          <p className="mt-2 text-sm text-muted-foreground">Lock in full access to every feature at half price — for life. Limited-time launch pricing, ending soon.</p>
+          <div className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-primary" /><h2 className="text-xl font-bold">Founding offer — 50% off your first year</h2></div>
+          <p className="mt-2 text-sm text-muted-foreground">Lock in full access to every feature at half price for your first year on annual plans. Limited to the first 25 members — closing soon.</p>
           <ul className="mt-5 grid gap-2 sm:grid-cols-2">
             {PERKS.map((p) => <li key={p} className="flex items-start gap-2 text-sm"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />{p}</li>)}
           </ul>
