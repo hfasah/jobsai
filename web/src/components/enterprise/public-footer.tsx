@@ -50,6 +50,7 @@ const COMPANY = [
   { label: "Book a demo", href: "/enterprise/demo" },
   { label: "Sign in", href: "/enterprise-login" },
   { label: "Resources", href: "/enterprise/resources" },
+  { label: "Blog", href: "/enterprise/blog" },
   { label: "Security", href: "/enterprise/security" },
   { label: "Privacy", href: "/enterprise/privacy" },
   { label: "Terms", href: "/enterprise/terms" },
