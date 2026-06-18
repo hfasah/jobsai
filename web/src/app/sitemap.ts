@@ -3,6 +3,7 @@ import { COMPARISONS } from "@/lib/enterprise-comparisons";
 import { GUIDE } from "@/lib/enterprise-guide";
 import { PERSONAS, INDUSTRIES } from "@/lib/enterprise-personas";
 import { ROLES } from "@/lib/interview-questions";
+import { JD_ROLES } from "@/lib/job-descriptions";
 
 const BASE = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
@@ -15,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/enterprise/compare", "/enterprise/customers", "/enterprise/about", "/enterprise/contact",
     "/enterprise/guide", "/enterprise/demo", "/enterprise/partners", "/enterprise/security",
     "/enterprise/resources", "/enterprise/resources/interview-questions",
+    "/enterprise/resources/job-descriptions",
     "/enterprise/privacy", "/enterprise/terms",
   ];
   const dynamicPaths = [
@@ -23,6 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...INDUSTRIES.map((i) => `/enterprise/industries/${i.slug}`),
     ...GUIDE.flatMap((cat) => cat.articles.map((a) => `/enterprise/guide/${a.slug}`)),
     ...ROLES.map((r) => `/enterprise/resources/interview-questions/${r.slug}`),
+    ...JD_ROLES.map((r) => `/enterprise/resources/job-descriptions/${r.slug}`),
   ];
 
   return [...staticPaths, ...dynamicPaths].map((path) => ({
