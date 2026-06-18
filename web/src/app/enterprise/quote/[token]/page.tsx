@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { loadCatalog } from "@/lib/enterprise-catalog";
 import { fmtUSD } from "@/lib/enterprise-quote";
 import { AcceptButton } from "./accept-button";
+import { PrintButton } from "./print-button";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +16,9 @@ export const metadata = {
   robots: { index: false, follow: false },
 };
 
-export default async function QuotePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function QuotePage({ params, searchParams }: { params: Promise<{ token: string }>; searchParams: Promise<{ print?: string }> }) {
   const { token } = await params;
+  const autoPrint = (await searchParams).print === "1";
   const { data: q } = await supabaseAdmin.from("enterprise_quotes").select("*").eq("token", token).maybeSingle();
   if (!q) notFound();
 
@@ -46,7 +48,7 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <PublicEnterpriseHeader />
+      <div className="no-print"><PublicEnterpriseHeader /></div>
 
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-12 text-center">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">Your personalized quote</p>
@@ -113,17 +115,18 @@ export default async function QuotePage({ params }: { params: Promise<{ token: s
               <div className="mt-2 flex justify-between border-t border-border pt-2 text-base font-bold text-foreground"><span>First year</span><span>{fmtUSD(q.first_year_cents)}</span></div>
             </div>
             {q.notes && <p className="mt-4 rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">{q.notes}</p>}
-            <div className="mt-5">
-              <AcceptButton token={token} accepted={q.status === "accepted"} />
+            <div className="mt-5 space-y-2">
+              <div className="no-print"><AcceptButton token={token} accepted={q.status === "accepted"} /></div>
+              <PrintButton auto={autoPrint} />
             </div>
-            <p className="mt-3 text-center text-xs text-muted-foreground">
+            <p className="no-print mt-3 text-center text-xs text-muted-foreground">
               Questions? <Link href="/enterprise/demo" className="font-semibold text-primary hover:underline">Talk to our team <ArrowRight className="inline h-3 w-3" /></Link>
             </p>
           </aside>
         </div>
       </section>
 
-      <PublicEnterpriseFooter />
+      <div className="no-print"><PublicEnterpriseFooter /></div>
     </main>
   );
 }

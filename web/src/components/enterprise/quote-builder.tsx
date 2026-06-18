@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { X, Loader2, Check, Sparkles, Send, Copy, ExternalLink, Building2 } from "lucide-react";
+import { X, Loader2, Check, Sparkles, Send, Copy, ExternalLink, Building2, Printer } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ToolPref } from "@/lib/enterprise-intake";
 import {
@@ -38,7 +38,7 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
 
   const [quoteId, setQuoteId] = useState<string | null>(null);
   const [quoteToken, setQuoteToken] = useState<string | null>(null);
-  const [saving, setSaving] = useState<null | "draft" | "send" | "convert">(null);
+  const [saving, setSaving] = useState<null | "draft" | "send" | "convert" | "pdf">(null);
   const [msg, setMsg] = useState("");
   const [copied, setCopied] = useState(false);
 
@@ -140,6 +140,19 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
   };
 
   const onSaveDraft = async () => { setSaving("draft"); setMsg(""); const id = await save(); if (id) setMsg("Draft saved."); setSaving(null); };
+
+  // Save, then open the hosted quote print-ready (browser print → PDF).
+  const onPdf = async () => {
+    setSaving("pdf"); setMsg("");
+    const res = await fetch("/api/admin/enterprise/quote", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(bodyForSave()),
+    });
+    const json = await res.json();
+    if (!res.ok) { setMsg(json.error ?? "Could not save."); setSaving(null); return; }
+    setQuoteId(json.quote.id); setQuoteToken(json.quote.token);
+    window.open(`${window.location.origin}/enterprise/quote/${json.quote.token}?print=1`, "_blank");
+    setSaving(null);
+  };
 
   const onSend = async () => {
     setSaving("send"); setMsg("");
@@ -329,6 +342,9 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
             <div className="flex gap-2">
               <button onClick={onSaveDraft} disabled={!!saving} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-60">
                 {saving === "draft" ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Save draft
+              </button>
+              <button onClick={onPdf} disabled={!!saving} title="Save & open print-ready PDF" className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-60">
+                {saving === "pdf" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Printer className="h-4 w-4" />} PDF
               </button>
               <button onClick={onConvert} disabled={!!saving} className="flex flex-1 items-center justify-center gap-2 rounded-xl border border-border py-2.5 text-sm font-semibold hover:bg-muted disabled:opacity-60">
                 {saving === "convert" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />} Convert

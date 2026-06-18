@@ -560,6 +560,8 @@
   /* Force light, printable surface regardless of theme */
   html, body { background: #fff !important; color: #0f172a !important; }
   .dark { color-scheme: light; }
+  /* Hide chrome / interactive controls (nav, footer, buttons) when printing */
+  .no-print { display: none !important; }
   /* Let content flow across pages instead of being clipped by scroll areas */
   main, .overflow-y-auto, .overflow-x-auto { overflow: visible !important; height: auto !important; max-height: none !important; }
   /* Cards print with a light border, no heavy fills */
