@@ -2,9 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Clock, Sparkles, Building2, Copy, Check, ArrowLeft, ClipboardList } from "lucide-react";
+import { Loader2, Clock, Sparkles, Building2, Copy, Check, ArrowLeft, ClipboardList, Calculator } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toolLabel, type ToolPref } from "@/lib/enterprise-intake";
+import { QuoteBuilder } from "@/components/enterprise/quote-builder";
 
 interface Intake {
   id: string; company: string; website: string | null;
@@ -41,6 +42,7 @@ const FORM_URL = (typeof window !== "undefined" ? window.location.origin : "http
 export default function AdminIntake() {
   const [rows, setRows] = useState<Intake[]>([]);
   const [selected, setSelected] = useState<Intake | null>(null);
+  const [quoteOpen, setQuoteOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("new");
   const [creating, setCreating] = useState(false);
@@ -201,6 +203,9 @@ export default function AdminIntake() {
                     {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
                     {selected.status === "converted" ? "Already created" : "Create account"}
                   </button>
+                  <button onClick={() => setQuoteOpen(true)} className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-2.5 text-sm font-semibold text-primary hover:bg-primary/10">
+                    <Calculator className="h-4 w-4" /> Build quote
+                  </button>
                   <button onClick={() => setStatus("reviewed")} className="rounded-xl border border-border px-3 py-2.5 text-sm font-medium hover:bg-muted">Mark reviewed</button>
                   <button onClick={() => setStatus("archived")} className="rounded-xl px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground">Archive</button>
                 </div>
@@ -209,6 +214,22 @@ export default function AdminIntake() {
           )}
         </div>
       </div>
+
+      {quoteOpen && selected && (
+        <QuoteBuilder
+          lead={{
+            id: selected.id,
+            company: selected.company,
+            contact_name: selected.contact_name,
+            contact_email: selected.contact_email,
+            num_recruiters: selected.num_recruiters,
+            tool_prefs: selected.tool_prefs,
+            suggested_plan: selected.suggested_plan,
+          }}
+          onClose={() => setQuoteOpen(false)}
+          onConverted={() => { setQuoteOpen(false); load(); }}
+        />
+      )}
     </div>
   );
 }

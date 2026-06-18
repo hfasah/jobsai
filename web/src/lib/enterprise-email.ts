@@ -101,3 +101,42 @@ export function intakeAckEmail(opts: {
     html: shell({ appUrl: opts.appUrl, preheader: `We're reviewing your request for ${opts.company} and will follow up shortly.`, content }),
   };
 }
+
+// A personalized quote sent to a prospect, linking to the hosted quote page.
+export function quoteEmail(opts: {
+  firstName: string;
+  company: string;
+  planName: string;
+  billingPeriod: "monthly" | "yearly";
+  monthlyLabel: string;
+  yearlyLabel: string;
+  firstYearLabel: string;
+  founding: boolean;
+  quoteUrl: string;
+  appUrl: string;
+}): { subject: string; html: string } {
+  const first = esc(opts.firstName.split(/\s+/)[0]);
+  const subject = `Your JobsAI Enterprise quote — ${opts.planName} plan`;
+  const headline = opts.billingPeriod === "yearly"
+    ? `${esc(opts.yearlyLabel)}/yr`
+    : `${esc(opts.monthlyLabel)}/mo`;
+
+  const content = `
+    <div style="display:inline-block;background:#eef2ff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:${BRAND};margin-bottom:16px;">Your personalized quote</div>
+    <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:${INK};line-height:1.3;">Here's your quote, ${first}</h1>
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:${MUTED};">We put together a plan for <strong style="color:${INK};">${esc(opts.company)}</strong>. Open it to see exactly what's included, compare monthly vs yearly, and accept when you're ready.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;border:1px solid ${LINE};border-radius:12px;background:${SURFACE};">
+      <tr><td style="padding:18px 20px;">
+        <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6366f1;">Recommended plan</p>
+        <p style="margin:0;font-size:20px;font-weight:700;color:${INK};">${esc(opts.planName)} &middot; ${headline}</p>
+        <p style="margin:6px 0 0;font-size:13px;line-height:1.5;color:#64748b;">Monthly ${esc(opts.monthlyLabel)} &middot; Yearly ${esc(opts.yearlyLabel)}${opts.founding ? ` &middot; First year ${esc(opts.firstYearLabel)} with the founding offer` : ""}</p>
+      </td></tr>
+    </table>
+    <p style="margin:24px 0 0;">${button(opts.quoteUrl, "View your quote")}</p>
+    <p style="margin:24px 0 0;font-size:15px;line-height:1.6;color:${MUTED};">Questions or want to tweak it? Just reply — happy to adjust.<br/><strong style="color:${INK};">The JobsAI Enterprise team</strong></p>`;
+
+  return {
+    subject,
+    html: shell({ appUrl: opts.appUrl, preheader: `${opts.planName} plan for ${opts.company} — view your quote.`, content }),
+  };
+}
