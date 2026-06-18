@@ -158,12 +158,12 @@ export default function EnterpriseHome() {
         </div>
       </section>
 
-      {/* Founding + CTA */}
+      {/* CTA */}
       <section className="mx-auto max-w-4xl px-6 pb-20">
         <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-8 text-center">
           <Sparkles className="mx-auto h-6 w-6 text-primary" />
-          <h2 className="mt-3 text-2xl font-bold">Founding offer — 50% off your first year</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Lock in founding pricing on annual plans. Limited to the first 25 members — closing soon.</p>
+          <h2 className="mt-3 text-2xl font-bold">Ready to transform your hiring?</h2>
+          <p className="mt-2 text-sm text-muted-foreground">Start a 14-day free trial — no credit card — or book a walkthrough with our team.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start free trial <ArrowRight className="h-4 w-4" /></Link>
             <Link href="/enterprise/pricing" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">View pricing</Link>
