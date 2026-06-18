@@ -29,6 +29,13 @@ const PREF_BADGE: Record<ToolPref, string> = {
   no: "bg-muted text-muted-foreground",
 };
 const PREF_LABEL: Record<ToolPref, string> = { need: "Need", want: "Want", unsure: "Not sure", no: "No" };
+// Conspicuous count-pill colors per stage tab (used when count > 0).
+const TAB_COUNT_COLOR: Record<string, string> = {
+  new: "bg-amber-500/20 text-amber-300",
+  reviewed: "bg-sky-500/20 text-sky-300",
+  converted: "bg-emerald-500/20 text-emerald-300",
+  all: "bg-primary/20 text-primary",
+};
 
 function timeAgo(iso: string) {
   const d = Date.now() - new Date(iso).getTime();
@@ -45,6 +52,7 @@ export default function AdminIntake() {
   const [quoteOpen, setQuoteOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("new");
+  const [counts, setCounts] = useState<Record<string, number>>({});
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<{ invite_url: string | null } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -54,6 +62,7 @@ export default function AdminIntake() {
     const res = await fetch(`/api/admin/enterprise/intake?status=${filter}`);
     const json = await res.json();
     setRows(json.data ?? []);
+    setCounts(json.counts ?? {});
     setLoading(false);
   }, [filter]);
 
@@ -119,9 +128,19 @@ export default function AdminIntake() {
       </div>
 
       <div className="flex gap-2">
-        {["new", "reviewed", "converted", "all"].map((s) => (
-          <button key={s} onClick={() => setFilter(s)} className={cn("rounded-lg border px-3 py-1.5 text-xs font-medium capitalize transition-colors", filter === s ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}>{s}</button>
-        ))}
+        {["new", "reviewed", "converted", "all"].map((s) => {
+          const active = filter === s;
+          const n = counts[s] ?? 0;
+          return (
+            <button key={s} onClick={() => setFilter(s)}
+              className={cn("inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold capitalize transition-colors",
+                active ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground hover:bg-muted")}>
+              {s}
+              <span className={cn("min-w-[1.25rem] rounded-full px-1.5 py-0.5 text-center text-[11px] font-bold tabular-nums",
+                n === 0 ? "bg-muted text-muted-foreground" : TAB_COUNT_COLOR[s])}>{n}</span>
+            </button>
+          );
+        })}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-5">
