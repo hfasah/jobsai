@@ -25,7 +25,9 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const [planSlug, setPlanSlug] = useState("agency");
+  // Bundled features the admin wants. The plan is derived as the smallest tier
+  // covering them, so checking/unchecking is fully reversible.
+  const [wantedKeys, setWantedKeys] = useState<Set<string>>(new Set());
   const [billing, setBilling] = useState<"monthly" | "yearly">("yearly");
   const [addons, setAddons] = useState<Record<string, number>>({});
   const [extraRecruiters, setExtraRecruiters] = useState(0);
@@ -61,15 +63,23 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
       }
       setAddons(wantedAddons);
 
-      // Plan floor = max(suggested plan, min plan covering wanted features).
+      // Start on the higher of (suggested plan, min plan covering wanted
+      // features) and pre-check that tier's features.
       const order = (slug: string) => c.plans.find((p) => p.slug === slug)?.sort_order ?? 0;
       const byFeatures = minPlanForFeatures(wantedBundled, c);
       const suggested = lead.suggested_plan ?? "agency";
-      setPlanSlug(order(byFeatures) >= order(suggested) ? byFeatures : suggested);
+      const initialPlan = order(byFeatures) >= order(suggested) ? byFeatures : suggested;
+      setWantedKeys(new Set(c.planFeatures[initialPlan] ?? []));
       setLoading(false);
     })();
     return () => { alive = false; };
   }, [lead]);
+
+  // Plan is the smallest tier covering the wanted features.
+  const planSlug = useMemo(
+    () => (catalog ? minPlanForFeatures([...wantedKeys], catalog) : "agency"),
+    [catalog, wantedKeys],
+  );
 
   const result = useMemo(() => {
     if (!catalog) return null;
@@ -92,6 +102,9 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
   const plansAsc = [...catalog.plans].sort((a, b) => a.sort_order - b.sort_order);
   const included = new Set(catalog.planFeatures[planSlug] ?? []);
   const unlockTier = (key: string) => plansAsc.find((p) => (catalog.planFeatures[p.slug] ?? []).includes(key));
+  const toggleFeature = (key: string) =>
+    setWantedKeys((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
+  const selectPlanFeatures = (slug: string) => setWantedKeys(new Set(catalog.planFeatures[slug] ?? []));
   const bundled = catalog.features.filter((f) => !f.is_addon);
   const addonFeatures = catalog.features.filter((f) => f.is_addon && f.feature_key !== "extra_recruiter");
   const categories = [...new Set(bundled.map((f) => f.category ?? "Other"))];
@@ -181,10 +194,11 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
             <label className="mb-2 block text-sm font-semibold">Plan</label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {plansAsc.map((p) => (
-                <button key={p.slug} onClick={() => setPlanSlug(p.slug)}
-                  className={cn("rounded-xl border px-3 py-2 text-sm font-medium", planSlug === p.slug ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>
+                <button key={p.slug} onClick={() => selectPlanFeatures(p.slug)}
+                  className={cn("rounded-xl border px-3 py-2 text-sm font-semibold transition-colors",
+                    planSlug === p.slug ? "border-primary bg-primary text-white shadow-glow" : "border-border text-foreground hover:border-primary/50 hover:bg-muted")}>
                   {p.name}
-                  <span className="block text-xs text-muted-foreground">{p.price_monthly != null ? `$${p.price_monthly}/mo` : "Custom"}</span>
+                  <span className={cn("block text-xs font-medium", planSlug === p.slug ? "text-white/80" : "text-muted-foreground")}>{p.price_monthly != null ? `$${p.price_monthly}/mo` : "Custom"}</span>
                 </button>
               ))}
             </div>
@@ -200,21 +214,35 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
 
           {/* Features */}
           <div>
-            <label className="mb-2 block text-sm font-semibold">Included features <span className="font-normal text-muted-foreground">— click a greyed feature to add it (may change the plan)</span></label>
+            <label className="mb-1 block text-sm font-bold text-foreground">Features</label>
+            <p className="mb-2 text-xs text-muted-foreground">Check to add, uncheck to remove — the plan and price update automatically.</p>
             <div className="space-y-3">
               {categories.map((cat) => (
                 <div key={cat}>
-                  <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted-foreground">{cat}</p>
-                  <div className="grid gap-1.5 sm:grid-cols-2">
+                  <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-foreground/70">{cat}</p>
+                  <div className="grid gap-1 sm:grid-cols-2">
                     {bundled.filter((f) => (f.category ?? "Other") === cat).map((f) => {
-                      const has = included.has(f.feature_key);
+                      const wanted = wantedKeys.has(f.feature_key);
+                      const incl = included.has(f.feature_key);
                       const tier = unlockTier(f.feature_key);
+                      // Freebie: covered by the plan because a higher-tier feature
+                      // pulled the plan up. Shown for clarity, not toggleable.
+                      if (incl && !wanted) {
+                        return (
+                          <div key={f.feature_key} className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-muted-foreground">
+                            <Check className="h-4 w-4 shrink-0 text-emerald-500/50" />
+                            <span>{f.name} <span className="text-[11px] text-muted-foreground/70">· included</span></span>
+                          </div>
+                        );
+                      }
                       return (
-                        <button key={f.feature_key} disabled={has}
-                          onClick={() => tier && setPlanSlug(tier.slug)}
-                          className={cn("flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm", has ? "text-foreground" : "text-muted-foreground/70 hover:bg-muted")}>
-                          {has ? <Check className="h-4 w-4 shrink-0 text-emerald-500" /> : <span className="h-4 w-4 shrink-0 rounded border border-muted-foreground/40" />}
-                          <span>{f.name}{!has && tier && <span className="ml-1 text-xs text-muted-foreground/60">({tier.name}+)</span>}</span>
+                        <button key={f.feature_key} onClick={() => toggleFeature(f.feature_key)}
+                          className={cn("flex items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors",
+                            wanted ? "font-medium text-foreground hover:bg-muted" : "text-muted-foreground hover:bg-muted hover:text-foreground")}>
+                          {wanted
+                            ? <span className="grid h-4 w-4 shrink-0 place-items-center rounded bg-primary text-white"><Check className="h-3 w-3" /></span>
+                            : <span className="h-4 w-4 shrink-0 rounded border-2 border-muted-foreground/50" />}
+                          <span>{f.name}{!incl && tier && <span className="ml-1 text-[11px] font-medium text-primary/80">{tier.name}+</span>}</span>
                         </button>
                       );
                     })}
