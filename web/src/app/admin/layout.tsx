@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, CreditCard, Building2,
-  MessageSquareWarning, ShieldCheck, LogOut, Inbox, BarChart3, Globe, Handshake,
+  MessageSquareWarning, ShieldCheck, LogOut, Inbox, BarChart3, Globe, Handshake, Target,
 } from "lucide-react";
 import { SignOutButton } from "@clerk/nextjs";
 
@@ -22,6 +22,7 @@ const NAV = [
   { href: "/admin/usage",       label: "Token Usage",  icon: BarChart3 },
   { href: "/admin/traffic",     label: "Traffic",      icon: Globe },
   { href: "/admin/enterprise",  label: "Enterprise",   icon: Building2 },
+  { href: "/admin/sales",       label: "Sales",        icon: Target },
   { href: "/admin/partners",    label: "Partners",     icon: Handshake },
   { href: "/admin/churn",       label: "Churn",        icon: MessageSquareWarning },
   { href: "/admin/support",     label: "Support Inbox", icon: Inbox },
