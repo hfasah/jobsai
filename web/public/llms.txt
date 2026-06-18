@@ -17,6 +17,7 @@ JobsAI Enterprise helps recruiting agencies, staffing firms, and corporate talen
 - [Recruiting Resources](https://app.jobsai.work/enterprise/resources): Free tools for hiring teams.
 - [Interview Questions by Role](https://app.jobsai.work/enterprise/resources/interview-questions): Ready-to-use screening, technical, behavioral, and situational questions across many roles.
 - [Job Description Templates by Role](https://app.jobsai.work/enterprise/resources/job-descriptions): Ready-to-edit JD templates (responsibilities, requirements, qualifications) across many roles.
+- [Blog](https://app.jobsai.work/enterprise/blog): Articles on AI screening, structured interviews, job descriptions, and recruiting operations.
 - [Guide & Knowledge Base](https://app.jobsai.work/enterprise/guide): How-to articles covering setup, sourcing, AI interviews, outreach, offers, analytics, and integrations.
 - [Partner Program](https://app.jobsai.work/enterprise/partners): Cash referral commissions for consultants, agencies, and influencers.
 
