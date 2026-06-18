@@ -17,6 +17,17 @@ export async function GET(req: NextRequest) {
     .limit(500);
   if (status !== "all") query.eq("status", status);
 
-  const { data } = await query;
-  return NextResponse.json({ data: data ?? [] });
+  const [{ data }, { data: statusRows }] = await Promise.all([
+    query,
+    supabaseAdmin.from("enterprise_intake").select("status"),
+  ]);
+
+  // Per-stage counts so the filter tabs can show numbers without a click.
+  const counts: Record<string, number> = { all: 0, new: 0, reviewed: 0, converted: 0, archived: 0 };
+  for (const r of (statusRows ?? []) as { status: string }[]) {
+    counts.all++;
+    counts[r.status] = (counts[r.status] ?? 0) + 1;
+  }
+
+  return NextResponse.json({ data: data ?? [], counts });
 }
