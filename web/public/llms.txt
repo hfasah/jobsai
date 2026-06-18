@@ -1,0 +1,28 @@
+# JobsAI
+
+> JobsAI auto-applies to thousands of jobs and reaches recruiters directly for you — so you stop grinding applications and start landing interviews. Plus AI interview prep built from your resume and the role.
+
+JobsAI is an AI job-search platform for job seekers. It discovers roles that fit your profile across thousands of job boards, auto-applies with tailored applications (with an approval queue so you stay in control), tracks every application, reaches out to recruiters, and prepares you for interviews with AI mock interviews built from your resume and the target role. The separate recruiting platform for employers and agencies, JobsAI Enterprise, lives at https://app.jobsai.work.
+
+## Product
+- [Home](https://jobsai.work/): What JobsAI does and how it works.
+- [Auto-Apply Agent](https://jobsai.work/features/auto-apply): Tailored applications submitted across Lever, Ashby, Greenhouse, Workday, and more.
+- [AI Job Discovery](https://jobsai.work/features/job-discovery): Thousands of boards scanned daily for roles that fit your profile.
+- [Application Tracker](https://jobsai.work/features/application-tracker): A Kanban CRM for every application, note, contact, and reminder.
+
+## Resources
+- [Salary data](https://jobsai.work/salaries): Salary insights and comparisons by role.
+- [Job alerts](https://jobsai.work/job-alerts): Get notified about roles that match your profile.
+- [FAQ](https://jobsai.work/faq): Common questions about JobsAI.
+
+## Company
+- [Contact](https://jobsai.work/contact): Get in touch.
+- [Affiliate program](https://jobsai.work/affiliate): Earn by referring JobsAI.
+
+## For employers
+- [JobsAI Enterprise](https://app.jobsai.work): The AI-powered Talent Acquisition Operating System for recruiters, agencies, and HR teams.
+
+## Legal
+- [Privacy Policy](https://jobsai.work/privacy)
+- [Terms](https://jobsai.work/terms)
+- [Refund Policy](https://jobsai.work/refund-policy)
