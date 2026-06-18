@@ -178,7 +178,7 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
 
   return (
     <Overlay onClose={onClose}>
-      <div className="flex items-center justify-between border-b border-border px-5 py-4">
+      <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-4">
         <div>
           <h2 className="flex items-center gap-2 text-lg font-bold"><Sparkles className="h-5 w-5 text-primary" /> Build a quote</h2>
           <p className="text-sm text-muted-foreground">{lead.company} · {lead.contact_email}</p>
@@ -186,9 +186,9 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
         <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground hover:text-foreground" /></button>
       </div>
 
-      <div className="grid max-h-[70vh] gap-0 overflow-hidden lg:grid-cols-[1fr_340px]">
+      <div className="grid min-h-0 flex-1 gap-0 lg:grid-cols-[1fr_340px]">
         {/* Left: configuration */}
-        <div className="space-y-6 overflow-y-auto p-5">
+        <div className="min-h-0 space-y-6 overflow-y-auto p-5">
           {/* Plan + billing */}
           <div>
             <label className="mb-2 block text-sm font-semibold">Plan</label>
@@ -284,7 +284,7 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
         </div>
 
         {/* Right: live summary */}
-        <aside className="flex flex-col border-t border-border bg-muted/20 p-5 lg:border-l lg:border-t-0">
+        <aside className="flex min-h-0 flex-col overflow-y-auto border-t border-border bg-muted/20 p-5 lg:border-l lg:border-t-0">
           <p className="text-sm font-semibold text-muted-foreground">{result.plan.name} · {billing}</p>
           {result.custom ? (
             <p className="mt-2 text-sm text-amber-500">Enterprise is custom — set an Override $/mo.</p>
@@ -294,7 +294,17 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
               <span className="mb-1 text-sm text-muted-foreground">/{billing === "yearly" ? "yr" : "mo"}</span>
             </div>
           )}
-          <div className="mt-3 space-y-1.5 border-t border-border pt-3 text-sm">
+          {/* Itemized breakdown so the total is self-explanatory. */}
+          <div className="mt-3 space-y-1 border-t border-border pt-3 text-xs">
+            <Row label={`${result.plan.name} plan`} value={result.plan.custom ? "Custom" : `${fmtUSD(result.plan.monthlyCents)}/mo`} />
+            {result.addonLines.map((l) => (
+              <Row key={l.key} label={`+ ${l.name}${l.qty > 1 ? ` ×${l.qty}` : ""}`} value={`${fmtUSD(l.monthlyCents)}/mo`} />
+            ))}
+            {result.extraRecruiterLine && (
+              <Row label={`+ Recruiters ×${result.extraRecruiterLine.qty}`} value={`${fmtUSD(result.extraRecruiterLine.monthlyCents)}/mo`} />
+            )}
+          </div>
+          <div className="mt-2 space-y-1.5 border-t border-border pt-2 text-sm">
             <Row label="Monthly" value={`${fmtUSD(result.monthlyTotalCents)}/mo`} />
             <Row label="Yearly" value={`${fmtUSD(result.yearlyTotalCents)}/yr`} />
             {result.yearlySavingsCents > 0 && <Row label="Yearly saving" value={fmtUSD(result.yearlySavingsCents)} accent />}
@@ -334,7 +344,7 @@ export function QuoteBuilder({ lead, onClose, onConverted }: { lead: QuoteLead; 
 function Overlay({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
-      <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
+      <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
