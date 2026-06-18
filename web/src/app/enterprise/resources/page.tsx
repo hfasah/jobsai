@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, MessagesSquare } from "lucide-react";
+import { ArrowRight, MessagesSquare, FileText } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { ROLES } from "@/lib/interview-questions";
+import { JD_ROLES } from "@/lib/job-descriptions";
 
 export const metadata: Metadata = {
   title: "Recruiting Resources | JobsAI Enterprise",
@@ -18,6 +19,13 @@ const HUBS = [
     desc: `Screening, technical, behavioral, and situational questions for ${ROLES.length}+ roles.`,
     href: "/enterprise/resources/interview-questions",
     cta: "Browse questions",
+  },
+  {
+    icon: FileText,
+    title: "Job description templates",
+    desc: `Ready-to-edit JD templates for ${JD_ROLES.length}+ roles — responsibilities, requirements, and qualifications.`,
+    href: "/enterprise/resources/job-descriptions",
+    cta: "Browse templates",
   },
 ];
 
