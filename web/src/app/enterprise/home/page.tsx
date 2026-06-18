@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight, Database, Users, Sparkles, Mic, Zap, BarChart3, ShieldCheck, Lock,
-  Building2, Briefcase, Landmark, Check,
+  Building2, Briefcase, Landmark, Check, Phone, PlugZap, ClipboardCheck,
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
@@ -91,6 +91,52 @@ export default function EnterpriseHome() {
               <p className="mt-1 text-sm text-muted-foreground">{s.desc}</p>
             </div>
           ))}
+        </div>
+      </section>
+
+      {/* Interview automation + ATS */}
+      <section className="border-t border-border bg-background px-6 py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="text-center">
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">Interview automation</p>
+            <h2 className="mx-auto mt-2 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">Automate your entire interview pipeline</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
+              From the first AI phone screen to deep, full-assessment rounds, JobsAI runs every stage of your funnel — screening, scoring, and scheduling on autopilot — so your team spends its time on finalists, not logistics.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-4 md:grid-cols-3">
+            {[
+              { icon: Phone, title: "AI phone screens", desc: "Conversational AI calls candidates, asks role-specific questions, and scores every answer in real time." },
+              { icon: Mic, title: "Avatar & assessment rounds", desc: "Deeper AI voice and avatar interviews with structured, full assessments for your shortlist." },
+              { icon: ClipboardCheck, title: "Scorecards & handoff", desc: "Ranked, explainable scorecards flow straight into your pipeline for the final human decision." },
+            ].map((s, i) => (
+              <div key={s.title} className="relative rounded-2xl border border-border bg-card p-6">
+                <span className="absolute right-4 top-4 text-xs font-bold text-muted-foreground/40">0{i + 1}</span>
+                <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-brand text-white"><s.icon className="h-5 w-5" /></span>
+                <h3 className="mt-4 font-bold">{s.title}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* ATS integration */}
+          <div className="mt-6 grid items-center gap-6 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-6 sm:p-8 lg:grid-cols-[1.3fr_1fr]">
+            <div>
+              <div className="flex items-center gap-2 text-primary"><PlugZap className="h-5 w-5" /><span className="text-sm font-bold uppercase tracking-wide">Integrates with your ATS</span></div>
+              <h3 className="mt-2 text-2xl font-bold tracking-tight">Plug into your stack in one click</h3>
+              <p className="mt-2 text-muted-foreground">
+                Connect your existing ATS, HRMS, or job board in one click — Greenhouse, Lever, Workday, Bullhorn, and more — with two-way sync that keeps candidates and stages aligned everywhere.
+              </p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-5">
+              <p className="text-sm font-semibold">Don&apos;t have a stack?</p>
+              <p className="mt-1 text-sm text-muted-foreground">A full <strong className="text-foreground">built-in ATS is included</strong> with every plan — start free for 14 days, no credit card.</p>
+              <Link href="/enterprise-login" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white shadow-glow">
+                Start free trial <ArrowRight className="h-4 w-4" />
+              </Link>
+            </div>
+          </div>
         </div>
       </section>
 
