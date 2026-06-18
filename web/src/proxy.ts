@@ -41,6 +41,7 @@ const isEnterprisePreAccess = createRouteMatcher([
   "/enterprise/compare(.*)",
   "/enterprise/privacy(.*)",
   "/enterprise/terms(.*)",
+  "/enterprise/security(.*)",
   "/enterprise/locked(.*)",
   "/enterprise/invite(.*)",
   "/enterprise/book(.*)",
