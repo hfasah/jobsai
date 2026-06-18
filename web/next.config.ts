@@ -55,6 +55,17 @@ const nextConfig: NextConfig = {
       { source: "/ingest/:path*", destination: "https://us.i.posthog.com/:path*" },
     ];
   },
+  // The super-admin portal lives on the enterprise deploy (app.jobsai.work/admin),
+  // which is a superset of this consumer admin and manages both consumer +
+  // enterprise from one place. Send any /admin visit on www there so there's one
+  // door. This redirect only ships on the consumer (main) build — the enterprise
+  // build keeps serving /admin normally.
+  async redirects() {
+    return [
+      { source: "/admin", destination: "https://app.jobsai.work/admin", permanent: false },
+      { source: "/admin/:path*", destination: "https://app.jobsai.work/admin/:path*", permanent: false },
+    ];
+  },
   async headers() {
     return [
       {
