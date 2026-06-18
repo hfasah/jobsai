@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { resend, FROM_SUPPORT, SUPPORT_EMAIL } from "@/lib/resend";
 import { createRateLimiter, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 import { suggestPlan, type ToolPref } from "@/lib/enterprise-intake";
+import { intakeAckEmail } from "@/lib/enterprise-email";
 
 export const maxDuration = 20;
 
@@ -74,18 +75,19 @@ export async function POST(req: NextRequest) {
       </div>`,
   }).then(() => {}, (e) => console.error("intake admin email", e));
 
-  // Acknowledge the prospect (best-effort).
+  // Acknowledge the prospect with a branded confirmation (best-effort).
+  const ack = intakeAckEmail({
+    firstName: contact_name,
+    company,
+    planLabel: suggestion.label,
+    appUrl: APP_URL,
+  });
   resend.emails.send({
     from: FROM_SUPPORT,
     to: contact_email,
     replyTo: SUPPORT_EMAIL,
-    subject: `Thanks, ${contact_name.split(/\s+/)[0]} — we got your JobsAI Enterprise request`,
-    html: `
-      <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#0f172a;font-size:15px;line-height:1.6">
-        <p>Hi ${contact_name.split(/\s+/)[0]},</p>
-        <p>Thanks for sharing your needs for <strong>${company}</strong>. Our team will review and follow up shortly with a tailored setup — likely on the <strong>${suggestion.label}</strong> plan based on what you selected.</p>
-        <p>Talk soon,<br/>The JobsAI Enterprise team</p>
-      </div>`,
+    subject: ack.subject,
+    html: ack.html,
   }).then(() => {}, (e) => console.error("intake ack email", e));
 
   return NextResponse.json({ ok: true, suggested: suggestion });
