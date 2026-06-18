@@ -1,0 +1,27 @@
+# JobsAI Enterprise
+
+> JobsAI Enterprise is an AI-powered Talent Acquisition Operating System: applicant tracking (ATS), recruiting CRM, AI sourcing, AI voice & avatar interviews, multi-channel outreach, workflow automation, analytics, and compliance — in one workspace.
+
+JobsAI Enterprise helps recruiting agencies, staffing firms, and corporate talent teams run the entire hiring lifecycle from a single AI-powered platform: source, engage, screen, interview, and hire. It includes a full built-in ATS, integrates with existing ATS/HRMS/job boards (Greenhouse, Lever, Workday, Bullhorn, and more) via one-click sync, and automates the interview pipeline from AI phone screens to full-assessment rounds. Plans start at $299/mo (Professional) with a 14-day free trial, no credit card. The consumer product (auto-apply for job seekers) lives separately at https://www.jobsai.work.
+
+## Product
+- [Overview](https://app.jobsai.work/enterprise/home): What JobsAI Enterprise is and how the platform fits together.
+- [Built for your team](https://app.jobsai.work/enterprise/built-for): How it maps to agencies, staffing firms, and enterprise HR.
+- [Pricing](https://app.jobsai.work/enterprise/pricing): Plans (Professional $299, Agency $799, Business $1,499/mo, Enterprise custom), monthly or annual (save 20%), add-ons, and a 14-day free trial.
+- [Compare](https://app.jobsai.work/enterprise/compare): How JobsAI Enterprise compares to other recruiting platforms.
+- [Security & Trust](https://app.jobsai.work/enterprise/security): Encryption, RBAC, audit logs, retention, GDPR data-subject requests, and the infrastructure we run on.
+- [Customers](https://app.jobsai.work/enterprise/customers): Who uses JobsAI Enterprise.
+- [About](https://app.jobsai.work/enterprise/about): Mission, vision, and values.
+
+## Resources
+- [Guide & Knowledge Base](https://app.jobsai.work/enterprise/guide): How-to articles covering setup, sourcing, AI interviews, outreach, offers, analytics, and integrations.
+- [Partner Program](https://app.jobsai.work/enterprise/partners): Cash referral commissions for consultants, agencies, and influencers.
+
+## Get started
+- [Book a demo](https://app.jobsai.work/enterprise/demo): Book a personalized walkthrough.
+- [Contact](https://app.jobsai.work/enterprise/contact): Talk to the team.
+- [Start free trial](https://app.jobsai.work/enterprise-login): 14-day free trial, no credit card.
+
+## Legal
+- [Privacy Policy](https://app.jobsai.work/enterprise/privacy)
+- [Terms](https://app.jobsai.work/enterprise/terms)
