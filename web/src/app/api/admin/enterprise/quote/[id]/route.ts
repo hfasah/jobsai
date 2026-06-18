@@ -4,6 +4,7 @@ import { requireAdmin } from "@/lib/admin";
 import { resend, FROM_SUPPORT, SUPPORT_EMAIL } from "@/lib/resend";
 import { quoteEmail } from "@/lib/enterprise-email";
 import { fmtUSD } from "@/lib/enterprise-quote";
+import { logOutboundEmail } from "@/lib/support-log";
 
 export const dynamic = "force-dynamic";
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
@@ -52,6 +53,21 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
     subject: email.subject,
     html: email.html,
   }).catch((e) => console.error("quote email", e));
+
+  // Surface the sent quote in the admin Support Inbox.
+  await logOutboundEmail({
+    name: (q.contact_name as string | null) || (q.contact_email as string),
+    email: q.contact_email as string,
+    category: "quote",
+    subject: email.subject,
+    body: [
+      `Quote sent to ${(q.contact_name as string | null) || q.contact_email}${q.company ? ` (${q.company})` : ""}.`,
+      `Plan: ${planName} · ${q.billing_period}`,
+      `Monthly ${fmtUSD(q.monthly_cents)} · Yearly ${fmtUSD(q.yearly_cents)} · First year ${fmtUSD(q.first_year_cents)}`,
+      `Quote: ${APP_URL}/enterprise/quote/${q.token}`,
+    ].join("\n"),
+    summary: `Quote sent — ${q.company ?? q.contact_name ?? "client"} (${planName})`,
+  });
 
   const { data } = await supabaseAdmin
     .from("enterprise_quotes")

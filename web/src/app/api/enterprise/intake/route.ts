@@ -4,6 +4,7 @@ import { resend, FROM_SUPPORT, SUPPORT_EMAIL } from "@/lib/resend";
 import { createRateLimiter, getClientIp, tooManyRequests } from "@/lib/rate-limit";
 import { suggestPlan, type ToolPref } from "@/lib/enterprise-intake";
 import { intakeAckEmail } from "@/lib/enterprise-email";
+import { logOutboundEmail } from "@/lib/support-log";
 
 export const maxDuration = 20;
 
@@ -89,6 +90,22 @@ export async function POST(req: NextRequest) {
     subject: ack.subject,
     html: ack.html,
   }).then(() => {}, (e) => console.error("intake ack email", e));
+
+  // Surface the lead + acknowledgment in the admin Support Inbox.
+  await logOutboundEmail({
+    name: contact_name,
+    email: contact_email,
+    category: "lead",
+    subject: ack.subject,
+    body: [
+      `Intake acknowledgment sent to ${contact_name} <${contact_email}>.`,
+      `Company: ${company}${b.website ? ` (${b.website})` : ""}`,
+      `Suggested plan: ${suggestion.label}`,
+      b.contact_phone ? `Phone: ${b.contact_phone}` : "",
+      `Employees: ${b.num_employees ?? "—"} · Recruiter seats: ${numRecruiters ?? "—"} · Hiring: ${b.hiring_volume ?? "—"}`,
+    ].filter(Boolean).join("\n"),
+    summary: `New lead — ${company} (suggested ${suggestion.label})`,
+  });
 
   return NextResponse.json({ ok: true, suggested: suggestion });
 }
