@@ -77,10 +77,18 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
   };
 
   // Full demo: Enterprise plan + comp + every feature + all add-ons, then enter.
+  // Only enters if the grant actually succeeded — otherwise surfaces the error
+  // instead of dropping into a half-provisioned (empty) workspace.
   const openFullDemo = async () => {
     if (!d) return;
     setSaving(true);
-    await fetch(`/api/admin/enterprise/${orgId}/full-demo`, { method: "POST" }).catch(() => {});
+    const res = await fetch(`/api/admin/enterprise/${orgId}/full-demo`, { method: "POST" }).catch(() => null);
+    const j = res ? await res.json().catch(() => ({})) : {};
+    if (!res || !res.ok) {
+      setSaving(false);
+      alert(`Couldn't load full demo access:\n${j.error ?? "request failed"}`);
+      return;
+    }
     await enterWorkspace();
   };
 
