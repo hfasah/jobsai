@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft, Loader2, DollarSign, Cpu, Save, Check, ExternalLink, Power, CheckCircle2,
-  Copy, KeyRound,
+  Copy, KeyRound, LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -69,6 +69,18 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
     setSaving(false);
   };
 
+  // One-click demo entry for THIS org: comp it if needed, then open its workspace.
+  const openAsDemo = async () => {
+    if (!d) return;
+    setSaving(true);
+    if (!["comped", "active"].includes(d.org.access_status)) {
+      await fetch(`/api/admin/enterprise/${orgId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ access_status: "comped" }) }).catch(() => {});
+    }
+    const res = await fetch("/api/admin/enterprise/impersonate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_id: d.org.id }) });
+    if (res.ok) window.location.assign("/enterprise/dashboard");
+    else setSaving(false);
+  };
+
   if (loading) return <div className="flex h-40 items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading…</div>;
   if (!d) return <p className="text-muted-foreground">Org not found.</p>;
 
@@ -85,6 +97,11 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
         <Link href={`/careers/${d.org.slug}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted">
           <ExternalLink className="h-3.5 w-3.5" /> Careers page
         </Link>
+        {/* One-click demo entry: comp (if needed) + open this exact org. */}
+        <button onClick={openAsDemo} disabled={saving} title="Comp this org if needed, then enter its workspace"
+          className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white shadow-glow disabled:opacity-60">
+          <LogIn className="h-3.5 w-3.5" /> Open workspace
+        </button>
         {/* Access (workspace lock) — comp = free full access, never expires. */}
         {["comped", "active"].includes(d.org.access_status) ? (
           <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/30 px-3 py-1.5 text-xs font-medium text-green-400">
