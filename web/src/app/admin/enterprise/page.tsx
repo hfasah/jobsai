@@ -21,6 +21,7 @@ export default function AdminEnterprise() {
   const [plans, setPlans] = useState<{ slug: string; name: string; price_monthly: number | null }[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [planFilter, setPlanFilter] = useState<string>("");
 
   const load = () => {
     fetch("/api/admin/enterprise").then((r) => r.json()).then((j) => { setOrgs(j.data ?? []); setTemplates(j.templates ?? []); setPlans(j.plans ?? []); }).finally(() => setLoading(false));
@@ -28,6 +29,23 @@ export default function AdminEnterprise() {
   useEffect(load, []);
 
   const totalMonthCost = orgs.reduce((s, o) => s + o.month_cost, 0);
+
+  // Plan distribution: count orgs per plan (by slug), plus an "unassigned" bucket.
+  const planOf = (o: Org) => o.plan_slug ?? "unassigned";
+  const planCount = (slug: string) => orgs.filter((o) => planOf(o) === slug).length;
+  const visible = planFilter ? orgs.filter((o) => planOf(o) === planFilter) : orgs;
+
+  // Inline plan change from the list — re-tier an org without opening Manage.
+  const [savingPlan, setSavingPlan] = useState<string | null>(null);
+  const changePlan = async (orgId: string, plan_slug: string) => {
+    setSavingPlan(orgId);
+    const res = await fetch(`/api/admin/enterprise/${orgId}/features`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ plan_slug }),
+    });
+    setSavingPlan(null);
+    if (res.ok) load();
+    else alert("Couldn't change plan.");
+  };
 
   // Super-admin "Open workspace": enter any org's workspace directly (demos).
   const openWorkspace = async (orgId: string) => {
@@ -67,6 +85,29 @@ export default function AdminEnterprise() {
         ))}
       </div>
 
+      {/* Plan distribution — click a plan to filter the list */}
+      {!loading && orgs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Plans:</span>
+          <button onClick={() => setPlanFilter("")}
+            className={cn("rounded-full border px-3 py-1 text-xs font-medium", planFilter === "" ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>
+            All <span className="tabular-nums opacity-70">{orgs.length}</span>
+          </button>
+          {plans.map((p) => (
+            <button key={p.slug} onClick={() => setPlanFilter(p.slug)}
+              className={cn("rounded-full border px-3 py-1 text-xs font-medium", planFilter === p.slug ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>
+              {p.name} <span className="tabular-nums opacity-70">{planCount(p.slug)}</span>
+            </button>
+          ))}
+          {planCount("unassigned") > 0 && (
+            <button onClick={() => setPlanFilter("unassigned")}
+              className={cn("rounded-full border px-3 py-1 text-xs font-medium", planFilter === "unassigned" ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>
+              No plan <span className="tabular-nums opacity-70">{planCount("unassigned")}</span>
+            </button>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-40 items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading…</div>
       ) : orgs.length === 0 ? (
@@ -84,10 +125,22 @@ export default function AdminEnterprise() {
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {orgs.map((o) => (
+              {visible.length === 0 ? (
+                <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">No orgs on this plan.</td></tr>
+              ) : visible.map((o) => (
                 <tr key={o.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3"><p className="font-medium">{o.name}</p><p className="text-xs text-muted-foreground">{o.industry ?? "—"}</p></td>
-                  <td className="px-4 py-3 text-muted-foreground">{o.plan_name ?? o.plan_label}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      <select value={o.plan_slug ?? ""} disabled={savingPlan === o.id}
+                        onChange={(e) => changePlan(o.id, e.target.value)}
+                        className="rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">
+                        {!o.plan_slug && <option value="">— no plan —</option>}
+                        {plans.map((p) => <option key={p.slug} value={p.slug}>{p.name}</option>)}
+                      </select>
+                      {savingPlan === o.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                    </div>
+                  </td>
                   <td className="px-4 py-3 tabular-nums">{o.members}</td>
                   <td className="px-4 py-3 tabular-nums">{o.jobs}</td>
                   <td className="px-4 py-3 tabular-nums">{o.applicants}</td>
