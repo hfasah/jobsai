@@ -102,6 +102,15 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Demo accounts: grant every add-on free so clients see the whole platform.
+  if (body.grant_all_addons) {
+    await supabaseAdmin.from("org_addons").insert(
+      ["ai_interviews", "recruiting_agent", "sms_whatsapp", "white_label_plus"].map((addon_key) => ({
+        org_id: org.id, addon_key, status: "active",
+      })),
+    ).then(() => {}, () => {});
+  }
+
   // Email templates from the template
   if (tpl.email_templates.length) {
     await supabaseAdmin.from("enterprise_email_templates").insert(
