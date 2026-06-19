@@ -29,7 +29,7 @@ function CustomLink({ slug }: { slug: string }) {
 }
 
 interface Detail {
-  org: { id: string; name: string; slug: string; industry: string | null; plan_label: string; status: string; onboarding_done: boolean; admin_notes: string | null; created_at: string;
+  org: { id: string; name: string; slug: string; industry: string | null; plan_label: string; status: string; access_status: string; onboarding_done: boolean; admin_notes: string | null; created_at: string;
     contact_name: string | null; contact_email: string | null; contact_phone: string | null;
     contact2_name: string | null; contact2_email: string | null; contact2_phone: string | null };
   members: { user_id: string; role: string; created_at: string; name: string; email: string; image_url: string | null }[];
@@ -85,6 +85,17 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
         <Link href={`/careers/${d.org.slug}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted">
           <ExternalLink className="h-3.5 w-3.5" /> Careers page
         </Link>
+        {/* Access (workspace lock) — comp = free full access, never expires. */}
+        {["comped", "active"].includes(d.org.access_status) ? (
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-green-500/30 px-3 py-1.5 text-xs font-medium text-green-400">
+            <Check className="h-3.5 w-3.5" /> Access: {d.org.access_status}
+          </span>
+        ) : (
+          <button onClick={() => update({ access_status: "comped" })}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20">
+            <Check className="h-3.5 w-3.5" /> Comp access (unlock)
+          </button>
+        )}
         <button onClick={() => update({ status: d.org.status === "active" ? "suspended" : "active" })}
           className={cn("inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium",
             d.org.status === "active" ? "border-red-500/30 text-red-400 hover:bg-red-500/10" : "border-green-500/30 text-green-400 hover:bg-green-500/10")}>
