@@ -14,6 +14,10 @@ export async function GET() {
 
   const { data: orgs } = await supabaseAdmin.from("enterprise_orgs").select("*").order("created_at", { ascending: false });
 
+  // Resolve each org's actual plan (plan_id → name), not the free-text label.
+  const { data: allPlans } = await supabaseAdmin.from("plans").select("id,name,slug");
+  const planById = new Map((allPlans ?? []).map((p) => [p.id as string, p as { name: string; slug: string }]));
+
   const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0, 0, 0, 0);
 
   const enriched = await Promise.all((orgs ?? []).map(async (o) => {
@@ -24,8 +28,11 @@ export async function GET() {
       supabaseAdmin.from("llm_usage").select("cost_usd").eq("org_id", o.id).gte("created_at", monthStart.toISOString()),
     ]);
     const monthCost = (cost.data ?? []).reduce((s, r) => s + Number(r.cost_usd), 0);
+    const plan = o.plan_id ? planById.get(o.plan_id) : null;
     return {
-      id: o.id, name: o.name, slug: o.slug, industry: o.industry, plan_label: o.plan_label ?? "Enterprise",
+      id: o.id, name: o.name, slug: o.slug, industry: o.industry,
+      plan_label: o.plan_label ?? "Enterprise",
+      plan_name: plan?.name ?? null, plan_slug: plan?.slug ?? null,
       status: o.status ?? "active", onboarding_done: o.onboarding_done ?? false, created_at: o.created_at,
       members: members.count ?? 0, jobs: jobs.count ?? 0, applicants: apps.count ?? 0,
       month_cost: Math.round(monthCost * 100) / 100,

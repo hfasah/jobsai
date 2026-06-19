@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 
 interface Org {
   id: string; name: string; slug: string; industry: string | null; plan_label: string;
+  plan_name: string | null; plan_slug: string | null;
   status: string; onboarding_done: boolean; created_at: string;
   members: number; jobs: number; applicants: number; month_cost: number;
 }
@@ -86,7 +87,7 @@ export default function AdminEnterprise() {
               {orgs.map((o) => (
                 <tr key={o.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3"><p className="font-medium">{o.name}</p><p className="text-xs text-muted-foreground">{o.industry ?? "—"}</p></td>
-                  <td className="px-4 py-3 text-muted-foreground">{o.plan_label}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{o.plan_name ?? o.plan_label}</td>
                   <td className="px-4 py-3 tabular-nums">{o.members}</td>
                   <td className="px-4 py-3 tabular-nums">{o.jobs}</td>
                   <td className="px-4 py-3 tabular-nums">{o.applicants}</td>
