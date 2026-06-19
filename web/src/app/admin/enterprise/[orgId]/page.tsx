@@ -7,6 +7,7 @@ import {
   Copy, KeyRound, LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AdminPlanFeatures } from "@/components/enterprise/admin-plan-features";
 
 function CustomLink({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
@@ -283,6 +284,9 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
           </button>
         </div>
       </div>
+
+      {/* Plan switching + per-feature access control */}
+      <AdminPlanFeatures orgId={d.org.id} />
     </div>
   );
 }
