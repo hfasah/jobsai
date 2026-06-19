@@ -6,7 +6,7 @@ import {
   Users, Plus, Trash2, Link2, Download, Shield, Mail,
   CheckCircle2, AlertCircle, RotateCcw, Clock,
   Palette, Code2, ExternalLink, Globe, Eye, EyeOff,
-  KeyRound, ChevronDown, ChevronRight,
+  KeyRound, ChevronDown, ChevronRight, AtSign, Inbox as InboxIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ImageUpload } from "./image-upload";
@@ -535,7 +535,7 @@ function DataPrivacySettings() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="font-semibold">Data export</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Download all your organization's data as JSON (GDPR compliant).</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">Download all your organization&apos;s data as JSON (GDPR compliant).</p>
           </div>
           <button onClick={exportData}
             className="inline-flex items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted transition-colors">
@@ -547,7 +547,7 @@ function DataPrivacySettings() {
       {/* Candidate data deletion */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <h2 className="mb-1 font-semibold">Right to erasure (GDPR)</h2>
-        <p className="mb-3 text-sm text-muted-foreground">Anonymise a candidate's personal data across all applications and the talent pool.</p>
+        <p className="mb-3 text-sm text-muted-foreground">Anonymise a candidate&apos;s personal data across all applications and the talent pool.</p>
         <form onSubmit={deleteCandidate} className="flex gap-2">
           <input value={deleteEmail} onChange={(e) => setDeleteEmail(e.target.value)}
             type="email" required placeholder="candidate@email.com"
@@ -1382,11 +1382,97 @@ function SsoSettings() {
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
-type Tab = "copilot" | "outreach" | "branding" | "api" | "integrations" | "emails" | "data" | "sso";
+// ── Candidate Intake (email + upload) ──────────────────────────────────────────
+function IntakeSettings() {
+  const [address, setAddress] = useState("");
+  const [handle, setHandle] = useState("");
+  const [domain, setDomain] = useState("apply.jobsai.work");
+  const [draft, setDraft] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  useEffect(() => {
+    fetch("/api/enterprise/inbox/intake")
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.data) { setAddress(j.data.address); setHandle(j.data.handle); setDraft(j.data.handle); setDomain(j.data.domain); }
+      })
+      .finally(() => setLoading(false));
+  }, []);
+
+  const save = async () => {
+    setSaving(true); setMsg(null);
+    const res = await fetch("/api/enterprise/inbox/intake", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ handle: draft }),
+    });
+    const j = await res.json();
+    if (res.ok) { setAddress(j.data.address); setHandle(j.data.handle); setMsg({ kind: "ok", text: "Saved." }); }
+    else setMsg({ kind: "err", text: j.error ?? "Couldn't save." });
+    setSaving(false);
+  };
+
+  const copy = () => { navigator.clipboard.writeText(address); setCopied(true); setTimeout(() => setCopied(false), 1500); };
+
+  if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="mb-1 flex items-center gap-2">
+          <AtSign className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold">Your candidate intake address</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Resumes sent here are parsed and dropped into your <span className="font-medium text-foreground">Candidate Inbox</span> automatically (under the <span className="font-medium text-foreground">General Applications</span> pool).
+        </p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 truncate rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">{address}</code>
+          <button onClick={copy} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted">
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copied" : "Copy"}
+          </button>
+        </div>
+
+        {/* Customise the handle */}
+        <div className="mt-4 border-t border-border pt-4">
+          <label className="mb-1.5 block text-xs font-medium text-muted-foreground">Customise the address</label>
+          <div className="flex items-center gap-2">
+            <input value={draft} onChange={(e) => setDraft(e.target.value)}
+              className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm" placeholder={handle} />
+            <span className="text-sm text-muted-foreground">@{domain}</span>
+            <button onClick={save} disabled={saving || draft === handle || !draft}
+              className="ml-auto rounded-lg bg-gradient-brand px-3 py-2 text-sm font-semibold text-white shadow-glow disabled:opacity-50">
+              {saving ? "Saving…" : "Save"}
+            </button>
+          </div>
+          {msg && <p className={cn("mt-2 text-xs", msg.kind === "ok" ? "text-green-500" : "text-destructive")}>{msg.text}</p>}
+        </div>
+      </div>
+
+      {/* Forwarding instructions */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <h2 className="mb-1 font-semibold">Forward from your own inbox</h2>
+        <p className="mb-3 text-sm text-muted-foreground">
+          Already publish <span className="font-medium text-foreground">hr@yourcompany.com</span> or <span className="font-medium text-foreground">careers@…</span>? Set up a forwarding rule to your intake address and every resume — plus anything your recruiters forward — lands in the inbox.
+        </p>
+        <ol className="space-y-1.5 text-sm text-muted-foreground">
+          <li>1. In Google Workspace / Microsoft 365, open the settings for your hiring mailbox.</li>
+          <li>2. Add a forwarding rule (or alias) to <code className="rounded bg-muted px-1 py-0.5 text-xs text-foreground">{address}</code>.</li>
+          <li>3. Recruiters can also just <span className="font-medium text-foreground">forward any candidate email</span> there — the attached resume is parsed automatically.</li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
+type Tab = "copilot" | "outreach" | "intake" | "branding" | "api" | "integrations" | "emails" | "data" | "sso";
 
 const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "copilot",      label: "Copilot",      icon: Bot },
   { id: "outreach",     label: "Outreach",     icon: Sparkles },
+  { id: "intake",       label: "Intake",       icon: InboxIcon },
   { id: "branding",     label: "Branding",     icon: Palette },
   { id: "api",          label: "API",          icon: Code2 },
   { id: "integrations", label: "Integrations", icon: Link2 },
@@ -1420,6 +1506,7 @@ export default function SettingsPage() {
 
         {tab === "copilot"      && <RecruiterCopilot />}
         {tab === "outreach"     && <OutreachGenerator />}
+        {tab === "intake"       && <IntakeSettings />}
         {tab === "branding"     && <BrandingSettings />}
         {tab === "api"          && <ApiSettings />}
         {tab === "integrations" && <IntegrationsSettings />}
