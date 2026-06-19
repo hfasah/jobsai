@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin";
+import { getOrgEntitlements } from "@/lib/enterprise-entitlements";
 
 type Ctx = { params: Promise<{ orgId: string }> };
 
@@ -64,11 +65,25 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   );
   if (adErr) errors.push(`addons: ${adErr.message}`);
 
+  // Read back exactly what the workspace will now resolve for this org, so the
+  // caller (and we) can see the real result instead of trusting the writes.
+  const ent = await getOrgEntitlements(orgId).catch(() => null);
+  const snapshot = {
+    plan: ent?.planSlug ?? enterprise?.slug ?? null,
+    access: ent?.accessStatus ?? null,
+    features: ent?.features.length ?? 0,
+    addons: ent?.addons.length ?? 0,
+  };
+
   if (errors.length) {
+    return NextResponse.json({ error: errors.join(" · "), snapshot }, { status: 500 });
+  }
+  // A healthy full demo should resolve to the Enterprise plan with many features.
+  if (snapshot.plan !== "enterprise" || snapshot.features < 5) {
     return NextResponse.json(
-      { error: errors.join(" · "), features_granted: featureKeys.length, plan: enterprise?.slug ?? null },
+      { error: `Grant ran but the org still resolves to plan=${snapshot.plan}, ${snapshot.features} features. The plan row may be missing in this database.`, snapshot },
       { status: 500 },
     );
   }
-  return NextResponse.json({ ok: true, features_granted: featureKeys.length, plan: enterprise?.slug ?? null });
+  return NextResponse.json({ ok: true, snapshot });
 }
