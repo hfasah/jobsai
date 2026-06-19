@@ -109,11 +109,14 @@ function CreateModal({ templates, plans, onClose, onCreated }: { templates: { id
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ onboarding_steps: string[]; invite_url: string | null } | null>(null);
   const [copied, setCopied] = useState(false);
+  // Demo account = Enterprise plan, comped (free forever), every add-on granted.
+  const [demo, setDemo] = useState(false);
 
   const create = async () => {
     if (!form.name.trim()) { setError("Company name is required."); return; }
     setCreating(true); setError("");
-    const res = await fetch("/api/admin/enterprise", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const payload = demo ? { ...form, plan_slug: "enterprise", access_status: "comped", grant_all_addons: true } : form;
+    const res = await fetch("/api/admin/enterprise", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     const json = await res.json();
     if (!res.ok) { setError(json.error ?? "Failed."); setCreating(false); return; }
     setResult({ onboarding_steps: json.data.onboarding_steps, invite_url: json.data.invite_url });
@@ -186,10 +189,17 @@ function CreateModal({ templates, plans, onClose, onCreated }: { templates: { id
                 ))}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <label className={cn("flex cursor-pointer items-start gap-3 rounded-xl border p-3 transition-colors", demo ? "border-primary bg-primary/5" : "border-border hover:bg-muted")}>
+              <input type="checkbox" checked={demo} onChange={(e) => setDemo(e.target.checked)} className="mt-0.5 h-4 w-4" />
+              <span>
+                <span className="block text-sm font-medium">🎬 Demo account — everything on</span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">Enterprise plan, comped (free forever), and all add-ons (AI interviews, recruiting agent, SMS/WhatsApp, white-label) granted — for showing clients the full platform.</span>
+              </span>
+            </label>
+            <div className={cn("grid gap-3 sm:grid-cols-2", demo && "pointer-events-none opacity-50")}>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Plan</label>
-                <select value={form.plan_slug} onChange={(e) => setForm((f) => ({ ...f, plan_slug: e.target.value }))}
+                <select value={demo ? "enterprise" : form.plan_slug} disabled={demo} onChange={(e) => setForm((f) => ({ ...f, plan_slug: e.target.value }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                   {plans.map((p) => (
                     <option key={p.slug} value={p.slug}>{p.name}{p.price_monthly != null ? ` — $${p.price_monthly}/mo` : " — Custom"}</option>
@@ -199,12 +209,12 @@ function CreateModal({ templates, plans, onClose, onCreated }: { templates: { id
               </div>
               <div>
                 <label className="mb-1.5 block text-sm font-medium">Billing</label>
-                <select value={form.access_status} onChange={(e) => setForm((f) => ({ ...f, access_status: e.target.value }))}
+                <select value={demo ? "comped" : form.access_status} disabled={demo} onChange={(e) => setForm((f) => ({ ...f, access_status: e.target.value }))}
                   className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
                   <option value="trialing">14-day trial</option>
                   <option value="comped">Free (comped — no billing)</option>
                 </select>
-                <p className="mt-1 text-[11px] text-muted-foreground">{form.access_status === "comped" ? "Free access indefinitely." : "Full access for 14 days, then must subscribe."}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">{(demo || form.access_status === "comped") ? "Free access indefinitely." : "Full access for 14 days, then must subscribe."}</p>
               </div>
             </div>
             <div>
