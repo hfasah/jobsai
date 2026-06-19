@@ -47,6 +47,16 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements
       if (key) features.add(key);
     }
 
+    // The Enterprise tier is "custom" and ships every plan-tier capability, so it
+    // has no plan_features rows. Treat it as all non-add-on features by definition
+    // (add-ons stay separately purchased via org_addons, even on Enterprise).
+    if (planSlug === "enterprise") {
+      const { data: allFeats } = await supabaseAdmin.from("features").select("feature_key, is_addon");
+      for (const f of (allFeats ?? []) as { feature_key?: string; is_addon?: boolean }[]) {
+        if (f.feature_key && !f.is_addon) features.add(f.feature_key);
+      }
+    }
+
     const { data: pl } = await supabaseAdmin
       .from("plan_limits")
       .select("limit_key,value")

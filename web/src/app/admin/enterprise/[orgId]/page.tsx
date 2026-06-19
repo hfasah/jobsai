@@ -86,7 +86,8 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
     const j = res ? await res.json().catch(() => ({})) : {};
     if (!res || !res.ok) {
       setSaving(false);
-      alert(`Couldn't load full demo access:\n${j.error ?? "request failed"}`);
+      const s = j.snapshot ? `\n\nResolved: plan=${j.snapshot.plan}, ${j.snapshot.features} features, ${j.snapshot.addons} add-ons.` : "";
+      alert(`Couldn't load full demo access:\n${j.error ?? "request failed"}${s}`);
       return;
     }
     await enterWorkspace();
