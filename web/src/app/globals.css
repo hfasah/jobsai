@@ -131,7 +131,7 @@
   --desyn-cyan: oklch(0.78 0.13 215);
   --desyn-surface: oklch(0.18 0.025 265);
   --desyn-surface-elevated: oklch(0.22 0.03 265);
-  --desyn-muted: oklch(0.7 0.03 257);
+  --desyn-muted: oklch(0.8 0.025 257);   /* brighter secondary text for AA contrast on dark */
   --desyn-success: oklch(0.75 0.18 150);
   --desyn-warning: oklch(0.82 0.16 75);
   --cta: oklch(0.85 0.17 88);
