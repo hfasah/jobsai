@@ -51,6 +51,7 @@ export default function EnterpriseHome() {
         </p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start 14-day free trial <ArrowRight className="h-4 w-4" /></Link>
+          <Link href="/enterprise/tour" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Take a tour</Link>
           <a href={BOOK_DEMO} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Book a demo</a>
         </div>
       </section>

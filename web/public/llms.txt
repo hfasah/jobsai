@@ -22,6 +22,7 @@ JobsAI Enterprise helps recruiting agencies, staffing firms, and corporate talen
 - [Partner Program](https://app.jobsai.work/enterprise/partners): Cash referral commissions for consultants, agencies, and influencers.
 
 ## Get started
+- [Take the interactive tour](https://app.jobsai.work/enterprise/tour): A no-login, self-serve walkthrough of the product.
 - [Book a demo](https://app.jobsai.work/enterprise/demo): Book a personalized walkthrough.
 - [Contact](https://app.jobsai.work/enterprise/contact): Talk to the team.
 - [Start free trial](https://app.jobsai.work/enterprise-login): 14-day free trial, no credit card.

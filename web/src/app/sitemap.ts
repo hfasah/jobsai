@@ -18,7 +18,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/enterprise/guide", "/enterprise/demo", "/enterprise/partners", "/enterprise/security",
     "/enterprise/resources", "/enterprise/resources/interview-questions",
     "/enterprise/resources/job-descriptions",
-    "/enterprise/blog",
+    "/enterprise/blog", "/enterprise/tour",
     "/enterprise/privacy", "/enterprise/terms",
   ];
   const dynamicPaths = [

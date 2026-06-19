@@ -123,7 +123,7 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
 // and candidate-facing token pages). They bring their own header/layout.
 const SHELL_BYPASS = [
   "/enterprise/home", "/enterprise/built-for", "/enterprise/industries", "/enterprise/pricing", "/enterprise/compare", "/enterprise/demo", "/enterprise/customers", "/enterprise/about", "/enterprise/contact", "/enterprise/guide", "/enterprise/partners", "/enterprise/intake", "/enterprise/privacy", "/enterprise/terms",
-  "/enterprise/security", "/enterprise/resources", "/enterprise/blog", "/enterprise/quote",
+  "/enterprise/security", "/enterprise/resources", "/enterprise/blog", "/enterprise/quote", "/enterprise/tour",
   "/enterprise/onboard", "/enterprise/plans",
   "/enterprise/locked", "/enterprise/invite", "/enterprise/book", "/enterprise/confirm",
   "/enterprise/reference", "/enterprise/interview", "/enterprise/offer-sign",
