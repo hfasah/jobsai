@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [{ data: orgs }, { data: plans }] = await Promise.all([
-    supabaseAdmin.from("enterprise_orgs").select("plan_id, access_status, stripe_subscription_id, status"),
+    supabaseAdmin.from("enterprise_orgs").select("name, plan_id, access_status, stripe_subscription_id, status"),
     supabaseAdmin.from("plans").select("id, slug"),
   ]);
   const slugById = new Map((plans ?? []).map((p) => [p.id as string, p.slug as string]));
@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
   const byPlan: Record<string, number> = {};
   const byBilling: Record<string, number> = {};
   let suspended = 0;
+  const list: { name: string; plan: string; billing: string }[] = [];
 
   for (const o of orgs ?? []) {
     const planSlug = o.plan_id ? (slugById.get(o.plan_id) ?? "unknown") : "unassigned";
@@ -37,9 +38,10 @@ export async function GET(req: NextRequest) {
     byBilling[billing] = (byBilling[billing] ?? 0) + 1;
 
     if (o.status === "suspended") suspended++;
+    list.push({ name: o.name as string, plan: planSlug, billing });
   }
 
   return NextResponse.json({
-    data: { total: (orgs ?? []).length, suspended, byPlan, byBilling, generated_at: new Date().toISOString() },
+    data: { total: (orgs ?? []).length, suspended, byPlan, byBilling, orgs: list, generated_at: new Date().toISOString() },
   });
 }
