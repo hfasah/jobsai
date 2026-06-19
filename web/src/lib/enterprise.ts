@@ -1,6 +1,27 @@
 import { randomBytes } from "crypto";
+import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { EnterpriseOrg, EnterpriseMember } from "@/types/enterprise";
+
+// Super-admin "Open workspace": a cookie names an org and overrides normal
+// membership resolution so a super-admin can enter any workspace for demos —
+// WITHOUT creating membership rows (so it never collides with the single-org
+// model). Only honored for ADMIN_USER_IDS; a forged cookie does nothing.
+export const DEMO_ORG_COOKIE = "demo_org_id";
+
+function isSuperAdmin(userId: string): boolean {
+  const ids = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+  return ids.includes(userId);
+}
+
+async function impersonatedOrgId(userId: string): Promise<string | null> {
+  if (!isSuperAdmin(userId)) return null;
+  try {
+    return (await cookies()).get(DEMO_ORG_COOKIE)?.value || null;
+  } catch {
+    return null; // not in a request scope (e.g. cron) — ignore
+  }
+}
 
 // Company-friendly invite token: "<org-slug>-<short secure suffix>" so the link
 // reads as the company name while staying unguessable.
@@ -10,22 +31,31 @@ export function inviteToken(slug: string): string {
 }
 
 export async function getMyOrg(userId: string): Promise<EnterpriseOrg | null> {
-  const { data } = await supabaseAdmin
-    .from("enterprise_members")
-    .select("org_id")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (!data) return null;
+  let orgId = await impersonatedOrgId(userId);
+  if (!orgId) {
+    const { data } = await supabaseAdmin
+      .from("enterprise_members")
+      .select("org_id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    orgId = data?.org_id ?? null;
+  }
+  if (!orgId) return null;
 
   const { data: org } = await supabaseAdmin
     .from("enterprise_orgs")
     .select("*")
-    .eq("id", data.org_id)
+    .eq("id", orgId)
     .maybeSingle();
   return org ?? null;
 }
 
 export async function getMyMembership(userId: string): Promise<EnterpriseMember | null> {
+  const demoOrgId = await impersonatedOrgId(userId);
+  if (demoOrgId) {
+    // Synthetic owner membership — admin acts as owner of the impersonated org.
+    return { id: "demo-impersonation", org_id: demoOrgId, user_id: userId, role: "owner", created_at: new Date().toISOString() };
+  }
   const { data } = await supabaseAdmin
     .from("enterprise_members")
     .select("*")
@@ -48,7 +78,7 @@ export function orgHasAccess(accessStatus: string | null | undefined): boolean {
 }
 
 export async function uniqueSlug(base: string): Promise<string> {
-  let slug = slugify(base);
+  const slug = slugify(base);
   let suffix = 0;
   while (true) {
     const candidate = suffix === 0 ? slug : `${slug}-${suffix}`;

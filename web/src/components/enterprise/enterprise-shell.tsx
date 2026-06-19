@@ -135,6 +135,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
   const [org, setOrg] = useState<EnterpriseOrg | null>(null);
   const [ent, setEnt] = useState<Ent | null>(null);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
 
   useEffect(() => {
     if (bypass) return;
@@ -145,10 +146,31 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
       .catch(() => {});
   }, [bypass]);
 
+  // Detect super-admin "Open workspace" (demo) mode via its (non-httpOnly)
+  // cookie. Deferred so it runs after mount (no SSR hydration mismatch).
+  useEffect(() => {
+    const t = setTimeout(() => setDemoMode(
+      document.cookie.split("; ").some((c) => c.startsWith("demo_org_id=") && c.slice("demo_org_id=".length).length > 0),
+    ), 0);
+    return () => clearTimeout(t);
+  }, [pathname]);
+
+  const exitDemo = async () => {
+    await fetch("/api/admin/enterprise/impersonate", { method: "DELETE" }).catch(() => {});
+    window.location.assign("/admin/enterprise");
+  };
+
   // Public/pre-access pages: render bare (no sidebar/Sign-out chrome).
   if (bypass) return <>{children}</>;
 
   return (
+    <>
+    {demoMode && (
+      <div className="flex items-center justify-center gap-3 bg-amber-500 px-4 py-1.5 text-center text-xs font-semibold text-black print:hidden">
+        <span>👁 Viewing this workspace as admin (demo mode)</span>
+        <button onClick={exitDemo} className="rounded bg-black/15 px-2 py-0.5 hover:bg-black/25">Exit demo view</button>
+      </div>
+    )}
     <div className="flex min-h-screen bg-background text-foreground">
       {/* Desktop sidebar */}
       <aside className="hidden w-56 shrink-0 border-r border-border bg-card md:block print:!hidden">
@@ -186,5 +208,6 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
       {/* Global AI assistant — available on every enterprise page */}
       <AskAI />
     </div>
+    </>
   );
 }
