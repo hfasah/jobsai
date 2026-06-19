@@ -73,6 +73,18 @@ export default function AdminEnterprise() {
     else alert("Couldn't change plan.");
   };
 
+  // Inline billing/access change from the list (e.g. comp a demo org).
+  const [savingAccess, setSavingAccess] = useState<string | null>(null);
+  const changeAccess = async (orgId: string, access_status: string) => {
+    setSavingAccess(orgId);
+    const res = await fetch(`/api/admin/enterprise/${orgId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ access_status }),
+    });
+    setSavingAccess(null);
+    if (res.ok) load();
+    else alert("Couldn't change billing status.");
+  };
+
   // Super-admin "Open workspace": enter any org's workspace directly (demos).
   const openWorkspace = async (orgId: string) => {
     const res = await fetch("/api/admin/enterprise/impersonate", {
@@ -186,11 +198,20 @@ export default function AdminEnterprise() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {(() => { const b = BILLING_META[billingOf(o)]; return (
-                      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium", b.cls)}>
-                        <span className={cn("h-1.5 w-1.5 rounded-full", b.dot)} /> {b.label}
-                      </span>
-                    ); })()}
+                    <div className="flex items-center gap-1.5">
+                      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", BILLING_META[billingOf(o)].dot)} />
+                      <select value={o.access_status} disabled={savingAccess === o.id}
+                        onChange={(e) => changeAccess(o.id, e.target.value)}
+                        className={cn("rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50", BILLING_META[billingOf(o)].cls.split(" ").find((c) => c.startsWith("text-")))}>
+                        <option value="pending">Pending</option>
+                        <option value="trialing">Trial</option>
+                        <option value="active">Active{o.has_subscription ? " (Paid)" : ""}</option>
+                        <option value="comped">Comped</option>
+                        <option value="past_due">Past due</option>
+                        <option value="canceled">Canceled</option>
+                      </select>
+                      {savingAccess === o.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
+                    </div>
                   </td>
                   <td className="px-4 py-3 tabular-nums">{o.members}</td>
                   <td className="px-4 py-3 tabular-nums">{o.jobs}</td>
