@@ -11,8 +11,27 @@ import { cn } from "@/lib/utils";
 interface Org {
   id: string; name: string; slug: string; industry: string | null; plan_label: string;
   plan_name: string | null; plan_slug: string | null;
+  access_status: string; has_subscription: boolean;
   status: string; onboarding_done: boolean; created_at: string;
   members: number; jobs: number; applicants: number; month_cost: number;
+}
+
+// Billing reality, derived from access_status (+ whether a Stripe sub exists).
+// This is the source of truth for "who actually signed up / pays", separate
+// from the manually-set plan.
+const BILLING_META: Record<string, { label: string; dot: string; cls: string }> = {
+  paid:      { label: "Paid",     dot: "bg-green-500",  cls: "border-green-500/30 bg-green-500/10 text-green-400" },
+  active:    { label: "Active",   dot: "bg-green-500",  cls: "border-green-500/30 bg-green-500/10 text-green-400" },
+  trial:     { label: "Trial",    dot: "bg-blue-500",   cls: "border-blue-500/30 bg-blue-500/10 text-blue-400" },
+  comped:    { label: "Comped",   dot: "bg-violet-500", cls: "border-violet-500/30 bg-violet-500/10 text-violet-400" },
+  pending:   { label: "Pending",  dot: "bg-muted-foreground", cls: "border-border bg-muted/40 text-muted-foreground" },
+  past_due:  { label: "Past due", dot: "bg-amber-500",  cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
+  canceled:  { label: "Canceled", dot: "bg-red-500",    cls: "border-red-500/30 bg-red-500/10 text-red-400" },
+};
+function billingOf(o: Org): string {
+  if (o.access_status === "active") return o.has_subscription ? "paid" : "active";
+  if (o.access_status === "trialing") return "trial";
+  return o.access_status in BILLING_META ? o.access_status : "pending";
 }
 
 export default function AdminEnterprise() {
@@ -22,6 +41,7 @@ export default function AdminEnterprise() {
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
   const [planFilter, setPlanFilter] = useState<string>("");
+  const [billingFilter, setBillingFilter] = useState<string>("");
 
   const load = () => {
     fetch("/api/admin/enterprise").then((r) => r.json()).then((j) => { setOrgs(j.data ?? []); setTemplates(j.templates ?? []); setPlans(j.plans ?? []); }).finally(() => setLoading(false));
@@ -33,7 +53,13 @@ export default function AdminEnterprise() {
   // Plan distribution: count orgs per plan (by slug), plus an "unassigned" bucket.
   const planOf = (o: Org) => o.plan_slug ?? "unassigned";
   const planCount = (slug: string) => orgs.filter((o) => planOf(o) === slug).length;
-  const visible = planFilter ? orgs.filter((o) => planOf(o) === planFilter) : orgs;
+  const billingCount = (key: string) => orgs.filter((o) => billingOf(o) === key).length;
+  const visible = orgs.filter((o) =>
+    (!planFilter || planOf(o) === planFilter) && (!billingFilter || billingOf(o) === billingFilter),
+  );
+  // Billing buckets present in the data, in a sensible order.
+  const billingOrder = ["paid", "active", "trial", "comped", "past_due", "pending", "canceled"];
+  const billingPresent = billingOrder.filter((k) => billingCount(k) > 0);
 
   // Inline plan change from the list — re-tier an org without opening Manage.
   const [savingPlan, setSavingPlan] = useState<string | null>(null);
@@ -108,6 +134,24 @@ export default function AdminEnterprise() {
         </div>
       )}
 
+      {/* Billing reality — click to filter to who's actually paying / on trial / comped */}
+      {!loading && orgs.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Billing:</span>
+          <button onClick={() => setBillingFilter("")}
+            className={cn("rounded-full border px-3 py-1 text-xs font-medium", billingFilter === "" ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>
+            All <span className="tabular-nums opacity-70">{orgs.length}</span>
+          </button>
+          {billingPresent.map((k) => (
+            <button key={k} onClick={() => setBillingFilter(k)}
+              className={cn("inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium", billingFilter === k ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted")}>
+              <span className={cn("h-1.5 w-1.5 rounded-full", BILLING_META[k].dot)} />
+              {BILLING_META[k].label} <span className="tabular-nums opacity-70">{billingCount(k)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading ? (
         <div className="flex h-40 items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading…</div>
       ) : orgs.length === 0 ? (
@@ -120,13 +164,13 @@ export default function AdminEnterprise() {
         <div className="overflow-hidden rounded-2xl border border-border bg-card">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">
-              <tr>{["Organization", "Plan", "Members", "Jobs", "Applicants", "LLM / mo", "Created", "Status", ""].map((h) => (
+              <tr>{["Organization", "Plan", "Billing", "Members", "Jobs", "Applicants", "LLM / mo", "Created", "Status", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
               ))}</tr>
             </thead>
             <tbody className="divide-y divide-border">
               {visible.length === 0 ? (
-                <tr><td colSpan={9} className="px-4 py-10 text-center text-sm text-muted-foreground">No orgs on this plan.</td></tr>
+                <tr><td colSpan={10} className="px-4 py-10 text-center text-sm text-muted-foreground">No orgs match this filter.</td></tr>
               ) : visible.map((o) => (
                 <tr key={o.id} className="hover:bg-muted/30 transition-colors">
                   <td className="px-4 py-3"><p className="font-medium">{o.name}</p><p className="text-xs text-muted-foreground">{o.industry ?? "—"}</p></td>
@@ -140,6 +184,13 @@ export default function AdminEnterprise() {
                       </select>
                       {savingPlan === o.id && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {(() => { const b = BILLING_META[billingOf(o)]; return (
+                      <span className={cn("inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[10px] font-medium", b.cls)}>
+                        <span className={cn("h-1.5 w-1.5 rounded-full", b.dot)} /> {b.label}
+                      </span>
+                    ); })()}
                   </td>
                   <td className="px-4 py-3 tabular-nums">{o.members}</td>
                   <td className="px-4 py-3 tabular-nums">{o.jobs}</td>

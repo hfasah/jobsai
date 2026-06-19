@@ -33,6 +33,7 @@ export async function GET() {
       id: o.id, name: o.name, slug: o.slug, industry: o.industry,
       plan_label: o.plan_label ?? "Enterprise",
       plan_name: plan?.name ?? null, plan_slug: plan?.slug ?? null,
+      access_status: o.access_status ?? "pending", has_subscription: !!o.stripe_subscription_id,
       status: o.status ?? "active", onboarding_done: o.onboarding_done ?? false, created_at: o.created_at,
       members: members.count ?? 0, jobs: jobs.count ?? 0, applicants: apps.count ?? 0,
       month_cost: Math.round(monthCost * 100) / 100,
