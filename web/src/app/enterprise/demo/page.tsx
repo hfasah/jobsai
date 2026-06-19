@@ -116,6 +116,12 @@ export default function EnterpriseDemoPage() {
             </div>
             <Script src="https://link.msgsndr.com/js/form_embed.js" strategy="afterInteractive" />
             <p className="mt-3 text-center text-sm text-muted-foreground">
+              Not ready to book?{" "}
+              <Link href="/enterprise/tour" className="font-semibold text-primary hover:underline">
+                Take the interactive tour <ArrowRight className="inline h-3.5 w-3.5" />
+              </Link>
+            </p>
+            <p className="mt-1 text-center text-sm text-muted-foreground">
               Prefer to dive in?{" "}
               <Link href="/enterprise-login" className="font-semibold text-primary hover:underline">
                 Start your 14-day free trial <ArrowRight className="inline h-3.5 w-3.5" />

@@ -37,6 +37,7 @@ const isEnterprisePreAccess = createRouteMatcher([
   "/enterprise/guide(.*)",
   "/enterprise/resources(.*)",
   "/enterprise/blog(.*)",
+  "/enterprise/tour(.*)",
   "/enterprise/partners(.*)",
   "/enterprise/intake(.*)",
   "/enterprise/quote(.*)",
