@@ -70,15 +70,28 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
   };
 
   // One-click demo entry for THIS org: comp it if needed, then open its workspace.
+  const enterWorkspace = async () => {
+    const res = await fetch("/api/admin/enterprise/impersonate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_id: orgId }) });
+    if (res.ok) window.location.assign("/enterprise/dashboard");
+    else setSaving(false);
+  };
+
+  // Full demo: Enterprise plan + comp + every feature + all add-ons, then enter.
+  const openFullDemo = async () => {
+    if (!d) return;
+    setSaving(true);
+    await fetch(`/api/admin/enterprise/${orgId}/full-demo`, { method: "POST" }).catch(() => {});
+    await enterWorkspace();
+  };
+
+  // Open as-is (support): comp if needed, then enter — never grants features.
   const openAsDemo = async () => {
     if (!d) return;
     setSaving(true);
     if (!["comped", "active"].includes(d.org.access_status)) {
       await fetch(`/api/admin/enterprise/${orgId}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ access_status: "comped" }) }).catch(() => {});
     }
-    const res = await fetch("/api/admin/enterprise/impersonate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_id: d.org.id }) });
-    if (res.ok) window.location.assign("/enterprise/dashboard");
-    else setSaving(false);
+    await enterWorkspace();
   };
 
   if (loading) return <div className="flex h-40 items-center justify-center gap-2 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /> Loading…</div>;
@@ -97,10 +110,15 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
         <Link href={`/careers/${d.org.slug}`} target="_blank" className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs hover:bg-muted">
           <ExternalLink className="h-3.5 w-3.5" /> Careers page
         </Link>
-        {/* One-click demo entry: comp (if needed) + open this exact org. */}
-        <button onClick={openAsDemo} disabled={saving} title="Comp this org if needed, then enter its workspace"
+        {/* Fully-loaded demo: Enterprise plan + comp + every feature + all add-ons. */}
+        <button onClick={openFullDemo} disabled={saving} title="Grant Enterprise + every feature + all add-ons, then enter this workspace"
           className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white shadow-glow disabled:opacity-60">
-          <LogIn className="h-3.5 w-3.5" /> Open workspace
+          <LogIn className="h-3.5 w-3.5" /> Open full demo
+        </button>
+        {/* Support entry: comp (if needed) + open as-is, never grants features. */}
+        <button onClick={openAsDemo} disabled={saving} title="Comp this org if needed, then enter as-is (no feature grants)"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-60">
+          <LogIn className="h-3.5 w-3.5" /> Open as-is
         </button>
         {/* Access (workspace lock) — comp = free full access, never expires. */}
         {["comped", "active"].includes(d.org.access_status) ? (
