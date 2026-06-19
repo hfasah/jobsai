@@ -30,9 +30,17 @@ export async function getOnboardingStatus(orgId: string): Promise<{ steps: Onboa
     countOrg("enterprise_sourcing_outreach"),
   ]);
 
+  // ATS connection (counted on org_id since the table is keyed per org).
+  const { count: atsCount } = await supabaseAdmin
+    .from("enterprise_ats_connections")
+    .select("org_id", { count: "exact", head: true })
+    .eq("org_id", orgId);
+  const atsConnected = (atsCount ?? 0) > 0;
+
   const steps: OnboardingStep[] = [
     { key: "gmail", label: "Connect Gmail", done: connected, href: "/enterprise/settings" },
     { key: "calendar", label: "Connect your calendar", done: connected, href: "/enterprise/settings" },
+    { key: "ats", label: "Connect your existing ATS (optional)", done: atsConnected, href: "/enterprise/ats" },
     { key: "job", label: "Create your first job", done: jobs > 0, href: "/enterprise/jobs" },
     { key: "invite", label: "Invite a team member", done: invites > 0 || userIds.length > 1, href: "/enterprise/team" },
     { key: "candidates", label: "Review AI candidate picks", done: candidates > 0, href: "/enterprise/candidates" },

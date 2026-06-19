@@ -1,7 +1,7 @@
 import Link from "next/link";
 import {
   ArrowRight, Database, Users, Sparkles, Mic, Zap, BarChart3, ShieldCheck, Lock,
-  Building2, Briefcase, Landmark, Check, Phone, PlugZap, ClipboardCheck,
+  Building2, Briefcase, Landmark, Check, Phone, PlugZap, ClipboardCheck, MessageSquare,
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
@@ -18,6 +18,7 @@ const FEATURES = [
   { icon: Database, name: "Applicant Tracking System", desc: "Kanban pipeline, candidate database, career pages, and resume parsing." },
   { icon: Users, name: "Recruiting CRM", desc: "Talent pools, nurturing, and outreach campaigns to engage candidates." },
   { icon: Sparkles, name: "AI Sourcing", desc: "Autonomous candidate discovery, talent rediscovery, and recommendations." },
+  { icon: MessageSquare, name: "Multi-channel outreach", desc: "Reach candidates by email, SMS, and WhatsApp — with automated sequences and reminders." },
   { icon: Mic, name: "AI Interviews", desc: "AI voice & avatar interviews with automated scoring and transcripts." },
   { icon: Zap, name: "Workflow Automation", desc: "Automate stage moves, follow-ups, and recruiting operations." },
   { icon: BarChart3, name: "Executive Analytics", desc: "Funnel reporting, time-to-hire, and recruiter productivity metrics." },
