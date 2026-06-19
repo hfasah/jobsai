@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   Building2, Loader2, Plus, X, Sparkles, DollarSign, Users,
-  CheckCircle2, Copy, Check, ExternalLink, ClipboardList,
+  CheckCircle2, Copy, Check, ExternalLink, ClipboardList, LogIn,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -27,6 +27,14 @@ export default function AdminEnterprise() {
   useEffect(load, []);
 
   const totalMonthCost = orgs.reduce((s, o) => s + o.month_cost, 0);
+
+  // Super-admin "Open workspace": enter any org's workspace directly (demos).
+  const openWorkspace = async (orgId: string) => {
+    const res = await fetch("/api/admin/enterprise/impersonate", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ org_id: orgId }),
+    });
+    if (res.ok) window.location.assign("/enterprise/dashboard");
+  };
 
   return (
     <div className="space-y-6">
@@ -89,7 +97,10 @@ export default function AdminEnterprise() {
                       o.status === "suspended" ? "border-red-500/30 bg-red-500/10 text-red-400" : "border-green-500/30 bg-green-500/10 text-green-400")}>{o.status}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/admin/enterprise/${o.id}`} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted">Manage <ExternalLink className="h-3 w-3" /></Link>
+                    <div className="flex items-center justify-end gap-2">
+                      <button onClick={() => openWorkspace(o.id)} title="Enter this workspace as admin" className="inline-flex items-center gap-1 rounded-lg border border-primary/40 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/20">Open <LogIn className="h-3 w-3" /></button>
+                      <Link href={`/admin/enterprise/${o.id}`} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs hover:bg-muted">Manage <ExternalLink className="h-3 w-3" /></Link>
+                    </div>
                   </td>
                 </tr>
               ))}
