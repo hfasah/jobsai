@@ -89,6 +89,34 @@ async function getOrgAccessStatus(userId: string): Promise<string | null> {
   }
 }
 
+function isSuperAdminId(userId: string): boolean {
+  return (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean).includes(userId);
+}
+
+// Access status for a specific org id — used for the super-admin "Open workspace"
+// (demo) impersonation, which gates on the impersonated org, not membership.
+async function getOrgAccessStatusById(orgId: string): Promise<string | null> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) return null;
+  try {
+    const res = await fetch(
+      `${supabaseUrl}/rest/v1/enterprise_orgs?id=eq.${encodeURIComponent(orgId)}&select=access_status,trial_ends_at,stripe_subscription_id&limit=1`,
+      { headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, Accept: "application/json" } },
+    );
+    if (!res.ok) return null;
+    const rows = (await res.json()) as { access_status?: string; trial_ends_at?: string | null; stripe_subscription_id?: string | null }[];
+    const org = rows[0];
+    if (!org) return null;
+    if (org.access_status === "trialing" && !org.stripe_subscription_id && org.trial_ends_at && new Date(org.trial_ends_at) < new Date()) {
+      return "trial_expired";
+    }
+    return org.access_status ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function resolveCustomDomain(hostname: string): Promise<string | null> {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -166,7 +194,11 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
   if (isEnterprisePage(req) && !isEnterprisePreAccess(req)) {
     const { userId } = await auth();
     if (userId) {
-      const status = await getOrgAccessStatus(userId);
+      // Super-admin "Open workspace": gate on the impersonated org, not membership.
+      const demoOrgId = req.cookies.get("demo_org_id")?.value;
+      const status = demoOrgId && isSuperAdminId(userId)
+        ? await getOrgAccessStatusById(demoOrgId)
+        : await getOrgAccessStatus(userId);
       if (status === "NO_MEMBERSHIP") {
         const url = req.nextUrl.clone();
         url.pathname = "/enterprise/onboard";
