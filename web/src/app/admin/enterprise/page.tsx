@@ -116,7 +116,7 @@ export default function AdminEnterprise() {
 }
 
 function CreateModal({ templates, plans, onClose, onCreated }: { templates: { id: string; name: string; description: string }[]; plans: { slug: string; name: string; price_monthly: number | null }[]; onClose: () => void; onCreated: () => void }) {
-  const [form, setForm] = useState({ name: "", owner_email: "", contact_name: "", contact_phone: "", industry: "", template: templates[0]?.id ?? "general", plan_slug: "enterprise", access_status: "trialing", admin_notes: "" });
+  const [form, setForm] = useState({ name: "", owner_email: "", contact_name: "", contact_phone: "", industry: "", template: templates[0]?.id ?? "general", plan_slug: "professional", access_status: "trialing", admin_notes: "" });
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ onboarding_steps: string[]; invite_url: string | null } | null>(null);
