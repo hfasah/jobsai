@@ -21,6 +21,7 @@ export default async function CareersPage({ params }: { params: Promise<{ slug: 
     .select("id,title,department,location,employment_type,salary_min,salary_max,salary_currency")
     .eq("org_id", org.id)
     .eq("status", "active")
+    .eq("is_intake_pool", false) // never expose the internal General Applications pool
     .order("created_at", { ascending: false });
 
   const brand = (org.brand_color as string) || "#2563eb";
