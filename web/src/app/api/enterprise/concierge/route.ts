@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 20;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 // Simple IP rate limiter
 const rl = new Map<string, { count: number; reset: number }>();
@@ -54,7 +56,7 @@ ${job.nice_to_have ? `Nice to have: ${job.nice_to_have.slice(0, 200)}` : ""}
 If asked something you don't know, say the hiring team will follow up. Never invent information.`;
 
   const completion = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 200,
     messages: [
       { role: "system", content: system },

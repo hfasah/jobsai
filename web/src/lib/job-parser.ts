@@ -1,11 +1,12 @@
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
 import { getModel, logModelUsage } from "@/lib/ai-models";
 import type { ParsedJobJson, MatchScoreJson } from "@/types/job";
 import type { ParsedJson } from "@/types/resume";
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) _openai = getAIClient();
   return _openai;
 }
 

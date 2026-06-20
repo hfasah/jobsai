@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { recordUsage } from "@/lib/llm-usage";
@@ -8,7 +10,7 @@ import { recordUsage } from "@/lib/llm-usage";
 export const maxDuration = 45;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 type Ctx = { params: Promise<{ poolId: string }> };
 
@@ -70,10 +72,10 @@ Produce 8-10 questions: a mix of behavioral, technical/role-specific, situationa
 
   try {
     const completion = await ai().chat.completions.create({
-      model: "gpt-4o-mini", max_tokens: 1400, response_format: { type: "json_object" },
+      model: AI_TIERS.fast.model, max_tokens: 1400, response_format: { type: "json_object" },
       messages: [{ role: "user", content: prompt }],
     });
-    recordUsage({ orgId: org.id, userId, feature: "pool_questions", model: "gpt-4o-mini", usage: completion.usage });
+    recordUsage({ orgId: org.id, userId, feature: "pool_questions", model: AI_TIERS.fast.model, usage: completion.usage });
     const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
 
     const { data, error } = await supabaseAdmin

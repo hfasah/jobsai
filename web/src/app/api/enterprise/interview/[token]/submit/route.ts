@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 60;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
@@ -43,7 +45,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       if (!answer) return { question_id: q.id, question_text: q.question, answer: "", ai_score: 0, ai_feedback: "No answer provided." };
 
       const completion = await ai().chat.completions.create({
-        model: "gpt-4o-mini",
+        model: AI_TIERS.fast.model,
         max_tokens: 200,
         response_format: { type: "json_object" },
         messages: [{
@@ -93,7 +95,7 @@ Return: {"score": number, "feedback": "1-2 sentence feedback"}`,
   );
 
   const summaryCompletion = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 200,
     messages: [{
       role: "user",

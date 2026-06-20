@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
 import type { ParsedJson } from "@/types/resume";
 import type {
   LinkedInProfileResult,
@@ -10,7 +11,7 @@ import { recordUsage } from "@/lib/llm-usage";
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) _openai = getAIClient();
   return _openai;
 }
 

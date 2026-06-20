@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
@@ -13,7 +15,7 @@ export const maxDuration = 60;
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) _openai = getAIClient(AI_TIERS.smart.provider);
   return _openai;
 }
 
@@ -119,7 +121,7 @@ export async function POST(
     let question: string;
     try {
       const r = await getOpenAI().chat.completions.create({
-        model: "gpt-4o",
+        model: AI_TIERS.smart.model,
         temperature: 0.7,
         messages: [
           {
@@ -192,7 +194,7 @@ export async function POST(
     let parsed: { say?: string; kind?: "followup" | "question"; wrap?: boolean };
     try {
       const r = await getOpenAI().chat.completions.create({
-        model: "gpt-4o",
+        model: AI_TIERS.smart.model,
         temperature: 0.7,
         response_format: { type: "json_object" },
         messages: [
@@ -238,7 +240,7 @@ export async function POST(
     let scores: { communication: number; technical: number; behavioral: number; confidence: number; summary: string; strengths: string[]; improvements: string[] };
     try {
       const r = await getOpenAI().chat.completions.create({
-        model: "gpt-4o",
+        model: AI_TIERS.smart.model,
         temperature: 0.3,
         response_format: { type: "json_object" },
         messages: [

@@ -1,13 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 
 export const maxDuration = 20;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 const TEMPLATES: Record<string, string> = {
   offer_letter:       "Generate a professional offer letter. Include role, compensation, start date placeholder, and next steps.",
@@ -51,7 +53,7 @@ ${extra_context ? `Additional context: ${extra_context}` : ""}
 Return JSON: {"subject": "email subject line", "body": "full email body with clear paragraphs"}`;
 
   const completion = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 600,
     response_format: { type: "json_object" },
     messages: [{ role: "user", content: prompt }],

@@ -1,13 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 
 export const maxDuration = 45;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
@@ -73,7 +75,7 @@ ${job.qualifications ? `Requirements: ${job.qualifications.slice(0, 300)}` : ""}
       const trackingUrl = `${APP_URL}/api/enterprise/jobs/${jobId}/track?source=${platform}&redirect=apply`;
 
       const completion = await ai().chat.completions.create({
-        model: "gpt-4o-mini",
+        model: AI_TIERS.fast.model,
         max_tokens: 600,
         messages: [{
           role: "user",

@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { recordUsage } from "@/lib/llm-usage";
@@ -8,7 +10,7 @@ import { recordUsage } from "@/lib/llm-usage";
 export const maxDuration = 30;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ jobId: string }> }) {
   const { userId } = await auth();
@@ -80,13 +82,13 @@ Generate the custom weighted interview scorecard.`;
 
   try {
     const completion = await ai().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: AI_TIERS.fast.model,
       max_tokens: 1200,
       response_format: { type: "json_object" },
       messages: [{ role: "system", content: SYSTEM }, { role: "user", content: userPrompt }],
     });
 
-    recordUsage({ orgId: org.id, userId, feature: "framework", model: "gpt-4o-mini", usage: completion.usage });
+    recordUsage({ orgId: org.id, userId, feature: "framework", model: AI_TIERS.fast.model, usage: completion.usage });
     const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
 
     // Normalise weights to sum to 100
