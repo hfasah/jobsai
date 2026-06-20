@@ -148,22 +148,28 @@ export interface ResumeContext {
   resumeRawText: string | null;
 }
 
-/** Loads the user's primary resume active-version profile (no job needed). */
+/** Loads the user's resume profile for resume-only tools (no job needed).
+ * Prefers the primary resume, but falls back to the most recent uploaded resume
+ * so the tool still works when no primary is explicitly set. Uses order+limit
+ * (not maybeSingle) so a duplicate-primary state can't wedge it into a false
+ * "no primary" error — robust to whatever primary state the account is in. */
 export async function loadResumeProfile(
   userId: string
 ): Promise<ResumeContext | JobContextError> {
-  const { data: primaryDoc } = await supabaseAdmin
+  const { data: docs } = await supabaseAdmin
     .from("resume_documents")
     .select("active_version_id")
     .eq("user_id", userId)
-    .eq("is_primary", true)
     .eq("is_archived", false)
-    .maybeSingle();
+    .not("active_version_id", "is", null)
+    .order("is_primary", { ascending: false }) // primary first…
+    .order("created_at", { ascending: false }) // …then most recent
+    .limit(1);
 
-  if (!primaryDoc?.active_version_id) {
-    return { error: "No primary resume set. Upload a resume and mark it primary first.", status: 409 };
+  const resumeVersionId = docs?.[0]?.active_version_id;
+  if (!resumeVersionId) {
+    return { error: "No resume found yet. Upload a resume to get started.", status: 409 };
   }
-  const resumeVersionId = primaryDoc.active_version_id;
 
   const { data: profile } = await supabaseAdmin
     .from("resume_parsed_profile")
