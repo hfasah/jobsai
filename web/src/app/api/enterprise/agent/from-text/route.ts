@@ -2,10 +2,12 @@ import { auth } from "@clerk/nextjs/server";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { getMyOrg } from "@/lib/enterprise";
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 const SYSTEM = `You convert a recruiter's plain-English instruction into a pipeline automation rule (JSON only, no prose).
 
@@ -51,7 +53,7 @@ export async function POST(req: NextRequest) {
   if (!text?.trim()) return NextResponse.json({ error: "text is required." }, { status: 400 });
 
   const completion = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 500,
     response_format: { type: "json_object" },
     messages: [
