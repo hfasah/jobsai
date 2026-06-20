@@ -3,69 +3,32 @@
 import { useEffect, useState } from "react";
 import { Loader2, Clock } from "lucide-react";
 
+// Resume parsing is a server-side step: text extraction + one LLM call
+// (~5s on gpt-4o). It does NOT depend on the user's connection, so the old
+// "varies based on your internet speed" / 2-minute bandwidth estimate was
+// misleading. This is a light progress affordance only — the parent polls the
+// real parse_status and swaps this out the moment parsing actually completes.
+const EST_SECONDS = 12;
+
 export function ResumeParsingStatus() {
-  const [progress, setProgress] = useState(10);
-  const [timeLeft, setTimeLeft] = useState(120);
-  const [bandwidthMultiplier, setBandwidthMultiplier] = useState(1);
+  const [progress, setProgress] = useState(12);
+  const [timeLeft, setTimeLeft] = useState(EST_SECONDS);
 
-  // Measure bandwidth on mount
-  useEffect(() => {
-    if ("connection" in navigator) {
-      const conn = (navigator as any).connection;
-
-      // effectiveType: '4g' | '3g' | '2g' | 'slow-2g'
-      // downlink: Mbps (4g ≈ 10 Mbps, 3g ≈ 1.5 Mbps, 2g ≈ 0.4 Mbps)
-      const effectiveType = conn.effectiveType || "4g";
-      const downlink = conn.downlink || 5; // default to mid-range if not available
-
-      // Base case: 4g at ~10 Mbps = 1.0x (normal speed)
-      // 3g at ~1.5 Mbps = 0.15x (slower)
-      // 2g at ~0.4 Mbps = 0.04x (much slower)
-      const speedMultiplier = Math.max(0.3, downlink / 10);
-
-      // Bonus for save-data mode (users on slow networks opted in)
-      const saveDataMultiplier = conn.saveData ? 1.5 : 1;
-
-      const multiplier = speedMultiplier * saveDataMultiplier;
-      setBandwidthMultiplier(multiplier);
-    }
-  }, []);
-
-  // Adjust initial time based on bandwidth
-  useEffect(() => {
-    const baseTime = 120; // 2 minutes base
-    const adjustedTime = Math.round(baseTime / bandwidthMultiplier);
-    setTimeLeft(adjustedTime);
-  }, [bandwidthMultiplier]);
-
-  // Animate progress with random jumps (up to 95%, never 100% until done)
+  // Climb toward 95% over roughly the estimate, then hold until the parent
+  // removes us on completion (never show 100% until it's actually done).
   useEffect(() => {
     const interval = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 95) return p;
-        const jump = Math.random() * 12 + 3;
-        return Math.min(p + jump, 95);
-      });
+      setProgress((p) => (p >= 95 ? p : Math.min(p + (Math.random() * 10 + 4), 95)));
     }, 600);
     return () => clearInterval(interval);
   }, []);
 
-  // Countdown timer (minimum 10 seconds while progress bar still animating)
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft((t) => {
-        if (progress >= 90 && t <= 10) return 10; // pause at 10s while finishing up
-        return Math.max(10, t - 1);
-      });
+      setTimeLeft((t) => (t <= 2 ? 2 : t - 1));
     }, 1000);
     return () => clearInterval(timer);
-  }, [progress]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
-  };
+  }, []);
 
   return (
     <div className="space-y-1.5">
@@ -73,11 +36,11 @@ export function ResumeParsingStatus() {
         <div className="flex items-center gap-1.5">
           <Loader2 className="h-3 w-3 animate-spin text-primary" />
           <span className="text-xs font-medium text-foreground">Analyzing resume</span>
-          <span className="text-[10px] text-muted-foreground">{progress}%</span>
+          <span className="text-[10px] text-muted-foreground">{Math.round(progress)}%</span>
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           <Clock className="h-2.5 w-2.5" />
-          <span>~{formatTime(timeLeft)}</span>
+          <span>~{timeLeft}s</span>
         </div>
       </div>
       <div className="h-1 w-full overflow-hidden rounded-full bg-muted">
@@ -86,7 +49,7 @@ export function ResumeParsingStatus() {
           style={{ width: `${progress}%` }}
         />
       </div>
-      <p className="text-[9px] text-muted-foreground italic">Duration varies based on your internet speed</p>
+      <p className="text-[9px] text-muted-foreground italic">Extracting and structuring your resume…</p>
     </div>
   );
 }

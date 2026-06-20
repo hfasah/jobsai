@@ -90,6 +90,24 @@ export default function ResumesPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [uploadState, fetchDocs]);
 
+  // Auto-refresh while any RECENTLY-uploaded resume is still parsing, so cards
+  // resolve on their own (the poll above only covers the active upload, leaving
+  // cards that were mid-parse on page load / nav-back stuck until manual
+  // refresh). Bounded to the last 5 min so a genuinely stuck old record doesn't
+  // poll forever — those are handled out-of-band (reparse).
+  useEffect(() => {
+    const RECENT_MS = 5 * 60 * 1000;
+    const anyParsing = docs.some((d) => {
+      const v = d.active_version;
+      if (v?.parse_status !== "pending" && v?.parse_status !== "extracting_text") return false;
+      const uploadedAt = v?.uploaded_at ? new Date(v.uploaded_at).getTime() : 0;
+      return Date.now() - uploadedAt < RECENT_MS;
+    });
+    if (!anyParsing) return;
+    const id = setInterval(fetchDocs, 4000);
+    return () => clearInterval(id);
+  }, [docs, fetchDocs]);
+
   const handleFileSelected = async (file: File) => {
     const abort = new AbortController();
     setUploadState({ type: "uploading", progress: 0, abort });

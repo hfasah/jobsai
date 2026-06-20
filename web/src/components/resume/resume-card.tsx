@@ -94,9 +94,18 @@ export function ResumeCard({
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 className="flex-1 rounded border border-border bg-background px-2 py-1 text-sm"
-                onBlur={() => setRenaming(false)}
+                // Cancel on blur ONLY when focus leaves the form. Otherwise
+                // clicking Save blurs the input first, unmounts the form, and
+                // the submit never fires — which is why rename "did nothing".
+                onBlur={(e) => {
+                  if (!e.currentTarget.form?.contains(e.relatedTarget as Node)) {
+                    setRenaming(false);
+                  }
+                }}
               />
-              <Button type="submit" size="sm">Save</Button>
+              {/* preventDefault on mousedown keeps the input focused so the
+                  onBlur above doesn't cancel before this submit runs. */}
+              <Button type="submit" size="sm" onMouseDown={(e) => e.preventDefault()}>Save</Button>
             </form>
           ) : (
             <h3 className="truncate font-medium text-foreground">{doc.label}</h3>
