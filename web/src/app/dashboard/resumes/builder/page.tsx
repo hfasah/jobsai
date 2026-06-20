@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Sparkles, Loader2, X, Plus, ArrowLeft, Check, AlertCircle } from "lucide-react";
 import { TailoredOutput } from "@/components/resume/tailored-output";
@@ -15,6 +15,8 @@ type BuildResult = {
   skill_coverage: { covered: string[]; missing: string[] };
 };
 
+type ResumeOption = { versionId: string; label: string; isPrimary: boolean };
+
 export default function ResumeBuilderPage() {
   const [skills, setSkills] = useState<string[]>([]);
   const [input, setInput] = useState("");
@@ -22,6 +24,28 @@ export default function ResumeBuilderPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<BuildResult | null>(null);
+  const [resumes, setResumes] = useState<ResumeOption[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState("");
+
+  // Load the user's resumes so they can pick which one to optimize (defaults to
+  // the primary, else the most recent).
+  useEffect(() => {
+    fetch("/api/resumes")
+      .then((r) => r.json())
+      .then((json) => {
+        const opts: ResumeOption[] = (json.data ?? [])
+          .filter((d: { active_version_id?: string | null }) => d.active_version_id)
+          .map((d: { active_version_id: string; label?: string | null; is_primary?: boolean }) => ({
+            versionId: d.active_version_id,
+            label: d.label || "Untitled resume",
+            isPrimary: !!d.is_primary,
+          }));
+        opts.sort((a, b) => (b.isPrimary ? 1 : 0) - (a.isPrimary ? 1 : 0));
+        setResumes(opts);
+        if (opts.length) setSelectedVersionId(opts[0].versionId);
+      })
+      .catch(() => {});
+  }, []);
 
   const addSkill = (raw: string) => {
     const s = raw.trim().replace(/,$/, "");
@@ -40,7 +64,7 @@ export default function ResumeBuilderPage() {
       const res = await fetch("/api/resumes/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skills, role: role.trim() || undefined }),
+        body: JSON.stringify({ skills, role: role.trim() || undefined, resume_version_id: selectedVersionId || undefined }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Build failed");
@@ -72,6 +96,22 @@ export default function ResumeBuilderPage() {
 
       {/* Inputs */}
       <div className="mt-6 space-y-3">
+        <div>
+          <label className="text-xs font-semibold text-foreground">Resume to optimize</label>
+          <select
+            value={selectedVersionId}
+            onChange={(e) => setSelectedVersionId(e.target.value)}
+            disabled={resumes.length === 0}
+            className="mt-1.5 w-full rounded-xl border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-60"
+          >
+            {resumes.length === 0 && <option value="">No resumes found — upload one first</option>}
+            {resumes.map((r) => (
+              <option key={r.versionId} value={r.versionId}>
+                {r.label}{r.isPrimary ? " (Primary)" : ""}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="text-xs font-semibold text-foreground">Target skills</label>
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2">
