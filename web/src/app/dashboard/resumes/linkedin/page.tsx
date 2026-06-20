@@ -23,7 +23,9 @@ type Stage = "input" | "importing" | "preview" | "error";
 export default function LinkedInImportPage() {
   const router = useRouter();
 
-  const [mode, setMode] = useState<Mode>("url");
+  // Default to paste: LinkedIn blocks server-side URL fetching (451), so the
+  // URL tab usually fails — paste is the reliable path.
+  const [mode, setMode] = useState<Mode>("paste");
   const [stage, setStage] = useState<Stage>("input");
   const [url, setUrl] = useState("");
   const [text, setText] = useState("");
@@ -112,7 +114,7 @@ export default function LinkedInImportPage() {
             <div className="space-y-6">
               {/* Mode tabs */}
               <div className="flex rounded-lg border border-border bg-muted/40 p-1 text-sm">
-                {(["url", "paste"] as Mode[]).map((m) => (
+                {(["paste", "url"] as Mode[]).map((m) => (
                   <button
                     key={m}
                     type="button"
@@ -142,7 +144,10 @@ export default function LinkedInImportPage() {
                     onKeyDown={(e) => e.key === "Enter" && handleImport()}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Your profile must be set to public for this to work. If it fails, switch to the &ldquo;Paste profile text&rdquo; tab.
+                    Heads up: LinkedIn blocks automated profile fetching, so this
+                    often fails even when your profile is public. The reliable way
+                    is the &ldquo;Paste profile text&rdquo; tab &mdash; open your
+                    profile, select all (&#8984;/Ctrl+A), copy, and paste it there.
                   </p>
                   <Button
                     onClick={handleImport}
