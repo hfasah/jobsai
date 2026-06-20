@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { scanATS } from "@/lib/ai-content";
+import { aiErrorMessage } from "@/lib/ai-client";
 import { getTokenAccount, deductTokens, TOKEN_COSTS } from "@/lib/tokens";
 
 // GET /api/jobs/[jobId]/ats-scan — fetch the latest saved scan
@@ -59,7 +60,7 @@ export async function POST(
     result = await scanATS(ctx.resumeProfile, ctx.jobParsed, ctx.resumeRawText ?? undefined);
   } catch (err) {
     console.error("ATS scan error:", err);
-    return NextResponse.json({ error: "Scan failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err, "ATS scan") }, { status: 500 });
   }
 
   // NOTE: `summary` is intentionally NOT persisted — the ats_scans table has no

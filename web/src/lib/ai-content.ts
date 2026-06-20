@@ -1,5 +1,4 @@
-import { getAIClient } from "@/lib/ai-client";
-import { AI_TIERS } from "@/lib/ai-models";
+import { tierChat } from "@/lib/ai-models";
 import { INTERVIEW_TOOL_GUARDRAILS } from "@/lib/avatar";
 import type { ParsedJson } from "@/types/resume";
 import type { ParsedJobJson } from "@/types/job";
@@ -8,8 +7,6 @@ import type {
   AtsKeywordCoverage, AtsFix, TailoredJson, TailorChange,
   CoverTone, CoverLength, InterviewQuestion,
 } from "@/types/phase3";
-
-const getOpenAI = () => getAIClient(AI_TIERS.smart.provider);
 
 function resumeSlim(resume: ParsedJson) {
   return {
@@ -96,8 +93,7 @@ export async function scanATS(resume: ParsedJson, job: ParsedJobJson, rawResumeT
     resume_raw_text: rawResumeText?.slice(0, 8000),
     job: jobSlim(job),
   };
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: ATS_SYSTEM },
       { role: "user", content: JSON.stringify(payload) },
@@ -147,8 +143,7 @@ Limit changes[] to the 4-6 most impactful edits.`;
 
 export async function tailorResume(resume: ParsedJson, job: ParsedJobJson): Promise<TailorResult> {
   const payload = { resume: resumeSlim(resume), job: jobSlim(job) };
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: TAILOR_SYSTEM },
       { role: "user", content: JSON.stringify(payload) },
@@ -203,8 +198,7 @@ export async function buildSkillResume(
     target_skills: targetSkills,
     target_role: targetRole || undefined,
   };
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: SKILL_BUILD_SYSTEM },
       { role: "user", content: JSON.stringify(payload) },
@@ -240,8 +234,7 @@ Default the meeting length to 45 minutes when an end time isn't given.
 Schema:
 { "found": <bool>, "summary": "Interview — <company/role if known>", "startISO": "<ISO8601 with offset, or null>", "endISO": "<ISO8601 with offset, or null>", "timeZone": "<IANA zone or null>", "location": "<video link / phone / address, or null>", "notes": "<short context, or null>" }`;
 
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: sys },
       { role: "user", content: `Subject: ${subject}\n\n${body.slice(0, 5000)}` },
@@ -260,8 +253,7 @@ export async function draftInboxReply(
   incomingBody: string,
   candidateName: string
 ): Promise<string> {
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: "You write a concise, warm, professional reply from a job candidate to a recruiter/employer email. 2-4 short sentences. Match the email's intent (thank them, confirm availability for an interview, provide a verification code politely declined if unknown, etc.). Sign off with the candidate's first name only. Output just the reply body — no subject line, no placeholders, no brackets." },
       { role: "user", content: `Candidate name: ${candidateName}\n\nSubject: ${incomingSubject}\n\nIncoming email:\n${incomingBody.slice(0, 4000)}\n\nWrite the candidate's reply.` },
@@ -335,8 +327,7 @@ export async function generateInterviewPrep(
   job: ParsedJobJson
 ): Promise<InterviewPrepResult> {
   const payload = { resume: resumeSlim(resume), job: jobSlim(job) };
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: INTERVIEW_SYSTEM },
       { role: "user", content: JSON.stringify(payload) },
@@ -363,8 +354,7 @@ the job's needs, and close with a confident call to action. Use the candidate's 
 Do NOT include the date or physical addresses. Return ONLY the letter body as plain text (no JSON, no markdown).`;
 
   const payload = { resume: resumeSlim(resume), job: jobSlim(job) };
-  const res = await getOpenAI().chat.completions.create({
-    model: AI_TIERS.smart.model,
+  const res = await tierChat("smart", {
     messages: [
       { role: "system", content: system },
       { role: "user", content: JSON.stringify(payload) },

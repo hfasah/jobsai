@@ -54,3 +54,82 @@ export function getAIClient(provider: AIProvider = defaultProvider()): OpenAI {
   clients.set(provider, client);
   return client;
 }
+
+// True only if the provider has its own API key set. Used to avoid failing over
+// to a provider that isn't configured (which would just error again).
+export function providerConfigured(provider: AIProvider): boolean {
+  const cfg = PROVIDERS[provider];
+  return !!cfg && !!process.env[cfg.keyEnv];
+}
+
+// ---------------------------------------------------------------------------
+// Failover-aware chat completions.
+//
+// Calls go to a primary provider; on a *retryable* failure (quota/429, 5xx,
+// or a connection/timeout error) we automatically retry once on a backup
+// provider (e.g. DeepSeek when OpenAI is over quota). Bad-input errors (4xx
+// other than 429) are NOT retried — a different provider won't fix them.
+// ---------------------------------------------------------------------------
+export type ChatParams = OpenAI.Chat.Completions.ChatCompletionCreateParamsNonStreaming;
+export type ChatResult = OpenAI.Chat.Completions.ChatCompletion;
+export type FailoverTarget = { provider: AIProvider; model: string };
+
+function statusOf(err: unknown): number | undefined {
+  if (err instanceof OpenAI.APIError && typeof err.status === "number") return err.status;
+  if (err && typeof err === "object" && "status" in err) {
+    const s = (err as { status?: unknown }).status;
+    if (typeof s === "number") return s;
+  }
+  return undefined;
+}
+
+export function isRetryableProviderError(err: unknown): boolean {
+  const s = statusOf(err);
+  if (s !== undefined) return s === 429 || s === 408 || s >= 500;
+  // No HTTP status → connection/timeout error from the SDK → worth a backup try.
+  return err instanceof OpenAI.APIConnectionError;
+}
+
+function errLabel(err: unknown): string {
+  const s = statusOf(err);
+  if (s) return `HTTP ${s}`;
+  if (err instanceof Error) return err.name;
+  return "unknown error";
+}
+
+export async function createChatCompletion(
+  params: ChatParams,
+  opts: {
+    provider: AIProvider;
+    fallback?: FailoverTarget | null;
+    requestOptions?: OpenAI.RequestOptions;
+  },
+): Promise<ChatResult> {
+  try {
+    return await getAIClient(opts.provider).chat.completions.create(params, opts.requestOptions);
+  } catch (err) {
+    const fb = opts.fallback;
+    if (fb && fb.provider !== opts.provider && providerConfigured(fb.provider) && isRetryableProviderError(err)) {
+      console.warn(
+        `[ai] primary provider "${opts.provider}" failed (${errLabel(err)}); ` +
+          `failing over to backup "${fb.provider}" (${fb.model})`,
+      );
+      return await getAIClient(fb.provider).chat.completions.create(
+        { ...params, model: fb.model },
+        opts.requestOptions,
+      );
+    }
+    throw err;
+  }
+}
+
+// Maps a thrown AI error to a calm, user-facing message. Use in route catch
+// blocks instead of leaking provider details or a misleading "try again".
+export function aiErrorMessage(err: unknown, action = "request"): string {
+  const s = statusOf(err);
+  if (s === 429) return "Our AI is briefly over capacity. Please try again in a minute.";
+  if (s !== undefined && s >= 500) return "The AI service hit a temporary error. Please try again shortly.";
+  if (err instanceof OpenAI.APIConnectionError)
+    return "We couldn't reach the AI service. Please check your connection and try again.";
+  return `Couldn't complete the ${action}. Please try again.`;
+}

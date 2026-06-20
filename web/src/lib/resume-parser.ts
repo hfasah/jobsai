@@ -1,10 +1,6 @@
-import { getAIClient } from "@/lib/ai-client";
-import { getModel, logModelUsage, resumeParseProvider } from "@/lib/ai-models";
+import { createChatCompletion } from "@/lib/ai-client";
+import { logModelUsage, resumeParseTarget } from "@/lib/ai-models";
 import type { ParsedJson } from "@/types/resume";
-
-// Client follows the parse provider (RESUME_PARSE_PROVIDER) so parsing can run
-// on DeepSeek etc. independently of the rest of the app.
-const getParseClient = () => getAIClient(resumeParseProvider());
 
 const SYSTEM_PROMPT = `You are a resume parser. Extract structured data from the resume text provided.
 Return ONLY a valid JSON object matching this exact schema — no markdown, no explanation:
@@ -66,18 +62,21 @@ export async function parseResumeText(text: string): Promise<ParsedJson> {
   // Truncate to ~12k tokens worth of chars to stay within context limits
   const truncated = text.slice(0, 48000);
 
-  const model = getModel("resumeParse");
+  const { provider, model, fallback } = resumeParseTarget();
   logModelUsage("resumeParse");
 
-  const response = await getParseClient().chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: truncated },
-    ],
-    temperature: 0,
-    response_format: { type: "json_object" },
-  }, { timeout: 30 * 1000 }); // 30s timeout (was set on the client)
+  const response = await createChatCompletion(
+    {
+      model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: truncated },
+      ],
+      temperature: 0,
+      response_format: { type: "json_object" },
+    },
+    { provider, fallback, requestOptions: { timeout: 30 * 1000 } }, // 30s per attempt
+  );
 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("Empty response from OpenAI");
