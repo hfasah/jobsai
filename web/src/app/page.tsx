@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 
 import { MarketingHeader } from "@/components/marketing/marketing-header";
-import { HeroOrb } from "@/components/marketing/hero-orb";
+import { HeroInterviewPanel } from "@/components/marketing/hero-interview-panel";
 import { HeroVisual } from "@/components/marketing/hero-visual";
 import { ShowcaseSlides } from "@/components/marketing/showcase-slides";
 import { PricingSection } from "@/components/marketing/pricing-section";
@@ -98,23 +98,23 @@ export default function Home() {
 
         {/* ── Hero ─────────────────────────────────────────────────────────── */}
         <section id="home" className="relative overflow-hidden px-4 pb-20 pt-14 sm:px-6 sm:pt-20">
-          {/* Dark purple ambience */}
+          {/* Warm "offer letter" ambience — signature gold, not the generic purple AI glow */}
           <div
             className="pointer-events-none absolute inset-0"
             style={{
               background:
-                "radial-gradient(70% 55% at 50% 0%, color-mix(in oklch, var(--desyn-purple) 32%, transparent), transparent 70%), radial-gradient(50% 40% at 12% 15%, color-mix(in oklch, var(--desyn-brand) 22%, transparent), transparent 65%), radial-gradient(45% 40% at 90% 20%, color-mix(in oklch, var(--desyn-purple) 18%, transparent), transparent 60%)",
+                "radial-gradient(60% 50% at 50% -5%, color-mix(in oklch, var(--cta) 16%, transparent), transparent 68%), radial-gradient(42% 38% at 88% 8%, color-mix(in oklch, var(--cta) 11%, transparent), transparent 60%), radial-gradient(46% 42% at 8% 22%, color-mix(in oklch, var(--desyn-brand) 12%, transparent), transparent 62%)",
             }}
           />
-          <GradientBg variant="grid" className="opacity-30" />
+          <GradientBg variant="grid" className="opacity-[0.18]" />
 
           <div className="relative mx-auto flex max-w-4xl flex-col items-center text-center">
             <span className="reveal reveal-1 inline-flex items-center gap-2 rounded-full border border-[var(--cta)]/40 bg-[var(--cta)]/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[var(--cta)]">
               90-Day Interview Guarantee
             </span>
-            <h1 className="reveal reveal-2 mt-5 text-4xl font-bold leading-[1.05] tracking-tight sm:text-6xl lg:text-7xl">
+            <h1 className="reveal reveal-2 mt-5 font-[family-name:var(--font-display)] text-5xl font-semibold leading-[1.0] tracking-[-0.02em] sm:text-6xl lg:text-7xl">
               Stop applying,<br />
-              <span className="text-gradient">start interviewing</span>
+              <span className="italic text-[var(--cta)]">start interviewing.</span>
             </h1>
 
             <p className="reveal reveal-3 mt-6 max-w-2xl text-lg text-muted-foreground">
@@ -124,9 +124,9 @@ export default function Home() {
               <span className="font-semibold text-foreground">guaranteed in 90 days, or your money back.</span>
             </p>
 
-            {/* Voice orb */}
-            <div className="reveal reveal-3 mt-10">
-              <HeroOrb />
+            {/* Signature live-interview panel (the product's differentiator) */}
+            <div className="reveal reveal-3 mt-12">
+              <HeroInterviewPanel />
             </div>
 
             {/* Job search bar */}

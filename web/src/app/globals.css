@@ -257,6 +257,13 @@
   .reveal, .score-pop { animation: none; opacity: 1; transform: none; }
 }
 
+/* Hero interview panel — answer-strength meter fills on load. */
+.hero-meter { width: 92%; animation: hero-meter-fill 1.6s cubic-bezier(0.22, 1, 0.36, 1) 0.35s both; }
+@keyframes hero-meter-fill { from { width: 0; } to { width: 92%; } }
+@media (prefers-reduced-motion: reduce) {
+  .hero-meter { animation: none; }
+}
+
 /* ========================================================================== */
 /* Phase 34 — premium SaaS design system (blue → purple → cyan)               */
 /* ========================================================================== */
