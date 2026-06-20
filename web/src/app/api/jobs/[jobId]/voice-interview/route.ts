@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getAIClient } from "@/lib/ai-client";
+import { getAIClient, aiErrorMessage } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -134,7 +134,7 @@ export async function POST(
       question = r.choices[0]?.message?.content?.trim() || "Tell me about yourself and why you're interested in this role.";
     } catch (err) {
       console.error("voice start error:", err);
-      return NextResponse.json({ error: "Could not start the interview." }, { status: 500 });
+      return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
     }
 
     // Free users get a short, metered preview (the opening question), then an
@@ -208,7 +208,7 @@ export async function POST(
       parsed = JSON.parse(r.choices[0]?.message?.content || "{}");
     } catch (err) {
       console.error("voice respond error:", err);
-      return NextResponse.json({ error: "Could not generate the next question." }, { status: 500 });
+      return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
     }
 
     if (parsed.wrap || !parsed.say) {
@@ -264,7 +264,7 @@ export async function POST(
       scores = JSON.parse(content || "{}");
     } catch (err) {
       console.error("voice analyze error:", err);
-      return NextResponse.json({ error: "Analysis failed." }, { status: 500 });
+      return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
     }
 
     const dims = [scores.communication, scores.technical, scores.behavioral, scores.confidence].filter((n) => typeof n === "number");

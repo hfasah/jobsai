@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { aiErrorMessage } from "@/lib/ai-client";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -66,7 +67,7 @@ export async function POST(
     bodyText = await generateCoverLetter(ctx.resumeProfile, ctx.jobParsed, tone, length);
   } catch (err) {
     console.error("Cover letter error:", err);
-    return NextResponse.json({ error: "Generation failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 
   // Replace the latest letter for this job (single saved letter per job for MVP)

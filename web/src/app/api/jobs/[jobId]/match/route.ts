@@ -47,19 +47,23 @@ export async function POST(
   }
 
   if (!versionId) {
-    const { data: primaryDoc } = await supabaseAdmin
+    // Prefer the primary, fall back to the most recent resume with a version
+    // (order+limit, not maybeSingle, so duplicate primaries don't false-negative).
+    const { data: primaryDocs } = await supabaseAdmin
       .from("resume_documents")
       .select("active_version_id")
       .eq("user_id", userId)
-      .eq("is_primary", true)
       .eq("is_archived", false)
-      .maybeSingle();
-    versionId = primaryDoc?.active_version_id ?? null;
+      .not("active_version_id", "is", null)
+      .order("is_primary", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(1);
+    versionId = primaryDocs?.[0]?.active_version_id ?? null;
   }
 
   if (!versionId) {
     return NextResponse.json(
-      { error: "No primary resume set. Upload a resume and mark it primary first." },
+      { error: "No resume found yet. Upload a resume to get started." },
       { status: 409 }
     );
   }

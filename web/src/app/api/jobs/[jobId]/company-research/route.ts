@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getAIClient } from "@/lib/ai-client";
+import { getAIClient, aiErrorMessage } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -126,6 +126,6 @@ Research this company and fill out the schema above. If the company is obscure o
     return NextResponse.json({ data: result });
   } catch (err) {
     console.error("Company research error:", err);
-    return NextResponse.json({ error: "Research failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 }
