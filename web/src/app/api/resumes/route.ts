@@ -67,6 +67,31 @@ export async function GET() {
     for (const v of stalled) v.parse_status = "failed";
   }
 
+  // Backfill legacy generic names. Older uploads were all forced to the default
+  // "My Resume"; we now name from the uploaded file. For those legacy rows the
+  // original file name is still stored on the active version — derive a real
+  // label from it so existing cards stop all reading "My Resume". Only touches
+  // the exact legacy default, so user-chosen names are never overwritten.
+  const toRename: Array<{ id: string; label: string; row: { label?: string | null } }> = [];
+  for (const d of (data ?? []) as Array<{
+    id: string;
+    label?: string | null;
+    active_version?: { file_name?: string | null } | null;
+  }>) {
+    if (d.label !== "My Resume") continue;
+    const fileName = d.active_version?.file_name?.replace(/\.[^/.]+$/, "").trim();
+    if (fileName) toRename.push({ id: d.id, label: fileName, row: d });
+  }
+
+  if (toRename.length) {
+    await Promise.all(
+      toRename.map((t) =>
+        supabaseAdmin.from("resume_documents").update({ label: t.label }).eq("id", t.id),
+      ),
+    );
+    for (const t of toRename) t.row.label = t.label; // reflect in this response
+  }
+
   return NextResponse.json({ data });
 }
 
@@ -101,10 +126,15 @@ export async function POST(req: NextRequest) {
   }
 
   const file = formData.get("file") as File | null;
-  const label = (formData.get("label") as string | null) ?? "My Resume";
+  const providedLabel = (formData.get("label") as string | null)?.trim();
   const resumeGroupId = formData.get("resume_group_id") as string | null;
 
   if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
+
+  // Default the resume name to the uploaded file's name (minus extension) so it
+  // keeps the name it was uploaded with, instead of a generic "My Resume".
+  const label =
+    providedLabel || file.name.replace(/\.[^/.]+$/, "").trim() || "My Resume";
   if (!ALLOWED_TYPES.includes(file.type)) {
     return NextResponse.json(
       { error: "Only PDF, DOC, and DOCX files are supported." },
