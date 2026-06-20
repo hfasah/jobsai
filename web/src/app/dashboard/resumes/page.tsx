@@ -200,8 +200,21 @@ export default function ResumesPage() {
     const res = await fetch(`/api/resumes/versions/${versionId}/download-url`, {
       method: "POST",
     });
-    const { url } = await res.json();
-    window.open(url, "_blank");
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json.url) {
+      setUploadState({ type: "error", message: json.error || "Couldn't download this resume. Please try again." });
+      return;
+    }
+    // Trigger the download via an <a> click rather than window.open() — the
+    // latter, called after an await, loses the user-gesture context and opens a
+    // blank about:blank tab. The signed URL carries Content-Disposition, so this
+    // downloads the file without navigating away.
+    const a = document.createElement("a");
+    a.href = json.url;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   const handleRename = async (id: string, label: string) => {
