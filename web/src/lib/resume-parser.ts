@@ -1,8 +1,10 @@
 import { getAIClient } from "@/lib/ai-client";
-import { getModel, logModelUsage } from "@/lib/ai-models";
+import { getModel, logModelUsage, resumeParseProvider } from "@/lib/ai-models";
 import type { ParsedJson } from "@/types/resume";
 
-const getOpenAI = () => getAIClient();
+// Client follows the parse provider (RESUME_PARSE_PROVIDER) so parsing can run
+// on DeepSeek etc. independently of the rest of the app.
+const getParseClient = () => getAIClient(resumeParseProvider());
 
 const SYSTEM_PROMPT = `You are a resume parser. Extract structured data from the resume text provided.
 Return ONLY a valid JSON object matching this exact schema — no markdown, no explanation:
@@ -67,7 +69,7 @@ export async function parseResumeText(text: string): Promise<ParsedJson> {
   const model = getModel("resumeParse");
   logModelUsage("resumeParse");
 
-  const response = await getOpenAI().chat.completions.create({
+  const response = await getParseClient().chat.completions.create({
     model,
     messages: [
       { role: "system", content: SYSTEM_PROMPT },

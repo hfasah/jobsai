@@ -37,11 +37,12 @@ export const AI_TIERS: Record<"smart" | "fast", TierConfig> = {
 };
 
 export const AI_MODELS = {
-  // Resume parsing: prioritize RELIABILITY over speed
-  // gpt-4-turbo: ~30-60 seconds, reliable & accurate (chosen for business continuity)
-  // gpt-3.5-turbo: ~10-30 seconds, but less reliable (was timing out)
-  // gpt-4o: ~60+ seconds, most accurate (too slow)
-  resumeParse: (process.env.RESUME_PARSE_MODEL || "gpt-4-turbo") as string,
+  // Resume parsing. Benchmarked (scripts/resume-parse-bench.mjs): gpt-4o ~5s,
+  // deepseek-chat ~5s, gpt-4o-mini ~11s (slower on big JSON), gpt-4-turbo ~16s+
+  // (the old default — 30-60s on real resumes). All identical extraction
+  // quality, so default to gpt-4o. Override model + provider via env:
+  //   RESUME_PARSE_MODEL (e.g. deepseek-chat) + RESUME_PARSE_PROVIDER (deepseek).
+  resumeParse: (process.env.RESUME_PARSE_MODEL || "gpt-4o") as string,
 
   // Job parsing, matching, skills gap: balance accuracy & speed
   jobParse: (process.env.JOB_PARSE_MODEL || "gpt-4-turbo") as string,
@@ -54,6 +55,13 @@ export const AI_MODELS = {
 
 export function getModel(task: keyof typeof AI_MODELS): string {
   return AI_MODELS[task];
+}
+
+// Provider for resume parsing. Defaults to RESUME_PARSE_PROVIDER, then the
+// global AI_PROVIDER, then openai. Pair with RESUME_PARSE_MODEL so client and
+// model move together (e.g. provider=deepseek + model=deepseek-chat).
+export function resumeParseProvider(): AIProvider {
+  return tierProvider(process.env.RESUME_PARSE_PROVIDER);
 }
 
 export function logModelUsage(task: keyof typeof AI_MODELS) {
