@@ -41,6 +41,32 @@ export async function GET() {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  // Self-heal stalled parses. A version stuck in an in-progress state long past
+  // any legitimate duration means its background parse (after()) was killed
+  // mid-run — otherwise it would have reached parsed/partial/failed. Mark it
+  // failed so the card stops showing "Analyzing" forever and the user can
+  // retry by re-uploading. Normal parse is ~5s; 3 min is far beyond worst case
+  // (the parser itself times out at 30s).
+  const STALE_MS = 3 * 60 * 1000;
+  const stalled = ((data ?? []) as Array<{
+    active_version?: { id: string; parse_status: string; uploaded_at?: string | null } | null;
+  }>)
+    .map((d) => d.active_version)
+    .filter((v): v is { id: string; parse_status: string; uploaded_at?: string | null } =>
+      !!v &&
+      (v.parse_status === "pending" || v.parse_status === "extracting_text") &&
+      Date.now() - (v.uploaded_at ? new Date(v.uploaded_at).getTime() : 0) > STALE_MS);
+
+  if (stalled.length) {
+    const ids = stalled.map((v) => v.id);
+    await supabaseAdmin
+      .from("resume_versions")
+      .update({ parse_status: "failed", parse_error_code: "PARSE_STALLED" })
+      .in("id", ids);
+    // reflect immediately in this response (same objects referenced in `data`)
+    for (const v of stalled) v.parse_status = "failed";
+  }
+
   return NextResponse.json({ data });
 }
 
