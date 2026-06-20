@@ -13,6 +13,7 @@ import type { EnterpriseOrg } from "@/types/enterprise";
 import { AskAI } from "@/components/enterprise/ask-ai";
 import { NudgeBanner } from "@/components/enterprise/nudge-banner";
 import { AppearanceMenu } from "@/components/enterprise/appearance-menu";
+import { TranslationProvider, LanguageSwitcher } from "@/components/enterprise/translation-provider";
 
 // `feature` (when set) hides the item unless the org's plan entitles it.
 const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: string }[] = [
@@ -105,6 +106,7 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
           <ExternalLink className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground" />
         </Link>
         <AppearanceMenu />
+        <LanguageSwitcher />
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
           <SignOutButton redirectUrl={org?.slug ? `/e/${org.slug}` : "/enterprise-login"}>
@@ -164,7 +166,7 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
   if (bypass) return <>{children}</>;
 
   return (
-    <>
+    <TranslationProvider>
     {demoMode && (
       <div className="flex items-center justify-center gap-3 bg-amber-500 px-4 py-1.5 text-center text-xs font-semibold text-black print:hidden">
         <span>👁 Viewing this workspace as admin (demo mode)</span>
@@ -208,6 +210,6 @@ export function EnterpriseShell({ children }: { children: React.ReactNode }) {
       {/* Global AI assistant — available on every enterprise page */}
       <AskAI />
     </div>
-    </>
+    </TranslationProvider>
   );
 }
