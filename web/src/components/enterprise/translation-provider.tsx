@@ -141,6 +141,12 @@ export function TranslationProvider({ children }: { children: React.ReactNode })
     // intentionally happens in an effect (hydration-safe).
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLangState(active);
+
+    // Direction + lang attribute for the active language (RTL for Arabic etc.).
+    const RTL = new Set(["ar", "he", "fa", "ur"]);
+    document.documentElement.dir = RTL.has(active) ? "rtl" : "ltr";
+    document.documentElement.lang = active;
+
     if (active === "en") return;
 
     // Warm the per-language cache from localStorage.
