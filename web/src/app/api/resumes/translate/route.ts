@@ -30,11 +30,15 @@ export async function POST(req: NextRequest) {
   }
 
   // Verify ownership via resume_documents
-  const { data: verifyRow } = await supabaseAdmin
+  // Disambiguate the embed: resume_versions ↔ resume_documents have TWO FKs
+  // (document_id and active_version_id), so a bare `resume_documents!inner` is
+  // ambiguous and the query errors → false "Resume not found". Name the FK.
+  const { data: verifyRow, error: verifyError } = await supabaseAdmin
     .from("resume_versions")
-    .select("id, document_id, resume_documents!inner(user_id)")
+    .select("id, document_id, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
     .eq("id", versionId)
     .maybeSingle();
+  if (verifyError) console.error("translate ownership lookup failed:", verifyError.message);
 
   type VerifyRow = { id: string; document_id: string; resume_documents: { user_id: string } | { user_id: string }[] };
   const row = verifyRow as VerifyRow | null;
