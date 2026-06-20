@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { recordUsage } from "@/lib/llm-usage";
@@ -9,7 +11,7 @@ import { recordUsage } from "@/lib/llm-usage";
 export const maxDuration = 45;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -115,14 +117,14 @@ Only include candidates who are genuinely relevant. If fewer than ${limit} are r
   let ranked: { index: number; fit_reason: string; relevance_score: number }[] = [];
   try {
     const response = await ai().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: AI_TIERS.fast.model,
       messages: [{ role: "user", content: prompt }],
       response_format: { type: "json_object" },
       temperature: 0.2,
       max_tokens: 1500,
     });
     const raw = response.choices[0]?.message?.content ?? "{}";
-    recordUsage({ userId, feature: "sourcing_search", model: "gpt-4o-mini", usage: { prompt_tokens: response.usage?.prompt_tokens, completion_tokens: response.usage?.completion_tokens } });
+    recordUsage({ userId, feature: "sourcing_search", model: AI_TIERS.fast.model, usage: { prompt_tokens: response.usage?.prompt_tokens, completion_tokens: response.usage?.completion_tokens } });
 
     // GPT may return { results: [...] } or just an array wrapped in an object
     const parsed = JSON.parse(raw);

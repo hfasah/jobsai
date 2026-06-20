@@ -1,10 +1,13 @@
 // AI Voice Screening — Twilio Voice + OpenAI Whisper/GPT helpers
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
 
+// Chat helpers run on the configurable "fast" tier.
 let _ai: OpenAI | null = null;
-const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+const ai = () => (_ai ??= getAIClient(AI_TIERS.fast.provider));
 
 // ── Question generation ───────────────────────────────────────────────────────
 
@@ -13,7 +16,7 @@ export async function generateScreeningQuestions(
   jobDescription: string,
 ): Promise<string[]> {
   const res = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 400,
     response_format: { type: "json_object" },
     messages: [
@@ -93,7 +96,9 @@ export async function transcribeRecording(recordingUrl: string): Promise<string>
   const audioBuffer = await audioRes.arrayBuffer();
   const file = new File([audioBuffer], "recording.mp3", { type: "audio/mpeg" });
 
-  const transcription = await ai().audio.transcriptions.create({
+  // Whisper transcription is OpenAI-only — pin the provider so a fast-tier
+  // switch (e.g. DeepSeek) doesn't break audio transcription.
+  const transcription = await getAIClient("openai").audio.transcriptions.create({
     model: "whisper-1",
     file,
     language: "en",
@@ -114,7 +119,7 @@ export async function scoreVoiceInterview(
   voice_concerns: string[];
 }> {
   const res = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 600,
     response_format: { type: "json_object" },
     messages: [

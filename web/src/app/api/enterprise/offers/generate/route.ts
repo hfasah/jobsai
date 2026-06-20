@@ -2,9 +2,10 @@ import { auth } from "@clerk/nextjs/server";
 import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { getMyOrg } from "@/lib/enterprise";
-import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = getAIClient(AI_TIERS.fast.provider);
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -33,7 +34,7 @@ Use <p> tags for paragraphs. Include: warm opening, role confirmation, compensat
 
   try {
     const resp = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: AI_TIERS.fast.model,
       messages: [{ role: "user", content: prompt }],
       max_tokens: 800,
     });

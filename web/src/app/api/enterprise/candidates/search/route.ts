@@ -1,13 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 
 export const maxDuration = 20;
 
 let _ai: OpenAI | null = null;
-const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+const ai = () => (_ai ??= getAIClient(AI_TIERS.fast.provider));
 
 // POST /api/enterprise/candidates/search
 // body: { query: string, jobId?: string }
@@ -40,7 +42,7 @@ Return:
 }`;
 
   const filterRes = await ai().chat.completions.create({
-    model: "gpt-4o-mini",
+    model: AI_TIERS.fast.model,
     max_tokens: 200,
     response_format: { type: "json_object" },
     messages: [{ role: "user", content: filterPrompt }],

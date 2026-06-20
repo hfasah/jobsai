@@ -3,9 +3,10 @@ import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
-import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = getAIClient(AI_TIERS.fast.provider);
 
 export async function GET() {
   const { userId } = await auth();
@@ -53,7 +54,7 @@ ${notes ? `Additional context: ${notes}` : ""}
 Use <p> tags for paragraphs. Include: warm opening, role confirmation, compensation (if provided), start date (if provided), next steps (sign this letter), and a welcoming close. Keep it under 400 words. Sign off as "The ${org.name} Team".`;
 
       const resp = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
+        model: AI_TIERS.fast.model,
         messages: [{ role: "user", content: prompt }],
         max_tokens: 800,
       });
