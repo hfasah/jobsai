@@ -1,5 +1,6 @@
 import { createHash } from "crypto";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { renderResumeDocx, DOCX_MIME } from "@/lib/resume-docx";
 import type { ParsedJson } from "@/types/resume";
 
 // Creates a new resume document + version from a parsed profile (no file upload).
@@ -20,20 +21,36 @@ export async function createResumeFromProfile(
     .single();
   if (docError || !doc) throw new Error("Failed to create resume document.");
 
+  // Render a real .docx and store it at storage_key so the resume is
+  // downloadable (generated resumes have no uploaded source file). Best-effort:
+  // if rendering/upload fails the resume still saves and works in-app — only the
+  // download would be unavailable, so we don't fail the whole save on it.
+  const storageKey = `${fileTag}/${userId}/${doc.id}`;
+  let fileSize = rawText.length;
+  try {
+    const docxBuffer = await renderResumeDocx(parsed);
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(STORAGE_BUCKET)
+      .upload(storageKey, docxBuffer, { contentType: DOCX_MIME, upsert: true });
+    if (uploadError) console.error("resume docx upload failed:", uploadError.message);
+    else fileSize = docxBuffer.length;
+  } catch (e) {
+    console.error("resume docx render failed:", e);
+  }
+
   const checksum = createHash("sha256").update(rawText + Date.now()).digest("hex");
   const { data: version, error: versionError } = await supabaseAdmin
     .from("resume_versions")
     .insert({
       document_id: doc.id,
       version_number: 1,
-      storage_key: `${fileTag}/${userId}/${doc.id}`,
-      file_name: label,
-      // resume_versions.file_ext has a CHECK (pdf|doc|docx). Generated resumes
-      // aren't uploaded files, so use "docx" (the format we export them as) to
-      // satisfy the constraint — fileTag still distinguishes origin in storage_key.
+      storage_key: storageKey,
+      file_name: label.endsWith(".docx") ? label : `${label}.docx`,
+      // resume_versions.file_ext has a CHECK (pdf|doc|docx). We export generated
+      // resumes as .docx (uploaded above), so this is now an honest extension.
       file_ext: "docx",
-      file_mime: "application/json",
-      file_size_bytes: rawText.length,
+      file_mime: DOCX_MIME,
+      file_size_bytes: fileSize,
       checksum_sha256: checksum,
       upload_status: "uploaded",
       parse_status: "parsed",

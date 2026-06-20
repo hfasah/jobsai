@@ -14,7 +14,7 @@ export async function POST(
 
   const { data: version } = await supabaseAdmin
     .from("resume_versions")
-    .select("storage_key, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
+    .select("storage_key, file_name, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
     .eq("id", versionId)
     .eq("resume_documents!resume_versions_document_id_fkey.user_id", userId)
     .is("deleted_at", null)
@@ -22,9 +22,11 @@ export async function POST(
 
   if (!version) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
+  // `download` sets Content-Disposition so the file saves with a real name
+  // (e.g. "My Resume.docx") instead of the storage UUID.
   const { data: signed, error } = await supabaseAdmin.storage
     .from(STORAGE_BUCKET)
-    .createSignedUrl(version.storage_key, 300); // 5 min TTL
+    .createSignedUrl(version.storage_key, 300, { download: version.file_name || true }); // 5 min TTL
 
   if (error || !signed) {
     return NextResponse.json({ error: "Could not generate download URL" }, { status: 500 });
