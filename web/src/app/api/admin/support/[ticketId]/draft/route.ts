@@ -1,13 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 30;
 
 let _ai: OpenAI | null = null;
-const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
+const ai = () => (_ai ??= getAIClient(AI_TIERS.fast.provider));
 
 async function requireAdmin() {
   const { userId } = await auth();
@@ -41,7 +43,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ti
 
   try {
     const resp = await ai().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: AI_TIERS.fast.model,
       temperature: 0.5,
       max_tokens: 380,
       messages: [{
@@ -55,7 +57,7 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ ti
           `Conversation so far:\n${thread}`,
       }],
     });
-    recordUsage({ feature: "support_draft", model: "gpt-4o-mini", usage: { prompt_tokens: resp.usage?.prompt_tokens, completion_tokens: resp.usage?.completion_tokens } });
+    recordUsage({ feature: "support_draft", model: AI_TIERS.fast.model, usage: { prompt_tokens: resp.usage?.prompt_tokens, completion_tokens: resp.usage?.completion_tokens } });
     const draft = resp.choices[0]?.message?.content?.trim() ?? "";
     if (!draft) return NextResponse.json({ error: "Could not draft a reply." }, { status: 502 });
     return NextResponse.json({ draft });

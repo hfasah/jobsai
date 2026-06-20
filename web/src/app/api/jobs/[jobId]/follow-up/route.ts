@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -11,7 +13,7 @@ export type FollowUpType = "follow_up" | "thank_you" | "check_in";
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) _openai = getAIClient(AI_TIERS.smart.provider);
   return _openai;
 }
 
@@ -78,7 +80,7 @@ Task: ${TYPE_PROMPTS[type]}`;
 
   try {
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+      model: AI_TIERS.smart.model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

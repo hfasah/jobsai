@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 30;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 function normRec(raw: unknown): "strong_yes" | "yes" | "maybe" | "no" | null {
   if (typeof raw !== "string") return null;
@@ -48,7 +50,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
   try {
     const text = responses.map((r) => `Q: ${r.question}\nA: ${r.answer}`).join("\n\n");
     const completion = await ai().chat.completions.create({
-      model: "gpt-4o-mini", max_tokens: 500, response_format: { type: "json_object" },
+      model: AI_TIERS.fast.model, max_tokens: 500, response_format: { type: "json_object" },
       messages: [{ role: "user", content: `Summarize this reference from ${ref.referee_name}.\n${text}\nReturn JSON: {summary, sentiment:"positive|mixed|negative", recommendation:"strong_yes|yes|maybe|no"}` }],
     });
     const parsed = JSON.parse(completion.choices[0]?.message?.content ?? "{}");

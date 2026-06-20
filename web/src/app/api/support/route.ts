@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions";
 
 export const maxDuration = 30;
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) _openai = getAIClient(AI_TIERS.fast.provider);
   return _openai;
 }
 
@@ -75,7 +77,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const completion = await getOpenAI().chat.completions.create({
-      model: "gpt-4o-mini",
+      model: AI_TIERS.fast.model,
       max_tokens: 300,
       messages: [{ role: "system" as const, content: SYSTEM }, ...messages],
     });

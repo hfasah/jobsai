@@ -1,17 +1,8 @@
-import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
 import { getModel, logModelUsage } from "@/lib/ai-models";
 import type { ParsedJson } from "@/types/resume";
 
-let _openai: OpenAI | null = null;
-function getOpenAI() {
-  if (!_openai) {
-    _openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-      timeout: 30 * 1000, // 30 second timeout
-    });
-  }
-  return _openai;
-}
+const getOpenAI = () => getAIClient();
 
 const SYSTEM_PROMPT = `You are a resume parser. Extract structured data from the resume text provided.
 Return ONLY a valid JSON object matching this exact schema — no markdown, no explanation:
@@ -84,7 +75,7 @@ export async function parseResumeText(text: string): Promise<ParsedJson> {
     ],
     temperature: 0,
     response_format: { type: "json_object" },
-  });
+  }, { timeout: 30 * 1000 }); // 30s timeout (was set on the client)
 
   const content = response.choices[0]?.message?.content;
   if (!content) throw new Error("Empty response from OpenAI");

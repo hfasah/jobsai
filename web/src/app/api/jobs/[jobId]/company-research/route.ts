@@ -2,6 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const maxDuration = 30;
@@ -20,7 +22,7 @@ export interface CompanyResearchResult {
 
 let _openai: OpenAI | null = null;
 function getOpenAI() {
-  if (!_openai) _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  if (!_openai) _openai = getAIClient(AI_TIERS.smart.provider);
   return _openai;
 }
 
@@ -101,7 +103,7 @@ Research this company and fill out the schema above. If the company is obscure o
 
   try {
     const response = await getOpenAI().chat.completions.create({
-      model: "gpt-4o",
+      model: AI_TIERS.smart.model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },

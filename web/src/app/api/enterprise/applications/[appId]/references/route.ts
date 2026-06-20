@@ -1,13 +1,15 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 
 export const maxDuration = 30;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 type Ctx = { params: Promise<{ appId: string }> };
 
@@ -33,7 +35,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   let questions: { id: string; question: string }[] = [];
   try {
     const completion = await ai().chat.completions.create({
-      model: "gpt-4o-mini", max_tokens: 700, response_format: { type: "json_object" },
+      model: AI_TIERS.fast.model, max_tokens: 700, response_format: { type: "json_object" },
       messages: [{ role: "user", content: `Generate 6 professional reference-check questions for a referee (${body.relationship ?? "former colleague"}) of ${app.candidate_name}, who is being hired as ${job?.title ?? "an employee"}. Cover: working relationship, key strengths, areas for development, reliability, would-rehire, and role-fit. Return JSON: {questions:[{id,question}]}` }],
     });
     questions = JSON.parse(completion.choices[0]?.message?.content ?? "{}").questions ?? [];

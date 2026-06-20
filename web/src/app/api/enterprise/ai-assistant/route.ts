@@ -1,6 +1,8 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
+import { getAIClient } from "@/lib/ai-client";
+import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { recordUsage } from "@/lib/llm-usage";
@@ -8,7 +10,7 @@ import { recordUsage } from "@/lib/llm-usage";
 export const maxDuration = 45;
 
 let _ai: OpenAI | null = null;
-const ai = () => _ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const ai = () => _ai ??= getAIClient(AI_TIERS.fast.provider);
 
 // per-user rate limit
 const rl = new Map<string, { count: number; reset: number }>();
@@ -45,10 +47,10 @@ Rules:
 
   try {
     const completion = await ai().chat.completions.create({
-      model: "gpt-4o-mini", max_tokens: 1200,
+      model: AI_TIERS.fast.model, max_tokens: 1200,
       messages: [{ role: "system", content: system }, { role: "user", content: userMsg }],
     });
-    recordUsage({ orgId: org.id, userId, feature: "ask_ai", model: "gpt-4o-mini", usage: completion.usage });
+    recordUsage({ orgId: org.id, userId, feature: "ask_ai", model: AI_TIERS.fast.model, usage: completion.usage });
     const output = completion.choices[0]?.message?.content?.trim() ?? "";
 
     // bump prompt usage if a saved template was used
