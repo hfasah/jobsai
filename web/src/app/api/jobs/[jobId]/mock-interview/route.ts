@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getAIClient } from "@/lib/ai-client";
+import { getAIClient, aiErrorMessage } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -180,7 +180,7 @@ Candidate's answer: ${answer.trim()}`;
     evaluation = JSON.parse(content) as MockEvaluation;
   } catch (err) {
     console.error("Mock interview eval error:", err);
-    return NextResponse.json({ error: "Evaluation failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 
   // Charge only on a successful evaluation.

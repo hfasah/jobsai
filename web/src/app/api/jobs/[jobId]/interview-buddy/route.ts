@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getAIClient } from "@/lib/ai-client";
+import { getAIClient, aiErrorMessage } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { INTERVIEW_TOOL_GUARDRAILS } from "@/lib/avatar";
@@ -104,6 +104,6 @@ Rate and coach this answer.`;
     return NextResponse.json({ data: coaching });
   } catch (err) {
     console.error("Interview buddy error:", err);
-    return NextResponse.json({ error: "Coaching failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 }

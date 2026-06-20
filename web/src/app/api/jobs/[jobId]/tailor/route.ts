@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { aiErrorMessage } from "@/lib/ai-client";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -60,7 +61,7 @@ export async function POST(
     result = await tailorResume(ctx.resumeProfile, ctx.jobParsed);
   } catch (err) {
     console.error("Tailoring error:", err);
-    return NextResponse.json({ error: "Tailoring failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 
   // Backfill any dates the model dropped from the source resume.

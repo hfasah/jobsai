@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getAIClient } from "@/lib/ai-client";
+import { getAIClient, aiErrorMessage } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -96,6 +96,6 @@ Task: ${TYPE_PROMPTS[type]}`;
     return NextResponse.json({ data: result });
   } catch (err) {
     console.error("Follow-up generation error:", err);
-    return NextResponse.json({ error: "Generation failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 }

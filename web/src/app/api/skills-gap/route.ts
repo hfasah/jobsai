@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-import { getAIClient } from "@/lib/ai-client";
+import { getAIClient, aiErrorMessage } from "@/lib/ai-client";
 import { getModel, logModelUsage } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 
@@ -64,18 +64,23 @@ export async function POST(_req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  // Load user's resume skills
-  const { data: primaryDoc } = await supabaseAdmin
+  // Load the user's resume skills: prefer the primary, fall back to the most
+  // recent resume that has a parsed version (order+limit, not maybeSingle, so a
+  // duplicate-primary state can't cause a false "no resume" error).
+  const { data: primaryDocs } = await supabaseAdmin
     .from("resume_documents")
     .select("active_version_id")
     .eq("user_id", userId)
-    .eq("is_primary", true)
     .eq("is_archived", false)
-    .maybeSingle();
+    .not("active_version_id", "is", null)
+    .order("is_primary", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(1);
 
-  if (!primaryDoc?.active_version_id) {
+  const resumeVersionId = primaryDocs?.[0]?.active_version_id;
+  if (!resumeVersionId) {
     return NextResponse.json(
-      { error: "No primary resume found. Upload a resume first." },
+      { error: "No resume found yet. Upload a resume to get started." },
       { status: 409 }
     );
   }
@@ -83,7 +88,7 @@ export async function POST(_req: NextRequest) {
   const { data: profile } = await supabaseAdmin
     .from("resume_parsed_profile")
     .select("parsed_json")
-    .eq("version_id", primaryDoc.active_version_id)
+    .eq("version_id", resumeVersionId)
     .maybeSingle();
 
   const resumeParsed = profile?.parsed_json as {
@@ -234,6 +239,6 @@ Analyze the gap and fill the schema.`;
     return NextResponse.json({ data: result });
   } catch (err) {
     console.error("Skills gap analysis error:", err);
-    return NextResponse.json({ error: "Analysis failed. Please try again." }, { status: 500 });
+    return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 }
