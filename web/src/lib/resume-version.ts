@@ -28,7 +28,10 @@ export async function createResumeFromProfile(
       version_number: 1,
       storage_key: `${fileTag}/${userId}/${doc.id}`,
       file_name: label,
-      file_ext: fileTag,
+      // resume_versions.file_ext has a CHECK (pdf|doc|docx). Generated resumes
+      // aren't uploaded files, so use "docx" (the format we export them as) to
+      // satisfy the constraint — fileTag still distinguishes origin in storage_key.
+      file_ext: "docx",
       file_mime: "application/json",
       file_size_bytes: rawText.length,
       checksum_sha256: checksum,
@@ -39,7 +42,10 @@ export async function createResumeFromProfile(
     })
     .select("id")
     .single();
-  if (versionError || !version) throw new Error("Failed to create version record.");
+  if (versionError || !version) {
+    console.error("createResumeFromProfile version insert failed:", versionError?.message);
+    throw new Error("Failed to create version record.");
+  }
 
   await supabaseAdmin.from("resume_documents").update({ active_version_id: version.id }).eq("id", doc.id);
 

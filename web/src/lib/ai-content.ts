@@ -136,7 +136,7 @@ Schema:
   "keywords_added": ["job keywords now surfaced in the resume that were missing or buried"]
 }
 
-Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source — copy them verbatim into each experience entry. Only the framing/wording of bullets changes.
+Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source — copy them verbatim into each experience entry. Only the framing/wording of bullets changes. Aim for 4-6 substantive, detailed bullets per role where the source supports it — expand the candidate's real accomplishments into distinct, specific, metric-rich bullets rather than collapsing them into 2-3; never invent content to hit a count (a genuinely brief role may warrant fewer).
 An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and weave the relevant ones naturally into that entry's bullets; you may rephrase them but must NOT exaggerate beyond what a fact states. The resume and candidate_facts are the ONLY sources you may draw facts from.
 For the "skills" change, "before" and "after" MUST be human-readable comma-separated lists (e.g. "Python, AWS, Docker, Kubernetes") — never run together without separators.
 Limit changes[] to the 4-6 most impactful edits.`;
@@ -184,7 +184,7 @@ Schema:
   "skill_coverage": { "covered": ["target skills genuinely evidenced in the resume"], "missing": ["target skills NOT evidenced — be honest, do not fabricate"] }
 }
 
-Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source. Only reframe wording.
+Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source. Only reframe wording. Aim for 4-6 substantive, detailed bullets per role where the source supports it — expand the candidate's real accomplishments into distinct, specific, metric-rich bullets rather than collapsing them into 2-3; never invent content to hit a count (a genuinely brief role may warrant fewer).
 An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and surface the relevant ones in that entry's bullets; rephrase if needed but never exaggerate beyond what a fact states. The resume and candidate_facts are the ONLY sources of fact.
 A target skill belongs in "covered" only if the resume genuinely supports it; otherwise put it in "missing". Limit changes[] to 4-6 edits.`;
 
