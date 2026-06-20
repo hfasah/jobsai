@@ -154,19 +154,37 @@ export interface ResumeContext {
  * (not maybeSingle) so a duplicate-primary state can't wedge it into a false
  * "no primary" error — robust to whatever primary state the account is in. */
 export async function loadResumeProfile(
-  userId: string
+  userId: string,
+  preferredVersionId?: string | null,
 ): Promise<ResumeContext | JobContextError> {
-  const { data: docs } = await supabaseAdmin
-    .from("resume_documents")
-    .select("active_version_id")
-    .eq("user_id", userId)
-    .eq("is_archived", false)
-    .not("active_version_id", "is", null)
-    .order("is_primary", { ascending: false }) // primary first…
-    .order("created_at", { ascending: false }) // …then most recent
-    .limit(1);
+  let resumeVersionId: string | null | undefined;
 
-  const resumeVersionId = docs?.[0]?.active_version_id;
+  if (preferredVersionId) {
+    // Caller picked a specific resume — use it, but verify the user owns it.
+    const { data: owned } = await supabaseAdmin
+      .from("resume_versions")
+      .select("id, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
+      .eq("id", preferredVersionId)
+      .maybeSingle();
+    const rel = (owned as { resume_documents?: { user_id?: string } | { user_id?: string }[] } | null)
+      ?.resume_documents;
+    const ownerId = Array.isArray(rel) ? rel[0]?.user_id : rel?.user_id;
+    if (owned && ownerId === userId) resumeVersionId = preferredVersionId;
+  }
+
+  if (!resumeVersionId) {
+    const { data: docs } = await supabaseAdmin
+      .from("resume_documents")
+      .select("active_version_id")
+      .eq("user_id", userId)
+      .eq("is_archived", false)
+      .not("active_version_id", "is", null)
+      .order("is_primary", { ascending: false }) // primary first…
+      .order("created_at", { ascending: false }) // …then most recent
+      .limit(1);
+    resumeVersionId = docs?.[0]?.active_version_id;
+  }
+
   if (!resumeVersionId) {
     return { error: "No resume found yet. Upload a resume to get started.", status: 409 };
   }

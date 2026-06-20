@@ -15,12 +15,14 @@ export async function POST(req: NextRequest) {
     ? body.skills.map((s: unknown) => String(s).trim()).filter(Boolean).slice(0, 25)
     : [];
   const role: string | undefined = typeof body.role === "string" ? body.role.trim() || undefined : undefined;
+  const resumeVersionId: string | undefined =
+    typeof body.resume_version_id === "string" && body.resume_version_id ? body.resume_version_id : undefined;
 
   if (skills.length === 0) {
     return NextResponse.json({ error: "Add at least one target skill." }, { status: 400 });
   }
 
-  const ctx = await loadResumeProfile(userId);
+  const ctx = await loadResumeProfile(userId, resumeVersionId);
   if (isContextError(ctx)) {
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }
