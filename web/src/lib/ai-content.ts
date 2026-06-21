@@ -145,9 +145,15 @@ Limit changes[] to the 4-6 most impactful edits.`;
 export type ResumeDetail = "concise" | "expanded";
 
 export function lengthGuidance(detail: ResumeDetail): string {
-  return detail === "expanded"
-    ? `LENGTH — EXPANDED: Produce a thorough, ~2-page resume. Write 5-7 substantive, detailed bullets per role where the source supports it. Break each real accomplishment into distinct, specific, metric-rich bullets and surface relevant scope, tools, context, and outcomes — be comprehensive, not terse. Still NEVER invent content: if a role's source material is genuinely thin, write as many truthful bullets as it supports and put the richest detail on the most relevant roles.`
-    : `LENGTH — CONCISE: Keep it to a tight ~1-page resume. 3-4 high-impact bullets per role, most relevant first. Never invent content.`;
+  // Applied to BOTH the Builder and Optimizer prompts. The preservation rule is
+  // the important part: never strip the candidate's real accomplishments.
+  const preserve =
+    `PRESERVE & ELABORATE: Surface ALL of the candidate's real accomplishments from the source — never drop, merge away, or collapse a role into 1-2 generic bullets. If a source role describes many accomplishments, keep a COMPARABLE number of strong, reframed bullets (do NOT reduce an 8-bullet role to 2). You SHOULD elaborate genuinely-held experience into several specific, truthful bullets — a real skill, project, or responsibility can yield multiple distinct bullets covering impact, scope, methods, tools, and outcomes. The output is fully editable by the candidate, so favor useful completeness over brevity. The ONLY hard rule is no fabrication: never invent accomplishments, employers, titles, dates, metrics, or skills the candidate does not have. A role whose source material is genuinely thin may stay short — that is fine.`;
+  const length =
+    detail === "expanded"
+      ? `LENGTH — EXPANDED: Target a thorough ~2-page resume. Elaborate every accomplishment into granular, specific, metric-rich bullets — 5-8 per substantial role. Err toward fuller, more useful detail.`
+      : `LENGTH — CONCISE: Target ~1 page, but keep EVERY real accomplishment — reach one page by tightening wording and merging only genuine redundancy, NOT by deleting real content. Aim for 3-5 strong bullets per substantial role (more if the source role is rich).`;
+  return `${preserve}\n${length}`;
 }
 
 export async function tailorResume(

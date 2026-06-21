@@ -16,6 +16,7 @@ export default function ResumeOptimizerPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<TailorResult | null>(null);
+  const [detail, setDetail] = useState<"concise" | "expanded">("concise");
 
   useEffect(() => {
     let active = true;
@@ -29,7 +30,11 @@ export default function ResumeOptimizerPage() {
     if (!jobId) { setError("Pick a job first."); return; }
     setLoading(true); setError(null); setResult(null);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/tailor`, { method: "POST" });
+      const res = await fetch(`/api/jobs/${jobId}/tailor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ detail }),
+      });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Optimize failed");
       setResult(json.data as TailorResult);
@@ -81,6 +86,33 @@ export default function ResumeOptimizerPage() {
           </>
         )}
       </div>
+
+      {jobs && jobs.length > 0 && (
+        <div className="mt-3">
+          <span className="text-xs font-semibold text-foreground">Length</span>
+          <div className="mt-1.5 grid grid-cols-2 gap-2 sm:max-w-md">
+            {([
+              { value: "concise", title: "Concise", hint: "~1 page" },
+              { value: "expanded", title: "Expanded", hint: "~2 pages · more bullets/role" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setDetail(opt.value)}
+                aria-pressed={detail === opt.value}
+                className={`rounded-xl border px-3 py-2 text-left transition-colors ${
+                  detail === opt.value
+                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    : "border-border bg-card hover:bg-muted/50"
+                }`}
+              >
+                <span className="block text-sm font-semibold text-foreground">{opt.title}</span>
+                <span className="block text-[11px] text-muted-foreground">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {error && (
         <div className="mt-4 flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
