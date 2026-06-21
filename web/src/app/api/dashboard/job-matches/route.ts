@@ -93,19 +93,22 @@ export async function GET(req: NextRequest) {
       .eq("user_id", userId)
       .maybeSingle();
 
-    // Get applications submitted
+    // Applications submitted — anything past "saved". The applications table
+    // uses a `stage` column (saved|applied|interviewing|offer|rejected) and the
+    // apply flows write stage="applied". This previously queried a non-existent
+    // `status` column, so the count was ALWAYS 0.
     const { count: applicationsCount } = await supabaseAdmin
       .from("applications")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .eq("status", "applied");
+      .neq("stage", "saved");
 
-    // Get pending/in-progress applications
+    // In progress — applied and still awaiting an outcome (not offer/rejected).
     const { count: pendingCount } = await supabaseAdmin
       .from("applications")
-      .select("id", { count: "exact" })
+      .select("id", { count: "exact", head: true })
       .eq("user_id", userId)
-      .in("status", ["in_progress", "interview_scheduled"]);
+      .in("stage", ["applied", "interviewing"]);
 
     // Profile-completion gate. Per spec: a new user starts at 0 and only unlocks
     // the guaranteed minimum (112+) once their profile is complete — résumé, job
