@@ -68,6 +68,17 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
+    heading: "Connected Google account (Gmail & Calendar)",
+    body: [
+      "If you choose to connect your Google account, we request only the permissions needed for the feature: sending email on your behalf (the gmail.send scope) so you can reply to recruiters from your own address, and creating or updating calendar events (the calendar.events scope) so we can add interviews to your calendar. We do NOT request permission to read, list, or download your existing Gmail messages.",
+      "How we use it: we use these permissions solely to (a) send reply emails that you explicitly compose and send from within the app, and (b) create or update interview events on your calendar at your request. We do not read, scan, or store your existing emails, and we do not access unrelated calendar data.",
+      "Storage & retention: we store the OAuth access and refresh tokens needed to perform these actions, encrypted at rest, and retain them only until you disconnect your Google account or delete your account — at which point they are deleted. Reply emails you send are saved in your in-app inbox so you can see your sent history.",
+      "Sharing & purpose limits: we do not sell Google user data, do not use it for advertising, and do not use it to develop, improve, or train generalized AI/ML models. We transfer it only to Google's own APIs to carry out the actions above, or where required by law.",
+      `Limited Use: ${APP_NAME}'s use and transfer of information received from Google APIs to any other app will adhere to the Google API Services User Data Policy, including the Limited Use requirements.`,
+      "Revoking access: you can disconnect your Google account at any time from the in-app inbox, or revoke access directly at https://myaccount.google.com/permissions.",
+    ],
+  },
+  {
     heading: "“As provided” transmission",
     body: [
       "Application materials are transmitted to job platforms substantially as you provide them; we do not redact them. Please do not include sensitive data (such as government IDs, payment card numbers, or health information) in your resume or answers unless a specific application explicitly requires it.",
