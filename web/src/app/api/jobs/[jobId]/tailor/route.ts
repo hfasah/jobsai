@@ -41,6 +41,7 @@ export async function POST(
   const { jobId } = await params;
 
   const body = await req.json().catch(() => ({}));
+  const detail: "concise" | "expanded" = body.detail === "expanded" ? "expanded" : "concise";
   const ctx = await loadJobContext(userId, jobId, body.resume_version_id);
   if (isContextError(ctx)) {
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
@@ -58,7 +59,7 @@ export async function POST(
 
   let result;
   try {
-    result = await tailorResume(ctx.resumeProfile, ctx.jobParsed);
+    result = await tailorResume(ctx.resumeProfile, ctx.jobParsed, detail);
   } catch (err) {
     console.error("Tailoring error:", err);
     return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
