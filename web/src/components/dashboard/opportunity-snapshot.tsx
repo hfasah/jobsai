@@ -210,7 +210,7 @@ export function OpportunitySnapshot({
               <span className="font-medium whitespace-nowrap text-foreground text-xs">
                 {item.label}
               </span>
-              <span className="text-muted-foreground text-xs">{item.count.toLocaleString()} ({item.percent}%)</span>
+              <span className="text-muted-foreground text-xs">{item.count.toLocaleString()}</span>
             </div>
           ))}
         </div>
