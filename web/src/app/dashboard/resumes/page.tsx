@@ -354,7 +354,7 @@ export default function ResumesPage() {
           {/* Error */}
           {uploadState.type === "error" && (
             <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
-              <p className="font-medium">Upload failed</p>
+              <p className="font-medium">Something went wrong</p>
               <p className="mt-1">{uploadState.message}</p>
               <Button
                 variant="outline"

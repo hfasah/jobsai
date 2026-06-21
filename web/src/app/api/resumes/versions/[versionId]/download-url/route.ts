@@ -12,15 +12,26 @@ export async function POST(
 
   const { versionId } = await params;
 
-  const { data: version } = await supabaseAdmin
+  // Two simple queries instead of an embedded-resource filter (the latter is
+  // brittle and was nulling the result → every download 404'd). 1) fetch the
+  // version, 2) verify the user owns its document.
+  const { data: version, error: vErr } = await supabaseAdmin
     .from("resume_versions")
-    .select("storage_key, file_name, resume_documents!resume_versions_document_id_fkey!inner(user_id)")
+    .select("storage_key, file_name, document_id")
     .eq("id", versionId)
-    .eq("resume_documents!resume_versions_document_id_fkey.user_id", userId)
     .is("deleted_at", null)
-    .single();
+    .maybeSingle();
+  if (vErr) console.error("download-url version lookup failed:", vErr.message);
+  if (!version) return NextResponse.json({ error: "Resume not found." }, { status: 404 });
 
-  if (!version) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const { data: ownerDoc } = await supabaseAdmin
+    .from("resume_documents")
+    .select("user_id")
+    .eq("id", version.document_id)
+    .maybeSingle();
+  if (!ownerDoc || ownerDoc.user_id !== userId) {
+    return NextResponse.json({ error: "Resume not found." }, { status: 404 });
+  }
 
   // `download` sets Content-Disposition so the file saves with a real name
   // (e.g. "My Resume.docx") instead of the storage UUID.
