@@ -50,6 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       imageUrl: clerkUser.imageUrl,
       createdAt: clerkUser.createdAt,
       lastActiveAt: clerkUser.lastActiveAt,
+      banned: clerkUser.banned,
     },
     billing: b ? { ...b, plan: activePlan } : null,
     tokens: tokenAccount ? { balance: tokenAccount.balance, plan: tokenAccount.plan } : null,
@@ -113,6 +114,25 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       console.error("Admin refund error:", err);
       return NextResponse.json({ error: err instanceof Error ? err.message : "Refund failed." }, { status: 422 });
     }
+  }
+
+  // ── Suspend / reactivate the account (blocks / restores sign-in) ───────────
+  if (body.action === "ban" || body.action === "unban") {
+    if (userId === adminId) {
+      return NextResponse.json({ error: "You can't suspend your own account." }, { status: 400 });
+    }
+    const client = await clerkClient();
+    try {
+      if (body.action === "ban") {
+        await client.users.banUser(userId);
+      } else {
+        await client.users.unbanUser(userId);
+      }
+    } catch (err) {
+      console.error("Admin ban/unban error:", err);
+      return NextResponse.json({ error: err instanceof Error ? err.message : "Action failed." }, { status: 422 });
+    }
+    return NextResponse.json({ ok: true, banned: body.action === "ban" });
   }
 
   return NextResponse.json({ error: "Unknown action." }, { status: 400 });

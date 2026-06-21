@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, Calendar, Briefcase, FileText, Bell, Loader2, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Briefcase, FileText, Bell, Loader2, ShieldCheck, LogIn, Ban, RotateCcw } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PLAN_BADGE: Record<string, string> = {
@@ -27,6 +27,8 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const [refundReason, setRefundReason] = useState("");
   const [actionBusy, setActionBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [opening, setOpening] = useState(false);
+  const [banBusy, setBanBusy] = useState(false);
 
   useEffect(() => {
     fetch(`/api/admin/users/${userId}`).then((r) => r.json()).then(setData).finally(() => setLoading(false));
@@ -62,6 +64,42 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
     setChanging(false);
   };
 
+  // "Open account" — mint a Clerk actor token, then hand off to the consumer
+  // domain (jobsai.work) to complete the sign-in and land in the user's
+  // dashboard. The consumer ImpersonationBanner shows an Exit there.
+  const openAccount = async () => {
+    setOpening(true); setActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/impersonate`, { method: "POST" });
+      const json = await res.json();
+      if (!res.ok || !json.handoffUrl) { setActionMsg(json.error ?? "Could not open account."); setOpening(false); return; }
+      window.location.href = json.handoffUrl;
+    } catch (err) {
+      setActionMsg(err instanceof Error ? err.message : "Could not open account.");
+      setOpening(false);
+    }
+  };
+
+  // Suspend (Clerk ban) / reactivate — blocks or restores the user's sign-in.
+  const toggleBan = async (banned: boolean) => {
+    const verb = banned ? "reactivate" : "suspend";
+    if (!confirm(`Are you sure you want to ${verb} this account?`)) return;
+    setBanBusy(true); setActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: banned ? "unban" : "ban" }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setActionMsg(json.error ?? "Action failed."); return; }
+      setActionMsg(banned ? "✓ Account reactivated." : "✓ Account suspended — sign-in blocked.");
+      const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
+      setData(fresh);
+    } finally {
+      setBanBusy(false);
+    }
+  };
+
   if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…</div>;
   if (!data) return <div className="text-destructive">User not found.</div>;
 
@@ -75,6 +113,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const tokens = data.tokens as { balance: number; plan: string } | null;
   const ledger = (data.ledger as Record<string, unknown>[]) ?? [];
   const currentPlan = (billing?.plan as string) ?? "free";
+  const banned = Boolean(user.banned);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -93,18 +132,39 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
             <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", PLAN_BADGE[currentPlan] ?? PLAN_BADGE.free)}>
               {currentPlan}
             </span>
+            {banned && <span className="rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-semibold text-red-400">Suspended</span>}
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {user.email as string}</p>
           <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Joined {new Date(user.createdAt as number).toLocaleDateString()}</p>
         </div>
-        {/* Plan override */}
-        <div className="flex items-center gap-2 shrink-0">
-          <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-          <select value={currentPlan} onChange={(e) => changePlan(e.target.value)}
-            disabled={changing}
-            className="h-9 rounded-lg border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">
-            {PLANS.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-          </select>
+        {/* Admin controls */}
+        <div className="flex flex-col items-stretch gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+            <select value={currentPlan} onChange={(e) => changePlan(e.target.value)}
+              disabled={changing}
+              className="h-9 flex-1 rounded-lg border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">
+              {PLANS.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={openAccount} disabled={opening || banned}
+              title={banned ? "Reactivate the account first" : "Sign in as this user (consumer dashboard)"}
+              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50">
+              {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Open account
+            </button>
+            {banned ? (
+              <button onClick={() => toggleBan(true)} disabled={banBusy}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 px-3 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-500/10 disabled:opacity-50 dark:text-emerald-400">
+                {banBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Reactivate
+              </button>
+            ) : (
+              <button onClick={() => toggleBan(false)} disabled={banBusy}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-red-500/40 px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400">
+                {banBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />} Suspend
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
