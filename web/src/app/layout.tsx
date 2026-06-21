@@ -8,6 +8,7 @@ import { SupportWidget } from "@/components/marketing/support-widget";
 import { AffiliateTracker } from "@/components/affiliate-tracker";
 import { CookieConsent } from "@/components/cookie-consent";
 import { PostHogTracker } from "@/components/analytics/posthog-provider";
+import { ImpersonationBanner } from "@/components/admin/impersonation-banner";
 import "./globals.css";
 
 // Body — Notion's primary font: clean, highly legible, modern
@@ -95,6 +96,7 @@ export default function RootLayout({
         <body className="min-h-full flex flex-col" suppressHydrationWarning>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
             <I18nProvider>
+              <ImpersonationBanner />
               {children}
               <MarketingPopups />
               <SupportWidget />
