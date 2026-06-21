@@ -7,7 +7,10 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").rep
 export const GOOGLE_REDIRECT = `${APP_URL}/api/inbox/google/callback`;
 
 const SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
+  // NOTE: gmail.readonly (a RESTRICTED scope requiring a CASA security audit) is
+  // intentionally NOT requested. Incoming mail is read via inbound forwarding,
+  // not Gmail sync; we only send (gmail.send) and add calendar events — both
+  // "sensitive" scopes that need standard verification but no CASA.
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/calendar.events",
   "openid",
@@ -76,12 +79,14 @@ export async function getValidAccessToken(userId: string): Promise<string | null
 }
 
 export async function getProfileEmail(accessToken: string): Promise<string | null> {
-  const res = await fetch("https://gmail.googleapis.com/gmail/v1/users/me/profile", {
+  // Use the OpenID userinfo endpoint (works with the openid/email scopes) rather
+  // than the Gmail profile API, which would require the restricted gmail.readonly.
+  const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return null;
-  const j = (await res.json()) as { emailAddress?: string };
-  return j.emailAddress ?? null;
+  const j = (await res.json()) as { email?: string };
+  return j.email ?? null;
 }
 
 // ─── Message parsing ──────────────────────────────────────────────────────────
