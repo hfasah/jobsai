@@ -46,6 +46,7 @@ export default function InboxPage() {
   const [replyOpen, setReplyOpen] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [replyState, setReplyState] = useState<"idle" | "sending" | "sent" | "error">("idle");
+  const [replyError, setReplyError] = useState<string | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
   const [schedState, setSchedState] = useState<"idle" | "loading" | "added" | "none" | "error">("idle");
   const [schedLink, setSchedLink] = useState<string | null>(null);
@@ -112,14 +113,18 @@ export default function InboxPage() {
 
   async function sendReply() {
     if (!selected || !replyText.trim()) return;
-    setReplyState("sending");
+    setReplyState("sending"); setReplyError(null);
     try {
       const res = await fetch(`/api/inbox/${selected.id}/reply`, {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: replyText }),
       });
       if (res.ok) { setReplyState("sent"); setReplyOpen(false); setReplyText(""); await load(); }
-      else setReplyState("error");
-    } catch { setReplyState("error"); }
+      else {
+        const json = await res.json().catch(() => ({}));
+        setReplyState("error");
+        setReplyError(json.error || "Send failed. Please try again.");
+      }
+    } catch { setReplyState("error"); setReplyError("Send failed. Please try again."); }
   }
 
   const messages = (data?.messages ?? []).filter((m) => filter === "all" ? true : m.classification === filter);
@@ -279,7 +284,16 @@ export default function InboxPage() {
                         </button>
                         <button onClick={() => setReplyOpen(false)} className="text-sm text-muted-foreground hover:text-foreground">Cancel</button>
                         {replyState === "sent" && <span className="inline-flex items-center gap-1 text-xs text-emerald-400"><Check className="h-3.5 w-3.5" /> Sent</span>}
-                        {replyState === "error" && <span className="inline-flex items-center gap-1 text-xs text-destructive"><AlertCircle className="h-3.5 w-3.5" /> Failed — try again</span>}
+                        {replyState === "error" && (
+                          <span className="inline-flex items-center gap-1.5 text-xs text-destructive">
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                            {replyError || "Failed — try again"}
+                            {!data?.email && (
+                              // eslint-disable-next-line @next/next/no-html-link-for-pages -- API route, needs a full navigation
+                              <a href="/api/inbox/connect" className="ml-1 font-semibold underline">Connect Gmail to reply</a>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   )}
