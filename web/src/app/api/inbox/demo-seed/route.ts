@@ -26,11 +26,15 @@ export async function POST() {
   });
 
   const subject = "Interview Invitation — Product Manager at Acme";
+  // Worded to hit the classifier's "interview" branch (an explicit invitation),
+  // not "confirmation" — so the inbox chip reads "Interview". Avoids
+  // "applying"/"your application" phrasing, which would score as application-received.
   const bodyText =
-    `Hi,\n\nThanks for applying to the Product Manager role at Acme. We'd like ` +
-    `to schedule your interview for ${human} at 2:00 PM Eastern Time. It will ` +
-    `be a 45-minute video call with our hiring panel.\n\nLooking forward to ` +
-    `speaking with you.\n\nBest,\nAcme Recruiting Team`;
+    `Hi,\n\nWe were impressed with your background and would like to invite you ` +
+    `to interview for the Product Manager role at Acme. We'd like to schedule ` +
+    `your interview for ${human} at 2:00 PM Eastern Time — a 45-minute video ` +
+    `call with our hiring panel.\n\nPlease let us know if that time works for ` +
+    `you.\n\nBest,\nAcme Recruiting Team`;
 
   const { data, error } = await supabaseAdmin
     .from("inbox_messages")
