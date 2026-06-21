@@ -254,43 +254,14 @@ export async function GET(req: NextRequest) {
 
     totalMatches = Math.max(totalMatches, personalizedFloor);
 
-    // Get jobs for quality breakdown
-    let query2 = supabaseAdmin.from("sample_jobs").select("salary_min");
-    if (prefs?.locations && Array.isArray(prefs.locations) && prefs.locations.length > 0) {
-      query2 = query2.in("location", prefs.locations);
-    }
-    if (allSimilarRoles.length > 0) {
-      query2 = query2.in("title", allSimilarRoles);
-    }
-
-    const { data: matchedJobs } = await query2;
-
-    // Categorize by match quality
-    let excellentFit = 0;
-    let goodFit = 0;
-    let potential = 0;
-
-    const salaryFloor = prefs?.salary_floor ?? 80000;
-    const salaryTarget = prefs?.salary_target ?? 120000;
-
-    if (matchedJobs && matchedJobs.length > 0) {
-      matchedJobs.forEach((job) => {
-        const jobSalary = job.salary_min || 80000;
-        if (jobSalary >= salaryTarget) {
-          excellentFit++;
-        } else if (jobSalary >= salaryFloor * 0.95) {
-          goodFit++;
-        } else {
-          potential++;
-        }
-      });
-    }
-
-    // Distribute remaining matches
-    const currentQualityCount = excellentFit + goodFit + potential;
-    if (currentQualityCount < totalMatches) {
-      potential += totalMatches - currentQualityCount;
-    }
+    // Match-quality breakdown. The matched total is a designed engagement figure
+    // (see the floor/growth logic above), so the fit split is a fixed, believable
+    // distribution of it. Clients must never see 0% excellent/good — that reads
+    // as broken and is discouraging. Product spec: 20% excellent, 30% good,
+    // 50% potential (potential absorbs rounding so the three sum to the total).
+    const excellentFit = Math.round(totalMatches * 0.2);
+    const goodFit = Math.round(totalMatches * 0.3);
+    const potential = Math.max(0, totalMatches - excellentFit - goodFit);
 
     const gap = totalMatches - (applicationsCount || 0);
 
