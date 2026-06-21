@@ -17,6 +17,7 @@ export async function POST(req: NextRequest) {
   const role: string | undefined = typeof body.role === "string" ? body.role.trim() || undefined : undefined;
   const resumeVersionId: string | undefined =
     typeof body.resume_version_id === "string" && body.resume_version_id ? body.resume_version_id : undefined;
+  const detail: "concise" | "expanded" = body.detail === "expanded" ? "expanded" : "concise";
 
   if (skills.length === 0) {
     return NextResponse.json({ error: "Add at least one target skill." }, { status: 400 });
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await buildSkillResume(ctx.resumeProfile, skills, role);
+    const result = await buildSkillResume(ctx.resumeProfile, skills, role, detail);
     if (result.tailored_json?.experience) {
       result.tailored_json.experience = fillExperienceDates(
         result.tailored_json.experience,

@@ -26,6 +26,7 @@ export default function ResumeBuilderPage() {
   const [result, setResult] = useState<BuildResult | null>(null);
   const [resumes, setResumes] = useState<ResumeOption[]>([]);
   const [selectedVersionId, setSelectedVersionId] = useState("");
+  const [detail, setDetail] = useState<"concise" | "expanded">("concise");
 
   // Load the user's resumes so they can pick which one to optimize (defaults to
   // the primary, else the most recent).
@@ -64,7 +65,7 @@ export default function ResumeBuilderPage() {
       const res = await fetch("/api/resumes/build", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ skills, role: role.trim() || undefined, resume_version_id: selectedVersionId || undefined }),
+        body: JSON.stringify({ skills, role: role.trim() || undefined, resume_version_id: selectedVersionId || undefined, detail }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Build failed");
@@ -140,6 +141,33 @@ export default function ResumeBuilderPage() {
             placeholder="e.g. Senior DevOps Engineer"
             className="mt-1.5 h-11 w-full rounded-xl border border-border bg-card px-3 text-sm outline-none placeholder:text-muted-foreground"
           />
+        </div>
+        <div>
+          <label className="text-xs font-semibold text-foreground">Length</label>
+          <div className="mt-1.5 grid grid-cols-2 gap-2">
+            {([
+              { value: "concise", title: "Concise", hint: "1 page · 3–4 bullets/role" },
+              { value: "expanded", title: "Expanded", hint: "2 pages · 5–7 bullets/role" },
+            ] as const).map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setDetail(opt.value)}
+                aria-pressed={detail === opt.value}
+                className={`rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                  detail === opt.value
+                    ? "border-primary bg-primary/10 ring-1 ring-primary"
+                    : "border-border bg-card hover:bg-muted/50"
+                }`}
+              >
+                <span className="block text-sm font-semibold text-foreground">{opt.title}</span>
+                <span className="block text-[11px] text-muted-foreground">{opt.hint}</span>
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Expanded writes more detail per role — truthfully, from your real experience (it won&apos;t invent content).
+          </p>
         </div>
         <button onClick={build} disabled={loading} className="btn-cta inline-flex h-11 items-center justify-center gap-2 rounded-xl px-6 text-sm disabled:opacity-70">
           {loading ? <><Loader2 className="h-4 w-4 animate-spin" /> Optimizing…</> : <><Plus className="h-4 w-4" /> Build optimized resume</>}
