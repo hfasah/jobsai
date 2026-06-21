@@ -47,7 +47,6 @@ const SECTIONS: NavSection[] = [
       { label: "nav.importJob",    href: "/dashboard/jobs/import",         icon: Plus },
       { label: "nav.approvals",    href: "/dashboard/approve",             icon: CheckCircle2 },
       { label: "nav.applications",  href: "/dashboard/applications",  icon: Inbox },
-      { label: "nav.inbox",         href: "/dashboard/inbox",         icon: Mail },
       { label: "nav.autoApplyLog",  href: "/dashboard/auto-apply",    icon: Bot },
     ],
   },
@@ -181,7 +180,7 @@ function SidebarUpsell({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
-function NavLink({ item, active, onNavigate, sub }: { item: NavItem; active: boolean; onNavigate?: () => void; sub?: boolean }) {
+function NavLink({ item, active, onNavigate, sub, badge }: { item: NavItem; active: boolean; onNavigate?: () => void; sub?: boolean; badge?: number }) {
   const Icon = item.icon;
   const { t } = useI18n();
   const className = cn(
@@ -207,7 +206,42 @@ function NavLink({ item, active, onNavigate, sub }: { item: NavItem; active: boo
     <Link href={item.href} onClick={onNavigate} className={className}>
       <Icon className="h-4 w-4 shrink-0" />
       {t(item.label)}
+      {badge ? (
+        <span
+          className={cn(
+            "ml-auto inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none",
+            active ? "bg-white/25 text-white" : "bg-[var(--cta)] text-black",
+          )}
+        >
+          {badge > 99 ? "99+" : badge}
+        </span>
+      ) : null}
     </Link>
+  );
+}
+
+// Inbox nav item with a live unread badge. Prominent (top-level) so an interview
+// reply is never missed in a submenu.
+function InboxNavLink({ active, onNavigate }: { active: boolean; onNavigate?: () => void }) {
+  const [unread, setUnread] = useState(0);
+  useEffect(() => {
+    let on = true;
+    const load = () =>
+      fetch("/api/inbox/unread-count")
+        .then((r) => r.json())
+        .then((j) => { if (on) setUnread(j.unread ?? 0); })
+        .catch(() => {});
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { on = false; clearInterval(id); };
+  }, []);
+  return (
+    <NavLink
+      item={{ label: "nav.inbox", href: "/dashboard/inbox", icon: Mail }}
+      active={active}
+      onNavigate={onNavigate}
+      badge={unread}
+    />
   );
 }
 
@@ -295,6 +329,10 @@ function SidebarContent({ pathname, mode, onNavigate }: { pathname: string; mode
       <nav className="flex-1 overflow-y-auto px-3 pb-4">
         <div className="mb-3 space-y-0.5">
           <NavLink item={TOP} active={active === TOP.href} onNavigate={onNavigate} />
+          <InboxNavLink
+            active={pathname === "/dashboard/inbox" || pathname.startsWith("/dashboard/inbox/")}
+            onNavigate={onNavigate}
+          />
           <NavLink item={{ label: "Set Up Profile", href: "/dashboard/setup", icon: ClipboardCheck }} active={active === "/dashboard/setup"} onNavigate={onNavigate} />
         </div>
 
