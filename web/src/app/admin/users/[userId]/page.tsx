@@ -29,6 +29,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [opening, setOpening] = useState(false);
   const [banBusy, setBanBusy] = useState(false);
+  const [controlMsg, setControlMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/users/${userId}`).then((r) => r.json()).then(setData).finally(() => setLoading(false));
@@ -68,14 +69,14 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   // domain (jobsai.work) to complete the sign-in and land in the user's
   // dashboard. The consumer ImpersonationBanner shows an Exit there.
   const openAccount = async () => {
-    setOpening(true); setActionMsg(null);
+    setOpening(true); setControlMsg(null);
     try {
       const res = await fetch(`/api/admin/users/${userId}/impersonate`, { method: "POST" });
       const json = await res.json();
-      if (!res.ok || !json.handoffUrl) { setActionMsg(json.error ?? "Could not open account."); setOpening(false); return; }
+      if (!res.ok || !json.handoffUrl) { setControlMsg(json.error ?? "Could not open account."); setOpening(false); return; }
       window.location.href = json.handoffUrl;
     } catch (err) {
-      setActionMsg(err instanceof Error ? err.message : "Could not open account.");
+      setControlMsg(err instanceof Error ? err.message : "Could not open account.");
       setOpening(false);
     }
   };
@@ -84,17 +85,19 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const toggleBan = async (banned: boolean) => {
     const verb = banned ? "reactivate" : "suspend";
     if (!confirm(`Are you sure you want to ${verb} this account?`)) return;
-    setBanBusy(true); setActionMsg(null);
+    setBanBusy(true); setControlMsg(null);
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: banned ? "unban" : "ban" }),
       });
       const json = await res.json();
-      if (!res.ok) { setActionMsg(json.error ?? "Action failed."); return; }
-      setActionMsg(banned ? "✓ Account reactivated." : "✓ Account suspended — sign-in blocked.");
+      if (!res.ok) { setControlMsg(json.error ?? `Could not ${verb} account.`); return; }
+      setControlMsg(banned ? "✓ Account reactivated — sign-in restored." : "✓ Account suspended — sign-in blocked.");
       const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
       setData(fresh);
+    } catch (err) {
+      setControlMsg(err instanceof Error ? err.message : `Could not ${verb} account.`);
     } finally {
       setBanBusy(false);
     }
@@ -132,7 +135,9 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
             <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", PLAN_BADGE[currentPlan] ?? PLAN_BADGE.free)}>
               {currentPlan}
             </span>
-            {banned && <span className="rounded-full bg-red-500/15 px-2.5 py-0.5 text-xs font-semibold text-red-400">Suspended</span>}
+            <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold", banned ? "bg-red-500/15 text-red-400" : "bg-emerald-500/15 text-emerald-400")}>
+              {banned ? <><Ban className="h-3 w-3" /> Suspended</> : <><ShieldCheck className="h-3 w-3" /> Active</>}
+            </span>
           </div>
           <p className="mt-0.5 text-sm text-muted-foreground flex items-center gap-1.5"><Mail className="h-3.5 w-3.5" /> {user.email as string}</p>
           <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1.5"><Calendar className="h-3.5 w-3.5" /> Joined {new Date(user.createdAt as number).toLocaleDateString()}</p>
@@ -165,6 +170,11 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
               </button>
             )}
           </div>
+          {controlMsg && (
+            <p className={cn("text-right text-xs font-medium", controlMsg.startsWith("✓") ? "text-emerald-500" : "text-red-400")}>
+              {controlMsg}
+            </p>
+          )}
         </div>
       </div>
 
