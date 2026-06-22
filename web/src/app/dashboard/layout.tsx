@@ -3,6 +3,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { UpgradeHost } from "@/components/upgrade-host";
 import { BuyTokensHost } from "@/components/buy-tokens-host";
 import { AccountTypeNotice } from "@/components/account-type-notice";
+import { SuspendedNotice } from "@/components/suspended-notice";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { getUserRole } from "@/lib/roles";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -16,10 +17,16 @@ export default async function DashboardLayout({
   // job-seeker dashboard. Show a friendly notice instead of the job board.
   const { userId } = await auth();
   if (userId) {
+    const user = await currentUser();
+    const email = user?.emailAddresses?.[0]?.emailAddress;
+
+    // Admin-suspended accounts (Clerk privateMetadata.suspended) are blocked.
+    if ((user?.privateMetadata as { suspended?: boolean } | undefined)?.suspended) {
+      return <SuspendedNotice email={email} />;
+    }
+
     const role = await getUserRole(userId);
     if (role !== "jobseeker") {
-      const user = await currentUser();
-      const email = user?.emailAddresses?.[0]?.emailAddress;
       return <AccountTypeNotice role={role} email={email} />;
     }
   }
