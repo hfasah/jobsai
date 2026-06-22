@@ -23,7 +23,7 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.clerk.com https://*.clerk.accounts.dev https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://api.leadconnectorhq.com",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://*.clerk.com https://*.clerk.accounts.dev https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://api.leadconnectorhq.com https://www.googletagmanager.com https://*.googletagmanager.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.clerk.com https://clerk.jobsai.work",
       "font-src 'self' data: https://fonts.gstatic.com https://*.clerk.com https://clerk.jobsai.work",
       "img-src 'self' data: blob: https: http:",
@@ -31,8 +31,8 @@ const securityHeaders = [
       // (called client-side), plus the LiveKit WebRTC room (*.livekit.cloud) and HeyGen WebSocket
       // signaling (*.heygen.io) the SDK connects to. Without these the SDK's session.start() is
       // blocked by CSP, throws, and the room silently falls back to the simulated/initials avatar.
-      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.com https://*.clerk.accounts.dev https://clerk.jobsai.work https://challenges.cloudflare.com https://api.clerk.dev https://api.skyvern.com https://api.resend.com https://api.stripe.com https://api.liveavatar.com https://*.livekit.cloud wss://*.livekit.cloud https://*.heygen.io wss://*.heygen.io",
-      "frame-src blob: https://*.clerk.com https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://api.leadconnectorhq.com",
+      "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.com https://*.clerk.accounts.dev https://clerk.jobsai.work https://challenges.cloudflare.com https://api.clerk.dev https://api.skyvern.com https://api.resend.com https://api.stripe.com https://api.liveavatar.com https://*.livekit.cloud wss://*.livekit.cloud https://*.heygen.io wss://*.heygen.io https://www.googletagmanager.com https://*.googletagmanager.com https://*.google-analytics.com https://*.analytics.google.com",
+      "frame-src blob: https://*.clerk.com https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://api.leadconnectorhq.com https://www.googletagmanager.com",
       "media-src 'self' blob:",
       "worker-src blob:",
     ].join("; "),
