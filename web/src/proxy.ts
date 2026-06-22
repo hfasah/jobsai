@@ -216,6 +216,12 @@ export default clerkMiddleware(async (auth, req: NextRequest) => {
   if (isProtectedRoute(req)) {
     await auth.protect();
   }
+
+  // Expose the current path to server components so layouts can emit a
+  // self-referencing canonical URL.
+  const requestHeaders = new Headers(req.headers);
+  requestHeaders.set("x-pathname", req.nextUrl.pathname);
+  return NextResponse.next({ request: { headers: requestHeaders } });
 });
 
 export const config = {
