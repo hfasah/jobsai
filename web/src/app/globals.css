@@ -568,3 +568,23 @@
   section { break-inside: avoid; }
   @page { margin: 1.5cm; }
 }
+
+/* Rendered HTML body for blog articles (/blog/[slug]). */
+.blog-content { @apply text-[15px] leading-relaxed text-muted-foreground; }
+.blog-content h1, .blog-content h2, .blog-content h3, .blog-content h4 { @apply font-bold tracking-tight text-foreground; }
+.blog-content h2 { @apply mt-8 text-2xl; }
+.blog-content h3 { @apply mt-6 text-xl; }
+.blog-content h4 { @apply mt-5 text-lg; }
+.blog-content p { @apply mt-4; }
+.blog-content ul { @apply mt-4 list-disc space-y-2 pl-6; }
+.blog-content ol { @apply mt-4 list-decimal space-y-2 pl-6; }
+.blog-content li { @apply leading-relaxed; }
+.blog-content a { @apply text-primary underline underline-offset-2 hover:opacity-80; }
+.blog-content img { @apply my-6 rounded-xl border border-border; }
+.blog-content blockquote { @apply mt-4 border-l-2 border-primary/40 pl-4 italic; }
+.blog-content pre { @apply mt-4 overflow-x-auto rounded-xl bg-card p-4 text-sm; }
+.blog-content code { @apply rounded bg-card px-1 py-0.5 text-sm; }
+.blog-content strong { @apply font-semibold text-foreground; }
+.blog-content table { @apply mt-4 w-full border-collapse text-sm; }
+.blog-content th, .blog-content td { @apply border border-border px-3 py-2 text-left; }
+.blog-content hr { @apply my-8 border-border; }
