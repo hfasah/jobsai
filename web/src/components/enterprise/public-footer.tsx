@@ -145,7 +145,7 @@ export function PublicEnterpriseFooter() {
         {/* Bottom bar */}
         <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
           <div className="flex items-center gap-2.5">
-            <Image src="/logo.png" alt="" width={20} height={20} className="rounded-md opacity-80" />
+            <Image src="/logo.png" alt="JobsAI logo" width={20} height={20} className="rounded-md opacity-80" />
             <p className="text-xs text-muted-foreground">
               © {new Date().getFullYear()} JobsAI Enterprise · Source. Engage. Screen. Interview. Hire.
             </p>
