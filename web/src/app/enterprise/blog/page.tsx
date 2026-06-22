@@ -7,8 +7,9 @@ import { formatDate } from "@/lib/blog";
 import { loadArticles } from "@/lib/blog-store";
 
 export const metadata: Metadata = {
-  title: "Blog — JobsAI Enterprise",
-  description: "Practical articles on AI screening, interviewing, job descriptions, and recruiting operations from the JobsAI Enterprise team.",
+  title: { absolute: "JobsAI Enterprise Blog — AI hiring & recruiting" }, // 47 chars
+  description:
+    "Practical, no-fluff articles on AI screening, structured interviews, job descriptions, and recruiting operations from the JobsAI Enterprise team.", // 145 chars
   alternates: { canonical: "/enterprise/blog" },
 };
 
@@ -20,8 +21,29 @@ export default async function BlogIndex() {
   const posts = await loadArticles();
   const [lead, ...rest] = posts;
 
+  const APP = "https://app.jobsai.work";
+  const blogLd = {
+    "@context": "https://schema.org",
+    "@type": "Blog",
+    "@id": `${APP}/enterprise/blog`,
+    url: `${APP}/enterprise/blog`,
+    name: "JobsAI Enterprise Blog",
+    description: "Practical, no-fluff articles on AI screening, structured interviews, job descriptions, and recruiting operations from the JobsAI Enterprise team.",
+    inLanguage: "en-US",
+    blogPost: posts.map((p) => ({
+      "@type": "BlogPosting",
+      url: `${APP}/enterprise/blog/${p.slug}`,
+      headline: p.title,
+      description: p.excerpt,
+      datePublished: p.date,
+      dateModified: p.date,
+      author: { "@type": "Organization", name: "JobsAI Enterprise" },
+    })),
+  };
+
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(blogLd) }} />
       <PublicEnterpriseHeader />
 
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-14 text-center">

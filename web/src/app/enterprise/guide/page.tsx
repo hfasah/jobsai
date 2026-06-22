@@ -5,7 +5,7 @@ import { GuideLayout } from "@/components/enterprise/guide-layout";
 import { GUIDE, getGuideArticle } from "@/lib/enterprise-guide";
 
 export const metadata: Metadata = {
-  title: "Guide — JobsAI Enterprise",
+  title: "JobsAI Enterprise setup guide — get hiring fast",
   description:
     "How-to guides for JobsAI Enterprise — set up your workspace, source and screen candidates, run outreach campaigns, interview, and hire.",
 };

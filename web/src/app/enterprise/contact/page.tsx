@@ -6,7 +6,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { EnterpriseContactForm } from "@/components/enterprise/contact-form";
 
 export const metadata: Metadata = {
-  title: "Contact — JobsAI Enterprise",
+  title: "Contact JobsAI Enterprise — talk to sales or support",
   description:
     "Talk to the JobsAI Enterprise team about the platform, pricing, security, or rolling it out to your hiring team.",
 };

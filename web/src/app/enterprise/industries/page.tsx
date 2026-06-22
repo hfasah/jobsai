@@ -6,7 +6,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { INDUSTRIES } from "@/lib/enterprise-personas";
 
 export const metadata: Metadata = {
-  title: "Industries — JobsAI Enterprise",
+  title: "AI recruiting for every industry — JobsAI Enterprise",
   description:
     "JobsAI Enterprise powers hiring across technology, healthcare, financial services, manufacturing, professional services, government, and education.",
 };

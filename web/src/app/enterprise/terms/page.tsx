@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EnterpriseLegalPage, type LegalSection } from "@/components/enterprise/enterprise-legal-page";
 
 export const metadata: Metadata = {
-  title: "Terms of Service — JobsAI Enterprise",
+  title: "JobsAI Enterprise Terms of Service & acceptable use",
   description: "The terms that govern use of the JobsAI Enterprise talent acquisition platform.",
 };
 

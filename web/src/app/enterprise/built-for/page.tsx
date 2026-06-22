@@ -6,7 +6,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { PERSONAS } from "@/lib/enterprise-personas";
 
 export const metadata: Metadata = {
-  title: "Built For — JobsAI Enterprise",
+  title: "Built for agencies, HR & enterprise hiring teams",
   description:
     "JobsAI Enterprise is built for recruiting agencies, staffing firms, corporate HR, talent acquisition teams, hiring managers, and enterprise organizations.",
 };
