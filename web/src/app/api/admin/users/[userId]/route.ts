@@ -1,6 +1,6 @@
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { addTokens, getTokenAccount } from "@/lib/tokens";
 import { getStripe } from "@/lib/stripe";
 import { createNotification } from "@/lib/notifications";
@@ -152,4 +152,70 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
     );
   }
   return NextResponse.json({ ok: true });
+}
+
+// DELETE — permanently remove the account and ALL its data (irreversible).
+// Requires body { confirm_email } to exactly match the account's email.
+//   1. delete the user's resume files from storage,
+//   2. delete every DB row keyed by user_id (admin_delete_user_data fn),
+//   3. delete the Clerk login.
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
+  const adminId = await requireAdmin();
+  if (!adminId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const { userId } = await params;
+  if (userId === adminId) {
+    return NextResponse.json({ error: "You can't delete your own account." }, { status: 400 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const client = await clerkClient();
+  const target = await client.users.getUser(userId).catch(() => null);
+  if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
+
+  const email = target.emailAddresses[0]?.emailAddress ?? "";
+  const confirm = String(body.confirm_email ?? "").trim().toLowerCase();
+  if (!confirm || confirm !== email.toLowerCase()) {
+    return NextResponse.json({ error: "Type the account's email exactly to confirm deletion." }, { status: 400 });
+  }
+
+  // 1. Remove resume files from storage (keys embed the user id, e.g. tag/uid/doc).
+  let filesRemoved = 0;
+  try {
+    const { data: docs } = await supabaseAdmin.from("resume_documents").select("id").eq("user_id", userId);
+    const docIds = (docs ?? []).map((d) => d.id);
+    if (docIds.length) {
+      const { data: versions } = await supabaseAdmin
+        .from("resume_versions").select("storage_key").in("document_id", docIds);
+      const keys = (versions ?? []).map((v) => v.storage_key).filter(Boolean) as string[];
+      if (keys.length) {
+        await supabaseAdmin.storage.from(STORAGE_BUCKET).remove(keys);
+        filesRemoved = keys.length;
+      }
+    }
+  } catch (e) {
+    console.error("delete account: storage cleanup failed:", e);
+  }
+
+  // 2. Delete every DB row keyed by this user_id (all tables, dynamic).
+  const { data: cleanup, error: rpcErr } = await supabaseAdmin.rpc("admin_delete_user_data", { p_user_id: userId });
+  if (rpcErr) {
+    console.error("admin_delete_user_data error:", rpcErr);
+    return NextResponse.json(
+      { error: `Database cleanup failed: ${rpcErr.message}. Has migration 115 (admin_delete_user_data) been run?` },
+      { status: 500 },
+    );
+  }
+
+  // 3. Delete the Clerk login.
+  try {
+    await client.users.deleteUser(userId);
+  } catch (e) {
+    console.error("delete account: Clerk deleteUser failed:", e);
+    return NextResponse.json(
+      { error: "Data was deleted, but removing the Clerk login failed. Retry, or remove it from the Clerk dashboard." },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ ok: true, email, filesRemoved, cleanup });
 }
