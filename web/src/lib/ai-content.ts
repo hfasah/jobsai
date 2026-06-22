@@ -137,7 +137,8 @@ Schema:
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source — copy them verbatim into each experience entry. Only the framing/wording of bullets changes.
-An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and weave the relevant ones naturally into that entry's bullets; you may rephrase them but must NOT exaggerate beyond what a fact states. The resume and candidate_facts are the ONLY sources you may draw facts from.
+An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and weave the relevant ones naturally into that entry's bullets; you may rephrase them but must NOT exaggerate beyond what a fact states.
+The payload may include "full_resume_text" — the candidate's complete original resume. It is the AUTHORITATIVE, fullest source of their real experience (the structured "resume" object can be lossy/summarized). Mine it for real accomplishments, projects, tools, and metrics when writing bullets — especially when expanding a role to more bullets. The resume object, full_resume_text, and candidate_facts are the ONLY sources you may draw facts from.
 For the "skills" change, "before" and "after" MUST be human-readable comma-separated lists (e.g. "Python, AWS, Docker, Kubernetes") — never run together without separators.
 Limit changes[] to the 4-6 most impactful edits.`;
 
@@ -160,8 +161,16 @@ export async function tailorResume(
   resume: ParsedJson,
   job: ParsedJobJson,
   detail: ResumeDetail = "concise",
+  rawText?: string | null,
 ): Promise<TailorResult> {
-  const payload = { resume: resumeSlim(resume), job: jobSlim(job) };
+  const payload = {
+    resume: resumeSlim(resume),
+    job: jobSlim(job),
+    // Full original resume — the authoritative source so the model can surface
+    // every real accomplishment (the slim profile is often lossy), which is what
+    // makes "expanded" actually produce more bullets.
+    full_resume_text: rawText ? rawText.slice(0, 12000) : undefined,
+  };
   const res = await tierChat("smart", {
     messages: [
       { role: "system", content: `${TAILOR_SYSTEM}\n${lengthGuidance(detail)}` },
