@@ -4,8 +4,9 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
-  title: "Customers — JobsAI Enterprise",
-  description: "Founding offer on JobsAI Enterprise — 50% off your first year on annual plans. Limited to the first 25 members.",
+  title: "JobsAI Enterprise — founding members & customers",
+  description:
+    "Become a JobsAI Enterprise founding member: full access to the complete AI talent acquisition platform, priority onboarding, and a direct line to our product team.",
 };
 
 const BOOKING = "/enterprise/demo";

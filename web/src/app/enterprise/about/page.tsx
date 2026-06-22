@@ -8,7 +8,7 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
-  title: "About — JobsAI Enterprise",
+  title: "About JobsAI Enterprise — our mission & platform",
   description:
     "JobsAI Enterprise unites ATS, Recruiting CRM, AI sourcing, AI interviews, workflow automation, analytics, and governance in one talent acquisition platform.",
 };

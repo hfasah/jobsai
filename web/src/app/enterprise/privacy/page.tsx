@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { EnterpriseLegalPage, type LegalSection } from "@/components/enterprise/enterprise-legal-page";
 
 export const metadata: Metadata = {
-  title: "Privacy Policy — JobsAI Enterprise",
+  title: "JobsAI Enterprise Privacy Policy & data practices",
   description:
     "How JobsAI Enterprise collects, uses, and protects data for recruiting teams and the candidates they manage.",
 };

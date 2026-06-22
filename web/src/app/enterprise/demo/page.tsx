@@ -13,7 +13,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 const BOOKING_SRC = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
 
 export const metadata = {
-  title: "Book a demo — JobsAI Enterprise",
+  title: "Book a JobsAI Enterprise demo — AI recruiting tour",
   description: "Book a free, personalized walkthrough of the AI-powered Talent Acquisition Operating System — tailored to your team's hiring workflow and tech stack.",
 };
 

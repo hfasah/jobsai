@@ -4,7 +4,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { ProductTour } from "@/components/enterprise/product-tour";
 
 export const metadata: Metadata = {
-  title: "Take the tour — JobsAI Enterprise",
+  title: "Take the JobsAI Enterprise tour — no login required",
   description: "A self-serve, no-login walkthrough of JobsAI Enterprise — from AI sourcing and multi-channel outreach to AI screening, pipeline, offers, and analytics.",
   alternates: { canonical: "/enterprise/tour" },
 };

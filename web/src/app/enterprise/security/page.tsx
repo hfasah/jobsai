@@ -7,7 +7,7 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
-  title: "Security & Trust — JobsAI Enterprise",
+  title: "Security & trust — how JobsAI Enterprise guards data",
   description: "How JobsAI Enterprise protects your data: encryption, access control, audit logs, retention, GDPR data-subject requests, and the infrastructure we run on.",
 };
 
