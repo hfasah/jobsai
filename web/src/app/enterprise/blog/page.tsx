@@ -3,7 +3,8 @@ import Link from "next/link";
 import { ArrowRight, Calendar, Clock } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
-import { sortedPosts, formatDate } from "@/lib/blog";
+import { formatDate } from "@/lib/blog";
+import { loadArticles } from "@/lib/blog-store";
 
 export const metadata: Metadata = {
   title: "Blog — JobsAI Enterprise",
@@ -11,8 +12,12 @@ export const metadata: Metadata = {
   alternates: { canonical: "/enterprise/blog" },
 };
 
-export default function BlogIndex() {
-  const posts = sortedPosts();
+// Re-render periodically so webhook-ingested posts appear (the webhook also
+// revalidates this path on each new article).
+export const revalidate = 300;
+
+export default async function BlogIndex() {
+  const posts = await loadArticles();
   const [lead, ...rest] = posts;
 
   return (

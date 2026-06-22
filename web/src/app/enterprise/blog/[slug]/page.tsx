@@ -4,9 +4,13 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, Check, Calendar, Clock } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
-import { POSTS, getPost, sortedPosts, formatDate } from "@/lib/blog";
+import { POSTS, formatDate } from "@/lib/blog";
+import { loadArticle, loadArticles } from "@/lib/blog-store";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
+
+// Curated slugs are prebuilt; webhook-ingested slugs render on demand (ISR).
+export const revalidate = 300;
 
 export function generateStaticParams() {
   return POSTS.map((p) => ({ slug: p.slug }));
@@ -14,23 +18,23 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const p = getPost(slug);
+  const p = await loadArticle(slug);
   if (!p) return { title: "Blog — JobsAI Enterprise" };
   const title = `${p.title} | JobsAI Enterprise`;
   return {
     title,
     description: p.excerpt,
     alternates: { canonical: `/enterprise/blog/${p.slug}` },
-    openGraph: { type: "article", title, description: p.excerpt, publishedTime: p.date },
+    openGraph: { type: "article", title, description: p.excerpt, publishedTime: p.date, ...(p.coverImage ? { images: [p.coverImage] } : {}) },
   };
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const p = getPost(slug);
+  const p = await loadArticle(slug);
   if (!p) notFound();
 
-  const related = sortedPosts().filter((x) => x.slug !== p.slug).slice(0, 3);
+  const related = (await loadArticles()).filter((x) => x.slug !== p.slug).slice(0, 3);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -60,35 +64,49 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" /> {p.readMins} min read</span>
         </div>
 
-        <p className="mt-6 text-lg leading-relaxed text-muted-foreground">{p.intro}</p>
+        {p.bodyHtml ? (
+          // Ingested article (HTML body from the content webhook).
+          <>
+            {p.coverImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={p.coverImage} alt={p.title} className="mt-6 w-full rounded-2xl border border-border object-cover" />
+            )}
+            <div className="blog-content mt-8" dangerouslySetInnerHTML={{ __html: p.bodyHtml }} />
+          </>
+        ) : (
+          // Curated article (structured sections).
+          <>
+            {p.intro && <p className="mt-6 text-lg leading-relaxed text-muted-foreground">{p.intro}</p>}
 
-        <div className="mt-8 space-y-8">
-          {p.sections.map((s, i) => (
-            <section key={i}>
-              {s.heading && <h2 className="text-xl font-bold tracking-tight">{s.heading}</h2>}
-              {s.paragraphs?.map((para, j) => (
-                <p key={j} className="mt-3 leading-relaxed text-muted-foreground">{para}</p>
+            <div className="mt-8 space-y-8">
+              {p.sections?.map((s, i) => (
+                <section key={i}>
+                  {s.heading && <h2 className="text-xl font-bold tracking-tight">{s.heading}</h2>}
+                  {s.paragraphs?.map((para, j) => (
+                    <p key={j} className="mt-3 leading-relaxed text-muted-foreground">{para}</p>
+                  ))}
+                  {s.bullets && (
+                    <ul className="mt-3 space-y-2">
+                      {s.bullets.map((b, j) => (
+                        <li key={j} className="flex items-start gap-3 text-sm leading-relaxed"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" /> {b}</li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
               ))}
-              {s.bullets && (
+            </div>
+
+            {p.takeaways && p.takeaways.length > 0 && (
+              <div className="mt-10 rounded-2xl border border-border bg-card p-6">
+                <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Key takeaways</h2>
                 <ul className="mt-3 space-y-2">
-                  {s.bullets.map((b, j) => (
-                    <li key={j} className="flex items-start gap-3 text-sm leading-relaxed"><Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" /> {b}</li>
+                  {p.takeaways.map((t, i) => (
+                    <li key={i} className="flex items-start gap-3 text-sm leading-relaxed"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {t}</li>
                   ))}
                 </ul>
-              )}
-            </section>
-          ))}
-        </div>
-
-        {p.takeaways && p.takeaways.length > 0 && (
-          <div className="mt-10 rounded-2xl border border-border bg-card p-6">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">Key takeaways</h2>
-            <ul className="mt-3 space-y-2">
-              {p.takeaways.map((t, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm leading-relaxed"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" /> {t}</li>
-              ))}
-            </ul>
-          </div>
+              </div>
+            )}
+          </>
         )}
 
         {/* CTA */}
