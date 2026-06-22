@@ -156,7 +156,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
             <button onClick={openAccount} disabled={opening || banned}
               title={banned ? "Reactivate the account first" : "Sign in as this user (consumer dashboard)"}
               className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50">
-              {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Open account
+              {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Access account
             </button>
             {banned ? (
               <button onClick={() => toggleBan(true)} disabled={banBusy}
