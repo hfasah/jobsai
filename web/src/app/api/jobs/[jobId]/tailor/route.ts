@@ -59,7 +59,7 @@ export async function POST(
 
   let result;
   try {
-    result = await tailorResume(ctx.resumeProfile, ctx.jobParsed, detail);
+    result = await tailorResume(ctx.resumeProfile, ctx.jobParsed, detail, ctx.resumeRawText);
   } catch (err) {
     console.error("Tailoring error:", err);
     return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
