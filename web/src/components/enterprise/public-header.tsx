@@ -69,6 +69,7 @@ export function PublicEnterpriseHeader({ partnerMode = false }: { partnerMode?: 
           <Link href="/enterprise/pricing" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Pricing</Link>
           <Link href="/enterprise/compare" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Compare</Link>
           <Link href="/enterprise/partners" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Partners</Link>
+          <Link href="/enterprise/blog" className="rounded-lg px-3 py-1.5 font-medium text-muted-foreground hover:text-foreground">Blog</Link>
         </nav>
 
         <div className="flex items-center gap-1 text-sm sm:gap-2">
