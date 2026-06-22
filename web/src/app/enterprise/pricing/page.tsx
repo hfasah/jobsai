@@ -4,6 +4,7 @@ import { PlanComparison } from "@/components/enterprise/plan-comparison";
 import { EnterprisePricingCards } from "@/components/enterprise/pricing-cards";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
+import { PLANS, monthlyEquiv, annualTotal } from "@/lib/enterprise-plans";
 
 export const metadata = {
   title: "JobsAI Enterprise pricing — plans, billing & free trial",
@@ -23,8 +24,32 @@ const ADDONS = [
 const WHY = ["ATS", "Recruiting CRM", "AI Sourcing", "AI Screening", "AI Interviews", "Workflow Automation", "Offer Management", "Analytics", "Compliance", "Enterprise Security"];
 
 export default function PublicPricingPage() {
+  // Product + OfferCatalog structured data, generated from the same PLANS data
+  // the cards render (so prices in search can't drift from what's shown).
+  const APP = "https://app.jobsai.work";
+  const offers: { "@type": "ListItem"; position: number; item: Record<string, unknown> }[] = [];
+  let pos = 0;
+  for (const p of PLANS) {
+    const slug = p.name.toLowerCase();
+    if (p.monthly === null) {
+      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}`, name: `${p.name} Plan — custom`, description: p.sub, availability: "https://schema.org/PreOrder", priceCurrency: "USD" } });
+    } else {
+      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}-monthly`, name: `${p.name} Plan — monthly`, price: p.monthly, priceCurrency: "USD", availability: "https://schema.org/InStock", description: p.sub } });
+      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}-annual`, name: `${p.name} Plan — annual`, price: annualTotal(p.monthly), priceCurrency: "USD", availability: "https://schema.org/InStock", description: `Billed annually ($${monthlyEquiv(p.monthly)}/mo) — save 20% vs monthly.` } });
+    }
+  }
+  const pricingLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    "@id": `${APP}/enterprise/pricing#product`,
+    name: "JobsAI Enterprise",
+    brand: { "@type": "Brand", name: "JobsAI" },
+    description: "AI-powered talent acquisition operating system for sourcing, engaging, screening, interviewing, and hiring in one platform.",
+    offers: { "@type": "OfferCatalog", name: "Plans", url: `${APP}/enterprise/pricing`, itemListElement: offers },
+  };
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingLd) }} />
       <PublicEnterpriseHeader />
       {/* Hero */}
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-16 text-center">
