@@ -5,7 +5,10 @@ import Link from "next/link";
 import { Wand2, Loader2, RefreshCw, ArrowRight, Plus, Copy, Check, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState, RunningState } from "@/components/job/ats-report";
+import { cn } from "@/lib/utils";
 import type { TailoredResume } from "@/types/phase3";
+
+type Detail = "concise" | "expanded";
 
 // Split a skills string into individual skills for chip rendering. Handles
 // comma/semicolon/newline/bullet separators; falls back to the whole string.
@@ -20,21 +23,50 @@ export function TailoredResumeView({
   jobId,
 }: {
   tailored: TailoredResume | null;
-  onRun: () => void;
+  onRun: (detail: Detail) => void;
   running: boolean;
   jobId: string;
 }) {
   const [copied, setCopied] = useState(false);
+  const [detail, setDetail] = useState<Detail>("concise");
+
+  const lengthToggle = (
+    <div>
+      <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Length</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <button
+          type="button"
+          onClick={() => setDetail("concise")}
+          className={cn("rounded-xl border p-3 text-left transition-colors", detail === "concise" ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/40")}
+        >
+          <p className="text-sm font-semibold">Concise</p>
+          <p className="text-xs text-muted-foreground">1 page · 3–4 bullets/role</p>
+        </button>
+        <button
+          type="button"
+          onClick={() => setDetail("expanded")}
+          className={cn("rounded-xl border p-3 text-left transition-colors", detail === "expanded" ? "border-primary ring-1 ring-primary" : "border-border hover:border-primary/40")}
+        >
+          <p className="text-sm font-semibold">Expanded</p>
+          <p className="text-xs text-muted-foreground">2 pages · 5–7 bullets/role</p>
+        </button>
+      </div>
+      <p className="mt-2 text-xs text-muted-foreground">Expanded writes more detail per role — truthfully, from your real experience (it won&apos;t invent content).</p>
+    </div>
+  );
 
   if (!tailored && !running) {
     return (
-      <EmptyState
-        icon={<Wand2 className="h-7 w-7" />}
-        title="Tailor your resume to this job"
-        body="AI rewrites your summary, bullets, and skills to match the role's language and surface your most relevant experience — truthfully, never inventing anything."
-        cta="Tailor my resume"
-        onClick={onRun}
-      />
+      <div className="space-y-5">
+        {lengthToggle}
+        <EmptyState
+          icon={<Wand2 className="h-7 w-7" />}
+          title="Tailor your resume to this job"
+          body="AI rewrites your summary, bullets, and skills to match the role's language and surface your most relevant experience — truthfully, never inventing anything."
+          cta="Tailor my resume"
+          onClick={() => onRun(detail)}
+        />
+      </div>
     );
   }
   if (running && !tailored) return <RunningState label="Tailoring your resume to this role…" />;
@@ -176,15 +208,18 @@ export function TailoredResumeView({
         </section>
       )}
 
-      <div className="flex items-center justify-end gap-2">
-        <Button variant="outline" size="sm" onClick={onRun} disabled={running}>
-          {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-          Re-tailor
-        </Button>
-        <Button size="sm" render={<Link href={`/dashboard/jobs/${jobId}/resume-preview`} target="_blank" />}>
-          <Download className="mr-1.5 h-3.5 w-3.5" />
-          Download PDF
-        </Button>
+      <div className="space-y-4 rounded-2xl border border-border bg-card p-5">
+        {lengthToggle}
+        <div className="flex items-center justify-end gap-2">
+          <Button variant="outline" size="sm" onClick={() => onRun(detail)} disabled={running}>
+            {running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+            Re-tailor
+          </Button>
+          <Button size="sm" render={<Link href={`/dashboard/jobs/${jobId}/resume-preview`} target="_blank" />}>
+            <Download className="mr-1.5 h-3.5 w-3.5" />
+            Download PDF
+          </Button>
+        </div>
       </div>
     </div>
   );
