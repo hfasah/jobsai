@@ -39,9 +39,58 @@ const SOLUTIONS = [
 
 const PLATFORM = ["ATS", "Recruiting CRM", "AI Sourcing", "AI Screening", "AI Interviews", "Workflow Automation", "Offer Management", "Analytics", "Compliance", "Enterprise Security"];
 
+// Structured data (JSON-LD) for rich results: the WebPage + the SoftwareApplication it describes.
+const JSON_LD = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": "https://app.jobsai.work#webpage",
+    url: "https://app.jobsai.work",
+    name: "JobsAI Enterprise — Talent Acquisition Operating System",
+    inLanguage: "en",
+    isPartOf: { "@type": "WebSite", url: "https://app.jobsai.work", name: "JobsAI" },
+    mainEntity: { "@id": "https://app.jobsai.work#jobsai-enterprise" },
+    description:
+      "JobsAI Enterprise is an AI-powered talent acquisition platform to source, engage, screen, interview, and hire top talent faster. Start a 14-day free trial.",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "@id": "https://app.jobsai.work#jobsai-enterprise",
+    url: "https://app.jobsai.work",
+    name: "JobsAI Enterprise",
+    applicationCategory: "HR Software",
+    operatingSystem: "Web",
+    brand: { "@type": "Brand", name: "JobsAI" },
+    description:
+      "AI-Powered Talent Acquisition Operating System for sourcing, screening, interviewing, and hiring top talent with a single AI-powered platform. Start a 14-day free trial.",
+    featureList: [
+      "Applicant Tracking System (ATS)",
+      "Kanban pipeline and resume parsing",
+      "AI Sourcing with autonomous candidate discovery",
+      "AI Interviews with automated scoring and transcripts",
+      "Workflow Automation",
+      "Executive Analytics",
+      "Compliance Center",
+      "Enterprise Security",
+      "One platform from first touch to signed offer",
+    ],
+    offers: {
+      "@type": "Offer",
+      url: "https://app.jobsai.work",
+      price: "0",
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      description: "14-day free trial",
+    },
+    mainEntityOfPage: { "@type": "WebPage", "@id": "https://app.jobsai.work#webpage" },
+  },
+];
+
 export default function EnterpriseHome() {
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
       <PublicEnterpriseHeader />
 
       {/* Hero */}
