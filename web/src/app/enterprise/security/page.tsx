@@ -47,9 +47,31 @@ const CONTROLS = [
   },
 ];
 
+// FAQ pairs for the FAQPage schema — answers reuse the CONTROLS copy above (the
+// page's actual, vetted security statements) so structured data stays accurate.
+const FAQS = [
+  { q: "What encryption does JobsAI Enterprise use?", a: CONTROLS[0].body },
+  { q: "How does JobsAI Enterprise manage access control?", a: CONTROLS[1].body },
+  { q: "How are audit logs handled?", a: CONTROLS[2].body },
+  { q: "How are data retention and legal hold managed?", a: CONTROLS[3].body },
+  { q: "How are GDPR data-subject requests handled?", a: CONTROLS[4].body },
+  { q: "Is a Data Processing Agreement (DPA) available?", a: CONTROLS[5].body },
+  { q: "Where is JobsAI Enterprise hosted and how is compliance maintained?", a: "Hosting, database, and authentication run on Vercel, Supabase, and Clerk — all SOC 2 Type II certified. Customer data is hosted in the US (EU/other residency on request for Enterprise), with per-organization isolation and encrypted, automated backups. Our own SOC 2 is on the roadmap, not yet certified." },
+];
+
 export default function EnterpriseSecurityPage() {
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
   return (
     <main className="min-h-screen bg-background text-foreground">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <PublicEnterpriseHeader />
 
       {/* Hero */}
