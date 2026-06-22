@@ -109,11 +109,15 @@ export function JobTabs({
     }
   }, [jobId]);
 
-  const runTailor = useCallback(async () => {
+  const runTailor = useCallback(async (detail: "concise" | "expanded" = "concise") => {
     setTailorRunning(true);
     setActionError(null);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/tailor`, { method: "POST" });
+      const res = await fetch(`/api/jobs/${jobId}/tailor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ detail }),
+      });
       const json = await res.json();
       if (res.status === 402 || json.upgrade_required) { promptUpgrade(json.error); return; }
       if (!res.ok) { setActionError(json.error ?? "We couldn't tailor your résumé. Please try again."); return; }
