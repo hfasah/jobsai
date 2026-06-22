@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { APP_NAME } from "@/lib/constants";
+import { AudienceToggle } from "@/components/marketing/audience-toggle";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
@@ -25,6 +26,8 @@ export function MarketingHeader() {
         <Link href="/" className="text-lg font-bold tracking-tight">
           <span className="text-gradient">{APP_NAME}</span>
         </Link>
+
+        <AudienceToggle active="seekers" className="hidden sm:inline-flex" />
 
         <nav className="ml-2 hidden items-center gap-1 lg:flex">
           {NAV.map((n) => (
