@@ -42,6 +42,9 @@ export default function ImpersonateHandoff() {
         }
         try { sessionStorage.removeItem(TICKET_KEY); } catch {}
         await clerk.setActive({ session: signIn.createdSessionId });
+        // Mark this tab as an admin impersonation so the ImpersonationBanner
+        // shows (sign-in tokens carry no Clerk `actor` claim).
+        try { sessionStorage.setItem("jobsai_imp", "1"); } catch {}
         window.location.replace("/dashboard");
       } catch (e) {
         setError(e instanceof Error ? e.message : "Impersonation failed.");
