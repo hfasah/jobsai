@@ -40,7 +40,11 @@ function toIso(v: string | undefined): string {
 
 export async function POST(req: NextRequest) {
   const secret = process.env.BLOG_WEBHOOK_SECRET;
-  const key = req.nextUrl.searchParams.get("key") ?? req.headers.get("x-webhook-secret");
+  // BabyLoveGrowth sends `Authorization: Bearer <token>`; also accept ?key= and
+  // x-webhook-secret for flexibility.
+  const authz = req.headers.get("authorization") ?? "";
+  const bearer = /^bearer\s+/i.test(authz) ? authz.replace(/^bearer\s+/i, "").trim() : null;
+  const key = bearer ?? req.nextUrl.searchParams.get("key") ?? req.headers.get("x-webhook-secret");
   if (!secret) return NextResponse.json({ error: "Webhook not configured" }, { status: 503 });
   if (key !== secret) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
