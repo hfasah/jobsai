@@ -17,11 +17,15 @@ async function requireAdmin() {
 
 // POST /api/admin/users/[userId]/impersonate — "Open account".
 //
-// Mints a Clerk actor token (admin recorded as `actor` for audit) and returns a
-// handoff URL on the consumer domain. The browser is redirected there to
-// complete the ticket sign-in, landing the admin in the consumer dashboard as
-// the user. jobsai.work and app.jobsai.work share one Clerk instance, so the
-// ticket is valid on the consumer site.
+// Mints a Clerk sign-in token and returns a handoff URL on the consumer domain.
+// The browser is redirected there to complete the ticket sign-in, landing the
+// admin in the consumer dashboard as the user. jobsai.work and app.jobsai.work
+// share one Clerk instance, so the token is valid on the consumer site.
+//
+// We use sign-in tokens (not actor tokens) because actor-token impersonation is
+// capped per billing period on our Clerk plan (e.g. 5/period). Sign-in tokens
+// aren't capped. Trade-off: no Clerk `actor` claim, so the consumer side drives
+// the "Viewing as / Exit" banner from a per-tab flag instead.
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
   const adminId = await requireAdmin();
   if (!adminId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -40,14 +44,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
 
   let token: string | null = null;
   try {
-    const actorToken = await client.actorTokens.create({
+    const signInToken = await client.signInTokens.createSignInToken({
       userId,
-      actor: { sub: adminId },
       expiresInSeconds: 600, // token must be consumed within 10 minutes
     });
-    token = actorToken.token ?? null;
+    token = signInToken.token ?? null;
   } catch (err) {
-    console.error("impersonate actorTokens.create error:", JSON.stringify(err, null, 2));
+    console.error("impersonate signInTokens.create error:", JSON.stringify(err, null, 2));
     // Clerk API errors carry detail in `.errors[]` (the top-level message is just
     // the HTTP status text, e.g. "Unprocessable Entity").
     const e = err as { errors?: Array<{ message?: string; longMessage?: string; code?: string }>; message?: string };
