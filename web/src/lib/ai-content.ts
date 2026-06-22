@@ -168,8 +168,9 @@ export async function tailorResume(
     job: jobSlim(job),
     // Full original resume — the authoritative source so the model can surface
     // every real accomplishment (the slim profile is often lossy), which is what
-    // makes "expanded" actually produce more bullets.
-    full_resume_text: rawText ? rawText.slice(0, 12000) : undefined,
+    // makes "expanded" actually produce more bullets. ~24k chars covers a long
+    // 4-5 page resume; trivial for the model's context window.
+    full_resume_text: rawText ? rawText.slice(0, 24000) : undefined,
   };
   const res = await tierChat("smart", {
     messages: [
