@@ -10,7 +10,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 export const metadata = {
   title: "About JobsAI Enterprise — our mission & platform",
   description:
-    "JobsAI Enterprise unites ATS, Recruiting CRM, AI sourcing, AI interviews, workflow automation, analytics, and governance in one talent acquisition platform.",
+    "JobsAI Enterprise: AI-powered talent acquisition OS uniting ATS, CRM, AI sourcing, AI interviews, automation, analytics, and governance. Book a demo.",
 };
 
 const BOOK_DEMO = "/enterprise/demo";
