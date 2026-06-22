@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { APP_NAME } from "@/lib/constants";
-import { AudienceToggle } from "@/components/marketing/audience-toggle";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
@@ -22,15 +21,10 @@ export function MarketingHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-background/70 backdrop-blur-xl">
-      <div className="relative mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
         <Link href="/" className="text-lg font-bold tracking-tight">
           <span className="text-gradient">{APP_NAME}</span>
         </Link>
-
-        {/* Audience switcher — centered in the header */}
-        <div className="pointer-events-none absolute inset-x-0 hidden justify-center md:flex">
-          <AudienceToggle active="seekers" className="pointer-events-auto" />
-        </div>
 
         <nav className="ml-2 hidden items-center gap-1 lg:flex">
           {NAV.map((n) => (

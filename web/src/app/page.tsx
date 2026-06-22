@@ -20,6 +20,7 @@ import { FEATURE_BY_SLUG } from "@/lib/marketing-features";
 import { GradientBg } from "@/components/ui/gradient-bg";
 import { GlassCard } from "@/components/ui/glass-card";
 import { SectionBadge } from "@/components/ui/section-badge";
+import { AudienceToggle } from "@/components/marketing/audience-toggle";
 import { AIImageSlot } from "@/components/ui/ai-image-slot";
 import { publicImageExists } from "@/lib/public-image";
 import { gradientButtonVariants } from "@/components/ui/gradient-button";
@@ -109,6 +110,7 @@ export default function Home() {
           <GradientBg variant="grid" className="opacity-30" />
 
           <div className="relative mx-auto flex max-w-4xl flex-col items-center text-center">
+            <AudienceToggle active="seekers" className="reveal mb-6" />
             <span className="reveal reveal-1 inline-flex items-center gap-2 rounded-full border border-[var(--cta)]/40 bg-[var(--cta)]/10 px-3.5 py-1.5 text-xs font-bold uppercase tracking-[0.2em] text-[var(--cta)]">
               90-Day Interview Guarantee
             </span>
