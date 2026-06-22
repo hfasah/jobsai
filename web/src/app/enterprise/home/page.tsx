@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
+import { AudienceToggle } from "@/components/enterprise/audience-toggle";
 import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 
 export const metadata = {
@@ -95,6 +96,9 @@ export default function EnterpriseHome() {
 
       {/* Hero */}
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-20 text-center">
+        <div className="mb-6 flex justify-center">
+          <AudienceToggle active="employers" />
+        </div>
         <p className="text-xs font-bold uppercase tracking-widest text-primary">JobsAI Enterprise</p>
         <h1 className="mx-auto mt-3 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
           AI-Powered Talent Acquisition Operating System
