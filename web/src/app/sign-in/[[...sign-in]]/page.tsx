@@ -52,7 +52,7 @@ export default function SignInPage() {
 
         <div className="relative max-w-md text-white">
           <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
-            <Image src="/logo.png" alt="" width={32} height={32} className="rounded-lg" />
+            <Image src="/logo.png" alt="JobsAI logo" width={32} height={32} className="rounded-lg" />
           </div>
 
           <h2 className="text-4xl font-bold leading-tight">
