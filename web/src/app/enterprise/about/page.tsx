@@ -10,7 +10,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 export const metadata = {
   title: "About — JobsAI Enterprise",
   description:
-    "JobsAI Enterprise is the AI-powered talent acquisition operating system — Applicant Tracking, Recruiting CRM, AI Sourcing, AI Interviews, Workflow Automation, and Analytics in one unified workspace.",
+    "JobsAI Enterprise unites ATS, Recruiting CRM, AI sourcing, AI interviews, workflow automation, analytics, and governance in one talent acquisition platform.",
 };
 
 const BOOK_DEMO = "/enterprise/demo";
