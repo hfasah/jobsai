@@ -164,7 +164,7 @@ export function lengthGuidance(detail: ResumeDetail): string {
     `PRESERVE & ELABORATE: Surface ALL of the candidate's real accomplishments from the source — never drop, merge away, or collapse a role into 1-2 generic bullets. If a source role describes many accomplishments, keep a COMPARABLE number of strong, reframed bullets (do NOT reduce an 8-bullet role to 2). You SHOULD elaborate genuinely-held experience into several specific, truthful bullets — a real skill, project, or responsibility can yield multiple distinct bullets covering impact, scope, methods, tools, and outcomes. The output is fully editable by the candidate, so favor useful completeness over brevity. The ONLY hard rule is no fabrication: never invent accomplishments, employers, titles, dates, metrics, or skills the candidate does not have. A role whose source material is genuinely thin may stay short — that is fine.`;
   const length =
     detail === "expanded"
-      ? `LENGTH — EXPANDED: Target a thorough ~2-page resume. Elaborate every accomplishment into granular, specific, metric-rich bullets — 5-8 per substantial role. Err toward fuller, more useful detail.`
+      ? `LENGTH — EXPANDED: Produce a FULL, detailed ~2-page resume — do NOT compress to one page. For EVERY substantial role write 5-8 distinct bullets (not 3-4); break each real accomplishment into separate, specific, metric-rich bullets covering impact, scope, methods, and tools. Only a genuinely short or thin-tenure role may have fewer. Always favor thorough, useful detail over brevity.`
       : `LENGTH — CONCISE: Target ~1 page, but keep EVERY real accomplishment — reach one page by tightening wording and merging only genuine redundancy, NOT by deleting real content. Aim for 3-5 strong bullets per substantial role (more if the source role is rich).`;
   return `${preserve}\n${length}`;
 }
@@ -226,19 +226,26 @@ Schema:
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source. Only reframe wording.
-An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and surface the relevant ones in that entry's bullets; rephrase if needed but never exaggerate beyond what a fact states. The resume and candidate_facts are the ONLY sources of fact.
-A target skill belongs in "covered" only if the resume genuinely supports it; otherwise put it in "missing". Limit changes[] to 4-6 edits.`;
+An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and surface the relevant ones in that entry's bullets; rephrase if needed but never exaggerate beyond what a fact states.
+The payload may include "full_resume_text" — the candidate's complete original resume. It is the AUTHORITATIVE, fullest source of their real experience (the structured "resume" object is lossy/summarized). Mine it for real accomplishments, projects, tools, and metrics when writing bullets — especially when expanding a role to more bullets. The resume object, full_resume_text, and candidate_facts are the ONLY sources of fact.
+ADAPT TRANSFERABLE SKILLS (tailoring, not invention): when the candidate has comparable experience in the same category as a target skill, adapt it toward that skill rather than leaving it missing — map equivalents (e.g. GCP↔AWS↔Azure: GKE↔EKS↔AKS, Cloud Storage↔S3↔Blob), surface provider-/vendor-agnostic competencies (Kubernetes, Terraform/IaC, CI/CD, SQL, etc.), and use the target terminology where a genuine equivalent exists; such a skill counts as "covered". HARD LINE: never fabricate DIRECT experience, years, or certifications for a specific tool the candidate has never used — a target skill with NO real basis (not even an equivalent) stays in "missing".
+A target skill belongs in "covered" only if the resume genuinely supports it (directly or via a real equivalent); otherwise put it in "missing". Limit changes[] to 4-6 edits.`;
 
 export async function buildSkillResume(
   resume: ParsedJson,
   targetSkills: string[],
   targetRole?: string,
   detail: ResumeDetail = "concise",
+  rawText?: string | null,
 ): Promise<SkillBuildResult> {
   const payload = {
     resume: resumeSlim(resume),
     target_skills: targetSkills,
     target_role: targetRole || undefined,
+    // Full original resume — authoritative source so the model has real material
+    // to elaborate from (the slim profile is lossy); makes "expanded" produce a
+    // genuinely fuller, ~2-page resume. ~24k chars covers a long 4-5 page resume.
+    full_resume_text: rawText ? rawText.slice(0, 24000) : undefined,
   };
   const res = await tierChat("smart", {
     messages: [

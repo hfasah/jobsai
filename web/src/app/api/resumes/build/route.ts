@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await buildSkillResume(ctx.resumeProfile, skills, role, detail);
+    const result = await buildSkillResume(ctx.resumeProfile, skills, role, detail, ctx.resumeRawText);
     if (result.tailored_json?.experience) {
       result.tailored_json.experience = fillExperienceDates(
         result.tailored_json.experience,
