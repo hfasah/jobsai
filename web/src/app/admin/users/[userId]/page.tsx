@@ -2,7 +2,7 @@
 
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
-import { ArrowLeft, Mail, Calendar, Briefcase, FileText, Bell, Loader2, ShieldCheck, LogIn, Ban, RotateCcw } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Briefcase, FileText, Bell, Loader2, ShieldCheck, LogIn, Ban, RotateCcw, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PLAN_BADGE: Record<string, string> = {
@@ -30,6 +30,8 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const [opening, setOpening] = useState(false);
   const [banBusy, setBanBusy] = useState(false);
   const [controlMsg, setControlMsg] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/users/${userId}`).then((r) => r.json()).then(setData).finally(() => setLoading(false));
@@ -100,6 +102,31 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
       setControlMsg(err instanceof Error ? err.message : `Could not ${verb} account.`);
     } finally {
       setBanBusy(false);
+    }
+  };
+
+  // Permanently delete the account + all data. Confirms by typing the email.
+  const deleteAccount = async () => {
+    const u = (data?.user ?? {}) as Record<string, unknown>;
+    const email = String(u.email ?? "");
+    const typed = window.prompt(
+      `This permanently deletes ${email} and ALL of their data (resumes, jobs, billing — everything). This CANNOT be undone.\n\nType the email to confirm:`
+    );
+    if (typed === null) return;
+    if (typed.trim().toLowerCase() !== email.toLowerCase()) { setDeleteMsg("Email didn't match — deletion cancelled."); return; }
+    setDeleting(true); setDeleteMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ confirm_email: typed.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setDeleteMsg(json.error ?? "Deletion failed."); setDeleting(false); return; }
+      alert(`Account deleted — removed ${json.cleanup?.total_rows ?? 0} rows and ${json.filesRemoved ?? 0} file(s).`);
+      window.location.href = "/admin/users";
+    } catch (err) {
+      setDeleteMsg(err instanceof Error ? err.message : "Deletion failed.");
+      setDeleting(false);
     }
   };
 
@@ -340,6 +367,24 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
           ))}
         </div>
       )}
+
+      {/* Danger zone — permanent deletion */}
+      <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
+        <h2 className="flex items-center gap-2 font-semibold text-red-500"><Trash2 className="h-4 w-4" /> Danger zone</h2>
+        <p className="mt-1 mb-3 max-w-xl text-xs text-muted-foreground">
+          Permanently delete this account and <strong className="text-foreground">all</strong> of its data — resumes,
+          jobs, billing, inbox, files, and the login. This cannot be undone. You&apos;ll be asked to type the
+          account&apos;s email to confirm.
+        </p>
+        <button
+          onClick={deleteAccount}
+          disabled={deleting}
+          className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-red-600 px-3 text-sm font-semibold text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+        >
+          {deleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />} Delete account &amp; all data
+        </button>
+        {deleteMsg && <p className="mt-2 text-xs font-medium text-red-400">{deleteMsg}</p>}
+      </div>
     </div>
   );
 }
