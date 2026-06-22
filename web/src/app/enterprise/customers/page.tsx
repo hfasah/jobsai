@@ -6,7 +6,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 export const metadata = {
   title: "JobsAI Enterprise — founding members & customers",
   description:
-    "Become a JobsAI Enterprise founding member: full access to the complete AI talent acquisition platform, priority onboarding, and a direct line to our product team.",
+    "Become a JobsAI Enterprise founding member: full access to the AI talent acquisition platform, priority onboarding, and a direct line to our team.",
 };
 
 const BOOKING = "/enterprise/demo";
