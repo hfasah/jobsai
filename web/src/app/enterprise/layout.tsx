@@ -13,6 +13,20 @@ const ENTERPRISE_JSONLD = [
     url: "https://app.jobsai.work",
     description:
       "JobsAI Enterprise is the AI-powered talent acquisition operating system — ATS, Recruiting CRM, AI Sourcing, AI Interviews, Workflow Automation, Analytics, and Governance in one workspace.",
+    email: "support@jobsai.work",
+    telephone: "+1-289-541-5966",
+    address: {
+      "@type": "PostalAddress",
+      streetAddress: "3800 Confederation Pkwy",
+      addressLocality: "Mississauga",
+      addressRegion: "ON",
+      postalCode: "L5B 4M6",
+      addressCountry: "CA",
+    },
+    contactPoint: [
+      { "@type": "ContactPoint", contactType: "sales", email: "sales@jobsai.work", telephone: "+1-289-541-5966", availableLanguage: ["en"] },
+      { "@type": "ContactPoint", contactType: "customer support", email: "support@jobsai.work", telephone: "+1-289-541-5966", availableLanguage: ["en"] },
+    ],
   },
   {
     "@context": "https://schema.org",
