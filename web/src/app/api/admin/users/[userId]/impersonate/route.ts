@@ -47,9 +47,13 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     });
     token = actorToken.token ?? null;
   } catch (err) {
-    console.error("impersonate actorTokens.create error:", err);
-    const msg = err instanceof Error ? err.message : String(err);
-    return NextResponse.json({ error: `Could not start impersonation: ${msg}` }, { status: 422 });
+    console.error("impersonate actorTokens.create error:", JSON.stringify(err, null, 2));
+    // Clerk API errors carry detail in `.errors[]` (the top-level message is just
+    // the HTTP status text, e.g. "Unprocessable Entity").
+    const e = err as { errors?: Array<{ message?: string; longMessage?: string; code?: string }>; message?: string };
+    const detail = e.errors?.map((x) => x.longMessage || x.message || x.code).filter(Boolean).join("; ")
+      || (err instanceof Error ? err.message : String(err));
+    return NextResponse.json({ error: `Could not start impersonation: ${detail}` }, { status: 422 });
   }
   if (!token) {
     return NextResponse.json({ error: "Could not create impersonation token (empty token)." }, { status: 500 });
