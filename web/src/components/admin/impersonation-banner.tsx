@@ -31,10 +31,20 @@ export function ImpersonationBanner() {
 
   const exit = () => {
     setExiting(true);
-    try { sessionStorage.removeItem(IMPERSONATION_FLAG); } catch {}
-    // Return to the unified admin portal (signs out the impersonated session;
-    // the admin signs back in as themselves there).
-    signOut({ redirectUrl: "https://app.jobsai.work/admin/users" });
+    const dest = "https://app.jobsai.work/admin/users";
+    let returnToken: string | null = null;
+    try {
+      returnToken = sessionStorage.getItem("jobsai_return");
+      sessionStorage.removeItem(IMPERSONATION_FLAG); // hide the banner immediately
+    } catch {}
+    if (returnToken) {
+      // Sign back in as the admin via the return token, then land in the portal —
+      // no manual re-login. (The handoff signs out the impersonated session first.)
+      window.location.href = `${window.location.origin}/impersonate-handoff?ticket=${encodeURIComponent(returnToken)}&dest=${encodeURIComponent(dest)}`;
+    } else {
+      // Fallback (no return token): sign out and go to the portal (manual login).
+      signOut({ redirectUrl: dest });
+    }
   };
 
   return (
