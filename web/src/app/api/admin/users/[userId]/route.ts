@@ -50,7 +50,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
       imageUrl: clerkUser.imageUrl,
       createdAt: clerkUser.createdAt,
       lastActiveAt: clerkUser.lastActiveAt,
-      banned: clerkUser.banned,
+      banned: Boolean((clerkUser.privateMetadata as { suspended?: boolean } | undefined)?.suspended),
     },
     billing: b ? { ...b, plan: activePlan } : null,
     tokens: tokenAccount ? { balance: tokenAccount.balance, plan: tokenAccount.plan } : null,
@@ -116,23 +116,24 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     }
   }
 
-  // ── Suspend / reactivate the account (blocks / restores sign-in) ───────────
+  // ── Suspend / reactivate the account ───────────────────────────────────────
+  // Uses a Clerk privateMetadata flag (free) which the consumer app enforces,
+  // rather than Clerk's paywalled banUser (returns 402 "Payment Required").
   if (body.action === "ban" || body.action === "unban") {
     if (userId === adminId) {
       return NextResponse.json({ error: "You can't suspend your own account." }, { status: 400 });
     }
+    const suspend = body.action === "ban";
     const client = await clerkClient();
     try {
-      if (body.action === "ban") {
-        await client.users.banUser(userId);
-      } else {
-        await client.users.unbanUser(userId);
-      }
+      await client.users.updateUserMetadata(userId, {
+        privateMetadata: { suspended: suspend, suspended_at: suspend ? new Date().toISOString() : null, suspended_by: suspend ? adminId : null },
+      });
     } catch (err) {
-      console.error("Admin ban/unban error:", err);
+      console.error("Admin suspend/reactivate error:", err);
       return NextResponse.json({ error: err instanceof Error ? err.message : "Action failed." }, { status: 422 });
     }
-    return NextResponse.json({ ok: true, banned: body.action === "ban" });
+    return NextResponse.json({ ok: true, banned: suspend });
   }
 
   return NextResponse.json({ error: "Unknown action." }, { status: 400 });
