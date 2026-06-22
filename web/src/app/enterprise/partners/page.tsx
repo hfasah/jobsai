@@ -18,7 +18,7 @@ import {
 
 export const metadata = {
   title: "JobsAI Enterprise Partner Program — recurring payouts",
-  description: `Refer recruiting agencies, staffing firms, and HR teams to JobsAI Enterprise and earn ${PARTNER_BASE_RATE}–30% recurring cash commission for ${PARTNER_COMMISSION_MONTHS} months. Paid monthly via Stripe.`,
+  description: `Join the JobsAI Enterprise Partner Program: refer agencies or HR teams and earn ${PARTNER_BASE_RATE}-30% recurring commission for ${PARTNER_COMMISSION_MONTHS} months, paid monthly via Stripe.`,
 };
 
 const APPLY = "/enterprise/partners/apply";
