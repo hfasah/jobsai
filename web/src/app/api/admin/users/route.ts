@@ -69,6 +69,7 @@ export async function GET(req: NextRequest) {
       resumeCount: resumeCounts.get(u.id) ?? 0,
       jobCount: jobCounts.get(u.id) ?? 0,
       imageUrl: u.imageUrl,
+      suspended: Boolean((u.privateMetadata as { suspended?: boolean } | undefined)?.suspended),
     };
   });
 

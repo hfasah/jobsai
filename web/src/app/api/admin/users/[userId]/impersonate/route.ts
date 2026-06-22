@@ -34,19 +34,27 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
   const client = await clerkClient();
   const target = await client.users.getUser(userId).catch(() => null);
   if (!target) return NextResponse.json({ error: "User not found." }, { status: 404 });
-  if (target.banned) {
+  if ((target.privateMetadata as { suspended?: boolean } | undefined)?.suspended) {
     return NextResponse.json({ error: "Account is suspended — reactivate it before opening." }, { status: 409 });
   }
 
-  const actorToken = await client.actorTokens.create({
-    userId,
-    actor: { sub: adminId },
-    expiresInSeconds: 600, // token must be consumed within 10 minutes
-  });
-  if (!actorToken.token) {
-    return NextResponse.json({ error: "Could not create impersonation token." }, { status: 500 });
+  let token: string | null = null;
+  try {
+    const actorToken = await client.actorTokens.create({
+      userId,
+      actor: { sub: adminId },
+      expiresInSeconds: 600, // token must be consumed within 10 minutes
+    });
+    token = actorToken.token ?? null;
+  } catch (err) {
+    console.error("impersonate actorTokens.create error:", err);
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ error: `Could not start impersonation: ${msg}` }, { status: 422 });
+  }
+  if (!token) {
+    return NextResponse.json({ error: "Could not create impersonation token (empty token)." }, { status: 500 });
   }
 
-  const handoffUrl = `${CONSUMER_URL}/impersonate-handoff?ticket=${encodeURIComponent(actorToken.token)}`;
+  const handoffUrl = `${CONSUMER_URL}/impersonate-handoff?ticket=${encodeURIComponent(token)}`;
   return NextResponse.json({ handoffUrl });
 }

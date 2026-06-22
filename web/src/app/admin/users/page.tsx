@@ -9,6 +9,7 @@ interface UserRow {
   id: string; email: string; name: string; plan: string;
   subscriptionStatus: string; createdAt: number; lastActiveAt: number | null;
   resumeCount: number; jobCount: number; imageUrl: string;
+  suspended?: boolean;
 }
 
 const PLAN_BADGE: Record<string, string> = {
@@ -102,7 +103,10 @@ export default function AdminUsers() {
                         ? <img src={u.imageUrl} alt="" className="h-7 w-7 rounded-full object-cover" />
                         : <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">{u.name[0] ?? "?"}</div>}
                       <div>
-                        <p className="font-medium text-foreground">{u.name}</p>
+                        <p className="flex items-center gap-1.5 font-medium text-foreground">
+                          {u.name}
+                          {u.suspended && <span className="rounded-full bg-red-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-red-400">Suspended</span>}
+                        </p>
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
                     </div>
