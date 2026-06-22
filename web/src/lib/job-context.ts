@@ -118,9 +118,17 @@ export async function loadJobContext(
   const jobParsed = Array.isArray(parsedRel) ? parsedRel[0]?.parsed_json : parsedRel?.parsed_json;
   if (!jobParsed) return { error: "Job has not been parsed yet.", status: 409 };
 
-  // Honor an explicitly chosen profile resume when provided & owned; otherwise
-  // pick the resume that best matches this job (falls back to primary).
-  const chosen = overrideVersionId ? await loadOwnedVersion(userId, overrideVersionId) : null;
+  // The resume the user pinned to this job, read separately so a pre-migration
+  // deploy (column not yet present) degrades to auto-pick instead of erroring.
+  let pinnedId: string | null = null;
+  const { data: pin } = await supabaseAdmin
+    .from("jobs").select("resume_version_id").eq("id", jobId).eq("user_id", userId).maybeSingle();
+  pinnedId = (pin?.resume_version_id as string | null) ?? null;
+
+  // Resume priority: explicit per-request override → the pinned resume → best
+  // match for the job (→ primary).
+  const chosenId = overrideVersionId ?? pinnedId ?? null;
+  const chosen = chosenId ? await loadOwnedVersion(userId, chosenId) : null;
   const best = chosen ?? (await pickBestResumeVersion(userId, jobParsed));
   if (!best) {
     return { error: "No resume found. Upload a resume first.", status: 409 };
