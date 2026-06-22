@@ -8,8 +8,12 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 
 export const metadata = {
-  title: "JobsAI Enterprise — AI-Powered Talent Acquisition Operating System",
-  description: "Source, engage, screen, interview, and hire top talent from a single AI-powered platform. 14-day free trial.",
+  // `absolute` bypasses the layout's "%s | JobsAI Enterprise" template (which
+  // otherwise double-stamps the brand and pushes the title past 60 chars).
+  title: { absolute: "JobsAI Enterprise — Talent Acquisition Operating System" }, // 55 chars
+  description:
+    "JobsAI Enterprise is an AI-powered talent acquisition platform to source, engage, screen, interview, and hire top talent faster. Start a 14-day free trial.", // 155 chars
+  alternates: { canonical: "/enterprise/home" },
 };
 
 const BOOK_DEMO = "/enterprise/demo";
