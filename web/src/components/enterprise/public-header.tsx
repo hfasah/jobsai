@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { PERSONAS, INDUSTRIES, type Persona } from "@/lib/enterprise-personas";
 import { AppearanceMenu } from "@/components/enterprise/appearance-menu";
+import { AudienceToggle } from "@/components/enterprise/audience-toggle";
 
 function MenuColumn({ label, basePath, items, seeAll }: { label: string; basePath: string; items: Persona[]; seeAll: string }) {
   return (
@@ -37,11 +38,14 @@ export function PublicEnterpriseHeader({ partnerMode = false }: { partnerMode?: 
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
-        <Link href={partnerMode ? "/enterprise/partners" : "/enterprise/home"} className="flex items-center gap-2">
-          <Image src="/logo.png" alt="JobsAI" width={28} height={28} className="rounded-lg" />
-          <span className="font-bold">JobsAI</span>
-          <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{partnerMode ? "Partners" : "Enterprise"}</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href={partnerMode ? "/enterprise/partners" : "/enterprise/home"} className="flex items-center gap-2">
+            <Image src="/logo.png" alt="JobsAI" width={28} height={28} className="rounded-lg" />
+            <span className="font-bold">JobsAI</span>
+            <span className="rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-primary">{partnerMode ? "Partners" : "Enterprise"}</span>
+          </Link>
+          {!partnerMode && <AudienceToggle active="employers" className="hidden sm:inline-flex" />}
+        </div>
 
         {partnerMode ? (
           <div className="flex items-center gap-2 text-sm">
