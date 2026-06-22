@@ -62,6 +62,17 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
     return NextResponse.json({ error: "Could not create impersonation token (empty token)." }, { status: 500 });
   }
 
-  const handoffUrl = `${CONSUMER_URL}/impersonate-handoff?ticket=${encodeURIComponent(token)}`;
+  // Also mint a return token for the admin so "Exit" can sign them straight back
+  // in (no manual re-login). Non-fatal: if it fails, Exit falls back to sign-out.
+  let returnToken: string | null = null;
+  try {
+    const rt = await client.signInTokens.createSignInToken({ userId: adminId, expiresInSeconds: 1800 });
+    returnToken = rt.token ?? null;
+  } catch (err) {
+    console.error("impersonate: admin return token failed (non-fatal):", err);
+  }
+
+  const handoffUrl = `${CONSUMER_URL}/impersonate-handoff?ticket=${encodeURIComponent(token)}&imp=1`
+    + (returnToken ? `&rt=${encodeURIComponent(returnToken)}` : "");
   return NextResponse.json({ handoffUrl });
 }
