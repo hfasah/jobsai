@@ -12,33 +12,25 @@ import { Loader2, ShieldAlert } from "lucide-react";
 // Exit action). Not under /admin, so the jobsai.work/admin → app.jobsai.work
 // redirect doesn't catch it.
 export default function ImpersonateHandoff() {
-  const { isLoaded, isSignedIn } = useAuth();
+  const { isLoaded } = useAuth();
   const clerk = useClerk();
   const [error, setError] = useState<string | null>(null);
   const ran = useRef(false);
 
   useEffect(() => {
     if (!isLoaded || ran.current) return;
+    ran.current = true;
 
-    const params = new URLSearchParams(window.location.search);
-    const ticket = params.get("ticket");
+    const ticket = new URLSearchParams(window.location.search).get("ticket");
     if (!ticket) { setError("Missing impersonation ticket."); return; }
 
-    // A Clerk ticket sign-in is rejected while a session is active ("you're
-    // already signed in") — and the admin's own session is active here (shared
-    // Clerk instance across both domains). Sign out first, then return to this
-    // same URL (ticket preserved) to complete the ticket. The `so=1` flag guards
-    // against a sign-out loop.
-    if (isSignedIn && params.get("so") !== "1") {
-      ran.current = true;
-      const back = `${window.location.pathname}?ticket=${encodeURIComponent(ticket)}&so=1`;
-      clerk.signOut({ redirectUrl: back });
-      return;
-    }
-
-    ran.current = true;
     (async () => {
       try {
+        // A Clerk ticket sign-in is rejected while a session is active, and the
+        // admin's own session is active here (shared Clerk instance across both
+        // domains). Clear the active session in place — no navigation — so the
+        // ticket sign-in is accepted, then activate the impersonated session.
+        await clerk.setActive({ session: null });
         const signIn = await clerk.client.signIn.create({ strategy: "ticket", ticket });
         if (signIn.status !== "complete" || !signIn.createdSessionId) {
           setError("Could not complete sign-in — the ticket may have expired (they last 10 minutes).");
@@ -50,7 +42,7 @@ export default function ImpersonateHandoff() {
         setError(e instanceof Error ? e.message : "Impersonation failed.");
       }
     })();
-  }, [isLoaded, isSignedIn, clerk]);
+  }, [isLoaded, clerk]);
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
