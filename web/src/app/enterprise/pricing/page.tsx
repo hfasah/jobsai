@@ -7,7 +7,7 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
   title: "JobsAI Enterprise pricing — plans, billing & free trial",
-  description: "Monthly or annual billing (save 20%). Plans from $299/mo ($239/mo billed annually) with a 14-day free trial.",
+  description: "JobsAI Enterprise pricing: monthly or annual billing (save 20%), plans from $299/mo ($239/mo billed annually), each with a 14-day free trial.",
 };
 
 const BOOK_DEMO = "/enterprise/demo";

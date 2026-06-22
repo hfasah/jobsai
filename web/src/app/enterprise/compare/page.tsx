@@ -8,7 +8,7 @@ import { COMPARISONS } from "@/lib/enterprise-comparisons";
 export const metadata: Metadata = {
   title: "Compare — JobsAI Enterprise vs. the alternatives",
   description:
-    "See how JobsAI Enterprise — the AI-native talent acquisition platform — compares to Loxo, Ashby, Pin, Greenhouse, Lever, and Teamtailor.",
+    "See how JobsAI Enterprise — the AI-native talent acquisition platform — compares to Ashby, Greenhouse, Lever, Loxo, and Teamtailor on features.",
 };
 
 const PILLARS = [

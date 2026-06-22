@@ -7,7 +7,7 @@ import { GUIDE, getGuideArticle } from "@/lib/enterprise-guide";
 export const metadata: Metadata = {
   title: "JobsAI Enterprise setup guide — get hiring fast",
   description:
-    "How-to guides for JobsAI Enterprise — set up your workspace, source and screen candidates, run outreach campaigns, interview, and hire.",
+    "Step-by-step guides for JobsAI Enterprise — set up your workspace, source and screen candidates, run outreach campaigns, interview, and hire faster.",
 };
 
 export default function GuideIndexPage() {

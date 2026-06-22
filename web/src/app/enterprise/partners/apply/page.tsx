@@ -7,7 +7,7 @@ import { PartnerApplyForm } from "./apply-form";
 
 export const metadata = {
   title: "Become a Partner — JobsAI Enterprise",
-  description: "Create your JobsAI referral link in minutes and earn recurring cash commission. No login or purchase required.",
+  description: "Create your JobsAI referral link in minutes and earn recurring cash commission for every customer you refer — no login or purchase required to start.",
 };
 
 const PERKS = [
