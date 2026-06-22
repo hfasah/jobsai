@@ -8,7 +8,7 @@ import { JD_ROLES } from "@/lib/job-descriptions";
 
 export const metadata: Metadata = {
   title: "Recruiting Resources | JobsAI Enterprise",
-  description: "Free recruiting resources — interview questions by role and more — from the JobsAI Enterprise team.",
+  description: "Free recruiting resources from JobsAI Enterprise — interview questions by role, job description templates, and practical guides for hiring teams.",
   alternates: { canonical: "/enterprise/resources" },
 };
 

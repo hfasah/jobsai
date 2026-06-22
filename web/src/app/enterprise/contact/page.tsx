@@ -8,7 +8,7 @@ import { EnterpriseContactForm } from "@/components/enterprise/contact-form";
 export const metadata: Metadata = {
   title: "Contact JobsAI Enterprise — talk to sales or support",
   description:
-    "Talk to the JobsAI Enterprise team about the platform, pricing, security, or rolling it out to your hiring team.",
+    "Talk to the JobsAI Enterprise team about the platform, pricing, security, onboarding, or rolling AI-powered recruiting out to your hiring team.",
 };
 
 export default function EnterpriseContactPage() {

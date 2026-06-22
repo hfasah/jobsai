@@ -6,7 +6,7 @@ import { IntakeForm } from "@/components/enterprise/intake-form";
 
 export const metadata: Metadata = {
   title: "Get started with JobsAI Enterprise — set up your team",
-  description: "Tell us about your team and the tools you need, and we'll set up the right JobsAI Enterprise workspace for you.",
+  description: "Tell us about your team and the tools you need, and we'll set up the right JobsAI Enterprise workspace — ATS, AI sourcing, screening, and interviews.",
 };
 
 export default function EnterpriseIntakePage() {

@@ -3,7 +3,7 @@ import { EnterpriseLegalPage, type LegalSection } from "@/components/enterprise/
 
 export const metadata: Metadata = {
   title: "JobsAI Enterprise Terms of Service & acceptable use",
-  description: "The terms that govern use of the JobsAI Enterprise talent acquisition platform.",
+  description: "The terms that govern use of the JobsAI Enterprise talent acquisition platform — your account, acceptable use, subscriptions, data, and liability.",
 };
 
 const SECTIONS: LegalSection[] = [
