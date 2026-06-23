@@ -116,6 +116,52 @@ function buildPrompt(p: SkyvernTaskPayload): string {
   return instructions.join("\n");
 }
 
+// Turn a raw Skyvern HTTP failure into a clear, user-facing message AND log the
+// full detail server-side, so a systemic outage is diagnosable (is it a bad key,
+// no credits, or a real outage?) instead of a generic "agent failed".
+function skyvernError(status: number, body: string): Error {
+  console.error(`[skyvern] task create failed (${status}): ${body?.slice(0, 500)}`);
+  const lc = (body || "").toLowerCase();
+  if (status === 401 || status === 403) {
+    return new Error("The browser-agent service rejected our credentials. (SKYVERN_API_KEY may be missing or invalid.)");
+  }
+  if (status === 402 || /credit|quota|balance|insufficient|billing|payment/.test(lc)) {
+    return new Error("The browser-agent service is out of credits. Top up the Skyvern account to resume auto-apply.");
+  }
+  if (status === 429) {
+    return new Error("The browser-agent service is rate-limited right now. Please try again shortly.");
+  }
+  if (status >= 500) {
+    return new Error("The browser-agent service is having an outage. Please try again shortly.");
+  }
+  return new Error(`Agent apply couldn't start (error ${status}). Please try again, or apply manually.`);
+}
+
+// Lightweight connectivity/auth probe for diagnostics. Hits an authenticated
+// read endpoint and reports whether the key works — without creating a run.
+export async function checkSkyvernHealth(): Promise<{ ok: boolean; configured: boolean; status: number | null; detail: string }> {
+  const key = getSkyvernKey();
+  if (!key) return { ok: false, configured: false, status: null, detail: "SKYVERN_API_KEY is not set on this server." };
+  try {
+    // GET a bogus run id: a working key returns 404 (auth OK, run not found);
+    // a bad key returns 401/403. Either way we learn the auth state cheaply.
+    const res = await fetch(`${SKYVERN_BASE}/runs/healthcheck-probe`, {
+      headers: { "x-api-key": key },
+      signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
+    });
+    if (res.status === 401 || res.status === 403) {
+      return { ok: false, configured: true, status: res.status, detail: "Key is set but rejected by Skyvern (401/403)." };
+    }
+    if (res.status >= 500) {
+      return { ok: false, configured: true, status: res.status, detail: "Skyvern is returning server errors (outage)." };
+    }
+    // 404/200 → auth works.
+    return { ok: true, configured: true, status: res.status, detail: "Skyvern auth OK." };
+  } catch {
+    return { ok: false, configured: true, status: null, detail: "Could not reach Skyvern (timeout/network)." };
+  }
+}
+
 export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernTask> {
   const key = getSkyvernKey();
   if (!key) throw new Error("SKYVERN_API_KEY not configured");
@@ -154,13 +200,13 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
       console.warn(`[skyvern] proxy_location ${p.proxyLocation} rejected, retrying without it`);
       res = await post(base);
     } else {
-      throw new Error(`Skyvern task creation failed (${res.status}): ${errText}`);
+      throw skyvernError(res.status, errText);
     }
   }
 
   if (!res.ok) {
     const err = await res.text().catch(() => res.statusText);
-    throw new Error(`Skyvern task creation failed (${res.status}): ${err}`);
+    throw skyvernError(res.status, err);
   }
 
   const json = (await res.json()) as { run_id?: string; task_id?: string; status?: string; created_at?: string };
