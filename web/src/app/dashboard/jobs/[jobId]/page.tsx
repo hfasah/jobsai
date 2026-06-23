@@ -421,7 +421,7 @@ export default function JobDetailPage({
             {applyState === "manual_required" && (
               <>
                 <p className="font-medium text-foreground">Your résumé and cover letter are ready.</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you. Billed by actual work (lighter applies are refunded).</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you. You&apos;re only charged when an application actually goes through — failed attempts are fully refunded.</p>
                 {agentUnavailable ? (
                   <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs">
                     <p className="font-medium text-foreground">Auto-apply is temporarily unavailable.</p>
@@ -449,10 +449,25 @@ export default function JobDetailPage({
                     )}
                   </div>
                 ) : agentError ? (
-                  <p className="mt-2 flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
-                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                    <span>{agentError}</span>
-                  </p>
+                  <div className="mt-2 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-2 text-xs">
+                    <p className="flex items-start gap-1.5 text-destructive">
+                      <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      <span>{agentError}</span>
+                    </p>
+                    <p className="mt-1.5 text-muted-foreground">
+                      No credits were charged. Your tailored résumé and cover letter are ready — apply directly on the company site and you&apos;re done in a couple of minutes.
+                    </p>
+                    {applyUrl && (
+                      <a
+                        href={applyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn-cta mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
+                      >
+                        Apply on company site <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {/* Agent Apply — gated for free users */}

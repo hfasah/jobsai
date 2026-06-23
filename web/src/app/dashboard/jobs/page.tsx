@@ -672,7 +672,7 @@ export default function JobsPage() {
         balance={balance}
         freeApplies={freeApplies}
         busy={agentBulkRunning}
-        note="This is the typical cost. Auto-apply is metered by the work the agent does — lighter applications are refunded, heavier ones can cost a bit more (capped). Expired or already-applied jobs are skipped automatically."
+        note="This is the typical cost. Auto-apply is metered by actual work — lighter applies are refunded, heavier ones cost a bit more (capped), and any apply the agent can't complete is fully refunded. Expired or already-applied jobs are skipped automatically."
       />
 
       <ApplyMethodModal

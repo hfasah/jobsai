@@ -1,7 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { getSkyvernTask, createBrowserProfile } from "@/lib/skyvern";
-import { recordAgentCost, settleAgentApply } from "@/lib/agent-cost";
+import { recordAgentCost, settleAgentApply, refundFailedAgentApply } from "@/lib/agent-cost";
 
 // Settle a finished browser-agent run: update the attempt, record cost, meter the
 // user's credits, capture the board profile, notify, advance the application.
@@ -62,25 +62,30 @@ export async function finalizeAgentRun(
     .eq("platform", "agent")
     .eq("status", "pending");
 
-  // Cost + metering (fetch step_count if the caller didn't have it).
+  // Cost tracking (Skyvern-side) always; user billing depends on outcome.
   let stepCount = typeof stepCountHint === "number" ? stepCountHint : null;
   if (stepCount == null) {
     stepCount = await getSkyvernTask(taskId).then((r) => r.step_count ?? null).catch(() => null);
   }
   await recordAgentCost(userId, jobId, stepCount);
-  const meter = await settleAgentApply({
-    taskId,
-    userId,
-    jobId,
-    stepCount,
-    chargedUpfront: typeof task.charged_credits === "number" ? task.charged_credits : 0,
-  }).catch((e) => { console.error("[finalize] settle failed:", e); return null; });
 
-  const meterNote = meter && meter.applied
-    ? meter.delta < 0
-      ? ` ${-meter.delta} credits refunded (used ${meter.metered}).`
-      : ` ${meter.delta} extra credits used (total ${meter.metered}).`
-    : "";
+  const chargedUpfront = typeof task.charged_credits === "number" ? task.charged_credits : 0;
+  let meterNote = "";
+  if (success) {
+    // Meter the successful apply against real usage (refund light / bill heavy).
+    const meter = await settleAgentApply({ taskId, userId, jobId, stepCount, chargedUpfront })
+      .catch((e) => { console.error("[finalize] settle failed:", e); return null; });
+    if (meter && meter.applied) {
+      meterNote = meter.delta < 0
+        ? ` ${-meter.delta} credits refunded (used ${meter.metered}).`
+        : ` ${meter.delta} extra credits used (total ${meter.metered}).`;
+    }
+  } else {
+    // FAILED apply → no application was submitted, so fully refund the user.
+    const refund = await refundFailedAgentApply({ taskId, userId, jobId, chargedUpfront })
+      .catch((e) => { console.error("[finalize] refund failed:", e); return null; });
+    if (refund && refund.applied) meterNote = ` Your ${-refund.delta} credits were refunded — you're only charged when an application actually goes through.`;
+  }
 
   const { data: job } = await supabaseAdmin
     .from("job_parsed")
