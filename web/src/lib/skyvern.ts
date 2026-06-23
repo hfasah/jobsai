@@ -2,7 +2,10 @@
 // Uses the current Run Tasks API: POST /v1/run/tasks (prompt-based), GET /v1/runs/{id}.
 // Docs: https://www.skyvern.com/docs/running-tasks/api-spec
 
-const SKYVERN_BASE = "https://api.skyvern.com/v1";
+// Base URL is env-driven so we can point at a SELF-HOSTED Skyvern (same REST
+// API) without a code change — set SKYVERN_BASE_URL=https://agent.jobsai.work to
+// cut over, unset to use the hosted cloud. See docs/skyvern-self-host-plan.md.
+const SKYVERN_BASE = `${(process.env.SKYVERN_BASE_URL ?? "https://api.skyvern.com").replace(/\/+$/, "")}/v1`;
 // Task creation just queues a run and returns a run_id — it should be fast.
 // Cap it so a slow/unreachable Skyvern fails cleanly instead of hanging the
 // whole request until Vercel kills it with a 504 (which left the UI stuck on
