@@ -3,6 +3,11 @@
 // Docs: https://www.skyvern.com/docs/running-tasks/api-spec
 
 const SKYVERN_BASE = "https://api.skyvern.com/v1";
+// Task creation just queues a run and returns a run_id — it should be fast.
+// Cap it so a slow/unreachable Skyvern fails cleanly instead of hanging the
+// whole request until Vercel kills it with a 504 (which left the UI stuck on
+// "Launching browser agent…").
+const SKYVERN_TIMEOUT_MS = 20_000;
 
 export function getSkyvernKey(): string | null {
   return process.env.SKYVERN_API_KEY ?? null;
@@ -125,12 +130,18 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
     max_steps: 75,
   };
 
-  const post = (body: Record<string, unknown>) =>
-    fetch(`${SKYVERN_BASE}/run/tasks`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-api-key": key },
-      body: JSON.stringify(body),
-    });
+  const post = async (body: Record<string, unknown>) => {
+    try {
+      return await fetch(`${SKYVERN_BASE}/run/tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": key },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
+      });
+    } catch {
+      throw new Error("The browser agent service didn't respond in time. Please try again in a moment.");
+    }
+  };
 
   // Run from the job's region when we know it (clears geo content gates).
   let res = await post(p.proxyLocation ? { ...base, proxy_location: p.proxyLocation } : base);
@@ -165,6 +176,7 @@ export async function getSkyvernTask(taskId: string): Promise<SkyvernTask> {
 
   const res = await fetch(`${SKYVERN_BASE}/runs/${taskId}`, {
     headers: { "x-api-key": key },
+    signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
   });
 
   if (!res.ok) throw new Error(`Skyvern get task failed (${res.status})`);

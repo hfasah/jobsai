@@ -52,6 +52,7 @@ export default function JobDetailPage({
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval> | null = null;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchJob().then((j) => {
       if (j && (j.status === "processing" || j.status === "created")) {
         interval = setInterval(async () => {
@@ -64,6 +65,27 @@ export default function JobDetailPage({
     });
     return () => { if (interval) clearInterval(interval); };
   }, [fetchJob]);
+
+  // While the browser agent is running, poll its status so the UI resolves to
+  // Applied / failed / review without a manual refresh (the webhook flips the
+  // apply_attempt; this reflects it).
+  useEffect(() => {
+    if (applyState !== "agent_running") return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${jobId}/agent-apply`);
+        const json = await res.json().catch(() => ({}));
+        const st = json.data?.status as string | undefined;
+        if (st === "submitted") { setApplyState("submitted"); clearInterval(iv); }
+        else if (st === "failed") {
+          setApplyMsg("The agent couldn't complete this application. You can retry or apply manually.");
+          setApplyState("failed");
+          clearInterval(iv);
+        } else if (st === "manual_required") { setApplyState("manual_required"); clearInterval(iv); }
+      } catch { /* transient — keep polling */ }
+    }, 5000);
+    return () => clearInterval(iv);
+  }, [applyState, jobId]);
 
   const rematch = async () => {
     setRematching(true);
@@ -395,14 +417,22 @@ export default function JobDetailPage({
                     <button
                       onClick={async () => {
                         setApplyState("agent_launching");
-                        const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
-                        const json = await res.json();
-                        if (!res.ok) {
-                          if (json.upgrade_required) { setShowUpgrade(json.error); setApplyState("manual_required"); }
-                          else { setApplyMsg(json.error ?? "Agent failed to launch."); setApplyState("manual_required"); }
-                          return;
+                        setApplyMsg(null);
+                        try {
+                          const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
+                          const json = await res.json().catch(() => ({}));
+                          if (!res.ok) {
+                            // Always leave "launching" — revert so the user can retry.
+                            if (json.upgrade_required) setShowUpgrade(json.error);
+                            else setApplyMsg(json.error ?? "Agent failed to launch. Please try again.");
+                            setApplyState("manual_required");
+                            return;
+                          }
+                          setApplyState("agent_running");
+                        } catch {
+                          setApplyMsg("Couldn't reach the browser agent. Please try again.");
+                          setApplyState("manual_required");
                         }
-                        setApplyState("agent_running");
                       }}
                       className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold"
                     >
