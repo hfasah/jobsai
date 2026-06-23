@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { getSkyvernTask } from "@/lib/skyvern";
 import { recordAgentCost, settleAgentApply, type MeterResult } from "@/lib/agent-cost";
+import { createBrowserProfile } from "@/lib/skyvern";
 
 // POST /api/webhooks/agent-apply — Skyvern callback when agent completes/fails
 export async function POST(req: NextRequest) {
@@ -23,7 +24,7 @@ export async function POST(req: NextRequest) {
   // Look up our record for this task
   const { data: task } = await supabaseAdmin
     .from("agent_apply_tasks")
-    .select("user_id, job_id, charged_credits")
+    .select("user_id, job_id, charged_credits, board, run_mode")
     .eq("task_id", taskId)
     .maybeSingle();
 
@@ -105,6 +106,28 @@ export async function POST(req: NextRequest) {
           stage_history: [{ stage: "applied", at: new Date().toISOString() }],
         })
         .match({ user_id: userId, job_id: jobId });
+
+      // Cost lever #2: snapshot/refresh the board login profile from this
+      // completed workflow run, so the next apply to the same board skips login.
+      // Best-effort — a missed snapshot just means the next apply logs in again.
+      if (task.run_mode === "workflow" && task.board) {
+        const profileId = await createBrowserProfile(taskId).catch(() => null);
+        if (profileId) {
+          await supabaseAdmin
+            .from("agent_board_profiles")
+            .upsert(
+              {
+                user_id: userId,
+                board: task.board,
+                browser_profile_id: profileId,
+                workflow_run_id: taskId,
+                refreshed_at: new Date().toISOString(),
+              },
+              { onConflict: "user_id,board" }
+            )
+            .then(({ error }) => { if (error) console.warn("[webhook] profile upsert failed:", error.message); });
+        }
+      }
 
       createNotification(
         userId,

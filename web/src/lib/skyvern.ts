@@ -254,3 +254,106 @@ export async function getSkyvernTask(taskId: string): Promise<SkyvernTask> {
     step_count: json.step_count ?? null,
   };
 }
+
+// ─── Workflow + browser-profile path (cost lever #2: skip re-login) ─────────────
+// Browser PROFILES persist a user's login cookies per board with no idle cost,
+// but Skyvern only supports them on WORKFLOW runs (not run_task). So when an
+// apply workflow is configured (SKYVERN_APPLY_WORKFLOW_ID), we run that workflow
+// with the stored profile attached; the completion webhook captures/refreshes
+// the profile. Until the env is set, callers fall back to createSkyvernTask.
+
+export function getApplyWorkflowId(): string | null {
+  return process.env.SKYVERN_APPLY_WORKFLOW_ID || null;
+}
+
+export interface ApplyWorkflowParams {
+  workflowId: string;
+  /** Flat map the workflow's blocks reference (url + applicant fields, resume_url, cover_letter, account_password). */
+  parameters: Record<string, string | null>;
+  webhookCallbackUrl: string;
+  proxyLocation?: string;
+  /** Reattach a previously-saved login profile (bp_…) to skip the login steps. */
+  browserProfileId?: string;
+  /** Archive the browser state after the run so we can snapshot a profile from it. */
+  persistBrowserSession?: boolean;
+}
+
+export async function runApplyWorkflow(p: ApplyWorkflowParams): Promise<SkyvernTask> {
+  const key = getSkyvernKey();
+  if (!key) throw new SkyvernServiceError("auth", null, "SKYVERN_API_KEY not configured.");
+
+  const body: Record<string, unknown> = {
+    workflow_id: p.workflowId,
+    parameters: p.parameters,
+    webhook_url: p.webhookCallbackUrl,
+  };
+  if (p.proxyLocation) body.proxy_location = p.proxyLocation;
+  if (p.browserProfileId) body.browser_profile_id = p.browserProfileId;
+  if (p.persistBrowserSession) body.persist_browser_session = true;
+
+  let res: Response;
+  try {
+    res = await fetch(`${SKYVERN_BASE}/run/workflows`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
+    });
+  } catch {
+    throw new SkyvernServiceError("outage", null, "Skyvern did not respond in time launching the workflow.");
+  }
+
+  // A stale/invalid profile shouldn't block the apply — retry once without it.
+  if (!res.ok && p.browserProfileId) {
+    const errText = await res.text().catch(() => "");
+    if (/profile/i.test(errText) || res.status === 404 || res.status === 422 || res.status === 400) {
+      console.warn(`[skyvern] browser_profile ${p.browserProfileId} rejected, retrying without it`);
+      const { browser_profile_id: _omit, ...rest } = body;
+      void _omit;
+      res = await fetch(`${SKYVERN_BASE}/run/workflows`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": key },
+        body: JSON.stringify(rest),
+        signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
+      }).catch(() => { throw new SkyvernServiceError("outage", null, "Skyvern workflow retry failed."); });
+    } else {
+      throw skyvernError(res.status, errText);
+    }
+  }
+  if (!res.ok) {
+    const err = await res.text().catch(() => res.statusText);
+    throw skyvernError(res.status, err);
+  }
+
+  const json = (await res.json()) as { run_id?: string; workflow_run_id?: string; status?: string; created_at?: string };
+  const runId = json.run_id ?? json.workflow_run_id;
+  if (!runId) throw new Error("Skyvern workflow response missing run_id");
+  return { task_id: runId, status: json.status ?? "queued", created_at: json.created_at };
+}
+
+/**
+ * Snapshot a reusable browser profile (bp_…) from a COMPLETED workflow run that
+ * was launched with persist_browser_session=true. Best-effort: returns null on
+ * any failure so a missed snapshot just means the next apply logs in again.
+ */
+export async function createBrowserProfile(workflowRunId: string): Promise<string | null> {
+  const key = getSkyvernKey();
+  if (!key) return null;
+  try {
+    const res = await fetch(`${SKYVERN_BASE}/browser_profiles`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-api-key": key },
+      body: JSON.stringify({ workflow_run_id: workflowRunId }),
+      signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      console.warn(`[skyvern] createBrowserProfile failed (${res.status}): ${(await res.text().catch(() => "")).slice(0, 200)}`);
+      return null;
+    }
+    const json = (await res.json()) as { browser_profile_id?: string };
+    return json.browser_profile_id ?? null;
+  } catch (err) {
+    console.warn("[skyvern] createBrowserProfile threw:", err);
+    return null;
+  }
+}

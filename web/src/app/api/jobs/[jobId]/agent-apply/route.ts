@@ -2,8 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
-import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation, SkyvernServiceError } from "@/lib/skyvern";
+import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation, SkyvernServiceError, getApplyWorkflowId, runApplyWorkflow } from "@/lib/skyvern";
 import { notifyAgentApplyDown } from "@/lib/ops-alert";
+import { boardForUrl } from "@/lib/job-boards";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
 import { checkAutoApplyGate } from "@/lib/billing";
@@ -184,16 +185,56 @@ export async function POST(
     }
   }
 
+  // Cost lever #2: when an apply WORKFLOW is configured, run it (so we can reuse
+  // a saved login profile per board and skip the login steps). Otherwise use the
+  // standard run_task. Profiles only apply to account-based boards — guest/manual
+  // ATS hosts have no stable login, so we don't key a profile for them.
+  const workflowId = getApplyWorkflowId();
+  const board = boardForUrl(applicationUrl);
+  const useProfileBoard = workflowId && board.id !== "manual";
+
   try {
-    const task = await createSkyvernTask({
-      url: applicationUrl,
-      webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
-      navigationPayload,
-      resumeUrl,
-      coverLetter: cl?.body ?? undefined,
-      jobBoardPassword: profile.job_board_password ?? undefined,
-      proxyLocation: proxyLocationForLocation(jobParsed?.location),
-    });
+    let task: { task_id: string; status: string };
+    let runMode: "task" | "workflow" = "task";
+
+    if (workflowId) {
+      runMode = "workflow";
+      let browserProfileId: string | undefined;
+      if (useProfileBoard) {
+        const { data: bp } = await supabaseAdmin
+          .from("agent_board_profiles")
+          .select("browser_profile_id")
+          .eq("user_id", userId)
+          .eq("board", board.id)
+          .maybeSingle();
+        browserProfileId = bp?.browser_profile_id ?? undefined;
+      }
+      task = await runApplyWorkflow({
+        workflowId,
+        parameters: {
+          ...navigationPayload,
+          url: applicationUrl,
+          resume_url: resumeUrl ?? null,
+          cover_letter: cl?.body ?? null,
+          account_password: profile.job_board_password ?? null,
+        },
+        webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
+        proxyLocation: proxyLocationForLocation(jobParsed?.location),
+        browserProfileId,
+        // Only worth snapshotting state for boards we key a profile for.
+        persistBrowserSession: !!useProfileBoard,
+      });
+    } else {
+      task = await createSkyvernTask({
+        url: applicationUrl,
+        webhookCallbackUrl: `${APP_URL}/api/webhooks/agent-apply`,
+        navigationPayload,
+        resumeUrl,
+        coverLetter: cl?.body ?? undefined,
+        jobBoardPassword: profile.job_board_password ?? undefined,
+        proxyLocation: proxyLocationForLocation(jobParsed?.location),
+      });
+    }
 
     // Record the attempt. status must be one of the allowed values
     // (pending|submitted|failed|manual_required) — we use "pending" for an
@@ -207,13 +248,16 @@ export async function POST(
       error_msg: `Skyvern task: ${task.task_id}`,
     });
 
-    // Save task reference so the webhook can update + meter against real usage.
+    // Save task reference so the webhook can update + meter against real usage,
+    // and (workflow path) capture/refresh the board login profile on completion.
     // charged_credits = what we reserved upfront (0 if this used a free apply).
     await supabaseAdmin.from("agent_apply_tasks").insert({
       task_id: task.task_id,
       user_id: userId,
       job_id: jobId,
       charged_credits: usedFreeApply ? 0 : cost,
+      board: useProfileBoard ? board.id : null,
+      run_mode: runMode,
     });
 
     // Persist "applied" immediately so the card stays in the Applied column
