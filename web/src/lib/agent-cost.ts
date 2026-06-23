@@ -128,3 +128,35 @@ export async function settleAgentApply(opts: {
   }
   return { metered, delta: 0, applied: false };
 }
+
+/**
+ * Fully refund a FAILED auto-apply — the user got no application, so they
+ * shouldn't pay (we eat the Skyvern cost; that's the incentive to improve agent
+ * success). Idempotent via the same metered_credits claim (set to 0 = "refunded,
+ * no charge"). Used only for runs that did NOT submit.
+ */
+export async function refundFailedAgentApply(opts: {
+  taskId: string;
+  userId: string;
+  jobId: string;
+  chargedUpfront: number;
+}): Promise<MeterResult | null> {
+  const { taskId, userId, jobId, chargedUpfront } = opts;
+
+  const { data: claimed, error } = await supabaseAdmin
+    .from("agent_apply_tasks")
+    .update({ metered_credits: 0 })
+    .eq("task_id", taskId)
+    .is("metered_credits", null)
+    .select("task_id")
+    .maybeSingle();
+  if (error) {
+    console.warn("[meter] refund guard failed (run migration 128?):", error.message);
+    return null;
+  }
+  if (!claimed) return null;            // already settled/refunded
+  if (chargedUpfront <= 0) return { metered: 0, delta: 0, applied: false }; // free apply
+
+  await addTokens(userId, chargedUpfront, "auto_apply_failed_refund", { job_id: jobId });
+  return { metered: 0, delta: -chargedUpfront, applied: true };
+}
