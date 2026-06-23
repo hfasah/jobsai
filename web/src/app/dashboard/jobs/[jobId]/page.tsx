@@ -36,6 +36,7 @@ export default function JobDetailPage({
   const [applyState, setApplyState] = useState<ApplyState>("idle");
   const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
   const [copiedCover, setCopiedCover] = useState(false);
@@ -78,8 +79,8 @@ export default function JobDetailPage({
         const st = json.data?.status as string | undefined;
         if (st === "submitted") { setApplyState("submitted"); clearInterval(iv); }
         else if (st === "failed") {
-          setApplyMsg("The agent couldn't complete this application. You can retry or apply manually.");
-          setApplyState("failed");
+          setAgentError("The agent couldn't complete this application. You can retry or apply manually.");
+          setApplyState("manual_required");
           clearInterval(iv);
         } else if (st === "manual_required") { setApplyState("manual_required"); clearInterval(iv); }
       } catch { /* transient — keep polling */ }
@@ -403,6 +404,12 @@ export default function JobDetailPage({
               <>
                 <p className="font-medium text-foreground">Your résumé and cover letter are ready.</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you.</p>
+                {agentError && (
+                  <p className="mt-2 flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
+                    <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>{agentError}</span>
+                  </p>
+                )}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {/* Agent Apply — gated for free users */}
                   <UpgradeGate
@@ -417,20 +424,20 @@ export default function JobDetailPage({
                     <button
                       onClick={async () => {
                         setApplyState("agent_launching");
-                        setApplyMsg(null);
+                        setAgentError(null);
                         try {
                           const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
                           const json = await res.json().catch(() => ({}));
                           if (!res.ok) {
-                            // Always leave "launching" — revert so the user can retry.
+                            // Never get stuck on "launching" — revert and SHOW why.
                             if (json.upgrade_required) setShowUpgrade(json.error);
-                            else setApplyMsg(json.error ?? "Agent failed to launch. Please try again.");
+                            else setAgentError(json.error ?? "Agent failed to launch. Please try again.");
                             setApplyState("manual_required");
                             return;
                           }
                           setApplyState("agent_running");
                         } catch {
-                          setApplyMsg("Couldn't reach the browser agent. Please try again.");
+                          setAgentError("Couldn't reach the browser agent. Please try again.");
                           setApplyState("manual_required");
                         }
                       }}
