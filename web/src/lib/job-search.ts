@@ -534,14 +534,18 @@ function interleave(lists: SearchJob[][]): SearchJob[] {
 
 // The product's core value: one search, every source, across one or more
 // countries. Fan out to Adzuna + JSearch per country, merge, de-dupe, interleave.
-async function searchBlended(p: SearchParams, countries: string[]): Promise<SearchResult> {
+// `useJSearch` is the quota lever: when false (blending disabled or deep page),
+// only the free/cheap Adzuna engine runs, so JSearch (the metered RapidAPI
+// engine) isn't billed. Africa has no Adzuna coverage, so it keeps its own
+// JSearch path only when JSearch is in play.
+async function searchBlended(p: SearchParams, countries: string[], useJSearch: boolean): Promise<SearchResult> {
   const tasks: Promise<SearchResult | null>[] = [];
   for (const c of countries) {
     if (c === "africa") {
-      tasks.push(searchAfrica({ ...p, country: c }).catch(() => null));
+      if (useJSearch) tasks.push(searchAfrica({ ...p, country: c }).catch(() => null));
     } else {
       tasks.push(searchAdzuna({ ...p, country: c }).catch(() => null));
-      tasks.push(searchJSearch({ ...p, country: c }).catch(() => null));
+      if (useJSearch) tasks.push(searchJSearch({ ...p, country: c }).catch(() => null));
     }
   }
 
@@ -578,6 +582,22 @@ async function searchBlended(p: SearchParams, countries: string[]): Promise<Sear
   };
 }
 
+// ─── Quota safety valves ───────────────────────────────────────────────────────
+// JSearch is metered (RapidAPI), so blending fires it on every search. Two knobs
+// (env-only, no deploy needed to change behavior):
+//   • JOB_SEARCH_BLEND="0"|"false"  → disable JSearch blending entirely
+//     (Adzuna-only; the cheapest mode).
+//   • JOB_SEARCH_BLEND_PAGES=N      → only blend JSearch on the first N result
+//     pages (default 1); deeper pages fall back to Adzuna. Most users never
+//     paginate past page 1, so this caps the per-search JSearch cost.
+function blendEnabled(): boolean {
+  const v = process.env.JOB_SEARCH_BLEND;
+  return v !== "0" && v !== "false";
+}
+function blendMaxPage(): number {
+  return Math.max(1, Number(process.env.JOB_SEARCH_BLEND_PAGES) || 1);
+}
+
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function searchJobs(p: SearchParams): Promise<SearchResult> {
@@ -586,18 +606,22 @@ export async function searchJobs(p: SearchParams): Promise<SearchResult> {
     .slice(0, MAX_COUNTRIES);
 
   const hasJSearch = !!process.env.JSEARCH_RAPIDAPI_KEY;
+  const page = Math.max(1, p.page ?? 1);
 
-  // Aggregation is the point: blend every configured source across the selected
-  // countries whenever JSearch is available (so Indeed/LinkedIn always show
-  // alongside Adzuna) or more than one country is chosen. searchBlended never
-  // throws — it falls back to free sources internally.
-  if (hasJSearch || countries.length > 1) {
-    const blended = await searchBlended(p, countries);
-    return blended;
+  // Include the metered JSearch engine only when blending is enabled AND we're
+  // within the first N pages — the quota safety valve.
+  const useJSearch = hasJSearch && blendEnabled() && page <= blendMaxPage();
+
+  // Aggregation is the point: blend across the selected countries whenever
+  // JSearch is in play (so Indeed/LinkedIn show alongside Adzuna) or more than
+  // one country is chosen (Adzuna-only multi-country still merges). searchBlended
+  // never throws — it falls back to free sources internally.
+  if (useJSearch || countries.length > 1) {
+    return searchBlended(p, countries, useJSearch);
   }
 
-  // Single country, no JSearch key: original single-engine path (keeps Adzuna's
-  // real grand total + pagination for that common case).
+  // Single country, JSearch off (no key / disabled / deep page): original
+  // single-engine path (keeps Adzuna's real grand total + pagination).
   const single = { ...p, country: countries[0] ?? p.country };
   if (single.country === "africa") {
     try {
