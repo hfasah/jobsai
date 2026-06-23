@@ -1,12 +1,16 @@
 import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { createHash } from "crypto";
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { extractText } from "@/lib/resume-extractor";
 import { fetchUrlContent, processJob } from "@/lib/job-import";
 import { checkJobImportGate } from "@/lib/billing";
+
+// The parse pipeline (LLM extract → match scoring) runs in after() so it
+// survives on serverless; give it room beyond the default function timeout.
+export const maxDuration = 60;
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -144,7 +148,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to create job." }, { status: 500 });
   }
 
-  processJob(job.id, userId, rawText).catch(console.error);
+  // Run the parse pipeline AFTER the response is sent, but kept alive by the
+  // runtime — fire-and-forget here gets frozen/killed on Vercel the moment we
+  // return, leaving the job stuck on "processing" forever.
+  after(async () => {
+    try {
+      await processJob(job.id, userId, rawText);
+    } catch (err) {
+      console.error("processJob failed:", err);
+    }
+  });
 
   return NextResponse.json({ job_id: job.id, status: "processing", dedup: false }, { status: 202 });
 }
