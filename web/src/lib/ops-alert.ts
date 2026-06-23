@@ -30,7 +30,8 @@ export async function notifyAgentApplyDown(a: AgentApplyDownAlert): Promise<void
   const window = a.source === "user" ? 10 * 60 * 1000 : THROTTLE_MS;
   const prev = lastSent.get(throttleKey) ?? 0;
   if (now - prev < window) return;
-  lastSent.set(throttleKey, now);
+  // NOTE: only record lastSent AFTER a confirmed send (below) — recording here
+  // would let a failed/killed send poison the throttle and suppress retries.
 
   if (!resend) {
     console.warn("[ops-alert] RESEND_API_KEY not configured — would alert:", a);
@@ -64,7 +65,8 @@ export async function notifyAgentApplyDown(a: AgentApplyDownAlert): Promise<void
       subject: `⚠️ Auto-apply DOWN for clients — ${subjectKind}`,
       html,
     });
-    if (error) console.error("[ops-alert] send failed:", error);
+    if (error) { console.error("[ops-alert] send failed:", error); return; }
+    lastSent.set(throttleKey, now); // throttle only after a confirmed send
   } catch (err) {
     console.error("[ops-alert] send threw:", err);
   }
