@@ -5,11 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Search, MapPin, Loader2, Briefcase, Building2, DollarSign, Clock,
-  ExternalLink, ChevronLeft, ChevronRight, Wifi, AlertCircle, Zap, Check,
+  ExternalLink, ChevronLeft, ChevronRight, ChevronDown, Wifi, AlertCircle, Zap, Check, Globe,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES, companyLogoUrl,
+  SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES, companyLogoUrl, MAX_COUNTRIES,
   type SearchJob, type SearchResult, type SortKey, type EmploymentType,
 } from "@/lib/job-search";
 import { BulkApplyBar, type BulkJob } from "@/components/apply/bulk-apply-bar";
@@ -57,6 +57,91 @@ const SITE_BRAND: Record<string, string> = {
   google: "#4285F4",       // Google blue
 };
 
+const COUNTRY_BY_CODE = new Map(SEARCH_COUNTRIES.map((c) => [c.code, c]));
+const REGIONS = ["USA", "Canada", "Britain", "EU", "Africa"] as const;
+
+// Multi-country picker (checkbox popover). Selecting >1 country aggregates jobs
+// across all of them in a single search — the core "everything in one place" UX.
+function CountryMultiSelect({
+  selected,
+  onChange,
+}: {
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const atCap = selected.length >= MAX_COUNTRIES;
+
+  const toggle = (code: string) => {
+    if (selected.includes(code)) {
+      // Keep at least one country selected.
+      if (selected.length > 1) onChange(selected.filter((c) => c !== code));
+    } else if (!atCap) {
+      onChange([...selected, code]);
+    }
+  };
+
+  const flags = selected.map((c) => COUNTRY_BY_CODE.get(c)?.flag ?? "🏳️").join(" ");
+  const label =
+    selected.length === 1
+      ? `${COUNTRY_BY_CODE.get(selected[0])?.flag ?? ""} ${COUNTRY_BY_CODE.get(selected[0])?.label ?? "Country"}`
+      : `${flags}  ${selected.length} countries`;
+
+  return (
+    <div className="relative lg:w-56">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex h-11 w-full items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm outline-none"
+        aria-label="Countries"
+      >
+        <Globe className="h-4 w-4 shrink-0 text-muted-foreground" />
+        <span className="truncate">{label}</span>
+        <ChevronDown className="ml-auto h-4 w-4 shrink-0 text-muted-foreground" />
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-20" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-12 z-30 max-h-80 w-72 overflow-y-auto rounded-xl border border-border bg-card p-1.5 shadow-xl">
+            <div className="flex items-center justify-between px-2 py-1 text-[11px] text-muted-foreground">
+              <span>Select up to {MAX_COUNTRIES}</span>
+              <span>{selected.length}/{MAX_COUNTRIES}</span>
+            </div>
+            {REGIONS.map((region) => (
+              <div key={region}>
+                <p className="px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{region}</p>
+                {SEARCH_COUNTRIES.filter((c) => c.region === region).map((c) => {
+                  const on = selected.includes(c.code);
+                  const disabled = !on && atCap;
+                  return (
+                    <button
+                      key={c.code}
+                      type="button"
+                      onClick={() => toggle(c.code)}
+                      disabled={disabled}
+                      className={cn(
+                        "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors",
+                        on ? "bg-primary/10 text-foreground" : disabled ? "opacity-40" : "hover:bg-muted",
+                      )}
+                    >
+                      <span className={cn("flex h-4 w-4 shrink-0 items-center justify-center rounded border",
+                        on ? "border-primary bg-primary text-primary-foreground" : "border-border")}>
+                        {on && <Check className="h-3 w-3" />}
+                      </span>
+                      <span>{c.flag}</span>
+                      <span className="truncate">{c.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -75,7 +160,7 @@ function Chip({ active, onClick, children }: { active: boolean; onClick: () => v
 export default function JobSearchPage() {
   const [what, setWhat] = useState("");
   const [where, setWhere] = useState("");
-  const [country, setCountry] = useState("us");
+  const [countries, setCountries] = useState<string[]>(["us"]);
   const [remote, setRemote] = useState(false);
   const [empTypes, setEmpTypes] = useState<EmploymentType[]>([]);
   const [jobSites, setJobSites] = useState<string[]>([]);
@@ -107,7 +192,7 @@ export default function JobSearchPage() {
       const id = ++reqId.current;
       setLoading(true);
       setError(null);
-      const qs = new URLSearchParams({ what, where, country, page: String(nextPage), sort });
+      const qs = new URLSearchParams({ what, where, countries: countries.join(","), page: String(nextPage), sort });
       if (remote) qs.set("remote", "1");
       if (empTypes.length) qs.set("employment_types", empTypes.join(","));
       if (jobSites.length) qs.set("job_sites", jobSites.join(","));
@@ -129,7 +214,7 @@ export default function JobSearchPage() {
         if (id === reqId.current) setLoading(false);
       }
     },
-    [what, where, country, sort, remote, empTypes, jobSites]
+    [what, where, countries, sort, remote, empTypes, jobSites]
   );
 
   // Initial broad search so the board isn't empty on first load.
@@ -181,8 +266,9 @@ export default function JobSearchPage() {
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight">Search Jobs</h1>
       <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-        Our internal job board, powered by live listings across the US, Canada, the UK, and the EU.
-        What you see here is a sample — Auto-Apply searches a much wider range when activated.
+        One search, every board. We aggregate live listings from Indeed, LinkedIn, Glassdoor,
+        ZipRecruiter, Google and more — across multiple countries at once — so you don&apos;t have to
+        check ten sites. Pick up to {MAX_COUNTRIES} countries to search them together.
       </p>
 
       {/* Search bar */}
@@ -205,20 +291,7 @@ export default function JobSearchPage() {
             className="h-11 w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
-        <select
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-          className="h-11 rounded-xl border border-border bg-card px-3 text-sm outline-none lg:w-48"
-          aria-label="Country"
-        >
-          {(["USA", "Canada", "Britain", "EU", "Africa"] as const).map((region) => (
-            <optgroup key={region} label={region}>
-              {SEARCH_COUNTRIES.filter((c) => c.region === region).map((c) => (
-                <option key={c.code} value={c.code}>{c.flag} {c.label}</option>
-              ))}
-            </optgroup>
-          ))}
-        </select>
+        <CountryMultiSelect selected={countries} onChange={setCountries} />
         <button type="submit" className="btn-cta inline-flex h-11 items-center justify-center gap-2 rounded-xl px-6 text-sm">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           Search
@@ -314,7 +387,7 @@ export default function JobSearchPage() {
           ) : result && result.jobs.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-8 text-center text-sm text-muted-foreground">
               <Briefcase className="mx-auto h-7 w-7 opacity-60" />
-              <p className="mt-2">No jobs match. Try a broader keyword, fewer Job Sites, or another country.</p>
+              <p className="mt-2">No jobs match. Try a broader keyword, fewer Job Sites, or add another country.</p>
             </div>
           ) : (
             <>

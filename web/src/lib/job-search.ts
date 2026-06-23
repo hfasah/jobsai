@@ -70,12 +70,19 @@ export interface SearchJob {
 }
 
 export type SortKey = "relevance" | "date" | "salary";
-export type Provider = "adzuna" | "jsearch" | "free";
+export type Provider = "adzuna" | "jsearch" | "free" | "blend";
+
+// How many countries a single search may span. Bounds API fan-out/quota:
+// each country = up to 1 Adzuna + 1 JSearch request when blending.
+export const MAX_COUNTRIES = 3;
 
 export interface SearchParams {
   what: string;
   where?: string;
+  /** Primary country (back-compat). Prefer `countries`. */
   country: string;
+  /** One or more countries to aggregate across. Falls back to [country]. */
+  countries?: string[];
   page?: number;
   sort?: SortKey;
   salaryMin?: number;
@@ -110,6 +117,41 @@ export function companyLogoUrl(company: string): string | null {
     .toLowerCase()
     .replace(/[^a-z0-9]/g, "") + ".com";
   return `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+}
+
+// Common acronyms expanded so sparse searches ("HPC") still match the many
+// listings that spell the role out ("High Performance Computing"). Keyed by the
+// whole query, lowercased — only fires when the query IS the acronym.
+const ACRONYM_EXPANSIONS: Record<string, string> = {
+  hpc: "high performance computing",
+  ml: "machine learning",
+  ai: "artificial intelligence",
+  nlp: "natural language processing",
+  qa: "quality assurance",
+  sre: "site reliability engineer",
+  swe: "software engineer",
+  sde: "software development engineer",
+  pm: "product manager",
+  po: "product owner",
+  ux: "user experience designer",
+  ui: "user interface designer",
+  ba: "business analyst",
+  bi: "business intelligence",
+  etl: "data engineer",
+  dba: "database administrator",
+  iam: "identity and access management",
+  hr: "human resources",
+  seo: "search engine optimization",
+};
+
+// JSearch free-text query, broadened for recognized acronyms. Adzuna already
+// matches acronyms well, so only JSearch (the sparse one for niche terms) uses
+// the expansion — keeping both the acronym and the spelled-out form.
+function jsearchQuery(what: string): string {
+  const raw = what.trim();
+  if (!raw) return "jobs";
+  const exp = ACRONYM_EXPANSIONS[raw.toLowerCase()];
+  return exp ? `${raw} ${exp}` : raw;
 }
 
 // ─── Adzuna (default engine) ───────────────────────────────────────────────────
@@ -235,7 +277,7 @@ async function searchJSearch(
   // Each UI page = 2 JSearch pages (~20 results) for cleaner pagination.
   const jsPage = (uiPage - 1) * 2 + 1;
 
-  const query = [p.what.trim() || "jobs", p.where?.trim() ? `in ${p.where.trim()}` : ""].join(" ").trim();
+  const query = [jsearchQuery(p.what), p.where?.trim() ? `in ${p.where.trim()}` : ""].join(" ").trim();
   const params = new URLSearchParams({
     query,
     page: String(jsPage),
@@ -455,35 +497,122 @@ async function searchAfrica(p: SearchParams): Promise<SearchResult | null> {
   };
 }
 
+// ─── Aggregation (blend across engines + countries) ────────────────────────────
+
+const BLEND_MAX = 60;
+
+function jobKey(j: SearchJob): string {
+  return `${j.title.toLowerCase().trim()}|${j.company.toLowerCase().trim()}`;
+}
+
+// De-dupe the same role surfaced by multiple engines (e.g. a LinkedIn job that
+// also appears in Adzuna), by title+company and by URL (sans query string).
+function dedupeJobs(jobs: SearchJob[]): SearchJob[] {
+  const seen = new Set<string>();
+  const out: SearchJob[] = [];
+  for (const j of jobs) {
+    const k = jobKey(j);
+    const urlKey = (j.url || "").split("?")[0].toLowerCase();
+    if (seen.has(k) || (urlKey && seen.has(urlKey))) continue;
+    seen.add(k);
+    if (urlKey) seen.add(urlKey);
+    out.push(j);
+  }
+  return out;
+}
+
+// Round-robin merge so the top of the list is a diverse mix of sources/countries
+// (showcases the aggregation) rather than all-Adzuna then all-JSearch.
+function interleave(lists: SearchJob[][]): SearchJob[] {
+  const out: SearchJob[] = [];
+  const max = Math.max(0, ...lists.map((l) => l.length));
+  for (let i = 0; i < max; i++) {
+    for (const l of lists) if (i < l.length) out.push(l[i]);
+  }
+  return out;
+}
+
+// The product's core value: one search, every source, across one or more
+// countries. Fan out to Adzuna + JSearch per country, merge, de-dupe, interleave.
+async function searchBlended(p: SearchParams, countries: string[]): Promise<SearchResult> {
+  const tasks: Promise<SearchResult | null>[] = [];
+  for (const c of countries) {
+    if (c === "africa") {
+      tasks.push(searchAfrica({ ...p, country: c }).catch(() => null));
+    } else {
+      tasks.push(searchAdzuna({ ...p, country: c }).catch(() => null));
+      tasks.push(searchJSearch({ ...p, country: c }).catch(() => null));
+    }
+  }
+
+  const settled = await Promise.allSettled(tasks);
+  const lists: SearchJob[][] = [];
+  const sources = new Set<string>();
+  let configured = false;
+  for (const s of settled) {
+    if (s.status === "fulfilled" && s.value) {
+      if (s.value.jobs.length) lists.push(s.value.jobs);
+      s.value.sources.forEach((x) => sources.add(x));
+      if (s.value.configured) configured = true;
+    }
+  }
+  if (!lists.length) return searchFreeSources(p);
+
+  let merged = dedupeJobs(interleave(lists));
+  if (p.sort === "date") {
+    merged.sort((a, b) => (b.postedAt ? Date.parse(b.postedAt) : 0) - (a.postedAt ? Date.parse(a.postedAt) : 0));
+  } else if (p.sort === "salary") {
+    merged.sort((a, b) => (b.salaryMax ?? b.salaryMin ?? 0) - (a.salaryMax ?? a.salaryMin ?? 0));
+  }
+  merged = merged.slice(0, BLEND_MAX);
+
+  return {
+    jobs: merged,
+    count: merged.length,
+    totalKnown: false,
+    page: Math.max(1, p.page ?? 1),
+    perPage: PER_PAGE,
+    provider: "blend",
+    configured,
+    sources: [...sources],
+  };
+}
+
 // ─── Public entry ─────────────────────────────────────────────────────────────
 
 export async function searchJobs(p: SearchParams): Promise<SearchResult> {
-  if (p.country === "africa") {
+  const countries = (p.countries?.length ? p.countries : [p.country])
+    .filter(Boolean)
+    .slice(0, MAX_COUNTRIES);
+
+  const hasJSearch = !!process.env.JSEARCH_RAPIDAPI_KEY;
+
+  // Aggregation is the point: blend every configured source across the selected
+  // countries whenever JSearch is available (so Indeed/LinkedIn always show
+  // alongside Adzuna) or more than one country is chosen. searchBlended never
+  // throws — it falls back to free sources internally.
+  if (hasJSearch || countries.length > 1) {
+    const blended = await searchBlended(p, countries);
+    return blended;
+  }
+
+  // Single country, no JSearch key: original single-engine path (keeps Adzuna's
+  // real grand total + pagination for that common case).
+  const single = { ...p, country: countries[0] ?? p.country };
+  if (single.country === "africa") {
     try {
-      const africa = await searchAfrica(p);
+      const africa = await searchAfrica(single);
       if (africa) return africa;
     } catch (err) {
       console.error("Africa search failed, falling back:", err);
     }
-    return searchFreeSources(p);
-  }
-  // Job Sites chips → JSearch for publisher filtering. If JSearch comes back
-  // empty (niche query, rate limit, or the publishers just aren't represented),
-  // fall through to Adzuna so a real query never shows an empty board purely
-  // because the Job Sites chips were on.
-  if ((p.jobSites?.length ?? 0) > 0) {
-    try {
-      const js = await searchJSearch(p);
-      if (js && js.jobs.length > 0) return js;
-    } catch (err) {
-      console.error("JSearch failed, falling back:", err);
-    }
+    return searchFreeSources(single);
   }
   try {
-    const adzuna = await searchAdzuna(p);
+    const adzuna = await searchAdzuna(single);
     if (adzuna) return adzuna;
   } catch (err) {
     console.error("Adzuna search failed, falling back to free sources:", err);
   }
-  return searchFreeSources(p);
+  return searchFreeSources(single);
 }
