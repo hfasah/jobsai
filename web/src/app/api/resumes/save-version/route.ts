@@ -46,12 +46,29 @@ export async function POST(req: NextRequest) {
     ? body.skills.map((s: unknown) => ({ skill: String(s).trim() })).filter((s: { skill: string }) => s.skill)
     : primary.skills ?? [];
 
+  // Carry over education + certifications from the optimized output, falling back
+  // to the primary resume so the saved version keeps the full front matter.
+  const education = Array.isArray(body.education) && body.education.length
+    ? body.education.map((ed: Record<string, unknown>) => ({
+        school: typeof ed.school === "string" ? ed.school : "",
+        degree: typeof ed.degree === "string" ? ed.degree : undefined,
+        field_of_study: typeof ed.field_of_study === "string" ? ed.field_of_study : undefined,
+        start_date: typeof ed.start_date === "string" ? ed.start_date : undefined,
+        end_date: typeof ed.end_date === "string" ? ed.end_date : undefined,
+      }))
+    : primary.education;
+  const certifications = Array.isArray(body.certifications) && body.certifications.length
+    ? body.certifications.map((c: unknown) => String(c).trim()).filter(Boolean)
+    : primary.certifications;
+
   const parsed: ParsedJson = {
     ...primary,
     headline: typeof body.headline === "string" && body.headline.trim() ? body.headline.trim() : primary.headline,
     summary: typeof body.summary === "string" && body.summary.trim() ? body.summary.trim() : primary.summary,
     experience: experience.length ? experience : primary.experience,
     skills,
+    education,
+    certifications,
   };
 
   try {

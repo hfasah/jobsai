@@ -22,7 +22,11 @@ function resumeSlim(resume: ParsedJson) {
       // dropped by JSON.stringify) when the user has none — identical payload.
       candidate_facts: e.candidate_facts,
     })) ?? [],
-    education: resume.education?.map((ed) => ({ school: ed.school, degree: ed.degree })) ?? [],
+    education: resume.education?.map((ed) => ({
+      school: ed.school, degree: ed.degree, field_of_study: ed.field_of_study,
+      start_date: ed.start_date, end_date: ed.end_date,
+    })) ?? [],
+    certifications: resume.certifications ?? [],
   };
 }
 
@@ -142,13 +146,16 @@ Schema:
     "headline": "...",
     "summary": "...",
     "experience": [{ "title": "<keep real title>", "company": "<keep real company>", "start_date": "<keep real start_date exactly>", "end_date": "<keep real end_date, or null>", "is_current": <keep real boolean>, "bullets": ["impact-focused, keyword-aligned bullets drawn from real experience"] }],
-    "skills": ["reordered/surfaced real skills most relevant to the job first"]
+    "skills": ["EVERY genuinely-held skill from the source, job-relevant ones first — do NOT trim to a short list"],
+    "education": [{ "school": "<verbatim>", "degree": "<verbatim>", "field_of_study": "<verbatim or omit>", "start_date": "<verbatim or null>", "end_date": "<verbatim or null>" }],
+    "certifications": ["<every certification from the source, verbatim>"]
   },
   "changes": [{ "section": "summary|experience|skills", "before": "original text", "after": "tailored text", "reason": "why this helps for THIS job" }],
   "keywords_added": ["job keywords now surfaced in the resume that were missing or buried"]
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source — copy them verbatim into each experience entry. Only the framing/wording of bullets changes.
+CARRY OVER THE FULL FRONT MATTER: copy EVERY education entry and EVERY certification from the source (the "education" and "certifications" inputs and full_resume_text) into the output verbatim — these are real credentials and a major part of the resume. Never drop, merge, summarize, or invent them. Likewise output the candidate's FULL skills list (reordered for relevance), not a trimmed handful — the skills, certifications, and education sections together make up the first page of a real resume.
 An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and weave the relevant ones naturally into that entry's bullets; you may rephrase them but must NOT exaggerate beyond what a fact states.
 The payload may include "full_resume_text" — the candidate's complete original resume. It is the AUTHORITATIVE, fullest source of their real experience (the structured "resume" object can be lossy/summarized). Mine it for real accomplishments, projects, tools, and metrics when writing bullets — especially when expanding a role to more bullets. The resume object, full_resume_text, and candidate_facts are the ONLY sources you may draw facts from.
 For the "skills" change, "before" and "after" MUST be human-readable comma-separated lists (e.g. "Python, AWS, Docker, Kubernetes") — never run together without separators.
@@ -164,7 +171,7 @@ export function lengthGuidance(detail: ResumeDetail): string {
     `PRESERVE & ELABORATE: Surface ALL of the candidate's real accomplishments from the source — never drop, merge away, or collapse a role into 1-2 generic bullets. If a source role describes many accomplishments, keep a COMPARABLE number of strong, reframed bullets (do NOT reduce an 8-bullet role to 2). You SHOULD elaborate genuinely-held experience into several specific, truthful bullets — a real skill, project, or responsibility can yield multiple distinct bullets covering impact, scope, methods, tools, and outcomes. The output is fully editable by the candidate, so favor useful completeness over brevity. The ONLY hard rule is no fabrication: never invent accomplishments, employers, titles, dates, metrics, or skills the candidate does not have. A role whose source material is genuinely thin may stay short — that is fine.`;
   const length =
     detail === "expanded"
-      ? `LENGTH — EXPANDED: Produce a FULL, detailed ~2-page resume — do NOT compress to one page. For EVERY substantial role write 5-8 distinct bullets (not 3-4); break each real accomplishment into separate, specific, metric-rich bullets covering impact, scope, methods, and tools. Only a genuinely short or thin-tenure role may have fewer. Always favor thorough, useful detail over brevity.`
+      ? `LENGTH — EXPANDED: Produce a FULL, detailed ~2-page resume — do NOT compress to one page. Write a fuller professional summary (4-6 sentences, or a short paragraph plus a few highlight points). For EVERY substantial role write 5-8 distinct bullets (not 3-4); break each real accomplishment into separate, specific, metric-rich bullets covering impact, scope, methods, and tools. Only a genuinely short or thin-tenure role may have fewer. Keep the COMPLETE skills list and ALL certifications and education — the front matter alone often fills the first page. Always favor thorough, useful detail over brevity.`
       : `LENGTH — CONCISE: Target ~1 page, but keep EVERY real accomplishment — reach one page by tightening wording and merging only genuine redundancy, NOT by deleting real content. Aim for 3-5 strong bullets per substantial role (more if the source role is rich).`;
   return `${preserve}\n${length}`;
 }
@@ -227,13 +234,16 @@ Schema:
     "headline": "...",
     "summary": "...",
     "experience": [{ "title": "<keep real title>", "company": "<keep real company>", "start_date": "<keep real start_date exactly>", "end_date": "<keep real end_date, or null>", "is_current": <keep real boolean>, "bullets": ["impact-focused bullets that surface the target skills where genuinely applicable"] }],
-    "skills": ["target + real skills, most relevant first"]
+    "skills": ["EVERY genuinely-held skill (target + real), most relevant first — do NOT trim to a short list"],
+    "education": [{ "school": "<verbatim>", "degree": "<verbatim>", "field_of_study": "<verbatim or omit>", "start_date": "<verbatim or null>", "end_date": "<verbatim or null>" }],
+    "certifications": ["<every certification from the source, verbatim>"]
   },
   "changes": [{ "section": "summary|experience|skills", "before": "original", "after": "optimized", "reason": "why this surfaces a target skill" }],
   "skill_coverage": { "covered": ["target skills genuinely evidenced in the resume"], "missing": ["target skills NOT evidenced — be honest, do not fabricate"] }
 }
 
 Rules: Keep all employers, titles, start_date, end_date, and is_current EXACTLY as in the source. Only reframe wording.
+CARRY OVER THE FULL FRONT MATTER: copy EVERY education entry and EVERY certification from the source (the "education" and "certifications" inputs and full_resume_text) into the output verbatim — never drop, merge, summarize, or invent them. Output the candidate's FULL skills list, not a trimmed handful — skills, certifications, and education together make up the first page of a real resume.
 An experience entry may include "candidate_facts" — specifics the candidate confirmed in an intake interview. Treat these as TRUE (same trust level as the resume) and surface the relevant ones in that entry's bullets; rephrase if needed but never exaggerate beyond what a fact states.
 The payload may include "full_resume_text" — the candidate's complete original resume. It is the AUTHORITATIVE, fullest source of their real experience (the structured "resume" object is lossy/summarized). Mine it for real accomplishments, projects, tools, and metrics when writing bullets — especially when expanding a role to more bullets. The resume object, full_resume_text, and candidate_facts are the ONLY sources of fact.
 ADAPT TRANSFERABLE SKILLS (tailoring, not invention): when the candidate has comparable experience in the same category as a target skill, adapt it toward that skill rather than leaving it missing — map equivalents (e.g. GCP↔AWS↔Azure: GKE↔EKS↔AKS, Cloud Storage↔S3↔Blob), surface provider-/vendor-agnostic competencies (Kubernetes, Terraform/IaC, CI/CD, SQL, etc.), and use the target terminology where a genuine equivalent exists; such a skill counts as "covered". HARD LINE: never fabricate DIRECT experience, years, or certifications for a specific tool the candidate has never used — a target skill with NO real basis (not even an equivalent) stays in "missing".

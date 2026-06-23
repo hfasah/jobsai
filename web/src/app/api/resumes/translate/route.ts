@@ -165,6 +165,7 @@ Rules:
         end_date:      edu.end_date,
       })),
       skills: translated.skills.length ? translated.skills : sourceData.skills,
+      certifications: pj.certifications ?? [],
     };
 
     return NextResponse.json({ data });

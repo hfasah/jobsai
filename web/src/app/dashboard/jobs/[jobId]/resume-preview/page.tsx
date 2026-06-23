@@ -50,14 +50,15 @@ export default async function ResumePreviewPage({
     contactParts: [profile?.email ?? pj?.email, profile?.phone ?? pj?.phone, profile?.location ?? pj?.location].filter(Boolean) as string[],
     linkParts:    Object.entries(links).filter(([, v]) => v).map(([k, v]) => ({ label: k, url: v })),
     experience:   fillExperienceDates(tj.experience ?? [], pj?.experience ?? []),
-    education:    (pj?.education ?? []).map((e) => ({
-      school:       e.school,
+    education:    (tj.education?.length ? tj.education : pj?.education ?? []).map((e) => ({
+      school:       e.school ?? "",
       degree:       e.degree,
       field_of_study: e.field_of_study,
-      start_date:   e.start_date,
-      end_date:     e.end_date,
+      start_date:   e.start_date ?? undefined,
+      end_date:     e.end_date ?? undefined,
     })),
     skills: tj.skills ?? pj?.skills?.map((s) => s.skill) ?? [],
+    certifications: tj.certifications?.length ? tj.certifications : pj?.certifications ?? [],
   };
 
   return <ResumePreviewClient backHref={`/dashboard/jobs/${jobId}`} data={data} isPaid={isPaid} />;

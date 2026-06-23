@@ -59,6 +59,32 @@ export function TailoredOutput({ tj, changes }: { tj: TailoredJson; changes?: Ta
         </div>
       ) : null}
 
+      {tj.certifications?.length ? (
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Certifications</h3>
+          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm leading-relaxed text-muted-foreground">
+            {tj.certifications.map((c, i) => <li key={i}>{c}</li>)}
+          </ul>
+        </div>
+      ) : null}
+
+      {tj.education?.length ? (
+        <div className="rounded-2xl border border-border bg-card p-5">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Education</h3>
+          <div className="mt-3 space-y-2">
+            {tj.education.map((ed, i) => (
+              <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+                <p className="text-foreground">
+                  <span className="font-medium">{[ed.degree, ed.field_of_study].filter(Boolean).join(", ")}</span>
+                  {ed.school ? <span className="text-muted-foreground">{(ed.degree || ed.field_of_study) ? " — " : ""}{ed.school}</span> : null}
+                </p>
+                {dateRange(ed) && <p className="shrink-0 text-xs tabular-nums text-muted-foreground">{dateRange(ed)}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
       {changes?.length ? (
         <div className="rounded-2xl border border-border bg-card p-5">
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">What changed</h3>
