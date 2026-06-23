@@ -71,7 +71,10 @@ export function ResumeCard({
   };
 
   return (
-    <div className="relative rounded-xl border border-border bg-card p-4 transition-shadow hover:shadow-sm">
+    <div className={cn(
+      "relative rounded-xl border bg-card p-4 transition-shadow hover:shadow-sm",
+      doc.is_primary ? "border-emerald-500/60 ring-1 ring-emerald-500/30" : "border-border",
+    )}>
       {/* Header */}
       <div className="flex items-start gap-3">
         <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
@@ -111,10 +114,32 @@ export function ResumeCard({
             <h3 className="truncate font-medium text-foreground">{doc.label}</h3>
           )}
           <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-            {doc.is_primary && (
-              <span className="flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-primary font-medium">
-                <Star className="h-3 w-3" />Primary
+            {doc.is_primary ? (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500 px-2.5 py-0.5 text-xs font-bold text-white shadow-sm">
+                <Star className="h-3 w-3 fill-current" />Primary
               </span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  if (
+                    window.confirm(
+                      "Make this your Primary resume?\n\nThe Primary is the resume JobsAI uses by default as the reference for matching, tailoring, ATS scans, and applications.",
+                    )
+                  ) {
+                    handle("primary", () => onSetPrimary(doc.id));
+                  }
+                }}
+                disabled={loading === "primary"}
+                className="inline-flex items-center gap-1 rounded-full border border-emerald-500/60 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/10 disabled:opacity-60 dark:text-emerald-400"
+              >
+                {loading === "primary" ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Star className="h-3 w-3" />
+                )}
+                Make Primary
+              </button>
             )}
             {version && isPending ? (
               <div className="w-full mt-2">
@@ -168,14 +193,6 @@ export function ResumeCard({
             <>
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
               <div className="absolute right-0 top-8 z-20 w-48 rounded-xl border border-border bg-card shadow-lg py-1">
-                {!doc.is_primary && (
-                  <MenuItem
-                    icon={<Star className="h-4 w-4" />}
-                    label="Set as Primary"
-                    loading={loading === "primary"}
-                    onClick={() => handle("primary", () => onSetPrimary(doc.id))}
-                  />
-                )}
                 <MenuItem
                   icon={<Layers className="h-4 w-4" />}
                   label="Versions"
