@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { getSkyvernTask } from "@/lib/skyvern";
-import { recordAgentCost } from "@/lib/agent-cost";
+import { recordAgentCost, settleAgentApply, type MeterResult } from "@/lib/agent-cost";
 
 // POST /api/webhooks/agent-apply — Skyvern callback when agent completes/fails
 export async function POST(req: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
   // Look up our record for this task
   const { data: task } = await supabaseAdmin
     .from("agent_apply_tasks")
-    .select("user_id, job_id")
+    .select("user_id, job_id, charged_credits")
     .eq("task_id", taskId)
     .maybeSingle();
 
@@ -57,15 +57,30 @@ export async function POST(req: NextRequest) {
     .eq("platform", "agent")
     .eq("status", "pending");
 
-  // Record estimated Skyvern cost. Prefer step_count from the payload; fetch
-  // the run only if it's missing. Separate write — never blocks settlement.
+  // Record estimated Skyvern cost + meter the user's balance against real usage.
+  // Prefer step_count from the payload; fetch the run only if it's missing.
+  let meter: MeterResult | null = null;
   if (success || failed) {
     let stepCount = typeof body.step_count === "number" ? (body.step_count as number) : null;
     if (stepCount == null) {
       stepCount = await getSkyvernTask(taskId).then((r) => r.step_count ?? null).catch(() => null);
     }
     await recordAgentCost(userId, jobId, stepCount);
+    meter = await settleAgentApply({
+      taskId,
+      userId,
+      jobId,
+      stepCount,
+      chargedUpfront: typeof task.charged_credits === "number" ? task.charged_credits : 0,
+    }).catch((e) => { console.error("[meter] settle failed:", e); return null; });
   }
+
+  // Short, human note about the metered adjustment for the completion message.
+  const meterNote = meter && meter.applied
+    ? meter.delta < 0
+      ? ` ${-meter.delta} credits refunded (used ${meter.metered}).`
+      : ` ${meter.delta} extra credits used (total ${meter.metered}).`
+    : "";
 
   if (success || failed) {
     // Get job info for notification — title/company live on job_parsed, not jobs
@@ -95,7 +110,7 @@ export async function POST(req: NextRequest) {
         userId,
         "agent_apply_done",
         "Application submitted ✓",
-        `Browser agent successfully applied to ${title} at ${company}.`,
+        `Browser agent successfully applied to ${title} at ${company}.${meterNote}`,
         { job_id: jobId }
       ).catch(console.error);
     } else {
@@ -103,7 +118,7 @@ export async function POST(req: NextRequest) {
         userId,
         "agent_apply_failed",
         "Agent apply couldn't complete",
-        `The agent couldn't fully submit your application to ${title} at ${company}. Your tailored résumé and cover letter are still saved — you can apply manually.`,
+        `The agent couldn't fully submit your application to ${title} at ${company}. Your tailored résumé and cover letter are still saved — you can apply manually.${meterNote}`,
         { job_id: jobId }
       ).catch(console.error);
     }

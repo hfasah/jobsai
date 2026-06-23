@@ -405,7 +405,7 @@ export default function JobDetailPage({
             {applyState === "manual_required" && (
               <>
                 <p className="font-medium text-foreground">Your résumé and cover letter are ready.</p>
-                <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you.</p>
+                <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you. Billed by actual work (lighter applies are refunded).</p>
                 {agentUnavailable ? (
                   <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs">
                     <p className="font-medium text-foreground">Auto-apply is temporarily unavailable.</p>
