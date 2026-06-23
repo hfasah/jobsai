@@ -116,25 +116,41 @@ function buildPrompt(p: SkyvernTaskPayload): string {
   return instructions.join("\n");
 }
 
-// Turn a raw Skyvern HTTP failure into a clear, user-facing message AND log the
-// full detail server-side, so a systemic outage is diagnosable (is it a bad key,
-// no credits, or a real outage?) instead of a generic "agent failed".
-function skyvernError(status: number, body: string): Error {
+// Systemic (admin/ops) failure of the browser-agent service — NOT the user's
+// fault. `adminDetail` is the real reason for ops (never shown to the client);
+// the user only ever sees a neutral "temporarily unavailable".
+export type SkyvernFailureKind = "auth" | "credits" | "rate_limit" | "outage" | "unknown";
+export class SkyvernServiceError extends Error {
+  kind: SkyvernFailureKind;
+  status: number | null;
+  adminDetail: string;
+  constructor(kind: SkyvernFailureKind, status: number | null, adminDetail: string) {
+    super("Auto-apply is temporarily unavailable.");
+    this.name = "SkyvernServiceError";
+    this.kind = kind;
+    this.status = status;
+    this.adminDetail = adminDetail;
+  }
+}
+
+// Classify a raw Skyvern HTTP failure into an ops-facing reason. Logged in full
+// server-side; the user never sees `adminDetail`.
+function skyvernError(status: number, body: string): SkyvernServiceError {
   console.error(`[skyvern] task create failed (${status}): ${body?.slice(0, 500)}`);
   const lc = (body || "").toLowerCase();
   if (status === 401 || status === 403) {
-    return new Error("The browser-agent service rejected our credentials. (SKYVERN_API_KEY may be missing or invalid.)");
+    return new SkyvernServiceError("auth", status, "Skyvern rejected our credentials — SKYVERN_API_KEY is missing/invalid or revoked.");
   }
   if (status === 402 || /credit|quota|balance|insufficient|billing|payment/.test(lc)) {
-    return new Error("The browser-agent service is out of credits. Top up the Skyvern account to resume auto-apply.");
+    return new SkyvernServiceError("credits", status, "Skyvern account is out of credits — top up to resume client auto-apply.");
   }
   if (status === 429) {
-    return new Error("The browser-agent service is rate-limited right now. Please try again shortly.");
+    return new SkyvernServiceError("rate_limit", status, `Skyvern rate-limited (429): ${body?.slice(0, 200)}`);
   }
   if (status >= 500) {
-    return new Error("The browser-agent service is having an outage. Please try again shortly.");
+    return new SkyvernServiceError("outage", status, `Skyvern server error (${status}): ${body?.slice(0, 200)}`);
   }
-  return new Error(`Agent apply couldn't start (error ${status}). Please try again, or apply manually.`);
+  return new SkyvernServiceError("unknown", status, `Skyvern task-create error ${status}: ${body?.slice(0, 200)}`);
 }
 
 // Lightweight connectivity/auth probe for diagnostics. Hits an authenticated
@@ -185,7 +201,7 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
         signal: AbortSignal.timeout(SKYVERN_TIMEOUT_MS),
       });
     } catch {
-      throw new Error("The browser agent service didn't respond in time. Please try again in a moment.");
+      throw new SkyvernServiceError("outage", null, "Skyvern did not respond in time (timeout/network).");
     }
   };
 
