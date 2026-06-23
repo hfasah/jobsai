@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase";
-import { createNotification } from "@/lib/notifications";
-import { getSkyvernTask } from "@/lib/skyvern";
-import { recordAgentCost, settleAgentApply, type MeterResult } from "@/lib/agent-cost";
-import { createBrowserProfile } from "@/lib/skyvern";
+import { finalizeAgentRun } from "@/lib/agent-finalize";
 
-// POST /api/webhooks/agent-apply — Skyvern callback when agent completes/fails
+// POST /api/webhooks/agent-apply — Skyvern callback when an agent run finishes.
+// All settlement (status, cost, metering, profile, notification, application
+// advance) lives in finalizeAgentRun, shared with the status-poll reconciler so
+// a run still settles if this webhook is never delivered. Idempotent.
 export async function POST(req: NextRequest) {
   let body: Record<string, unknown>;
   try {
@@ -14,144 +13,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // New Run Tasks API sends run_id; older payloads used task_id. We store run_id
-  // in agent_apply_tasks.task_id, so either field resolves the same record.
+  // New Run Tasks API sends run_id; older payloads used task_id. Both map to
+  // agent_apply_tasks.task_id.
   const taskId = (body.run_id ?? body.task_id) as string | undefined;
   const status = body.status as string | undefined;
-
   if (!taskId) return NextResponse.json({ error: "Missing run_id" }, { status: 400 });
 
-  // Look up our record for this task
-  const { data: task } = await supabaseAdmin
-    .from("agent_apply_tasks")
-    .select("user_id, job_id, charged_credits, board, run_mode")
-    .eq("task_id", taskId)
-    .maybeSingle();
-
-  if (!task) {
-    console.warn("[webhook/agent-apply] Unknown task_id:", taskId);
-    return NextResponse.json({ ok: true }); // Acknowledge but ignore unknown tasks
-  }
-
-  const { user_id: userId, job_id: jobId } = task;
-
-  // Map Skyvern run status to our status (must be an allowed apply_attempts
-  // value: pending|submitted|failed|manual_required).
-  const success = status === "completed";
-  const failed =
-    status === "failed" ||
-    status === "terminated" ||
-    status === "timed_out" ||
-    status === "canceled";
-  const ourStatus = success ? "submitted" : failed ? "failed" : "pending";
-
-  // Update the in-flight agent attempt (recorded as platform=agent, status=pending)
-  await supabaseAdmin
-    .from("apply_attempts")
-    .update({
-      status: ourStatus,
-      submitted_at: success ? new Date().toISOString() : null,
-      error_msg: failed ? `Agent status: ${status}` : undefined,
-    })
-    .eq("user_id", userId)
-    .eq("job_id", jobId)
-    .eq("platform", "agent")
-    .eq("status", "pending");
-
-  // Record estimated Skyvern cost + meter the user's balance against real usage.
-  // Prefer step_count from the payload; fetch the run only if it's missing.
-  let meter: MeterResult | null = null;
-  if (success || failed) {
-    let stepCount = typeof body.step_count === "number" ? (body.step_count as number) : null;
-    if (stepCount == null) {
-      stepCount = await getSkyvernTask(taskId).then((r) => r.step_count ?? null).catch(() => null);
-    }
-    await recordAgentCost(userId, jobId, stepCount);
-    meter = await settleAgentApply({
-      taskId,
-      userId,
-      jobId,
-      stepCount,
-      chargedUpfront: typeof task.charged_credits === "number" ? task.charged_credits : 0,
-    }).catch((e) => { console.error("[meter] settle failed:", e); return null; });
-  }
-
-  // Short, human note about the metered adjustment for the completion message.
-  const meterNote = meter && meter.applied
-    ? meter.delta < 0
-      ? ` ${-meter.delta} credits refunded (used ${meter.metered}).`
-      : ` ${meter.delta} extra credits used (total ${meter.metered}).`
-    : "";
-
-  if (success || failed) {
-    // Get job info for notification — title/company live on job_parsed, not jobs
-    const { data: job } = await supabaseAdmin
-      .from("job_parsed")
-      .select("title, company")
-      .eq("job_id", jobId)
-      .maybeSingle();
-
-    const title = job?.title ?? "a role";
-    const company = job?.company ?? "a company";
-
-    if (success) {
-      // Move to applied in application tracker
-      await supabaseAdmin
-        .from("applications")
-        .upsert({
-          user_id: userId,
-          job_id: jobId,
-          stage: "applied",
-          applied_at: new Date().toISOString(),
-          stage_history: [{ stage: "applied", at: new Date().toISOString() }],
-        })
-        .match({ user_id: userId, job_id: jobId });
-
-      // Cost lever #2: snapshot/refresh the board login profile from this
-      // completed workflow run, so the next apply to the same board skips login.
-      // Best-effort — a missed snapshot just means the next apply logs in again.
-      if (task.run_mode === "workflow" && task.board) {
-        const profileId = await createBrowserProfile(taskId).catch(() => null);
-        if (profileId) {
-          await supabaseAdmin
-            .from("agent_board_profiles")
-            .upsert(
-              {
-                user_id: userId,
-                board: task.board,
-                browser_profile_id: profileId,
-                workflow_run_id: taskId,
-                refreshed_at: new Date().toISOString(),
-              },
-              { onConflict: "user_id,board" }
-            )
-            .then(({ error }) => { if (error) console.warn("[webhook] profile upsert failed:", error.message); });
-        }
-      }
-
-      createNotification(
-        userId,
-        "agent_apply_done",
-        "Application submitted ✓",
-        `Browser agent successfully applied to ${title} at ${company}.${meterNote}`,
-        { job_id: jobId }
-      ).catch(console.error);
-    } else {
-      createNotification(
-        userId,
-        "agent_apply_failed",
-        "Agent apply couldn't complete",
-        `The agent couldn't fully submit your application to ${title} at ${company}. Your tailored résumé and cover letter are still saved — you can apply manually.${meterNote}`,
-        { job_id: jobId }
-      ).catch(console.error);
-    }
-
-    // Mark task as resolved
-    await supabaseAdmin
-      .from("agent_apply_tasks")
-      .update({ resolved_at: new Date().toISOString(), final_status: ourStatus })
-      .eq("task_id", taskId);
-  }
+  const stepCount = typeof body.step_count === "number" ? (body.step_count as number) : undefined;
+  await finalizeAgentRun(taskId, status, stepCount).catch((e) =>
+    console.error("[webhook/agent-apply] finalize failed:", e),
+  );
 
   return NextResponse.json({ ok: true });
 }
