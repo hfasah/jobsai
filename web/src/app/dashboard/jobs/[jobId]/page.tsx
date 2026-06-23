@@ -90,6 +90,22 @@ export default function JobDetailPage({
     return () => clearInterval(iv);
   }, [applyState, jobId]);
 
+  // On load, resume the running UI if an agent attempt is still in flight (e.g.
+  // the page was reopened) so the reconciling poll picks it back up and settles
+  // it — instead of the run looking idle while it actually finished server-side.
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/jobs/${jobId}/agent-apply`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (!cancelled && j.data?.status === "pending") {
+          setApplyState((s) => (s === "idle" ? "agent_running" : s));
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [jobId]);
+
   const rematch = async () => {
     setRematching(true);
     setError(null);

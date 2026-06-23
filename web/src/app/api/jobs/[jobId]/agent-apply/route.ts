@@ -2,8 +2,9 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
-import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation, SkyvernServiceError, getApplyWorkflowId, runApplyWorkflow } from "@/lib/skyvern";
+import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation, SkyvernServiceError, getApplyWorkflowId, runApplyWorkflow, getSkyvernTask, isTerminalStatus } from "@/lib/skyvern";
 import { notifyAgentApplyDown } from "@/lib/ops-alert";
+import { finalizeAgentRun } from "@/lib/agent-finalize";
 import { boardForUrl } from "@/lib/job-boards";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
@@ -333,7 +334,7 @@ export async function GET(
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const { jobId } = await params;
 
-  const { data } = await supabaseAdmin
+  const sel = () => supabaseAdmin
     .from("apply_attempts")
     .select("status, error_msg, created_at")
     .eq("job_id", jobId)
@@ -342,6 +343,42 @@ export async function GET(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
+
+  let { data } = await sel();
+
+  // Self-heal: if an attempt is still "pending" well past a normal run, the
+  // completion webhook likely never landed. Ask Skyvern directly and settle it
+  // so the UI never spins forever (this is what fixes the "stuck for hours" bug).
+  const stuckMs = 90_000;
+  if (
+    data?.status === "pending" &&
+    data.created_at &&
+    Date.now() - Date.parse(data.created_at) > stuckMs
+  ) {
+    const { data: t } = await supabaseAdmin
+      .from("agent_apply_tasks")
+      .select("task_id")
+      .eq("user_id", userId)
+      .eq("job_id", jobId)
+      .is("resolved_at", null)
+      .limit(1)
+      .maybeSingle();
+    if (t?.task_id) {
+      const run = await getSkyvernTask(t.task_id).catch(() => null);
+      const ageMs = Date.now() - Date.parse(data.created_at);
+      if (run && isTerminalStatus(run.status)) {
+        await finalizeAgentRun(t.task_id, run.status, run.step_count).catch((e) =>
+          console.error("[agent-apply/reconcile] finalize failed:", e),
+        );
+        ({ data } = await sel());
+      } else if (ageMs > 45 * 60_000) {
+        // Past any plausible run length and still not terminal (or Skyvern lost
+        // the run) → force-resolve so the UI can't spin indefinitely.
+        await finalizeAgentRun(t.task_id, "failed", run?.step_count ?? null).catch(() => {});
+        ({ data } = await sel());
+      }
+    }
+  }
 
   return NextResponse.json({ data });
 }
