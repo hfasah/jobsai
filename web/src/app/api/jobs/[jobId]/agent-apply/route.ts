@@ -207,11 +207,13 @@ export async function POST(
       error_msg: `Skyvern task: ${task.task_id}`,
     });
 
-    // Save task reference so webhook can update
+    // Save task reference so the webhook can update + meter against real usage.
+    // charged_credits = what we reserved upfront (0 if this used a free apply).
     await supabaseAdmin.from("agent_apply_tasks").insert({
       task_id: task.task_id,
       user_id: userId,
       job_id: jobId,
+      charged_credits: usedFreeApply ? 0 : cost,
     });
 
     // Persist "applied" immediately so the card stays in the Applied column
