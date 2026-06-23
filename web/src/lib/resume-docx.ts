@@ -64,6 +64,12 @@ export async function renderResumeDocx(parsed: ParsedJson): Promise<Buffer> {
     }
   }
 
+  const certifications = (parsed.certifications ?? []).filter(Boolean);
+  if (certifications.length) {
+    body.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: "Certifications" }));
+    for (const c of certifications) body.push(new Paragraph({ text: c, bullet: { level: 0 } }));
+  }
+
   const skills = (parsed.skills ?? []).map((s) => s.skill).filter(Boolean);
   if (skills.length) {
     body.push(new Paragraph({ heading: HeadingLevel.HEADING_2, text: "Skills" }));

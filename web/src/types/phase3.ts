@@ -80,6 +80,14 @@ export interface TailoredJson {
     bullets: string[];
   }[];
   skills?: string[];
+  education?: {
+    school?: string;
+    degree?: string;
+    field_of_study?: string;
+    start_date?: string | null;
+    end_date?: string | null;
+  }[];
+  certifications?: string[];
 }
 
 export interface TailorChange {

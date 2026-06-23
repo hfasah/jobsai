@@ -30,6 +30,7 @@ export interface ResumeData {
     end_date?: string;
   }[];
   skills: string[];
+  certifications: string[];
 }
 
 export type TemplateId = "modern" | "minimal" | "classic" | "executive";
@@ -133,6 +134,17 @@ function TemplateModern({ d }: { d: ResumeData }) {
         </section>
       )}
 
+      {d.certifications.length > 0 && (
+        <section className="mb-section">
+          <h2 className="modern-heading">Certifications</h2>
+          <ul style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 3 }}>
+            {d.certifications.map((c, i) => (
+              <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: "#333", listStyleType: "disc" }}>{c}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       {d.skills.length > 0 && (
         <section>
           <h2 className="modern-heading">Skills</h2>
@@ -222,6 +234,17 @@ function TemplateMinimal({ d }: { d: ResumeData }) {
               );
             })}
           </div>
+        </section>
+      )}
+
+      {d.certifications.length > 0 && (
+        <section style={{ marginBottom: 22 }}>
+          <h2 className="min-heading">Certifications</h2>
+          <ul style={{ paddingLeft: 12, display: "flex", flexDirection: "column", gap: 2 }}>
+            {d.certifications.map((c, i) => (
+              <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: "#444", listStyleType: "disc" }}>{c}</li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -316,6 +339,17 @@ function TemplateClassic({ d }: { d: ResumeData }) {
               );
             })}
           </div>
+        </section>
+      )}
+
+      {d.certifications.length > 0 && (
+        <section style={{ marginBottom: 18 }}>
+          <h2 className="classic-heading">Certifications</h2>
+          <ul style={{ paddingLeft: 16, display: "flex", flexDirection: "column", gap: 3 }}>
+            {d.certifications.map((c, i) => (
+              <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: "#333", listStyleType: "disc" }}>{c}</li>
+            ))}
+          </ul>
         </section>
       )}
 
@@ -422,6 +456,17 @@ function TemplateExecutive({ d }: { d: ResumeData }) {
                 );
               })}
             </div>
+          </section>
+        )}
+
+        {d.certifications.length > 0 && (
+          <section style={{ marginBottom: 20 }}>
+            <h2 className="exec-heading">Certifications</h2>
+            <ul style={{ paddingLeft: 14, display: "flex", flexDirection: "column", gap: 3 }}>
+              {d.certifications.map((c, i) => (
+                <li key={i} style={{ fontSize: 13, lineHeight: 1.6, color: "#333", listStyleType: "disc" }}>{c}</li>
+              ))}
+            </ul>
           </section>
         )}
 

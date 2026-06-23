@@ -71,6 +71,7 @@ export default async function ResumeVersionPreviewPage({
       end_date: ed.end_date,
     })),
     skills: (pj.skills ?? []).map((s) => s.skill),
+    certifications: pj.certifications ?? [],
   };
 
   return <ResumePreviewClient backHref="/dashboard/resumes" data={data} />;

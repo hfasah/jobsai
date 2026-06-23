@@ -23,6 +23,8 @@ export function SaveResumeBar({ tj, label }: { tj: TailoredJson; label: string }
           summary: tj.summary,
           experience: tj.experience,
           skills: tj.skills,
+          education: tj.education,
+          certifications: tj.certifications,
         }),
       });
       const json = await res.json();

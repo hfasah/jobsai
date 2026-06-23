@@ -89,7 +89,19 @@ export function TailoredResumeView({
         parts.push("");
       });
     }
-    if (tj.skills?.length) parts.push("SKILLS", tj.skills.join(", "));
+    if (tj.skills?.length) parts.push("SKILLS", tj.skills.join(", "), "");
+    if (tj.certifications?.length) {
+      parts.push("CERTIFICATIONS");
+      tj.certifications.forEach((c) => parts.push(`• ${c}`));
+      parts.push("");
+    }
+    if (tj.education?.length) {
+      parts.push("EDUCATION");
+      tj.education.forEach((ed) => {
+        const head = [ed.degree, ed.field_of_study].filter(Boolean).join(", ");
+        parts.push([head, ed.school].filter(Boolean).join(" — "));
+      });
+    }
     navigator.clipboard.writeText(parts.join("\n"));
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -159,6 +171,41 @@ export function TailoredResumeView({
                 {tj.skills.map((s, i) => (
                   <span key={i} className="rounded-full border border-border px-2.5 py-0.5 text-xs">{s}</span>
                 ))}
+              </div>
+            </div>
+          ) : null}
+          {tj.certifications?.length ? (
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Certifications</p>
+              <ul className="space-y-1">
+                {tj.certifications.map((c, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-foreground/90">
+                    <span className="text-desyn-accent">•</span>
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+          {tj.education?.length ? (
+            <div>
+              <p className="mb-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">Education</p>
+              <div className="space-y-1.5">
+                {tj.education.map((ed, i) => {
+                  const head = [ed.degree, ed.field_of_study].filter(Boolean).join(", ");
+                  const edDates = ed.start_date || ed.end_date
+                    ? `${ed.start_date ?? "?"} – ${ed.end_date ?? "?"}`
+                    : null;
+                  return (
+                    <div key={i} className="flex items-baseline justify-between gap-3 text-sm">
+                      <p className="text-foreground/90">
+                        {head && <span className="font-medium">{head}</span>}
+                        {ed.school ? <span className="text-muted-foreground">{head ? " — " : ""}{ed.school}</span> : null}
+                      </p>
+                      {edDates && <p className="shrink-0 text-xs text-muted-foreground tabular-nums">{edDates}</p>}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ) : null}
