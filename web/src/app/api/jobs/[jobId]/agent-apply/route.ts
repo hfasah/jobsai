@@ -5,7 +5,7 @@ import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation, SkyvernServiceError, getApplyWorkflowId, runApplyWorkflow, getSkyvernTask, isTerminalStatus } from "@/lib/skyvern";
 import { notifyAgentApplyDown } from "@/lib/ops-alert";
 import { finalizeAgentRun } from "@/lib/agent-finalize";
-import { boardForUrl } from "@/lib/job-boards";
+import { boardForUrl, directApplyUrl } from "@/lib/job-boards";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
 import { checkAutoApplyGate } from "@/lib/billing";
@@ -77,8 +77,9 @@ export async function POST(
     );
   }
 
-  // URL lives in jobs.source_url or job_parsed.posting_url
-  const applicationUrl = job.source_url || jobParsed?.posting_url || null;
+  // Prefer the direct application URL over an aggregator/listing source_url, so
+  // the agent lands on the real form (a common cause of "couldn't find Apply").
+  const applicationUrl = directApplyUrl(job.source_url, jobParsed?.posting_url);
 
   if (!applicationUrl) {
     return NextResponse.json(

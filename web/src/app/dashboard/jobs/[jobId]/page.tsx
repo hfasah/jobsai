@@ -15,7 +15,7 @@ import { ProcessingPlaceholder } from "@/components/job/processing-placeholder";
 import type { TabKey } from "@/components/job/job-tabs";
 import type { Job } from "@/types/job";
 import { boardForUrl } from "@/lib/job-boards";
-import { runExtensionApply } from "@/lib/extension-bridge";
+import { runExtensionApply, extensionMaybeInstalled } from "@/lib/extension-bridge";
 import { UpgradePlansModal } from "@/components/upgrade-plans-modal";
 import { UpgradeGate } from "@/components/upgrade-gate";
 
@@ -39,6 +39,7 @@ export default function JobDetailPage({
   const [agentError, setAgentError] = useState<string | null>(null);
   const [agentUnavailable, setAgentUnavailable] = useState(false);
   const [supportNotified, setSupportNotified] = useState(false);
+  const [extInstalled, setExtInstalled] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
   const [copiedCover, setCopiedCover] = useState(false);
@@ -89,6 +90,11 @@ export default function JobDetailPage({
     }, 5000);
     return () => clearInterval(iv);
   }, [applyState, jobId]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setExtInstalled(extensionMaybeInstalled());
+  }, []);
 
   // On load, resume the running UI if an agent attempt is still in flight (e.g.
   // the page was reopened) so the reconciling poll picks it back up and settles
@@ -482,6 +488,11 @@ export default function JobDetailPage({
                   >
                     <button
                       onClick={async () => {
+                        // Prefer the in-browser extension on boards it supports
+                        // (runs in the user's real session — more reliable + far
+                        // cheaper than the server agent). Skyvern is the fallback
+                        // only where there's no adapter.
+                        if (useExtension && extInstalled) { applyViaExtension(job); return; }
                         setApplyState("agent_launching");
                         setAgentError(null);
                         setAgentUnavailable(false);

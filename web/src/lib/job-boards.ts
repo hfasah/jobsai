@@ -61,3 +61,28 @@ export function boardForUrl(url: string | null | undefined): JobBoard {
 export function canDirectApply(url: string | null | undefined): boolean {
   return boardForUrl(url).applyMode === "direct";
 }
+
+// Aggregator/listing hosts whose URLs are a redirect or a job-listing page, NOT
+// the actual application form. When the import source is one of these, the
+// parser's posting_url (the real apply link) is the better target for the agent.
+const AGGREGATOR_HOST_FRAGMENTS = [
+  "adzuna.", "indeed.", "ziprecruiter.", "glassdoor.", "google.",
+  "jooble.", "talent.com", "bebee.", "jobrapido", "trabajo", "remoteok", "arbeitnow",
+];
+
+/**
+ * Pick the best URL for the browser agent to apply on: prefer the direct
+ * `postingUrl` over an aggregator/listing `sourceUrl`, so the agent lands on the
+ * real application form instead of a redirect/listing it can't apply from.
+ * Keeps `sourceUrl` when it's already a direct posting (or when there's no posting_url).
+ */
+export function directApplyUrl(sourceUrl?: string | null, postingUrl?: string | null): string | null {
+  const src = sourceUrl || null;
+  const post = postingUrl || null;
+  if (!post) return src;
+  if (!src) return post;
+  let host = "";
+  try { host = new URL(src).hostname.toLowerCase(); } catch { return post; }
+  const srcIsAggregator = AGGREGATOR_HOST_FRAGMENTS.some((h) => host.includes(h));
+  return srcIsAggregator ? post : src;
+}
