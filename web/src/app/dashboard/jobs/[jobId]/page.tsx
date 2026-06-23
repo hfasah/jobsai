@@ -37,6 +37,8 @@ export default function JobDetailPage({
   const [showUpgrade, setShowUpgrade] = useState<string | null>(null);
   const [applyMsg, setApplyMsg] = useState<string | null>(null);
   const [agentError, setAgentError] = useState<string | null>(null);
+  const [agentUnavailable, setAgentUnavailable] = useState(false);
+  const [supportNotified, setSupportNotified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [coverLetterBody, setCoverLetterBody] = useState<string | null>(null);
   const [copiedCover, setCopiedCover] = useState(false);
@@ -404,12 +406,38 @@ export default function JobDetailPage({
               <>
                 <p className="font-medium text-foreground">Your résumé and cover letter are ready.</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Use the browser agent to apply automatically — it opens the site, fills the form, and submits for you.</p>
-                {agentError && (
+                {agentUnavailable ? (
+                  <div className="mt-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-xs">
+                    <p className="font-medium text-foreground">Auto-apply is temporarily unavailable.</p>
+                    <p className="mt-0.5 text-muted-foreground">This is on our side — not your account or credits. You can apply manually in the meantime.</p>
+                    {supportNotified ? (
+                      <p className="mt-1.5 inline-flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
+                        <Check className="h-3.5 w-3.5" /> Thanks — support has been notified and is on it.
+                      </p>
+                    ) : (
+                      <button
+                        onClick={async () => {
+                          setSupportNotified(true); // optimistic — the click itself is the signal
+                          try {
+                            await fetch("/api/support/auto-apply-down", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ job_id: jobId }),
+                            });
+                          } catch { /* the proactive server alert already covers us */ }
+                        }}
+                        className="mt-1.5 inline-flex items-center gap-1.5 rounded-md border border-amber-500/40 bg-amber-500/15 px-2.5 py-1 font-medium text-amber-800 transition-colors hover:bg-amber-500/25 dark:text-amber-100"
+                      >
+                        Notify support
+                      </button>
+                    )}
+                  </div>
+                ) : agentError ? (
                   <p className="mt-2 flex items-start gap-1.5 rounded-md border border-destructive/30 bg-destructive/10 px-2.5 py-1.5 text-xs text-destructive">
                     <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     <span>{agentError}</span>
                   </p>
-                )}
+                ) : null}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   {/* Agent Apply — gated for free users */}
                   <UpgradeGate
@@ -425,19 +453,24 @@ export default function JobDetailPage({
                       onClick={async () => {
                         setApplyState("agent_launching");
                         setAgentError(null);
+                        setAgentUnavailable(false);
+                        setSupportNotified(false);
                         try {
                           const res = await fetch(`/api/jobs/${jobId}/agent-apply`, { method: "POST" });
                           const json = await res.json().catch(() => ({}));
                           if (!res.ok) {
-                            // Never get stuck on "launching" — revert and SHOW why.
+                            // Never get stuck on "launching" — revert and show the
+                            // right message. Systemic outages → neutral notice;
+                            // user-actionable errors → the specific reason.
                             if (json.upgrade_required) setShowUpgrade(json.error);
+                            else if (json.service_unavailable) setAgentUnavailable(true);
                             else setAgentError(json.error ?? "Agent failed to launch. Please try again.");
                             setApplyState("manual_required");
                             return;
                           }
                           setApplyState("agent_running");
                         } catch {
-                          setAgentError("Couldn't reach the browser agent. Please try again.");
+                          setAgentUnavailable(true);
                           setApplyState("manual_required");
                         }
                       }}

@@ -2,7 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { blockNonJobSeeker } from "@/lib/roles";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
-import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
+import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation, SkyvernServiceError } from "@/lib/skyvern";
+import { notifyAgentApplyDown } from "@/lib/ops-alert";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
 import { checkAutoApplyGate } from "@/lib/billing";
@@ -24,7 +25,11 @@ export async function POST(
   const { jobId } = await params;
 
   if (!getSkyvernKey()) {
-    return NextResponse.json({ error: "Agent apply is not configured on this server." }, { status: 503 });
+    notifyAgentApplyDown({ kind: "auth", detail: "SKYVERN_API_KEY is not set on the consumer deploy.", source: "auto", userId }).catch(() => {});
+    return NextResponse.json(
+      { error: "Auto-apply is temporarily unavailable right now. Our team has been notified.", service_unavailable: true },
+      { status: 503 }
+    );
   }
 
   const gate = await checkAutoApplyGate(userId);
@@ -253,6 +258,17 @@ export async function POST(
     // Launch failed → give back whatever we charged (free apply or credits).
     if (usedFreeApply) await restoreFreeApply(userId).catch(() => {});
     else await addTokens(userId, cost, "auto_apply_refund", { job_id: jobId }).catch(() => {});
+
+    // Systemic Skyvern failure (bad key / out of credits / outage): the client
+    // is NOT at fault and must not see the technical reason. Alert ops with the
+    // real detail and show the user a neutral "temporarily unavailable" notice.
+    if (err instanceof SkyvernServiceError) {
+      notifyAgentApplyDown({ kind: err.kind, detail: err.adminDetail, source: "auto", userId, jobId }).catch(() => {});
+      return NextResponse.json(
+        { error: "Auto-apply is temporarily unavailable right now. Our team has been notified.", service_unavailable: true },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : "Agent apply failed." },
       { status: 500 }
