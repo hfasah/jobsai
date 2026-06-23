@@ -20,6 +20,17 @@
     const s = getComputedStyle(el);
     return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none";
   };
+  // Some React buttons ignore a bare .click() — fire a full pointer/mouse
+  // sequence so LinkedIn's Easy Apply handler actually triggers.
+  const realClick = (el) => {
+    el.scrollIntoView({ block: "center" });
+    const o = { bubbles: true, cancelable: true, view: window };
+    try { el.dispatchEvent(new PointerEvent("pointerdown", o)); } catch {}
+    el.dispatchEvent(new MouseEvent("mousedown", o));
+    try { el.dispatchEvent(new PointerEvent("pointerup", o)); } catch {}
+    el.dispatchEvent(new MouseEvent("mouseup", o));
+    el.click();
+  };
 
   function send(message) {
     return new Promise((resolve) => {
@@ -178,15 +189,13 @@
   // LinkedIn has shuffled the Easy Apply modal container several times — match
   // any of the known shapes, and require it to be visible.
   function findModal() {
-    const m =
-      $(".jobs-easy-apply-modal") ||
-      $("[data-test-modal][role='dialog']") ||
-      $("[data-test-modal-container]") ||
-      $(".jobs-easy-apply-content") ||
-      $(".artdeco-modal[role='dialog']") ||
-      $("div[role='dialog'].artdeco-modal") ||
-      $(".artdeco-modal");
-    return m && visible(m) ? m : null;
+    // Generic so it survives LinkedIn's frequent class renames: any visible
+    // dialog/modal, preferring an Easy-Apply-flavored one over other dialogs.
+    const cands = [...document.querySelectorAll(
+      "[role='dialog'], .artdeco-modal, [data-test-modal], [data-test-modal-container], [class*='easy-apply'], [class*='jobs-apply']"
+    )].filter(visible);
+    const tag = (d) => `${d.className || ""} ${d.getAttribute("data-test-modal-id") || ""} ${d.id || ""}`.toLowerCase();
+    return cands.find((d) => /easy.?apply|jobs-apply/.test(tag(d))) || cands[0] || null;
   }
 
   async function waitForModal(timeout = 10000) {
@@ -281,19 +290,24 @@
       return;
     }
 
-    // Scroll into view + click; the button can be behind a sticky header or not
-    // yet interactive on first paint.
-    applyBtn.scrollIntoView({ block: "center" });
+    // Full pointer-event click; the button can be behind a sticky header, not
+    // yet interactive on first paint, or ignore a bare .click().
     await sleep(150);
-    applyBtn.click();
+    realClick(applyBtn);
 
     let modal = await waitForModal();
     if (!modal) {
       // The first click sometimes lands before LinkedIn wires the handler — re-find and retry once.
       const retry = findEasyApplyButton();
-      if (retry) { retry.scrollIntoView({ block: "center" }); await sleep(150); retry.click(); modal = await waitForModal(8000); }
+      if (retry) { await sleep(200); realClick(retry); modal = await waitForModal(8000); }
     }
     if (!modal) {
+      // Diagnostic: dump what dialog/modal-ish nodes exist so we can target the
+      // real selector if LinkedIn drifted again. Open DevTools console on the
+      // LinkedIn tab to read this.
+      const dump = [...document.querySelectorAll("[role='dialog'], .artdeco-modal, [data-test-modal], [class*='modal']")]
+        .map((d) => `${d.tagName.toLowerCase()}#${d.id || "-"}.${(d.className || "").toString().split(" ").filter(Boolean).join(".")}[role=${d.getAttribute("role") || "-"}] visible=${visible(d)}`);
+      console.log("[JobsAI] Easy Apply modal not found. Candidate dialog/modal nodes:", dump);
       setMsg("Couldn't open the Easy Apply form. Click Easy Apply once yourself, then re-run — or use “Open in JobsAI”.", "warn");
       return;
     }
