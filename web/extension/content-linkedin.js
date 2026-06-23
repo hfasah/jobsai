@@ -14,6 +14,12 @@
   const LOGO = chrome.runtime.getURL("icons/icon48.png");
   const $ = (sel, root = document) => root.querySelector(sel);
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const visible = (el) => {
+    if (!el) return false;
+    const r = el.getBoundingClientRect();
+    const s = getComputedStyle(el);
+    return r.width > 0 && r.height > 0 && s.visibility !== "hidden" && s.display !== "none";
+  };
 
   function send(message) {
     return new Promise((resolve) => {
@@ -148,18 +154,45 @@
 
   // ─── Easy Apply autofill ─────────────────────────────────────────────────────
 
+  const btnText = (b) => (b.getAttribute("aria-label") || b.textContent || "").toLowerCase();
+
+  // The real Easy Apply trigger: a VISIBLE, ENABLED button whose label says
+  // "easy apply". (Requiring visible+enabled avoids the pre-hydration placeholder
+  // / hidden duplicate that LinkedIn renders, which clicks to nothing.)
   function findEasyApplyButton() {
-    const btns = [...document.querySelectorAll("button")];
-    return btns.find((b) => {
-      const t = (b.getAttribute("aria-label") || b.textContent || "").toLowerCase();
-      return (b.className.includes("jobs-apply-button") || t.includes("easy apply")) && t.includes("apply");
-    });
+    const btns = [...document.querySelectorAll("button")].filter(visible);
+    return btns.find((b) => btnText(b).includes("easy apply") && !b.disabled) || null;
   }
 
-  async function waitForModal(timeout = 6000) {
+  // An "Apply" that redirects to the company site (NOT Easy Apply) — so we can
+  // tell the user it's an external application instead of failing cryptically.
+  function findExternalApplyButton() {
+    const els = [...document.querySelectorAll("button, a")].filter(visible);
+    return els.find((b) => {
+      const t = btnText(b);
+      return t.includes("apply") && !t.includes("easy apply") &&
+        (b.className.includes("jobs-apply-button") || t.includes("company website") || b.tagName === "A");
+    }) || null;
+  }
+
+  // LinkedIn has shuffled the Easy Apply modal container several times — match
+  // any of the known shapes, and require it to be visible.
+  function findModal() {
+    const m =
+      $(".jobs-easy-apply-modal") ||
+      $("[data-test-modal][role='dialog']") ||
+      $("[data-test-modal-container]") ||
+      $(".jobs-easy-apply-content") ||
+      $(".artdeco-modal[role='dialog']") ||
+      $("div[role='dialog'].artdeco-modal") ||
+      $(".artdeco-modal");
+    return m && visible(m) ? m : null;
+  }
+
+  async function waitForModal(timeout = 10000) {
     const start = Date.now();
     while (Date.now() - start < timeout) {
-      const modal = $(".jobs-easy-apply-modal") || $("[data-test-modal][role='dialog']") || $(".artdeco-modal");
+      const modal = findModal();
       if (modal) return modal;
       await sleep(200);
     }
@@ -238,11 +271,32 @@
     }
 
     const applyBtn = findEasyApplyButton();
-    if (!applyBtn) { setMsg("No Easy Apply on this job (external application).", "warn"); return; }
+    if (!applyBtn) {
+      // Not an Easy Apply job (external/company-site application) vs. page not ready.
+      if (findExternalApplyButton()) {
+        setMsg("This job applies on the company's site, not LinkedIn Easy Apply. Use “Open in JobsAI” to apply with your tailored résumé.", "warn");
+      } else {
+        setMsg("Easy Apply button not found yet — scroll to the top of the job and try again once it loads.", "warn");
+      }
+      return;
+    }
+
+    // Scroll into view + click; the button can be behind a sticky header or not
+    // yet interactive on first paint.
+    applyBtn.scrollIntoView({ block: "center" });
+    await sleep(150);
     applyBtn.click();
 
-    const modal = await waitForModal();
-    if (!modal) { setMsg("Couldn't open the Easy Apply form.", "warn"); return; }
+    let modal = await waitForModal();
+    if (!modal) {
+      // The first click sometimes lands before LinkedIn wires the handler — re-find and retry once.
+      const retry = findEasyApplyButton();
+      if (retry) { retry.scrollIntoView({ block: "center" }); await sleep(150); retry.click(); modal = await waitForModal(8000); }
+    }
+    if (!modal) {
+      setMsg("Couldn't open the Easy Apply form. Click Easy Apply once yourself, then re-run — or use “Open in JobsAI”.", "warn");
+      return;
+    }
     await sleep(400);
 
     const n = fillModal(modal, pr.profile || {});
@@ -250,7 +304,7 @@
 
     // Re-fill on each step of the multi-step flow as the user clicks "Next".
     const obs = new MutationObserver(() => {
-      const live = $(".jobs-easy-apply-modal") || $("[data-test-modal][role='dialog']") || $(".artdeco-modal");
+      const live = findModal();
       if (live) fillModal(live, pr.profile || {});
     });
     obs.observe(modal, { childList: true, subtree: true });
