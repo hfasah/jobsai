@@ -16,10 +16,12 @@ export async function GET(req: NextRequest) {
   const csv = (key: string) => (sp.get(key)?.split(",").map((s) => s.trim()).filter(Boolean) ?? []);
 
   try {
+    const countries = csv("countries");
     const result = await searchJobs({
       what: sp.get("what")?.trim() ?? "",
       where: sp.get("where")?.trim() || undefined,
-      country: sp.get("country") || "us",
+      country: countries[0] || sp.get("country") || "us",
+      countries: countries.length ? countries : undefined,
       page: Number(sp.get("page")) || 1,
       sort: ["relevance", "date", "salary"].includes(sort) ? sort : "relevance",
       salaryMin: Number(sp.get("salary_min")) || undefined,
