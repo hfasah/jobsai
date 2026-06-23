@@ -278,13 +278,21 @@ async function searchJSearch(
     };
   });
 
-  // Filter to the selected publishers (Job Sites chips).
+  // Narrow to the selected publishers (Job Sites chips) — but softly. JSearch
+  // aggregates Google-for-Jobs and frequently labels Indeed/LinkedIn listings
+  // under mirror/aggregator names (BeBee, Talent.com, Recruit.net, Jooble…), so
+  // a hard publisher filter silently drops valid jobs and empties the board for
+  // niche queries. So: skip filtering when every site is selected (= "all
+  // sources"), and never let the filter zero out real results — if nothing
+  // matches the chosen publishers, keep the full set instead of returning empty.
   const sites = (p.jobSites ?? []).map((s) => s.toLowerCase());
-  if (sites.length) {
-    jobs = jobs.filter((j) => {
+  const allSelected = sites.length >= JOB_SITES.length;
+  if (sites.length && !allSelected) {
+    const matched = jobs.filter((j) => {
       const pub = (j.publisher ?? "").toLowerCase();
       return sites.some((s) => pub.includes(s));
     });
+    if (matched.length) jobs = matched;
   }
 
   if (p.sort === "date") {
@@ -459,11 +467,14 @@ export async function searchJobs(p: SearchParams): Promise<SearchResult> {
     }
     return searchFreeSources(p);
   }
-  // Job Sites chips → JSearch for publisher filtering.
+  // Job Sites chips → JSearch for publisher filtering. If JSearch comes back
+  // empty (niche query, rate limit, or the publishers just aren't represented),
+  // fall through to Adzuna so a real query never shows an empty board purely
+  // because the Job Sites chips were on.
   if ((p.jobSites?.length ?? 0) > 0) {
     try {
       const js = await searchJSearch(p);
-      if (js) return js;
+      if (js && js.jobs.length > 0) return js;
     } catch (err) {
       console.error("JSearch failed, falling back:", err);
     }
