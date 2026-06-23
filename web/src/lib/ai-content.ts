@@ -169,6 +169,14 @@ export function lengthGuidance(detail: ResumeDetail): string {
   return `${preserve}\n${length}`;
 }
 
+// Salient, in-the-user-message push for Expanded mode (system-prompt length
+// guidance alone wasn't enough to stop the model defaulting to ~1 page).
+const EXPANDED_USER_DIRECTIVE =
+  "\n\nEXPANDED MODE — produce a FULL ~2-page resume. Every substantial role MUST have 6-8 distinct bullets, " +
+  "expanded from the real accomplishments in full_resume_text (the resume object's role descriptions are short " +
+  "summaries — do NOT just restate them; break each accomplishment into multiple specific, metric-rich bullets). " +
+  "Do not output a 1-page resume. Only a genuinely short/thin-tenure role may have fewer bullets.";
+
 export async function tailorResume(
   resume: ParsedJson,
   job: ParsedJobJson,
@@ -187,9 +195,9 @@ export async function tailorResume(
   const res = await tierChat("smart", {
     messages: [
       { role: "system", content: `${TAILOR_SYSTEM}\n${lengthGuidance(detail)}` },
-      { role: "user", content: JSON.stringify(payload) },
+      { role: "user", content: JSON.stringify(payload) + (detail === "expanded" ? EXPANDED_USER_DIRECTIVE : "") },
     ],
-    temperature: 0.3,
+    temperature: detail === "expanded" ? 0.55 : 0.3,
     response_format: { type: "json_object" },
   });
   const content = res.choices[0]?.message?.content;
@@ -250,9 +258,9 @@ export async function buildSkillResume(
   const res = await tierChat("smart", {
     messages: [
       { role: "system", content: `${SKILL_BUILD_SYSTEM}\n${lengthGuidance(detail)}` },
-      { role: "user", content: JSON.stringify(payload) },
+      { role: "user", content: JSON.stringify(payload) + (detail === "expanded" ? EXPANDED_USER_DIRECTIVE : "") },
     ],
-    temperature: 0.3,
+    temperature: detail === "expanded" ? 0.55 : 0.3,
     response_format: { type: "json_object" },
   });
   const content = res.choices[0]?.message?.content;
