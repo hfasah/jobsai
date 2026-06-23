@@ -230,7 +230,7 @@ export default function JobDetailPage({
         <div className="mt-4 flex items-start justify-between gap-4">
           <div className="flex-1">
             {processing ? (
-              <ProcessingPlaceholder />
+              <ProcessingPlaceholder jobId={jobId} />
             ) : (
               <h1 className="text-2xl font-bold tracking-tight">
                 {parsed?.title ?? "Untitled role"}

@@ -1,4 +1,5 @@
 import { createHash } from "crypto";
+import { after } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { parseJobText, scoreMatch } from "@/lib/job-parser";
@@ -291,7 +292,15 @@ export async function importJobFromUrl(
 
   if (error || !job) throw new Error("Failed to create job record");
 
-  processJob(job.id, userId, rawText, notifyOnMatch).catch(console.error);
+  // Defer the parse pipeline to after() so it survives on serverless once the
+  // caller's response returns (callers: extension import, cron discover).
+  after(async () => {
+    try {
+      await processJob(job.id, userId, rawText, notifyOnMatch);
+    } catch (err) {
+      console.error("processJob failed:", err);
+    }
+  });
 
   return { job_id: job.id, status: "created" };
 }
