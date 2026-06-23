@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Printer } from "lucide-react";
+import { Printer, Download, FileText, ChevronDown, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { downloadResumeDocx } from "@/lib/resume-data-docx";
 
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
@@ -521,6 +522,24 @@ export function ResumePreviewClient({
   isPaid?: boolean;
 }) {
   const [template, setTemplate] = useState<TemplateId>("modern");
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+
+  async function downloadWord(thenOpenGoogleDocs = false) {
+    setMenuOpen(false);
+    setBusy(true);
+    try {
+      await downloadResumeDocx(data);
+      if (thenOpenGoogleDocs) {
+        // Google Docs opens .docx natively. We can't push the file into Drive
+        // without Drive OAuth, so we hand off honestly: the .docx downloads and
+        // Google Docs opens for the user to File → Open → Upload it.
+        window.open("https://docs.google.com/document/u/0/", "_blank", "noopener");
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <>
@@ -553,10 +572,49 @@ export function ResumePreviewClient({
         </div>
 
         {isPaid ? (
-          <Button size="sm" className="shrink-0" onClick={() => window.print()}>
-            <Printer className="mr-1.5 h-3.5 w-3.5" />
-            Download PDF
-          </Button>
+          <div className="relative shrink-0">
+            <Button size="sm" onClick={() => setMenuOpen((v) => !v)} disabled={busy}>
+              {busy ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <Download className="mr-1.5 h-3.5 w-3.5" />}
+              Download
+              <ChevronDown className="ml-1 h-3.5 w-3.5" />
+            </Button>
+            {menuOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                <div className="absolute right-0 top-10 z-20 w-60 overflow-hidden rounded-xl border border-border bg-card py-1 shadow-lg">
+                  <button
+                    type="button"
+                    onClick={() => { setMenuOpen(false); window.print(); }}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-muted"
+                  >
+                    <Printer className="h-4 w-4 text-muted-foreground" />
+                    <span className="flex-1">PDF</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadWord(false)}
+                    className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-muted"
+                  >
+                    <FileText className="h-4 w-4 text-blue-500" />
+                    <span className="flex-1">Word (.docx)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => downloadWord(true)}
+                    className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left text-sm hover:bg-muted"
+                  >
+                    <FileText className="mt-0.5 h-4 w-4 text-emerald-500" />
+                    <span className="flex-1">
+                      Google Docs
+                      <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                        Downloads a .docx, then opens Google Docs — use File → Open to upload it.
+                      </span>
+                    </span>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
         ) : (
           <a href="/dashboard/billing" className="shrink-0 inline-flex h-9 items-center gap-1.5 rounded-lg bg-gradient-brand px-3 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90">
             <Printer className="h-3.5 w-3.5" />
