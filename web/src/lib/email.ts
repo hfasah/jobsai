@@ -149,9 +149,9 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
   const body = `
     ${h2("Welcome to JobsAI 👋")}
     ${p(`${hi}`)}
-    ${p(`You've just joined a growing community of job seekers using AI to work smarter, stand out, and get hired faster.`)}
-    ${p(`Let's be honest — applying for jobs shouldn't feel like a full-time job. Searching boards, rewriting resumes, filling out endless forms, writing cover letters, prepping for interviews… JobsAI was built to take that off your plate.`)}
-    ${p(`<strong>Our mission is simple: help you spend less time applying and more time interviewing.</strong>`)}
+    ${p(`I'm <strong>Hippolyte Asah</strong>, the founder of JobsAI — and I want to personally welcome you to a faster, smarter way to land your next role.`)}
+    ${p(`Let's be honest — applying for jobs shouldn't feel like a full-time job. Searching boards, rewriting resumes, filling out endless forms, writing cover letters, prepping for interviews… I built JobsAI to take that off your plate.`)}
+    ${p(`<strong>My mission is simple: help you spend less time applying and more time interviewing.</strong>`)}
 
     <p style="margin:24px 0 4px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">What JobsAI does for you</p>
     <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #f0f1f4;">
@@ -181,8 +181,12 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
       Want a hand? Book a free <a href="${APP_URL}/dashboard/coaching" style="color:#4f46e5;text-decoration:none;font-weight:600;">JobsAI Career Strategy Session</a> for personalized guidance or a walkthrough.
     </p>
 
-    ${p(`We're excited to be part of your career journey. Let's get you more interviews. Let's get you hired.`)}
-    ${p(`<strong>Apply Less. Interview More.</strong><br>— The JobsAI Team`, true)}
+    ${p(`I'm genuinely excited to be part of your career journey. Let's get you more interviews. Let's get you hired.`)}
+    ${p(`<strong>Apply Less. Interview More.</strong>`)}
+    <p style="margin:18px 0 0;font-size:15px;line-height:1.5;color:#111827;">
+      <strong>Hippolyte Asah</strong><br>
+      <span style="color:#6b7280;font-size:14px;">Founder, JobsAI</span>
+    </p>
     ${p(`<span style="color:#9ca3af;font-size:12px;">P.S. Your next opportunity may already be waiting. Upload your resume and let JobsAI start working for you today.</span>`)}
   `;
 
