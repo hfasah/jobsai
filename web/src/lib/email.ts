@@ -393,3 +393,106 @@ export async function sendAutoApplyDigest(
 
   await send(to, `JobsAI applied to ${applied.length} job${applied.length !== 1 ? "s" : ""} for you`, html);
 }
+
+// ─── Nurture drip letters ──────────────────────────────────────────────────────
+// Recurring personalized engagement letters, sent one at a time on a paced
+// cadence by /api/cron/nurture. `order` = sequence position; `minDays` = don't
+// send before the account is this old (lets the welcome land first). Signed from
+// the founder — swap `FOUNDER` for a real teammate persona if you add staff.
+
+const FOUNDER = { name: "Hippolyte Asah", title: "Founder, JobsAI", photo: "/team/hippolyte-asah.jpg" };
+
+function personaSignoff(persona: { name: string; title: string; photo?: string }): string {
+  const img = persona.photo
+    ? `<td style="vertical-align:middle;padding-right:14px;"><img src="${APP_URL}${persona.photo}" width="56" height="56" alt="${escapeHtml(persona.name)}" style="width:56px;height:56px;border-radius:28px;display:block;border:1px solid #e5e7eb;" /></td>`
+    : "";
+  return `
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 0;">
+      <tr>
+        ${img}
+        <td style="vertical-align:middle;">
+          <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${escapeHtml(persona.name)}</p>
+          <p style="margin:1px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(persona.title)}</p>
+        </td>
+      </tr>
+    </table>`;
+}
+
+export interface NurtureLetterMeta { key: string; order: number; minDays: number }
+
+// Ordered sequence — the cron sends the lowest-order unsent letter that's due.
+export const NURTURE_LETTERS: NurtureLetterMeta[] = [
+  { key: "resume-review",  order: 1, minDays: 3 },
+  { key: "auto-apply",     order: 2, minDays: 8 },
+  { key: "interview-prep", order: 3, minDays: 15 },
+];
+
+function nurtureBody(key: string, hi: string): { subject: string; body: string } | null {
+  switch (key) {
+    case "resume-review":
+      return {
+        subject: "A quick second opinion on your résumé",
+        body: `
+          ${h2("Is your résumé getting you interviews? 📄")}
+          ${p(hi)}
+          ${p(`A second opinion on your résumé can be the difference between landing the interview and getting filtered out by an ATS before a human ever sees it.`)}
+          ${p(`Run yours through the JobsAI <strong>ATS Scanner</strong> — in seconds you'll see your match score for any role, the keywords you're missing, and exactly what to fix.`)}
+          ${btn(`${APP_URL}/dashboard/resumes`, "Get your free résumé review")}
+          ${p(`Already happy with it? Tailor it to a specific role in one click from any job in your list.`, true)}
+          ${p(`We're here to help you land your next role.`)}
+          ${personaSignoff(FOUNDER)}`,
+      };
+    case "auto-apply":
+      return {
+        subject: "Let JobsAI do the applying for you",
+        body: `
+          ${h2("Stop filling out the same forms 🤖")}
+          ${p(hi)}
+          ${p(`Applying shouldn't eat your evenings. With <strong>Auto-Apply</strong>, JobsAI finds roles that match you and applies on your behalf — you pick how much control you want:`)}
+          ${p(`✅ <strong>Auto</strong> — apply to strong matches automatically<br>✅ <strong>Hybrid</strong> — we apply to the best, you approve the rest<br>✅ <strong>Review</strong> — nothing goes out without your say-so`)}
+          ${btn(`${APP_URL}/dashboard/auto-apply`, "Turn on Auto-Apply")}
+          ${p(`You stay in control — and you're only charged when an application actually goes through.`, true)}
+          ${personaSignoff(FOUNDER)}`,
+      };
+    case "interview-prep":
+      return {
+        subject: "Walk into your next interview ready",
+        body: `
+          ${h2("Rehearse before it counts 🎯")}
+          ${p(hi)}
+          ${p(`Getting the interview is half the battle — the other half is walking in prepared. JobsAI gives you an <strong>AI interview coach</strong>, realistic voice practice, and company-specific likely questions so nothing catches you off guard.`)}
+          ${btn(`${APP_URL}/dashboard/jobs`, "Practice for an interview")}
+          ${p(`Open any job in your list and tap Interview Prep to start.`, true)}
+          ${p(`Rooting for you.`)}
+          ${personaSignoff(FOUNDER)}`,
+      };
+    default:
+      return null;
+  }
+}
+
+// Send one nurture letter to a user (with one-click unsubscribe). Returns the
+// real send result so the cron only records a send that actually went out.
+export async function sendNurtureEmail(opts: {
+  userId: string; to: string; firstName?: string | null; key: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  if (!resend) return { ok: false, error: "RESEND_API_KEY not configured" };
+  const name = (opts.firstName || "").trim();
+  const hi = name ? `Hi ${escapeHtml(name)},` : "Hi there,";
+  const letter = nurtureBody(opts.key, hi);
+  if (!letter) return { ok: false, error: `Unknown nurture key: ${opts.key}` };
+
+  const uurl = unsubUrl(opts.userId);
+  const { error } = await resend.emails.send({
+    from: FROM,
+    to: opts.to,
+    subject: letter.subject,
+    html: wrap(letter.body, uurl),
+    headers: { "List-Unsubscribe": `<${uurl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" },
+  });
+  if (error) {
+    console.error("[email] nurture send failed:", error);
+    return { ok: false, error: (error as { message?: string }).message ?? String(error) };
+  }
+  return { ok: true };
+}
