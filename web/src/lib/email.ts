@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { clerkClient } from "@clerk/nextjs/server";
+import { unsubUrl } from "@/lib/email-unsub";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 const FROM = process.env.NOTIFICATION_FROM_EMAIL ?? "JobsAI <notifications@jobsai.app>";
@@ -17,16 +18,23 @@ async function getUserEmail(userId: string): Promise<string | null> {
   }
 }
 
-async function send(to: string, subject: string, html: string) {
+async function send(to: string, subject: string, html: string, headers?: Record<string, string>) {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not configured — skipping");
     return;
   }
-  const { error } = await resend.emails.send({ from: FROM, to, subject, html });
+  const { error } = await resend.emails.send({ from: FROM, to, subject, html, ...(headers ? { headers } : {}) });
   if (error) console.error("[email] Send failed:", error);
 }
 
-function wrap(body: string): string {
+function wrap(body: string, unsub?: string): string {
+  const unsubLink = unsub
+    ? ` &nbsp;·&nbsp; <a href="${unsub}" style="color:#9ca3af;text-decoration:underline;">Unsubscribe from job alerts</a>`
+    : "";
+  return wrapInner(body, unsubLink);
+}
+
+function wrapInner(body: string, unsubLink: string): string {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -40,7 +48,7 @@ function wrap(body: string): string {
       <div style="padding:16px 28px;background:#f9fafb;border-top:1px solid #f3f4f6;">
         <p style="margin:0;font-size:12px;color:#9ca3af;">
           You're receiving this from your JobsAI account. &nbsp;
-          <a href="${APP_URL}/dashboard/preferences" style="color:#6366f1;text-decoration:none;">Notification settings</a>
+          <a href="${APP_URL}/dashboard/preferences" style="color:#6366f1;text-decoration:none;">Notification settings</a>${unsubLink}
         </p>
       </div>
     </div>
@@ -286,18 +294,23 @@ export async function sendDiscoverySummary(
     )
     .join("");
 
+  const uurl = unsubUrl(userId);
   const html = wrap(`
     ${h2(`${count} new job${count > 1 ? "s" : ""} discovered`)}
     ${p(`JobsAI found ${count} new job${count > 1 ? "s" : ""} matching your preferences and added them to your pipeline.`)}
     <table style="width:100%;border-collapse:collapse;margin:16px 0;">${rows}</table>
     ${count > 5 ? p(`+${count - 5} more in your jobs list.`, true) : ""}
     ${btn(`${APP_URL}/dashboard/jobs`, "View all jobs")}
-  `);
+  `, uurl);
 
   await send(
     to,
     `JobsAI found ${count} new job${count > 1 ? "s" : ""} for you`,
-    html
+    html,
+    {
+      "List-Unsubscribe": `<${uurl}>`,
+      "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+    }
   );
 }
 

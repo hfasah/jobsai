@@ -84,9 +84,12 @@ export async function GET(req: NextRequest) {
         })
         .eq("user_id", prefs.user_id);
 
-      // Send discovery summary if any new jobs were imported
+      // Send discovery summary if any new jobs were imported (honor email opt-out;
+      // the in-app notification still fires regardless).
       if (importedJobs.length > 0) {
-        sendDiscoverySummary(prefs.user_id, importedJobs).catch(console.error);
+        if ((prefs as { alert_emails_enabled?: boolean }).alert_emails_enabled !== false) {
+          sendDiscoverySummary(prefs.user_id, importedJobs).catch(console.error);
+        }
         createNotification(
           prefs.user_id,
           "discovery_summary",
