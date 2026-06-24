@@ -6,7 +6,7 @@ import type { SkyvernFailureKind } from "@/lib/skyvern";
 // it (top up, rotate key) without the user being aware of the technical reason.
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.NOTIFICATION_FROM_EMAIL ?? "JobsAI <notifications@jobsai.app>";
+const FROM = process.env.NOTIFICATION_FROM_EMAIL ?? "JobsAI <notifications@jobsai.work>";
 const OPS_EMAIL = process.env.OPS_ALERT_EMAIL ?? process.env.SUPPORT_EMAIL ?? "everybrainai@gmail.com";
 
 // Throttle so an outage with steady traffic doesn't flood the inbox. Module-level

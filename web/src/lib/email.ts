@@ -3,7 +3,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { unsubUrl } from "@/lib/email-unsub";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM = process.env.NOTIFICATION_FROM_EMAIL ?? "JobsAI <notifications@jobsai.app>";
+const FROM = process.env.NOTIFICATION_FROM_EMAIL ?? "JobsAI <notifications@jobsai.work>";
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.app").replace(/\/$/, "");
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -119,10 +119,10 @@ export async function sendEmployerReplyCopy(
 }
 
 // Welcome email sent once when a member signs up.
-export async function sendWelcomeEmail(opts: { to: string; firstName?: string | null }): Promise<void> {
+export async function sendWelcomeEmail(opts: { to: string; firstName?: string | null }): Promise<{ ok: boolean; error?: string }> {
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not configured — skipping welcome email");
-    return;
+    return { ok: false, error: "RESEND_API_KEY not configured" };
   }
   const name = (opts.firstName || "").trim();
   const hi = name ? `Hi ${escapeHtml(name)},` : "Hi there,";
@@ -218,7 +218,11 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
     subject: "Welcome to JobsAI — Apply Less. Interview More.",
     html: wrap(body),
   });
-  if (error) console.error("[email] welcome send failed:", error);
+  if (error) {
+    console.error("[email] welcome send failed:", error);
+    return { ok: false, error: (error as { message?: string }).message ?? String(error) };
+  }
+  return { ok: true };
 }
 
 // ─── Email types ─────────────────────────────────────────────────────────────
