@@ -127,12 +127,14 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
   const name = (opts.firstName || "").trim();
   const hi = name ? `Hi ${escapeHtml(name)},` : "Hi there,";
 
-  const feature = (emoji: string, title: string, desc: string) => `
+  const feature = (bg: string, emoji: string, title: string, desc: string) => `
     <tr>
-      <td style="padding:10px 0;vertical-align:top;width:34px;font-size:20px;line-height:1.3;">${emoji}</td>
-      <td style="padding:10px 0;vertical-align:top;">
-        <p style="margin:0;font-size:15px;font-weight:600;color:#111827;">${title}</p>
-        <p style="margin:2px 0 0;font-size:13px;line-height:1.55;color:#6b7280;">${desc}</p>
+      <td style="padding:7px 0;vertical-align:top;width:48px;">
+        <div style="width:38px;height:38px;border-radius:10px;background:${bg};font-size:19px;line-height:38px;text-align:center;">${emoji}</div>
+      </td>
+      <td style="padding:7px 0 7px 8px;vertical-align:top;">
+        <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${title}</p>
+        <p style="margin:2px 0 0;font-size:13px;line-height:1.5;color:#6b7280;">${desc}</p>
       </td>
     </tr>`;
 
@@ -153,17 +155,29 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
     ${p(`Let's be honest — applying for jobs shouldn't feel like a full-time job. Searching boards, rewriting resumes, filling out endless forms, writing cover letters, prepping for interviews… I built JobsAI to take that off your plate.`)}
     ${p(`<strong>My mission is simple: help you spend less time applying and more time interviewing.</strong>`)}
 
-    <p style="margin:24px 0 4px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">What JobsAI does for you</p>
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="border-top:1px solid #f0f1f4;">
-      ${feature("🔍", "AI Job Discovery", "Surfaces roles that match your skills, experience, and goals from thousands of sources.")}
-      ${feature("🚀", "Auto Apply", "Applies to matching jobs for you — choose Auto, Hybrid (approve first), or Review mode.")}
-      ${feature("📄", "Resume Tailoring", "Adapts your resume to each job description to get past ATS screening.")}
-      ${feature("✅", "ATS Scanner", "Shows how well your resume matches a role and what keywords you're missing.")}
-      ${feature("✍️", "AI Cover Letters", "Personalized cover letters in seconds — no blank page.")}
-      ${feature("🏢", "Company Research", "Culture, likely interview questions, and hiring expectations before you apply.")}
-      ${feature("💰", "Salary Intelligence", "Know your market value and negotiate with confidence.")}
-      ${feature("🎯", "Interview Prep", "AI interview coach, voice practice, and an avatar simulator to rehearse for real.")}
-      ${feature("📊", "Progress Tracking", "Every application and interview organized in one place.")}
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:20px 0 8px;">
+      <tr><td style="background:#eef2ff;border:1px solid #e0e7ff;border-radius:12px;padding:16px 18px;">
+        <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#3730a3;">Here's what starts working for you today ✨</p>
+        <p style="margin:0;font-size:14px;line-height:1.95;color:#374151;">
+          ✅ <strong>Finds</strong> jobs that match your skills &amp; goals<br>
+          ✅ <strong>Applies</strong> for you — Auto, Hybrid, or Review<br>
+          ✅ <strong>Tailors</strong> your resume to beat the ATS<br>
+          ✅ <strong>Preps</strong> you for the interview
+        </p>
+      </td></tr>
+    </table>
+
+    <p style="margin:26px 0 6px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#6366f1;">Everything in your toolkit</p>
+    <table role="presentation" cellpadding="0" cellspacing="0" width="100%">
+      ${feature("#eef2ff", "🔍", "AI Job Discovery", "Surfaces roles that match your skills, experience, and goals from thousands of sources.")}
+      ${feature("#ecfdf5", "🚀", "Auto Apply", "Applies to matching jobs for you — choose Auto, Hybrid (approve first), or Review mode.")}
+      ${feature("#eff6ff", "📄", "Resume Tailoring", "Adapts your resume to each job description to get past ATS screening.")}
+      ${feature("#f0fdf4", "✅", "ATS Scanner", "Shows how well your resume matches a role and what keywords you're missing.")}
+      ${feature("#fef3c7", "✍️", "AI Cover Letters", "Personalized cover letters in seconds — no blank page.")}
+      ${feature("#faf5ff", "🏢", "Company Research", "Culture, likely interview questions, and hiring expectations before you apply.")}
+      ${feature("#fefce8", "💰", "Salary Intelligence", "Know your market value and negotiate with confidence.")}
+      ${feature("#fce7f3", "🎯", "Interview Prep", "AI interview coach, voice practice, and an avatar simulator to rehearse for real.")}
+      ${feature("#ecfeff", "📊", "Progress Tracking", "Every application and interview organized in one place.")}
     </table>
 
     <p style="margin:28px 0 8px;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#9ca3af;">Get the most out of JobsAI — 4 quick steps</p>
@@ -182,11 +196,18 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
     </p>
 
     ${p(`I'm genuinely excited to be part of your career journey. Let's get you more interviews. Let's get you hired.`)}
-    ${p(`<strong>Apply Less. Interview More.</strong>`)}
-    <p style="margin:18px 0 0;font-size:15px;line-height:1.5;color:#111827;">
-      <strong>Hippolyte Asah</strong><br>
-      <span style="color:#6b7280;font-size:14px;">Founder, JobsAI</span>
-    </p>
+    ${p(`<strong style="color:#4f46e5;">Apply Less. Interview More.</strong>`)}
+    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0;">
+      <tr>
+        <td style="vertical-align:middle;padding-right:14px;">
+          <img src="${APP_URL}/team/hippolyte-asah.jpg" width="56" height="56" alt="Hippolyte Asah" style="width:56px;height:56px;border-radius:28px;display:block;border:2px solid #eef2ff;" />
+        </td>
+        <td style="vertical-align:middle;">
+          <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">Hippolyte Asah</p>
+          <p style="margin:1px 0 0;font-size:13px;color:#6b7280;">Founder, JobsAI</p>
+        </td>
+      </tr>
+    </table>
     ${p(`<span style="color:#9ca3af;font-size:12px;">P.S. Your next opportunity may already be waiting. Upload your resume and let JobsAI start working for you today.</span>`)}
   `;
 
