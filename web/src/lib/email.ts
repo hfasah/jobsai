@@ -197,17 +197,18 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
 
     ${p(`I'm genuinely excited to be part of your career journey. Let's get you more interviews. Let's get you hired.`)}
     ${p(`<strong style="color:#4f46e5;">Apply Less. Interview More.</strong>`)}
-    <table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 0;">
+    <table role="presentation" cellpadding="0" cellspacing="0" align="left" style="margin:20px 0 0;">
       <tr>
-        <td style="vertical-align:middle;padding-right:14px;">
-          <img src="${APP_URL}/team/hippolyte-asah.jpg" width="56" height="56" alt="Hippolyte Asah" style="width:56px;height:56px;border-radius:28px;display:block;border:2px solid #eef2ff;" />
+        <td style="vertical-align:middle;padding-right:16px;">
+          <img src="${APP_URL}/team/hippolyte-asah.jpg" width="68" height="68" alt="Hippolyte Asah" style="width:68px;height:68px;border-radius:34px;display:block;border:1px solid #e5e7eb;" />
         </td>
         <td style="vertical-align:middle;">
-          <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">Hippolyte Asah</p>
-          <p style="margin:1px 0 0;font-size:13px;color:#6b7280;">Founder, JobsAI</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:#111827;">Hippolyte Asah</p>
+          <p style="margin:2px 0 0;font-size:13px;color:#6b7280;">Founder, JobsAI</p>
         </td>
       </tr>
     </table>
+    <div style="clear:both;"></div>
     ${p(`<span style="color:#9ca3af;font-size:12px;">P.S. Your next opportunity may already be waiting. Upload your resume and let JobsAI start working for you today.</span>`)}
   `;
 
