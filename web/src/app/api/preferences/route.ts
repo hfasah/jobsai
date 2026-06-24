@@ -63,5 +63,14 @@ export async function PUT(req: NextRequest) {
     else if (ccData) Object.assign(data, ccData);
   }
 
+  // Email opt-out written separately + best-effort (migration 130).
+  if (typeof body.alert_emails_enabled === "boolean") {
+    const { data: aeData, error: aeErr } = await supabaseAdmin
+      .from("user_preferences").update({ alert_emails_enabled: body.alert_emails_enabled })
+      .eq("user_id", userId).select("alert_emails_enabled").maybeSingle();
+    if (aeErr) console.warn("alert_emails_enabled not saved (run migration 130):", aeErr.message);
+    else if (aeData) Object.assign(data, aeData);
+  }
+
   return NextResponse.json({ data });
 }

@@ -428,6 +428,29 @@ export default function PreferencesPage() {
                 )} />
               </button>
             </div>
+
+            {/* Job alert emails (opt-out) */}
+            <div className="mt-5 flex items-center justify-between rounded-xl border border-border p-4">
+              <div>
+                <p className="font-medium">Job alert emails</p>
+                <p className="text-sm text-muted-foreground">Get a daily email when JobsAI finds new jobs matching your preferences. (Every alert also has a one-click unsubscribe.)</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={prefs.alert_emails_enabled}
+                onClick={() => set("alert_emails_enabled", !prefs.alert_emails_enabled)}
+                className={cn(
+                  "relative h-6 w-11 rounded-full border-2 transition-colors cursor-pointer",
+                  prefs.alert_emails_enabled ? "border-primary bg-primary" : "border-border bg-muted"
+                )}
+              >
+                <span className={cn(
+                  "absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform",
+                  prefs.alert_emails_enabled ? "translate-x-5" : "translate-x-0.5"
+                )} />
+              </button>
+            </div>
           </section>
 
           {/* ── Save ── */}

@@ -46,6 +46,8 @@ export interface UserPreferences {
   // Inbox: also CC the user (or another address) on application/inbox emails.
   cc_email_enabled: boolean;
   cc_email: string | null;
+  // Lifecycle/alert emails (daily job-discovery summary). Opt-out, default true.
+  alert_emails_enabled: boolean;
   last_discovery_at: string | null;
   last_discovery_count: number;
   created_at: string;
@@ -71,6 +73,7 @@ export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   require_approval: false,
   cc_email_enabled: false,
   cc_email: null,
+  alert_emails_enabled: true,
   last_discovery_at: null,
   last_discovery_count: 0,
 };
