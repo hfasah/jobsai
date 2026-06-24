@@ -17,6 +17,11 @@ export async function POST() {
   const to = user.emailAddresses[0]?.emailAddress;
   if (!to) return NextResponse.json({ error: "No email on file" }, { status: 400 });
 
-  await sendWelcomeEmail({ to, firstName: user.firstName });
-  return NextResponse.json({ ok: true, sent_to: to });
+  const result = await sendWelcomeEmail({ to, firstName: user.firstName });
+  // Surface the ACTUAL send result (Resend can 403 on an unverified sender
+  // domain) — don't report success on a failed send.
+  return NextResponse.json(
+    { ok: result.ok, sent_to: to, error: result.error },
+    { status: result.ok ? 200 : 502 },
+  );
 }
