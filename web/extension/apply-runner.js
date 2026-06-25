@@ -317,4 +317,56 @@
     })();
     return true; // async response
   });
+
+  // ─── In-page autofill button ────────────────────────────────────────────────────
+  // LinkedIn has its own floating widget (content-linkedin.js). For every OTHER
+  // supported board, inject a lightweight "Autofill with JobsAI" button so the user
+  // can fill the form right in their logged-in tab — no dashboard round-trip. Always
+  // verify mode (fills + stops at submit); the user reviews and submits.
+  function injectAutofillButton() {
+    const board = boardFromHost();
+    if (board === "manual" || board === "linkedin") return;
+    if (document.getElementById("jobsai-autofill-btn")) return;
+    if (!document.body) return;
+
+    const btn = document.createElement("button");
+    btn.id = "jobsai-autofill-btn";
+    const IDLE = "⚡ Autofill with JobsAI";
+    btn.textContent = IDLE;
+    Object.assign(btn.style, {
+      position: "fixed", bottom: "20px", right: "20px", zIndex: "2147483647",
+      background: "#4f46e5", color: "#fff", border: "none", borderRadius: "10px",
+      padding: "12px 16px", fontSize: "14px", fontWeight: "700", cursor: "pointer",
+      fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif",
+      boxShadow: "0 4px 14px rgba(79,70,229,0.4)",
+    });
+    const flash = (text, ms = 4000) => { btn.textContent = text; setTimeout(() => { btn.textContent = IDLE; }, ms); };
+
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.style.opacity = "0.7"; btn.textContent = "Loading profile…";
+      let resp = null;
+      try { resp = await chrome.runtime.sendMessage({ type: "GET_PROFILE" }); } catch { /* not connected */ }
+      if (!resp || !resp.ok || !resp.profile) {
+        const text = resp && resp.error === "not_connected" ? "Connect in JobsAI first" : "Couldn't load profile";
+        btn.disabled = false; btn.style.opacity = "1"; flash(text);
+        return;
+      }
+      btn.textContent = "Filling…";
+      let status = "needs_review";
+      try {
+        status = BOARD_CFG[board]
+          ? await stepApply(resp.profile, false, BOARD_CFG[board]) // verify mode
+          : await applyGeneric(resp.profile);
+      } catch { status = "failed"; }
+      btn.disabled = false; btn.style.opacity = "1";
+      flash(status === "applied" ? "✓ Submitted"
+        : status === "needs_review" ? "✓ Filled — review & submit"
+        : "Couldn't autofill — fill manually");
+    });
+
+    document.body.appendChild(btn);
+  }
+
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectAutofillButton);
+  else injectAutofillButton();
 })();
