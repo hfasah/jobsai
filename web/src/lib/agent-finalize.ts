@@ -50,12 +50,28 @@ export async function finalizeAgentRun(
   const { user_id: userId, job_id: jobId } = task;
   const success = ourStatus === "submitted";
 
+  // Pull the run detail once: failure_reason makes a failed attempt diagnosable
+  // (login required / no apply button / CAPTCHA …) instead of a bare "failed",
+  // and the same call gives the step count for cost tracking.
+  let stepCount = typeof stepCountHint === "number" ? stepCountHint : null;
+  let failureReason: string | null = null;
+  if (!success || stepCount == null) {
+    const detail = await getSkyvernTask(taskId).catch(() => null);
+    if (detail) {
+      if (stepCount == null) stepCount = detail.step_count ?? null;
+      failureReason = detail.failure_reason ?? null;
+    }
+  }
+  if (!success) {
+    console.warn("[finalize] agent run failed", { taskId, jobId, status: skyvernStatus, failureReason });
+  }
+
   await supabaseAdmin
     .from("apply_attempts")
     .update({
       status: ourStatus,
       submitted_at: success ? new Date().toISOString() : null,
-      error_msg: success ? undefined : `Agent status: ${skyvernStatus}`,
+      error_msg: success ? undefined : (failureReason ? `${failureReason} (status: ${skyvernStatus})` : `Agent status: ${skyvernStatus}`),
     })
     .eq("user_id", userId)
     .eq("job_id", jobId)
@@ -63,10 +79,6 @@ export async function finalizeAgentRun(
     .eq("status", "pending");
 
   // Cost tracking (Skyvern-side) always; user billing depends on outcome.
-  let stepCount = typeof stepCountHint === "number" ? stepCountHint : null;
-  if (stepCount == null) {
-    stepCount = await getSkyvernTask(taskId).then((r) => r.step_count ?? null).catch(() => null);
-  }
   await recordAgentCost(userId, jobId, stepCount);
 
   const chargedUpfront = typeof task.charged_credits === "number" ? task.charged_credits : 0;
