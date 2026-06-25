@@ -80,32 +80,34 @@ export async function POST(req: NextRequest) {
     const { data: inv } = await supabaseAdmin.from("enterprise_invitations")
       .insert({ org_id: org.id, email: ownerEmail, role: "owner", invited_by: admin.userId, token: inviteToken(slug) })
       .select("token").single();
-    // Also send a Clerk invitation so the contact's email is RECOGNIZED and they
-    // get the native "create account / set your password" flow on first login —
-    // instead of "couldn't find your account" on the sign-in form. Best-effort:
-    // skipped if they already have an account or a pending invite.
-    try {
-      const client = await clerkClient();
-      await client.invitations.createInvitation({
-        emailAddress: ownerEmail,
-        redirectUrl: `${APP_URL}/e/${slug}`,
-        publicMetadata: { enterprise_org_id: org.id, role: "owner" },
-        ignoreExisting: true,
-      });
-    } catch (e) {
-      console.warn("[admin/enterprise] Clerk invitation skipped:", e instanceof Error ? e.message : e);
-    }
 
     if (inv) {
       inviteUrl = `${APP_URL}/enterprise/invite/${inv.token}`;
+      // Clerk invitation carries a ticket → the owner sets a password (email auto-
+      // verified, no second email) right on the invite page. Point its redirectUrl
+      // there and email the ticket URL so one click lands on the password step.
+      let acceptUrl = inviteUrl;
+      try {
+        const client = await clerkClient();
+        const clerkInv = await client.invitations.createInvitation({
+          emailAddress: ownerEmail,
+          redirectUrl: inviteUrl,
+          publicMetadata: { enterprise_org_id: org.id, role: "owner" },
+          ignoreExisting: true,
+        });
+        if (clerkInv.url) acceptUrl = clerkInv.url;
+      } catch (e) {
+        console.warn("[admin/enterprise] Clerk invitation skipped:", e instanceof Error ? e.message : e);
+      }
+
       await resend.emails.send({
         from: "JobsAI <support@jobsai.work>",
         to: ownerEmail,
         subject: `Your ${name} workspace on JobsAI Enterprise is ready`,
         html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
           <h2 style="color:#2563eb">Welcome to JobsAI Enterprise</h2>
-          <p>Your recruiting workspace for <strong>${name}</strong> has been set up. Click below to sign in and take ownership.</p>
-          <div style="margin:24px 0"><a href="${inviteUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Open your workspace →</a></div>
+          <p>Your recruiting workspace for <strong>${name}</strong> has been set up. Click below to sign in (create your password on first use) and take ownership.</p>
+          <div style="margin:24px 0"><a href="${acceptUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">Open your workspace →</a></div>
           <p style="color:#888;font-size:13px">Getting started:</p>
           <ol style="color:#555;font-size:13px">${tpl.onboarding_steps.map((s) => `<li>${s}</li>`).join("")}</ol>
         </div>`,

@@ -55,16 +55,20 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
   const inviteUrl = `${APP_URL}/enterprise/invite/${token}`;
 
-  // Clerk invitation → email is recognized + native "set your password" flow.
+  // Clerk invitation → carries a ticket so the owner sets a password (email is
+  // auto-verified, no second email) right on the invite page. We point its
+  // redirectUrl at that page and email the ticket URL so one click lands there.
   let clerkInvited = true;
+  let acceptUrl = inviteUrl;
   try {
     const client = await clerkClient();
-    await client.invitations.createInvitation({
+    const inv = await client.invitations.createInvitation({
       emailAddress: email,
-      redirectUrl: `${APP_URL}/e/${org.slug}`,
+      redirectUrl: inviteUrl,
       publicMetadata: { enterprise_org_id: orgId, role: "owner" },
       ignoreExisting: true,
     });
+    if (inv.url) acceptUrl = inv.url; // redirectUrl + __clerk_ticket
   } catch (e) {
     // Most common reason: the email already has a JobsAI account — they can just
     // sign in (claimPendingInvites then joins them). Not an error for the admin.
@@ -113,7 +117,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         <p style="margin:0 0 14px;font-size:15px;line-height:1.65;color:#334155;">You've been set up as the <strong>owner</strong> of your private recruiting workspace. One click below signs you in — you'll create your password on first use and take full ownership.</p>
 
         <div style="text-align:center;margin:26px 0;">
-          <a href="${inviteUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:10px;font-size:15px;font-weight:700;box-shadow:0 2px 6px rgba(79,70,229,0.35);">Open your workspace →</a>
+          <a href="${acceptUrl}" style="display:inline-block;background:#4f46e5;color:#ffffff;text-decoration:none;padding:14px 30px;border-radius:10px;font-size:15px;font-weight:700;box-shadow:0 2px 6px rgba(79,70,229,0.35);">Open your workspace →</a>
         </div>
 
         <!-- What you can do -->
@@ -149,7 +153,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           </tr>
         </table>
 
-        <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#94a3b8;">If the button doesn't work, paste this link into your browser:<br><a href="${inviteUrl}" style="color:#6366f1;text-decoration:underline;word-break:break-all;">${inviteUrl}</a></p>
+        <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#94a3b8;">If the button doesn't work, paste this link into your browser:<br><a href="${acceptUrl}" style="color:#6366f1;text-decoration:underline;word-break:break-all;">${acceptUrl}</a></p>
       </div>
 
       <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #eef2f7;">
