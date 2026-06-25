@@ -37,6 +37,18 @@ export default function EnterpriseOnboard() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-md">
+        {/* Recruiter-only notice — in case a job seeker lands here */}
+        <div className="mb-6 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-center">
+          <p className="text-sm font-bold text-amber-300">For Staffing Agencies, Recruiters &amp; HR Teams</p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            This is the recruiter workspace.{" "}
+            <span className="text-amber-100">Looking for a job?</span>{" "}
+            <a href="https://jobsai.work/dashboard" className="font-semibold text-amber-200 underline underline-offset-2">
+              Go to JobsAI for job seekers →
+            </a>
+          </p>
+        </div>
+
         {/* Header */}
         <div className="mb-8 text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-brand shadow-glow">
