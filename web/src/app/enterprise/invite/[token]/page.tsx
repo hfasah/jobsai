@@ -2,8 +2,8 @@
 
 import { use, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useUser, useSignUp } from "@clerk/nextjs";
-import { CheckCircle2, Loader2, Users, KeyRound } from "lucide-react";
+import { useUser, useSignUp, useClerk } from "@clerk/nextjs";
+import { CheckCircle2, Loader2, Users, KeyRound, LogOut } from "lucide-react";
 
 export default function AcceptInvitePage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = use(params);
@@ -11,8 +11,9 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
   const searchParams = useSearchParams();
   const ticket = searchParams.get("__clerk_ticket");
 
-  const { isLoaded: userLoaded, isSignedIn } = useUser();
+  const { isLoaded: userLoaded, isSignedIn, user } = useUser();
   const { signUp } = useSignUp();
+  const { signOut } = useClerk();
 
   const [info, setInfo] = useState<{ email: string; role: string; org: { name: string } } | null>(null);
   const [error, setError] = useState("");
@@ -96,7 +97,18 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
     <Shell><p className="text-sm text-destructive">{error}</p></Shell>
   );
 
+  const inviteEmail = info!.email?.toLowerCase() ?? "";
+  const emailMatches = !!isSignedIn && !!user?.emailAddresses?.some((e) => e.emailAddress.toLowerCase() === inviteEmail);
+  const currentEmail = user?.primaryEmailAddress?.emailAddress ?? user?.emailAddresses?.[0]?.emailAddress ?? "";
+  const wrongAccount = !!isSignedIn && !emailMatches;
   const showPasswordStep = !isSignedIn && !!ticket && !existingAccount;
+
+  // Sign out, then reload this same URL (ticket preserved) so the owner can set
+  // a password / sign in as the invited email.
+  const switchAccount = async () => {
+    setAccepting(true);
+    await signOut({ redirectUrl: window.location.href });
+  };
 
   return (
     <Shell>
@@ -106,8 +118,8 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
         As a <span className="font-semibold capitalize text-foreground">{info!.role}</span> on JobsAI Enterprise
       </p>
 
-      {/* Signed in → one-click accept */}
-      {isSignedIn && (
+      {/* Signed in as the invited email → one-click accept */}
+      {isSignedIn && emailMatches && (
         <>
           <button onClick={accept} disabled={accepting}
             className="btn-cta mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:opacity-60">
@@ -115,6 +127,21 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
             {accepting ? "Accepting…" : "Accept invitation"}
           </button>
           {error && <p className="mt-3 text-xs text-destructive">{error}</p>}
+        </>
+      )}
+
+      {/* Signed in as the WRONG account → switch to the invited email */}
+      {wrongAccount && (
+        <>
+          <p className="mt-5 text-sm text-muted-foreground">
+            You&apos;re signed in as <span className="font-medium text-foreground">{currentEmail}</span>, but this invitation is for{" "}
+            <span className="font-medium text-foreground">{inviteEmail}</span>.
+          </p>
+          <button onClick={switchAccount} disabled={accepting}
+            className="btn-cta mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:opacity-60">
+            {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogOut className="h-4 w-4" />}
+            {accepting ? "Switching…" : "Sign out & continue as " + inviteEmail}
+          </button>
         </>
       )}
 
