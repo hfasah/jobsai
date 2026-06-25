@@ -79,10 +79,12 @@ async function postApplyResult(jobId, board, status, error) {
 const BOARD_HOSTS = {
   linkedin: ["linkedin.com"], indeed: ["indeed.com"], ziprecruiter: ["ziprecruiter.com"],
   dice: ["dice.com"], workable: ["workable.com"], glassdoor: ["glassdoor.com"], monster: ["monster.com"],
+  workday: ["myworkdayjobs.com", "workday.com"], greenhouse: ["greenhouse.io"], lever: ["lever.co"],
 };
-// Boards that ship an auto-submit adapter. Whether each actually auto-submits is a
-// per-user toggle (directBoards) — off by default until verified on a live listing.
-const ADAPTER_BOARDS = new Set(["linkedin", "indeed", "ziprecruiter", "dice", "workable"]);
+// Boards with an autofill adapter. Whether each AUTO-SUBMITS is a per-user toggle
+// (directBoards) — off by default until verified on a live listing. Workday/
+// Greenhouse/Lever autofill in the user's logged-in tab, then stop for review.
+const ADAPTER_BOARDS = new Set(["linkedin", "indeed", "ziprecruiter", "dice", "workable", "workday", "greenhouse", "lever"]);
 
 async function getDirectBoards() {
   const { directBoards } = await chrome.storage.local.get(["directBoards"]);
