@@ -199,7 +199,7 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
     ${p(`<strong style="color:#4f46e5;">Apply Less. Interview More.</strong>`)}
     <table role="presentation" cellpadding="0" cellspacing="0" align="left" style="margin:20px 0 0;">
       <tr>
-        ${monogramCell("Hippolyte Asah", 64)}
+        ${avatarCell("Hippolyte Asah", 64)}
         <td style="width:16px;">&nbsp;</td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:16px;font-weight:700;color:#111827;">Hippolyte Asah</p>
@@ -401,19 +401,23 @@ export async function sendAutoApplyDigest(
 
 const FOUNDER = { name: "Hippolyte Asah", title: "Founder, JobsAI" };
 
-// Bulletproof avatar: a text monogram (initials on a colored disc). Renders in
-// every email client with no hosted image — photos get 404'd or image-blocked.
-function monogramCell(name: string, size = 56): string {
+const FOUNDER_PHOTO = "/team/hippolyte-asah.jpg";
+
+// Avatar cell: the founder photo on a colored disc. The disc + initials alt mean
+// image-blocking clients still show a clean avatar (never a broken icon), while
+// everyone else sees the real photo.
+function avatarCell(name: string, size = 56, photo: string = FOUNDER_PHOTO): string {
   const initials =
     name.trim().split(/\s+/).map((w) => w[0] ?? "").slice(0, 2).join("").toUpperCase() || "JA";
-  return `<td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;background:#4f46e5;border-radius:${Math.round(size / 2)}px;color:#ffffff;font-size:${Math.round(size * 0.36)}px;font-weight:800;text-align:center;line-height:${size}px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${escapeHtml(initials)}</td>`;
+  const r = Math.round(size / 2);
+  return `<td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;background:#4f46e5;border-radius:${r}px;color:#ffffff;font-size:${Math.round(size * 0.36)}px;font-weight:800;text-align:center;line-height:${size}px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><img src="${APP_URL}${photo}" width="${size}" height="${size}" alt="${escapeHtml(initials)}" style="width:${size}px;height:${size}px;border-radius:${r}px;display:block;object-fit:cover;border:1px solid rgba(255,255,255,0.25);" /></td>`;
 }
 
 function personaSignoff(persona: { name: string; title: string }): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 0;">
       <tr>
-        ${monogramCell(persona.name)}
+        ${avatarCell(persona.name)}
         <td style="width:14px;">&nbsp;</td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${escapeHtml(persona.name)}</p>
