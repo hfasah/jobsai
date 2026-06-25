@@ -24,6 +24,7 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [existingAccount, setExistingAccount] = useState(false);
 
   useEffect(() => {
@@ -52,6 +53,8 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
   const createPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!ticket) return;
+    if (password.length < 8) { setError("Password must be at least 8 characters."); return; }
+    if (password !== confirmPassword) { setError("Passwords don't match."); return; }
     setAccepting(true); setError(""); setExistingAccount(false);
 
     const { error } = await signUp.create({ strategy: "ticket", ticket, password, firstName, lastName });
@@ -157,12 +160,18 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
             <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" autoComplete="family-name"
               className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
           </div>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password"
+          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Create a password (min 8 characters)"
             autoComplete="new-password" required minLength={8}
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm password"
+            autoComplete="new-password" required minLength={8}
+            className={`w-full rounded-lg border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary ${confirmPassword && password !== confirmPassword ? "border-destructive" : "border-border"}`} />
+          {confirmPassword && password !== confirmPassword && (
+            <p className="text-xs text-destructive">Passwords don&apos;t match.</p>
+          )}
           {/* Clerk bot-protection mount point */}
           <div id="clerk-captcha" />
-          <button type="submit" disabled={accepting || !password}
+          <button type="submit" disabled={accepting || !password || password !== confirmPassword}
             className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-semibold disabled:opacity-60">
             {accepting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
             {accepting ? "Setting up…" : "Create password & enter workspace"}
