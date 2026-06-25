@@ -68,7 +68,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       publicMetadata: { enterprise_org_id: orgId, role: "owner" },
       ignoreExisting: true,
     });
-    if (inv.url) acceptUrl = inv.url; // redirectUrl + __clerk_ticket
+    // Build a clean link on OUR domain that carries the ticket, instead of
+    // emailing Clerk's raw clerk.jobsai.work/v1/tickets/accept URL (looks like
+    // phishing). Our invite page reads __clerk_ticket and sets the password.
+    const tkt = inv.url ? new URL(inv.url).searchParams.get("ticket") : null;
+    if (tkt) acceptUrl = `${inviteUrl}?__clerk_ticket=${tkt}`;
   } catch (e) {
     // Most common reason: the email already has a JobsAI account — they can just
     // sign in (claimPendingInvites then joins them). Not an error for the admin.
@@ -153,7 +157,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
           </tr>
         </table>
 
-        <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#94a3b8;">If the button doesn't work, paste this link into your browser:<br><a href="${acceptUrl}" style="color:#6366f1;text-decoration:underline;word-break:break-all;">${acceptUrl}</a></p>
+        <p style="margin:24px 0 0;font-size:12px;line-height:1.5;color:#94a3b8;">Button not working? <a href="${acceptUrl}" style="color:#6366f1;text-decoration:underline;">Open your workspace here</a>.</p>
       </div>
 
       <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #eef2f7;">
