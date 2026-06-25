@@ -148,7 +148,9 @@ export async function POST(req: NextRequest) {
           publicMetadata: { enterprise_org_id: org.id, role: "owner" },
           ignoreExisting: true,
         });
-        if (clerkInv.url) acceptUrl = clerkInv.url;
+        // Clean link on OUR domain carrying the ticket (not Clerk's raw FAPI URL).
+        const tkt = clerkInv.url ? new URL(clerkInv.url).searchParams.get("ticket") : null;
+        if (tkt) acceptUrl = `${inviteUrl}?__clerk_ticket=${tkt}`;
       } catch (e) {
         console.warn("[admin/enterprise] Clerk invitation skipped:", e instanceof Error ? e.message : e);
       }
