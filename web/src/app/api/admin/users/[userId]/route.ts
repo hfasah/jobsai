@@ -22,13 +22,18 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
   const clerkUser = await client.users.getUser(userId).catch(() => null);
   if (!clerkUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const [billing, resumes, jobs, notifications, churnFeedback, applyProfile] = await Promise.all([
+  const [billing, resumes, jobs, notifications, churnFeedback, applyProfile, enterpriseMembers] = await Promise.all([
     supabaseAdmin.from("user_billing").select("*").eq("user_id", userId).maybeSingle(),
     supabaseAdmin.from("resume_documents").select("*, active_version:resume_versions!resume_documents_active_version_id_fkey(id, file_name, parse_status, uploaded_at)").eq("user_id", userId).eq("is_archived", false).order("created_at", { ascending: false }),
     supabaseAdmin.from("jobs").select("id, status, created_at, parsed").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     supabaseAdmin.from("user_notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     supabaseAdmin.from("churn_feedback").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabaseAdmin.from("apply_profiles").select("auto_apply_enabled, auto_reply, created_at").eq("user_id", userId).maybeSingle(),
+    // Surface any enterprise membership. A single row here flips getUserRole() to
+    // "enterprise" and LOCKS this user out of the consumer job board (the "This is
+    // an Enterprise login" gate). It's otherwise invisible on this page, so a stray
+    // row (e.g. a leftover test owner-assign) silently blocks a real job seeker.
+    supabaseAdmin.from("enterprise_members").select("id, org_id, role, created_at, enterprise_orgs(name, slug)").eq("user_id", userId),
   ]);
 
   const b = billing.data;
@@ -60,6 +65,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     notifications: notifications.data ?? [],
     churnFeedback: churnFeedback.data ?? [],
     applyProfile: applyProfile.data ?? null,
+    enterpriseMembers: enterpriseMembers.data ?? [],
   });
 }
 
@@ -133,6 +139,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       return NextResponse.json({ error: err instanceof Error ? err.message : "Action failed." }, { status: 422 });
     }
     return NextResponse.json({ ok: true, banned: body.action === "ban" });
+  }
+
+  // ── Remove an enterprise membership (unblock a misclassified job seeker) ────
+  // A stray enterprise_members row makes getUserRole() return "enterprise" and
+  // shows the "This is an Enterprise login" gate on the consumer job board.
+  // Removing it restores job-seeker access (no raw SQL needed). Optionally scope
+  // to one row via membership_id; otherwise clears all memberships for the user.
+  if (body.action === "remove_enterprise_membership") {
+    const membershipId = (body.membership_id as string | undefined)?.trim();
+    let q = supabaseAdmin.from("enterprise_members").delete().eq("user_id", userId);
+    if (membershipId) q = q.eq("id", membershipId);
+    const { error } = await q;
+    if (error) {
+      console.error("Admin remove-membership error:", error);
+      return NextResponse.json({ error: error.message }, { status: 422 });
+    }
+    return NextResponse.json({ ok: true });
   }
 
   return NextResponse.json({ error: "Unknown action." }, { status: 400 });
