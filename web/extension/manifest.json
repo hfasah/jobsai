@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "JobsAI — For LinkedIn",
-  "version": "1.0.0",
-  "description": "Save LinkedIn jobs to JobsAI in one click and breeze through Easy Apply with your saved profile.",
+  "name": "JobsAI — Apply Assistant",
+  "version": "1.1.0",
+  "description": "Save jobs to JobsAI and autofill applications with your saved profile — LinkedIn Easy Apply plus Workday, Greenhouse and Lever, right in your logged-in tab.",
   "author": "JobsAI",
   "icons": {
     "16": "icons/icon16.png",
@@ -30,6 +30,10 @@
     "https://*.workable.com/*",
     "https://*.glassdoor.com/*",
     "https://*.monster.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.workday.com/*",
+    "https://*.greenhouse.io/*",
+    "https://*.lever.co/*",
     "https://jobsai.work/*",
     "https://www.jobsai.work/*"
   ],
@@ -48,7 +52,11 @@
         "https://*.dice.com/*",
         "https://*.workable.com/*",
         "https://*.glassdoor.com/*",
-        "https://*.monster.com/*"
+        "https://*.monster.com/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.workday.com/*",
+        "https://*.greenhouse.io/*",
+        "https://*.lever.co/*"
       ],
       "js": ["apply-runner.js"],
       "run_at": "document_idle"

@@ -21,6 +21,7 @@
   const HOSTS = {
     linkedin: ["linkedin.com"], indeed: ["indeed.com"], ziprecruiter: ["ziprecruiter.com"],
     dice: ["dice.com"], workable: ["workable.com"], glassdoor: ["glassdoor.com"], monster: ["monster.com"],
+    workday: ["myworkdayjobs.com", "workday.com"], greenhouse: ["greenhouse.io"], lever: ["lever.co"],
   };
   function boardFromHost(host) {
     host = (host || location.hostname).toLowerCase();
@@ -89,6 +90,29 @@
     return filled;
   }
 
+  // Workday uses custom widgets with stable data-automation-id attributes instead
+  // of normal <label for>, so the generic label matcher misses them. Map the
+  // common identity fields directly. Runs in addition to fillForm (verify-mode
+  // only — Workday's multi-step wizard always leaves the user to review + submit).
+  function fillWorkday(root, p) {
+    const map = [
+      [/legalname.*first|firstname/i, p.first_name],
+      [/legalname.*last|lastname|familyname/i, p.last_name],
+      [/email/i, p.email],
+      [/phone(number)?/i, p.phone],
+      [/address.*city|^city/i, p.city || p.location],
+      [/postal|zip/i, p.postal_code],
+    ];
+    let filled = 0;
+    root.querySelectorAll("input[data-automation-id], textarea[data-automation-id]").forEach((el) => {
+      if (el.disabled || el.readOnly || el.value?.trim()) return;
+      const id = el.getAttribute("data-automation-id") || "";
+      const hit = map.find(([re, v]) => v && re.test(id));
+      if (hit) { setNativeValue(el, hit[1]); filled++; }
+    });
+    return filled;
+  }
+
   // Required, still-empty fields we couldn't answer? Guards against bad auto-submits.
   function hasUnfilledRequired(root) {
     const fields = [...root.querySelectorAll("[required], [aria-required='true']")];
@@ -128,6 +152,10 @@
   }
 
   async function stepApply(profile, autoSubmit, cfg) {
+    // Some ATS (Workday) are too complex/variable to ever safely auto-submit —
+    // force verify mode so the user always reviews before submitting.
+    const allowSubmit = autoSubmit && !cfg.neverAutoSubmit;
+
     // 1. Trigger the apply flow if there's an entry button.
     const trigger = buttonByText(document, ...(cfg.applyPhrases || []));
     if (trigger) { trigger.click(); await sleep(1500); }
@@ -137,6 +165,7 @@
     for (let step = 0; step < 8; step++) {
       const root = pickRoot(cfg);
       fillForm(root, profile);
+      if (cfg.fillExtra) cfg.fillExtra(root, profile);
       await sleep(300);
 
       if (looksSubmitted()) return "applied";
@@ -144,7 +173,7 @@
       const submit = buttonByText(root, ...(cfg.submitPhrases || []));
       if (submit) {
         if (hasUnfilledRequired(root)) return "needs_review";
-        if (!autoSubmit) return "needs_review"; // verify mode: stop at the submit step
+        if (!allowSubmit) return "needs_review"; // verify mode: stop at the submit step
         submit.click();
         await sleep(1200);
         return looksSubmitted() ? "applied" : "needs_review";
@@ -184,6 +213,33 @@
       submitPhrases: ["submit application", "submit", "send application"],
       nextPhrases: ["continue", "next"],
       rootSelectors: ["form[data-ui='application-form']", "main form", "form"],
+    },
+    // Greenhouse renders the application form inline on the posting page — usually
+    // a single page, standard <label for> fields, "Submit Application".
+    greenhouse: {
+      applyPhrases: ["apply for this job", "apply"],
+      submitPhrases: ["submit application", "submit"],
+      nextPhrases: [],
+      rootSelectors: ["#application_form", "#application-form", "form#application_form", "main form", "form"],
+    },
+    // Lever: "Apply for this job" → /apply form ("Full name", "Email", resume…),
+    // "Submit application".
+    lever: {
+      applyPhrases: ["apply for this job", "apply"],
+      submitPhrases: ["submit application", "submit"],
+      nextPhrases: [],
+      rootSelectors: ["form[data-qa='application-form']", ".application-form", "main form", "form"],
+    },
+    // Workday: account-walled, multi-step wizard with custom widgets. Autofill the
+    // identity fields (fillWorkday) in-session and walk the steps, but NEVER
+    // auto-submit — the user reviews and submits the long form themselves.
+    workday: {
+      applyPhrases: ["apply manually", "autofill with resume", "apply for this job", "apply"],
+      submitPhrases: ["submit"],
+      nextPhrases: ["save and continue", "continue", "next", "review"],
+      rootSelectors: ["[data-automation-id='applyFlowPage']", "[role='dialog']", "main", "form"],
+      fillExtra: fillWorkday,
+      neverAutoSubmit: true,
     },
   };
 
