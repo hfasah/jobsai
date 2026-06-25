@@ -4,8 +4,11 @@ import { redirect } from "next/navigation";
 import { getMyMembership, claimPendingInvites } from "@/lib/enterprise";
 
 // Post-login router. Priority: platform admin → /admin, enterprise member →
-// their workspace. Non-members go to enterprise onboarding on the recruiter
-// portal (app.jobsai.work), or the job-seeker dashboard on the consumer site.
+// their workspace. A signed-in NON-member is NEVER defaulted into enterprise
+// account creation: on the recruiter portal (app.jobsai.work) they land on the
+// public enterprise landing (explicit "Get started" CTAs → /enterprise/onboard),
+// and on the consumer site they go to the job-seeker dashboard. Creating an org
+// must be a deliberate choice, not a side effect of logging in.
 export default async function Launch() {
   const { userId } = await auth();
   if (!userId) redirect("/sign-in");
@@ -27,5 +30,5 @@ export default async function Launch() {
 
   const host = ((await headers()).get("host") ?? "").split(":")[0];
   const onEnterprisePortal = host === "app.jobsai.work";
-  redirect(onEnterprisePortal ? "/enterprise/onboard" : "/dashboard");
+  redirect(onEnterprisePortal ? "/enterprise/home" : "/dashboard");
 }
