@@ -24,6 +24,12 @@ export interface JobBoard {
    * verifies it on a live listing) — see the extension's `directBoards` storage.
    */
   adapter?: boolean;
+  /**
+   * The board forces applicants to CREATE AN ACCOUNT before applying (no guest
+   * path). A headless agent can't clear this without saved credentials, so we
+   * route these to manual/assisted up front instead of burning a doomed run.
+   */
+  accountRequired?: boolean;
   note?: string;
 }
 
@@ -38,6 +44,11 @@ export const JOB_BOARDS: JobBoard[] = [
   { id: "workable",    label: "Workable (Direct-Apply)", applyMode: "assisted", adapter: true, hosts: ["workable.com", "apply.workable.com", "jobs.workable.com"], note: "Direct-Apply" },
   { id: "glassdoor",   label: "Glassdoor",             applyMode: "assisted", hosts: ["glassdoor.com"],                                 note: "Autofill, you submit" },
   { id: "monster",     label: "Monster",               applyMode: "assisted", hosts: ["monster.com"],                                   note: "Autofill, you submit" },
+  // Account-walled ATS — must create an account to apply. Gated in agent-apply
+  // unless the user has saved a login / has a persisted browser profile.
+  { id: "workday",        label: "Workday",            applyMode: "assisted", accountRequired: true, hosts: ["myworkdayjobs.com", "workday.com"],                       note: "Account required" },
+  { id: "successfactors", label: "SAP SuccessFactors", applyMode: "assisted", accountRequired: true, hosts: ["successfactors.com", "successfactors.eu", "sapsf.com"],   note: "Account required" },
+  { id: "taleo",          label: "Oracle Taleo",       applyMode: "assisted", accountRequired: true, hosts: ["taleo.net"],                                              note: "Account required" },
   { id: "manual",      label: "JobsAI Jobs (Manual)",  applyMode: "manual",   hosts: [],                                                note: "Opens the listing" },
 ];
 
