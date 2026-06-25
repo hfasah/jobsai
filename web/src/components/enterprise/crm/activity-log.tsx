@@ -2,15 +2,15 @@
 
 import { useState } from "react";
 import {
-  Phone, Mail, CalendarDays, Linkedin, StickyNote, CheckSquare, Square,
+  Phone, Mail, CalendarDays, Link2, StickyNote, CheckSquare, Square,
   FileSignature, UserPlus, Send, Loader2, Plus, Trash2,
 } from "lucide-react";
-import { ACTIVITY_TYPES, labelFor, type CrmActivity, type CrmTask } from "@/lib/enterprise-crm";
+import { ACTIVITY_TYPES, labelFor, type CrmActivity, type CrmTask } from "@/lib/crm-shared";
 import { cn } from "@/lib/utils";
 import { TextInput, TextArea, relativeTime, fmtDate, isOverdue } from "./crm-ui";
 
 const ACTIVITY_ICON: Record<string, typeof Phone> = {
-  call: Phone, email: Mail, meeting: CalendarDays, linkedin: Linkedin, note: StickyNote,
+  call: Phone, email: Mail, meeting: CalendarDays, linkedin: Link2, note: StickyNote,
   task: CheckSquare, proposal_sent: FileSignature, client_intake: UserPlus,
   candidate_submitted: Send, interview_scheduled: CalendarDays, offer_update: FileSignature,
 };

@@ -6,7 +6,7 @@ import {
   Loader2, ArrowLeft, Pencil, Globe, MapPin, Users, Plus, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask } from "@/lib/enterprise-crm";
+import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask } from "@/lib/crm-shared";
 import { CompanyForm } from "@/components/enterprise/crm/company-form";
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";

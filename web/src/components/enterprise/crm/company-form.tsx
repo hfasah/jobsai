@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
-import { COMPANY_STATUSES, type CrmCompany } from "@/lib/enterprise-crm";
+import { COMPANY_STATUSES, type CrmCompany } from "@/lib/crm-shared";
 import { SlideOver, Field, TextInput, TextArea, Select } from "./crm-ui";
 
 const toDateInput = (v: string | null | undefined) => (v ? new Date(v).toISOString().slice(0, 10) : "");

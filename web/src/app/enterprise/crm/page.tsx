@@ -6,7 +6,7 @@ import {
   Loader2, Building2, Users, CalendarClock, AlertTriangle, Sparkles, ArrowRight, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor } from "@/lib/enterprise-crm";
+import { labelFor } from "@/lib/crm-shared";
 import { fmtDate, relativeTime, COMPANY_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
 interface Dashboard {

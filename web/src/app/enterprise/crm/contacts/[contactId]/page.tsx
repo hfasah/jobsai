@@ -2,9 +2,9 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Pencil, Mail, Phone, Linkedin, Building2 } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Mail, Phone, Link2, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor, type CrmContact, type CrmActivity, type CrmTask } from "@/lib/enterprise-crm";
+import { labelFor, type CrmContact, type CrmActivity, type CrmTask } from "@/lib/crm-shared";
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
 import { fmtDate, RELATIONSHIP_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
@@ -53,7 +53,7 @@ export default function ContactDetail({ params }: { params: Promise<{ contactId:
                 {c.company && <Link href={`/enterprise/crm/companies/${c.company.id}`} className="inline-flex items-center gap-1 hover:text-primary"><Building2 className="h-3 w-3" />{c.company.name}</Link>}
                 {c.email && link(`mailto:${c.email}`, Mail, c.email)}
                 {c.phone && link(`tel:${c.phone}`, Phone, c.phone)}
-                {c.linkedin_url && link(c.linkedin_url.startsWith("http") ? c.linkedin_url : `https://${c.linkedin_url}`, Linkedin, "LinkedIn")}
+                {c.linkedin_url && link(c.linkedin_url.startsWith("http") ? c.linkedin_url : `https://${c.linkedin_url}`, Link2, "LinkedIn")}
               </div>
             </div>
             <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">

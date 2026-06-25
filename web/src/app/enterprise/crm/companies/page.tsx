@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Plus, Search, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { COMPANY_STATUSES, labelFor, type CrmCompany } from "@/lib/enterprise-crm";
+import { COMPANY_STATUSES, labelFor, type CrmCompany } from "@/lib/crm-shared";
 import { CompanyForm } from "@/components/enterprise/crm/company-form";
 import { fmtDate, relativeTime, isOverdue, COMPANY_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 

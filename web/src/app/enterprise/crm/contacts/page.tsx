@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Loader2, Plus, Search, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RELATIONSHIP_STATUSES, labelFor, type CrmContact } from "@/lib/enterprise-crm";
+import { RELATIONSHIP_STATUSES, labelFor, type CrmContact } from "@/lib/crm-shared";
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { fmtDate, relativeTime, isOverdue, RELATIONSHIP_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 

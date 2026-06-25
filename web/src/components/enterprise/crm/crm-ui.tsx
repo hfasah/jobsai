@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor } from "@/lib/enterprise-crm";
+import { labelFor } from "@/lib/crm-shared";
 
 // ─── Right-side slide-over (create/edit panels) ──────────────────────────────
 export function SlideOver({
