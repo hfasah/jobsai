@@ -199,9 +199,8 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
     ${p(`<strong style="color:#4f46e5;">Apply Less. Interview More.</strong>`)}
     <table role="presentation" cellpadding="0" cellspacing="0" align="left" style="margin:20px 0 0;">
       <tr>
-        <td style="vertical-align:middle;padding-right:16px;">
-          <img src="${APP_URL}/team/hippolyte-asah.jpg" width="68" height="68" alt="Hippolyte Asah" style="width:68px;height:68px;border-radius:34px;display:block;border:1px solid #e5e7eb;" />
-        </td>
+        ${monogramCell("Hippolyte Asah", 64)}
+        <td style="width:16px;">&nbsp;</td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:16px;font-weight:700;color:#111827;">Hippolyte Asah</p>
           <p style="margin:2px 0 0;font-size:13px;color:#6b7280;">Founder, JobsAI</p>
@@ -400,16 +399,22 @@ export async function sendAutoApplyDigest(
 // send before the account is this old (lets the welcome land first). Signed from
 // the founder — swap `FOUNDER` for a real teammate persona if you add staff.
 
-const FOUNDER = { name: "Hippolyte Asah", title: "Founder, JobsAI", photo: "/team/hippolyte-asah.jpg" };
+const FOUNDER = { name: "Hippolyte Asah", title: "Founder, JobsAI" };
 
-function personaSignoff(persona: { name: string; title: string; photo?: string }): string {
-  const img = persona.photo
-    ? `<td style="vertical-align:middle;padding-right:14px;"><img src="${APP_URL}${persona.photo}" width="56" height="56" alt="${escapeHtml(persona.name)}" style="width:56px;height:56px;border-radius:28px;display:block;border:1px solid #e5e7eb;" /></td>`
-    : "";
+// Bulletproof avatar: a text monogram (initials on a colored disc). Renders in
+// every email client with no hosted image — photos get 404'd or image-blocked.
+function monogramCell(name: string, size = 56): string {
+  const initials =
+    name.trim().split(/\s+/).map((w) => w[0] ?? "").slice(0, 2).join("").toUpperCase() || "JA";
+  return `<td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;background:#4f46e5;border-radius:${Math.round(size / 2)}px;color:#ffffff;font-size:${Math.round(size * 0.36)}px;font-weight:800;text-align:center;line-height:${size}px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">${escapeHtml(initials)}</td>`;
+}
+
+function personaSignoff(persona: { name: string; title: string }): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 0;">
       <tr>
-        ${img}
+        ${monogramCell(persona.name)}
+        <td style="width:14px;">&nbsp;</td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${escapeHtml(persona.name)}</p>
           <p style="margin:1px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(persona.title)}</p>
