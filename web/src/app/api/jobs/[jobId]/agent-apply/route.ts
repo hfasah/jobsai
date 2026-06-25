@@ -120,6 +120,35 @@ export async function POST(
     );
   }
 
+  // Phase 1: don't burn an autonomous run (or a credit) on an account-walled ATS
+  // the agent can't pass on its own. Workday/Taleo/SuccessFactors force account
+  // creation; without a saved login or a persisted browser profile we'd fail and
+  // refund anyway — so route to manual up front with clear guidance.
+  const board = boardForUrl(applicationUrl);
+  if (board.accountRequired) {
+    let hasLogin = !!profile.job_board_password;
+    if (!hasLogin) {
+      const { data: bp } = await supabaseAdmin
+        .from("agent_board_profiles")
+        .select("browser_profile_id")
+        .eq("user_id", userId)
+        .eq("board", board.id)
+        .maybeSingle();
+      hasLogin = !!bp?.browser_profile_id;
+    }
+    if (!hasLogin) {
+      return NextResponse.json(
+        {
+          error: `${board.label} requires creating an account to apply — the agent can't do that on its own yet. Your tailored résumé and cover letter are ready: apply on the company site (just a couple of minutes), or save your ${board.label} login in your Apply Profile and we'll auto-apply here next time.`,
+          action: "account_required",
+          account_required: true,
+          board: board.id,
+        },
+        { status: 422 }
+      );
+    }
+  }
+
   // Get active resume version + generate a 1-hour signed URL for Skyvern to download
   const { data: doc } = await supabaseAdmin
     .from("resume_documents")
@@ -194,7 +223,6 @@ export async function POST(
   // standard run_task. Profiles only apply to account-based boards — guest/manual
   // ATS hosts have no stable login, so we don't key a profile for them.
   const workflowId = getApplyWorkflowId();
-  const board = boardForUrl(applicationUrl);
   const useProfileBoard = workflowId && board.id !== "manual";
 
   try {
