@@ -71,7 +71,7 @@ export default async function EnterpriseLoginPage({
           <div className="mt-6">
             <SignIn
               appearance={enterpriseAppearance}
-              forceRedirectUrl="/launch"
+              forceRedirectUrl="/enterprise"
               signUpUrl="/enterprise-login"
               routing="path"
               path="/enterprise-login"
