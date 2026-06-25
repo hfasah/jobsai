@@ -3,7 +3,7 @@
 import { useEffect, useState, use } from "react";
 import Link from "next/link";
 import { useClerk } from "@clerk/nextjs";
-import { ArrowLeft, Mail, Calendar, Briefcase, FileText, Bell, Loader2, ShieldCheck, LogIn, Ban, RotateCcw } from "lucide-react";
+import { ArrowLeft, Mail, Calendar, Briefcase, FileText, Bell, Loader2, ShieldCheck, LogIn, Ban, RotateCcw, Building2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const PLAN_BADGE: Record<string, string> = {
@@ -24,6 +24,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const [changing, setChanging] = useState(false);
   const [opening, setOpening] = useState(false);
   const [banBusy, setBanBusy] = useState(false);
+  const [membershipBusy, setMembershipBusy] = useState(false);
   // Credits & refunds
   const [creditAmount, setCreditAmount] = useState("");
   const [creditReason, setCreditReason] = useState("");
@@ -103,6 +104,26 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
     }
   };
 
+  // Remove a stray enterprise membership that's locking this job seeker out of the
+  // consumer job board (the "This is an Enterprise login" gate).
+  const removeMembership = async () => {
+    if (!confirm("Remove this user's enterprise membership? This restores their job-seeker (consumer) access. Only do this if the membership is a leftover/mistake.")) return;
+    setMembershipBusy(true); setActionMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remove_enterprise_membership" }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setActionMsg(json.error ?? "Action failed."); return; }
+      setActionMsg("✓ Enterprise membership removed — job-seeker access restored. They should sign out and back in.");
+      const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
+      setData(fresh);
+    } finally {
+      setMembershipBusy(false);
+    }
+  };
+
   if (loading) return <div className="flex h-64 items-center justify-center text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin mr-2" /> Loading…</div>;
   if (!data) return <div className="text-destructive">User not found.</div>;
 
@@ -115,6 +136,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const applyProfile = data.applyProfile as Record<string, unknown> | null;
   const tokens = data.tokens as { balance: number; plan: string } | null;
   const ledger = (data.ledger as Record<string, unknown>[]) ?? [];
+  const enterpriseMembers = (data.enterpriseMembers as { id: string; role: string; org_id: string; created_at: string; enterprise_orgs: { name: string; slug: string } | null }[]) ?? [];
   const currentPlan = (billing?.plan as string) ?? "free";
   const banned = Boolean(user.banned);
 
@@ -170,6 +192,34 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
           </div>
         </div>
       </div>
+
+      {/* Enterprise membership — a row here BLOCKS the consumer job board for this
+          user (getUserRole → "enterprise" → "This is an Enterprise login" gate).
+          Surfaced so a stray membership isn't invisible; removable in one click. */}
+      {enterpriseMembers.length > 0 && (
+        <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5">
+          <h2 className="mb-1 flex items-center gap-2 font-semibold text-amber-600 dark:text-amber-400">
+            <AlertTriangle className="h-4 w-4" /> Enterprise membership — blocks the job board
+          </h2>
+          <p className="mb-3 text-xs text-muted-foreground">
+            This user counts as an <strong className="text-foreground">Enterprise</strong> account, so the consumer job board shows them the &ldquo;This is an Enterprise login&rdquo; gate and locks them out of job search. If this is a leftover/mistake, remove it to restore job-seeker access.
+          </p>
+          <ul className="mb-3 space-y-1.5">
+            {enterpriseMembers.map((m) => (
+              <li key={m.id} className="flex items-center gap-2 text-sm">
+                <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                <span className="font-medium">{m.enterprise_orgs?.name ?? "(org deleted)"}</span>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] capitalize text-muted-foreground">{m.role}</span>
+                <span className="text-xs text-muted-foreground">· since {new Date(m.created_at).toLocaleDateString()}</span>
+              </li>
+            ))}
+          </ul>
+          <button onClick={removeMembership} disabled={membershipBusy}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-500/40 px-3 text-sm font-medium text-amber-600 transition-colors hover:bg-amber-500/10 disabled:opacity-60 dark:text-amber-400">
+            {membershipBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Remove enterprise membership
+          </button>
+        </div>
+      )}
 
       {/* Billing */}
       {billing && (
