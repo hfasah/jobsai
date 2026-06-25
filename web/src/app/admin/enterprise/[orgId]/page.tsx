@@ -52,6 +52,8 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
   const [saved, setSaved] = useState(false);
   const [contacts, setContacts] = useState({ contact_name: "", contact_email: "", contact_phone: "", contact2_name: "", contact2_email: "", contact2_phone: "" });
   const [contactsSaved, setContactsSaved] = useState(false);
+  const [inviting, setInviting] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/enterprise/${orgId}`).then((r) => r.json()).then((j) => {
@@ -173,10 +175,39 @@ export default function AdminOrgDetail({ params }: { params: Promise<{ orgId: st
                 <input value={contacts.contact2_phone} onChange={(e) => setContacts((c) => ({ ...c, contact2_phone: e.target.value }))} placeholder="Phone" className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
               </div>
             </div>
-            <button onClick={async () => { await update(contacts); setContactsSaved(true); setTimeout(() => setContactsSaved(false), 2000); }}
-              className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
-              {contactsSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} {contactsSaved ? "Saved" : "Save contacts"}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={async () => { await update(contacts); setContactsSaved(true); setTimeout(() => setContactsSaved(false), 2000); }}
+                className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
+                {contactsSaved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />} {contactsSaved ? "Saved" : "Save contacts"}
+              </button>
+              {/* Provision the owner's login for the existing workspace (no data
+                  recreation): saves the primary email, then sends the invite. */}
+              <button
+                disabled={inviting || !contacts.contact_email.trim()}
+                onClick={async () => {
+                  setInviting(true); setInviteMsg(null);
+                  try {
+                    await update(contacts); // persist the email first
+                    const res = await fetch(`/api/admin/enterprise/${orgId}/owner`, {
+                      method: "POST", headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ email: contacts.contact_email.trim() }),
+                    });
+                    const j = await res.json().catch(() => ({}));
+                    setInviteMsg(res.ok
+                      ? `Login invite sent to ${contacts.contact_email.trim()}.`
+                      : (j.error ?? "Couldn't send the invite."));
+                  } catch {
+                    setInviteMsg("Couldn't send the invite.");
+                  } finally { setInviting(false); }
+                }}
+                className="inline-flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 disabled:opacity-50"
+              >
+                {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                {inviting ? "Sending…" : "Send login invite to owner"}
+              </button>
+            </div>
+            {inviteMsg && <p className="text-xs text-muted-foreground">{inviteMsg}</p>}
+            <p className="text-[11px] text-muted-foreground">Assign / change the owner email above, then send the invite — they sign in (set a password on first use) and join <strong>this</strong> workspace. No account is recreated.</p>
           </div>
         </div>
 
