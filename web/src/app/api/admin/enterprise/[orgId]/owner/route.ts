@@ -140,11 +140,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
         <!-- Founder signoff -->
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 0;">
           <tr>
-            <td width="56" height="56" align="center" valign="middle" style="width:56px;height:56px;background:#4f46e5;border-radius:28px;color:#ffffff;font-size:20px;font-weight:800;text-align:center;line-height:56px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">HA</td>
+            <td width="58" height="58" align="center" valign="middle" style="width:58px;height:58px;background:#4f46e5;border-radius:29px;color:#ffffff;font-size:21px;font-weight:800;text-align:center;line-height:58px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><img src="${APP_URL}/team/hippolyte-asah.jpg" width="58" height="58" alt="HA" style="width:58px;height:58px;border-radius:29px;display:block;object-fit:cover;border:1px solid rgba(255,255,255,0.25);" /></td>
             <td style="width:14px;">&nbsp;</td>
             <td style="vertical-align:middle;">
               <p style="margin:0;font-size:15px;font-weight:800;color:#0f172a;">Hippolyte Asah</p>
-              <p style="margin:2px 0 0;font-size:13px;color:#64748b;">Founder &amp; CEO, JobsAI</p>
+              <p style="margin:2px 0 0;font-size:13px;color:#64748b;">Founder &amp; CEO, JobsAI Enterprise</p>
             </td>
           </tr>
         </table>
