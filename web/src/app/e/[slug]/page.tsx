@@ -1,8 +1,8 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Building2 } from "lucide-react";
-import { getMyMembership } from "@/lib/enterprise";
+import { getMyMembership, claimPendingInvites } from "@/lib/enterprise";
 import { supabaseAdmin } from "@/lib/supabase";
 
 // Custom per-enterprise home page: /e/{company-slug}
@@ -13,6 +13,12 @@ export default async function EnterpriseHome({ params }: { params: Promise<{ slu
   const { slug } = await params;
   const { userId } = await auth();
   if (userId) {
+    // First visit after a fresh sign-up: auto-join the org this email was
+    // invited to, so the link lands them in the workspace.
+    try {
+      const user = await (await clerkClient()).users.getUser(userId);
+      await claimPendingInvites(userId, user.emailAddresses.map((e) => e.emailAddress));
+    } catch { /* best-effort */ }
     const membership = await getMyMembership(userId);
     if (membership) redirect("/enterprise/dashboard");
   }
