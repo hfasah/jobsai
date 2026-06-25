@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdmin } from "@/lib/admin";
 import { uniqueSlug, inviteToken } from "@/lib/enterprise";
@@ -132,6 +133,22 @@ export async function POST(req: NextRequest) {
     const { data: inv } = await supabaseAdmin.from("enterprise_invitations")
       .insert({ org_id: org.id, email: ownerEmail, role: "owner", invited_by: admin.userId, token: inviteToken(slug) })
       .select("token").single();
+    // Also send a Clerk invitation so the contact's email is RECOGNIZED and they
+    // get the native "create account / set your password" flow on first login —
+    // instead of "couldn't find your account" on the sign-in form. Best-effort:
+    // skipped if they already have an account or a pending invite.
+    try {
+      const client = await clerkClient();
+      await client.invitations.createInvitation({
+        emailAddress: ownerEmail,
+        redirectUrl: `${APP_URL}/e/${slug}`,
+        publicMetadata: { enterprise_org_id: org.id, role: "owner" },
+        ignoreExisting: true,
+      });
+    } catch (e) {
+      console.warn("[admin/enterprise] Clerk invitation skipped:", e instanceof Error ? e.message : e);
+    }
+
     if (inv) {
       inviteUrl = `${APP_URL}/enterprise/invite/${inv.token}`;
       await resend.emails.send({
