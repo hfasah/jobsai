@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg, getMyMembership, inviteToken } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
+import { teamInviteEmail } from "@/lib/enterprise-email";
 import { audit } from "@/lib/enterprise-audit";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
@@ -82,20 +83,19 @@ export async function POST(req: NextRequest) {
 
   const acceptUrl = `${APP_URL}/enterprise/invite/${invitation.token}`;
 
+  // Personalize with the inviter's name when we can resolve it.
+  let inviterName: string | null = null;
+  try {
+    const inviter = await (await clerkClient()).users.getUser(userId);
+    inviterName = `${inviter.firstName ?? ""} ${inviter.lastName ?? ""}`.trim() || null;
+  } catch { /* fall back to the unnamed copy */ }
+
+  const { subject, html } = teamInviteEmail({ orgName: org.name, role, inviterName, acceptUrl, appUrl: APP_URL });
   await resend.emails.send({
     from: `${org.name} Recruiting <support@jobsai.work>`,
     to: email,
-    subject: `You've been invited to join ${org.name} on JobsAI Enterprise`,
-    html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">
-      <h2 style="color:#2563eb">Team invitation</h2>
-      <p>You've been invited to join <strong>${org.name}</strong> as a ${role} on JobsAI Enterprise.</p>
-      <div style="margin:24px 0">
-        <a href="${acceptUrl}" style="background:#2563eb;color:#fff;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:600">
-          Accept invitation →
-        </a>
-      </div>
-      <p style="color:#888;font-size:13px">This link expires in 7 days. If you didn't expect this, ignore this email.</p>
-    </div>`,
+    subject,
+    html,
   }).catch(console.error);
 
   await audit({ org_id: org.id, user_id: userId, action: "member.invited", resource_type: "invitation", resource_id: invitation.id, metadata: { email, role } });
