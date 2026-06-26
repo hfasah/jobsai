@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const CLIENT_ID = process.env.MICROSOFT_CLIENT_ID;
 const CLIENT_SECRET = process.env.MICROSOFT_CLIENT_SECRET;
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 export const MICROSOFT_REDIRECT = `${APP_URL}/api/enterprise/microsoft/callback`;
 
 const SCOPES = [
