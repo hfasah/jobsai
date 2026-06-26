@@ -512,6 +512,45 @@ export const GUIDE: GuideCategory[] = [
           },
         ],
       },
+      {
+        slug: "candidate-intake",
+        title: "Candidate intake & your email domain",
+        icon: "📥",
+        summary: "Receive resumes at your own address, and send & reply to candidates from your domain.",
+        sections: [
+          {
+            heading: "Your candidate intake address",
+            body: [
+              "Every workspace gets a dedicated intake address at talent.jobsai.work — for example, acme@talent.jobsai.work. Any resume emailed there is parsed automatically and dropped into your Candidate Inbox, under the General Applications pool.",
+            ],
+            steps: [
+              "Open Intake in the left navigation to see your address.",
+              "Customise the handle (the part before @talent.jobsai.work) and Save — e.g. recrutamento@talent.jobsai.work.",
+              "Use Copy to grab the address, then publish or share it.",
+            ],
+          },
+          {
+            heading: "Use your own domain to receive (forwarding)",
+            body: [
+              "Already publish careers@ or hr@yourcompany.com? Keep using it — just forward to your intake address so every resume lands in JobsAI automatically. Candidates never see the talent.jobsai.work address.",
+            ],
+            steps: [
+              "In Google Workspace or Microsoft 365, open the settings for your hiring mailbox (e.g. careers@yourcompany.com).",
+              "Add a forwarding rule (or alias) that forwards mail to your <handle>@talent.jobsai.work address.",
+              "Recruiters can also just forward any candidate email there — the attached resume is parsed automatically.",
+            ],
+            tip: "Forwarding keeps your public-facing address while JobsAI does the parsing. A direct inbound custom domain (careers@yourcompany.com landing in JobsAI without forwarding) is available on white-label plans — ask your admin or contact us.",
+          },
+          {
+            heading: "Send & reply from your own domain",
+            steps: [
+              "Connect your recruiter mailbox under Settings → Integrations (Gmail/Google or Microsoft 365). Candidate emails, outreach, and replies then send and thread under your own address — see Connect email & calendar.",
+              "Prefer a branded company sender without connecting a mailbox? On White Label / custom-domain plans, set your From address under Settings → Branding (white-label email) so automated emails go out as your brand and drop the “powered by” footer.",
+            ],
+            tip: "White-label email branding and custom domains are part of the White Label feature (or the White Label Plus add-on). See Client portals & white label.",
+          },
+        ],
+      },
     ],
   },
   {
