@@ -54,19 +54,6 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    heading: "Google user data (Gmail & Google Calendar)",
-    body: [
-      "When you connect a Google account (for example, a recruiter linking Gmail and Google Calendar inside JobsAI), we request access to Gmail (read and send) and Google Calendar (events). We use this access only to provide features you initiate: reading and displaying your candidate email threads in the Inbox, sending candidate and outreach emails on your behalf from your own address, and creating or updating interview events on your calendar. We request the minimum scopes needed for these features.",
-      "JobsAI's use and transfer to any other app of information received from Google APIs will adhere to the Google API Services User Data Policy, including the Limited Use requirements.",
-    ],
-    bullets: [
-      "We do not use Google user data for advertising.",
-      "We do not use Google user data — and we do not allow humans or third parties to use it — to develop, improve, or train generalized or non-personalized AI/ML models.",
-      "We do not sell Google user data, and we share it only as needed to provide the feature you requested (for example, transmitting an email you composed through Google's API).",
-      "You can revoke access at any time from Settings → Integrations, or from your Google Account's third-party access settings — this stops any further access, and you can also delete the connected data by disconnecting.",
-    ],
-  },
-  {
     heading: "Automation & Auto-Apply",
     body: [
       "Auto-Apply fills and submits application forms on your behalf, following your saved preferences and the materials you provide. It carries out instructions you configure rather than making independent decisions about you with legal effect. You can keep a human in the loop at all times using the Approval Queue, which holds each application for your review before anything is sent.",
@@ -81,7 +68,7 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    heading: "Connected Google account (Gmail & Calendar)",
+    heading: "Google user data — connected Google account (Gmail & Calendar)",
     body: [
       "If you choose to connect your Google account, we request only the permissions needed for the feature: sending email on your behalf (the gmail.send scope) so you can reply to recruiters from your own address, and creating or updating calendar events (the calendar.events scope) so we can add interviews to your calendar. We do NOT request permission to read, list, or download your existing Gmail messages. Incoming recruiter emails reach your in-app inbox through email forwarding, not through the Gmail API.",
       "How we use it: we use these permissions solely to (a) send reply emails that you explicitly compose and send from within the app, and (b) create or update interview events on your calendar at your request. We do not read, scan, or store your existing emails, and we do not access unrelated calendar data.",
