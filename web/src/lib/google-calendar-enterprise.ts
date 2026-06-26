@@ -5,11 +5,13 @@ const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 export const GOOGLE_ENTERPRISE_REDIRECT = `${APP_URL}/api/enterprise/google/callback`;
 
-// Google Workspace scopes for recruiters: calendar + Gmail send + read
+// Google Workspace scopes for recruiters: calendar + Gmail send.
+// NOTE: gmail.readonly (restricted) is intentionally NOT requested — requesting
+// it forces the heavy CASA security assessment in OAuth verification. Without it
+// we can send + schedule but cannot read mailbox threads (the Inbox reply view).
 const SCOPES = [
   "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/gmail.send",
-  "https://www.googleapis.com/auth/gmail.readonly",
   "openid",
   "email",
 ];
