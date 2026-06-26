@@ -516,38 +516,56 @@ export const GUIDE: GuideCategory[] = [
         slug: "candidate-intake",
         title: "Candidate intake & your email domain",
         icon: "📥",
-        summary: "Receive resumes at your own address, and send & reply to candidates from your domain.",
+        summary: "Run candidate email on your own domain — receive resumes, send messages, and handle replies from the address candidates know.",
         sections: [
           {
-            heading: "Your candidate intake address",
             body: [
-              "Every workspace gets a dedicated intake address at talent.jobsai.work — for example, acme@talent.jobsai.work. Any resume emailed there is parsed automatically and dropped into your Candidate Inbox, under the General Applications pool.",
-            ],
-            steps: [
-              "Open Intake in the left navigation to see your address.",
-              "Customise the handle (the part before @talent.jobsai.work) and Save — e.g. recrutamento@talent.jobsai.work.",
-              "Use Copy to grab the address, then publish or share it.",
+              "Email is the backbone of intake. JobsAI lets you receive resumes, send candidate communications, and manage replies so it all looks like it comes from your company — not a generic platform. There are three flows to set up: receiving, sending, and replying.",
             ],
           },
           {
-            heading: "Use your own domain to receive (forwarding)",
+            heading: "1) Receiving — your intake address",
             body: [
-              "Already publish careers@ or hr@yourcompany.com? Keep using it — just forward to your intake address so every resume lands in JobsAI automatically. Candidates never see the talent.jobsai.work address.",
+              "Every workspace gets a dedicated intake address at talent.jobsai.work — e.g. acme@talent.jobsai.work. Any resume emailed there is parsed automatically and dropped into your Candidate Inbox, under the General Applications pool.",
             ],
             steps: [
-              "In Google Workspace or Microsoft 365, open the settings for your hiring mailbox (e.g. careers@yourcompany.com).",
-              "Add a forwarding rule (or alias) that forwards mail to your <handle>@talent.jobsai.work address.",
-              "Recruiters can also just forward any candidate email there — the attached resume is parsed automatically.",
+              "Open Intake in the left navigation to see your address; customise the handle and Save (e.g. recrutamento@talent.jobsai.work), then Copy it.",
+              "Keep your own public address: in Google Workspace or Microsoft 365, add a forwarding rule (or alias) on careers@/hr@yourcompany.com that forwards to your <handle>@talent.jobsai.work address — every resume then lands in JobsAI while candidates only ever see your address.",
+              "Ad-hoc: recruiters can forward any candidate email to the intake address and the attached resume is parsed automatically.",
             ],
-            tip: "Forwarding keeps your public-facing address while JobsAI does the parsing. A direct inbound custom domain (careers@yourcompany.com landing in JobsAI without forwarding) is available on white-label plans — ask your admin or contact us.",
+            tip: "Forwarding is the self-serve way to use your own inbound address. A fully direct custom inbound domain (careers@yourcompany.com landing in JobsAI with no forwarding) is set up on white-label plans — ask your admin or contact us.",
           },
           {
-            heading: "Send & reply from your own domain",
-            steps: [
-              "Connect your recruiter mailbox under Settings → Integrations (Gmail/Google or Microsoft 365). Candidate emails, outreach, and replies then send and thread under your own address — see Connect email & calendar.",
-              "Prefer a branded company sender without connecting a mailbox? On White Label / custom-domain plans, set your From address under Settings → Branding (white-label email) so automated emails go out as your brand and drop the “powered by” footer.",
+            heading: "2) Sending — from your company, not “no-reply”",
+            body: [
+              "Automated candidate emails (acknowledgements, status updates, interview invites, offers) and your outreach go out branded as your company. By default they send from JobsAI's secure sending domain with your company name as the sender (e.g. “Acme Recruiting”). You have two ways to make them truly yours:",
             ],
-            tip: "White-label email branding and custom domains are part of the White Label feature (or the White Label Plus add-on). See Client portals & white label.",
+            steps: [
+              "Connect your mailbox — Settings → Integrations → Gmail/Google or Microsoft 365. Outreach and candidate emails then send from your actual mailbox and appear in your Sent folder (see Connect email & calendar). This is the closest to “send as yourself”.",
+              "White-label sender — on White Label / custom-domain plans, set your From name and address under Settings → Branding so automated emails go out on your own domain and the “powered by JobsAI” footer is removed.",
+            ],
+            tip: "No mailbox connected and no white label? Email still sends with your company name as the sender — never a generic platform address.",
+          },
+          {
+            heading: "3) Replying — keep the conversation in one place",
+            body: [
+              "When a candidate replies, you want it to reach your team and stay attached to the candidate.",
+            ],
+            steps: [
+              "With a connected mailbox, replies come straight back to your own inbox — reply from there, or from JobsAI, and the thread stays under your address.",
+              "For branded/automated sends, set a real Reply-To (your team address) so replies reach a monitored inbox rather than a no-reply.",
+              "To capture an off-platform reply (and its attachments) back into the Candidate Inbox, forward it to your <handle>@talent.jobsai.work address — it's parsed and filed automatically.",
+            ],
+            tip: "Reading replies threaded inside JobsAI requires Gmail read access (a Google-restricted permission). If your workspace connects with send-only access, replies still arrive in your own mailbox where you read and respond — the in-app threaded view is the only part that needs the read permission.",
+          },
+          {
+            heading: "Recommended setup",
+            steps: [
+              "Receive: forward careers@yourcompany.com → your talent.jobsai.work intake address.",
+              "Send: connect your Gmail/Microsoft mailbox (or enable white-label sending on a supported plan).",
+              "Reply: confirm Reply-To points at a monitored mailbox; forward any stray candidate emails to intake to keep everything filed.",
+            ],
+            tip: "This gives candidates a single, on-brand address for the whole conversation while JobsAI parses, files, and tracks everything behind the scenes. See also Client portals & white label and Connect email & calendar.",
           },
         ],
       },
