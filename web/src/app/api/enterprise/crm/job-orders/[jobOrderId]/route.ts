@@ -28,12 +28,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     if (job) linkedJob = { ...job, candidate_count: count ?? 0 };
   }
 
-  const [activities, tasks] = await Promise.all([
+  const [activities, tasks, submissions] = await Promise.all([
     supabaseAdmin.from("crm_activities").select("*").eq("org_id", ctx.org.id).eq("job_order_id", jobOrderId).order("occurred_at", { ascending: false }).limit(100),
     supabaseAdmin.from("crm_tasks").select("*").eq("org_id", ctx.org.id).eq("job_order_id", jobOrderId).order("due_at", { ascending: true, nullsFirst: false }),
+    supabaseAdmin.from("crm_submissions").select("*").eq("org_id", ctx.org.id).eq("job_order_id", jobOrderId).order("submitted_at", { ascending: false }),
   ]);
 
-  return NextResponse.json({ data: jobOrder, linkedJob, activities: activities.data ?? [], tasks: tasks.data ?? [] });
+  return NextResponse.json({ data: jobOrder, linkedJob, activities: activities.data ?? [], tasks: tasks.data ?? [], submissions: submissions.data ?? [] });
 }
 
 const EDITABLE = [

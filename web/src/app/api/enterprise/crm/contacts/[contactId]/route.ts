@@ -19,12 +19,13 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!contact) return NextResponse.json({ error: "Contact not found." }, { status: 404 });
 
-  const [activities, tasks] = await Promise.all([
+  const [activities, tasks, submissions] = await Promise.all([
     supabaseAdmin.from("crm_activities").select("*").eq("org_id", ctx.org.id).eq("contact_id", contactId).order("occurred_at", { ascending: false }).limit(100),
     supabaseAdmin.from("crm_tasks").select("*").eq("org_id", ctx.org.id).eq("contact_id", contactId).order("due_at", { ascending: true, nullsFirst: false }),
+    supabaseAdmin.from("crm_submissions").select("*, job_order:crm_job_orders(id, title)").eq("org_id", ctx.org.id).eq("contact_id", contactId).order("submitted_at", { ascending: false }),
   ]);
 
-  return NextResponse.json({ data: contact, activities: activities.data ?? [], tasks: tasks.data ?? [] });
+  return NextResponse.json({ data: contact, activities: activities.data ?? [], tasks: tasks.data ?? [], submissions: submissions.data ?? [] });
 }
 
 const EDITABLE = [

@@ -6,19 +6,19 @@ import {
   Loader2, ArrowLeft, Pencil, Globe, MapPin, Users, Plus, ExternalLink, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask, type CrmJobOrder, type CrmDeal } from "@/lib/crm-shared";
+import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask, type CrmJobOrder, type CrmDeal, type CrmSubmission } from "@/lib/crm-shared";
 import { CompanyForm } from "@/components/enterprise/crm/company-form";
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { JobOrderForm } from "@/components/enterprise/crm/job-order-form";
 import { DealForm } from "@/components/enterprise/crm/deal-form";
+import { SubmissionForm } from "@/components/enterprise/crm/submission-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
 import { CrmAiModal } from "@/components/enterprise/crm/crm-ai-modal";
-import { fmtDate, fmtMoney, COMPANY_STATUS_STYLES, RELATIONSHIP_STYLES, JOB_ORDER_STATUS_STYLES, DEAL_STAGE_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
+import { fmtDate, fmtMoney, COMPANY_STATUS_STYLES, RELATIONSHIP_STYLES, JOB_ORDER_STATUS_STYLES, DEAL_STAGE_STYLES, SUBMISSION_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
-interface Payload { data: CrmCompany; contacts: CrmContact[]; activities: CrmActivity[]; tasks: CrmTask[]; jobOrders: CrmJobOrder[]; deals: CrmDeal[] }
-type Tab = "overview" | "contacts" | "joborders" | "deals" | "activity" | "tasks";
-
-const SOON: { label: string }[] = [{ label: "Submitted Candidates" }];
+type SubmissionRow = CrmSubmission & { job_order?: { id: string; title: string } | null };
+interface Payload { data: CrmCompany; contacts: CrmContact[]; activities: CrmActivity[]; tasks: CrmTask[]; jobOrders: CrmJobOrder[]; deals: CrmDeal[]; submissions: SubmissionRow[] }
+type Tab = "overview" | "contacts" | "joborders" | "deals" | "submissions" | "activity" | "tasks";
 
 export default function CompanyDetail({ params }: { params: Promise<{ companyId: string }> }) {
   const { companyId } = use(params);
@@ -29,6 +29,7 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
   const [contactOpen, setContactOpen] = useState(false);
   const [jobOrderOpen, setJobOrderOpen] = useState(false);
   const [dealOpen, setDealOpen] = useState(false);
+  const [submissionOpen, setSubmissionOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
 
   const load = useCallback(() => {
@@ -72,16 +73,11 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1">
-            {([["overview", "Overview"], ["contacts", `Contacts (${p.contacts.length})`], ["joborders", `Job Orders (${p.jobOrders.length})`], ["deals", `Deals (${p.deals.length})`], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
+            {([["overview", "Overview"], ["contacts", `Contacts (${p.contacts.length})`], ["joborders", `Job Orders (${p.jobOrders.length})`], ["deals", `Deals (${p.deals.length})`], ["submissions", `Submitted (${p.submissions.length})`], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
               <button key={k} onClick={() => setTab(k)}
                 className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", tab === k ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
                 {lbl}
               </button>
-            ))}
-            {SOON.map((s) => (
-              <span key={s.label} className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground/50" title="Coming soon">
-                {s.label}<span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">Soon</span>
-              </span>
             ))}
           </div>
         </div>
@@ -204,6 +200,40 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
           </div>
         )}
 
+        {tab === "submissions" && (
+          <div>
+            <div className="mb-3 flex justify-end">
+              <button onClick={() => setSubmissionOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                <Plus className="h-3.5 w-3.5" /> Submit candidate
+              </button>
+            </div>
+            {p.submissions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-14 text-center">
+                <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No candidates submitted to this client yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-border">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border bg-muted/30 text-left text-xs text-muted-foreground">
+                    <tr><th className="px-4 py-3 font-medium">Candidate</th><th className="hidden px-4 py-3 font-medium sm:table-cell">Job order</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {p.submissions.map((s) => (
+                      <tr key={s.id} className="hover:bg-muted/20">
+                        <td className="px-4 py-3 font-medium">{s.candidate_name}{s.candidate_email && <span className="ml-2 text-xs text-muted-foreground">{s.candidate_email}</span>}</td>
+                        <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{s.job_order ? <Link href={`/enterprise/crm/job-orders/${s.job_order.id}`} className="hover:text-primary">{s.job_order.title}</Link> : "—"}</td>
+                        <td className="px-4 py-3"><StatusBadge value={s.status} styles={SUBMISSION_STATUS_STYLES} /></td>
+                        <td className="px-4 py-3 text-muted-foreground">{fmtDate(s.submitted_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {tab === "activity" && <ActivityTimeline scope={{ company_id: companyId }} activities={p.activities} onChanged={load} />}
         {tab === "tasks" && <TasksPanel scope={{ company_id: companyId }} tasks={p.tasks} onChanged={load} />}
       </div>
@@ -212,6 +242,7 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
       <ContactForm open={contactOpen} onClose={() => setContactOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
       <JobOrderForm open={jobOrderOpen} onClose={() => setJobOrderOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
       <DealForm open={dealOpen} onClose={() => setDealOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
+      <SubmissionForm open={submissionOpen} onClose={() => setSubmissionOpen(false)} companyId={c.id} jobOrders={p.jobOrders.map((j) => ({ id: j.id, title: j.title }))} onSaved={() => load()} />
       <CrmAiModal open={aiOpen} onClose={() => setAiOpen(false)} companyId={c.id} companyName={c.name} />
     </main>
   );

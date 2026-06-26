@@ -4,18 +4,19 @@ import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2, ArrowLeft, Pencil, Building2, ExternalLink, Briefcase, Users, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor, type CrmJobOrder, type CrmActivity, type CrmTask } from "@/lib/crm-shared";
+import { labelFor, type CrmJobOrder, type CrmActivity, type CrmTask, type CrmSubmission } from "@/lib/crm-shared";
 import { JobOrderForm } from "@/components/enterprise/crm/job-order-form";
+import { SubmissionForm } from "@/components/enterprise/crm/submission-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
-import { fmtDate, fmtMoney, JOB_ORDER_STATUS_STYLES, PRIORITY_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
+import { fmtDate, fmtMoney, JOB_ORDER_STATUS_STYLES, PRIORITY_STYLES, SUBMISSION_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
 type Row = CrmJobOrder & {
   company?: { id: string; name: string } | null;
   contact?: { id: string; first_name: string; last_name: string | null } | null;
   deal?: { id: string; name: string; stage: string } | null;
 };
-interface Payload { data: Row; linkedJob: { id: string; title: string; status: string; candidate_count: number } | null; activities: CrmActivity[]; tasks: CrmTask[] }
-type Tab = "overview" | "activity" | "tasks";
+interface Payload { data: Row; linkedJob: { id: string; title: string; status: string; candidate_count: number } | null; activities: CrmActivity[]; tasks: CrmTask[]; submissions: CrmSubmission[] }
+type Tab = "overview" | "candidates" | "activity" | "tasks";
 
 export default function JobOrderDetail({ params }: { params: Promise<{ jobOrderId: string }> }) {
   const { jobOrderId } = use(params);
@@ -24,6 +25,7 @@ export default function JobOrderDetail({ params }: { params: Promise<{ jobOrderI
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [editOpen, setEditOpen] = useState(false);
+  const [submissionOpen, setSubmissionOpen] = useState(false);
   const [linking, setLinking] = useState(false);
 
   const load = useCallback(() => {
@@ -85,7 +87,7 @@ export default function JobOrderDetail({ params }: { params: Promise<{ jobOrderI
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1">
-            {([["overview", "Overview"], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
+            {([["overview", "Overview"], ["candidates", `Candidates (${p.submissions.length})`], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
               <button key={k} onClick={() => setTab(k)}
                 className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", tab === k ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
                 {lbl}
@@ -132,11 +134,45 @@ export default function JobOrderDetail({ params }: { params: Promise<{ jobOrderI
             </div>
           </div>
         )}
+        {tab === "candidates" && (
+          <div>
+            <div className="mb-3 flex justify-end">
+              <button onClick={() => setSubmissionOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                <Plus className="h-3.5 w-3.5" /> Submit candidate
+              </button>
+            </div>
+            {p.submissions.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-14 text-center">
+                <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+                <p className="text-sm text-muted-foreground">No candidates submitted for this order yet.</p>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-2xl border border-border">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border bg-muted/30 text-left text-xs text-muted-foreground">
+                    <tr><th className="px-4 py-3 font-medium">Candidate</th><th className="hidden px-4 py-3 font-medium sm:table-cell">Email</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {p.submissions.map((s) => (
+                      <tr key={s.id} className="hover:bg-muted/20">
+                        <td className="px-4 py-3 font-medium">{s.candidate_name}</td>
+                        <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{s.candidate_email ?? "—"}</td>
+                        <td className="px-4 py-3"><StatusBadge value={s.status} styles={SUBMISSION_STATUS_STYLES} /></td>
+                        <td className="px-4 py-3 text-muted-foreground">{fmtDate(s.submitted_at)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
         {tab === "activity" && <ActivityTimeline scope={{ company_id: o.company_id, job_order_id: jobOrderId }} activities={p.activities} onChanged={load} />}
         {tab === "tasks" && <TasksPanel scope={{ company_id: o.company_id, job_order_id: jobOrderId }} tasks={p.tasks} onChanged={load} />}
       </div>
 
       <JobOrderForm open={editOpen} onClose={() => setEditOpen(false)} jobOrder={o} companies={companies} onSaved={() => load()} />
+      <SubmissionForm open={submissionOpen} onClose={() => setSubmissionOpen(false)} companyId={o.company_id} jobOrders={[{ id: o.id, title: o.title }]} defaultJobOrderId={o.id} defaultContactId={o.contact_id ?? undefined} onSaved={() => load()} />
     </main>
   );
 }
