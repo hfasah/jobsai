@@ -47,6 +47,7 @@ export const JOB_BOARDS: JobBoard[] = [
   // Direct ATS (guest apply, no account) — the extension autofills in-session.
   { id: "greenhouse",  label: "Greenhouse",            applyMode: "assisted", adapter: true,  hosts: ["greenhouse.io"],                                 note: "Autofill, you submit" },
   { id: "lever",       label: "Lever",                 applyMode: "assisted", adapter: true,  hosts: ["lever.co"],                                      note: "Autofill, you submit" },
+  { id: "catho",       label: "Catho (Brazil)",        applyMode: "assisted", adapter: true,  hosts: ["catho.com.br"],                                  note: "Autofill (PT-BR), you review & submit" },
   // Account-walled ATS — must create an account to apply. Gated in agent-apply
   // unless the user has saved a login / has a persisted browser profile.
   { id: "workday",        label: "Workday",            applyMode: "assisted", accountRequired: true, hosts: ["myworkdayjobs.com", "workday.com"],                       note: "Account required" },

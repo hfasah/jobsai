@@ -22,6 +22,7 @@
     linkedin: ["linkedin.com"], indeed: ["indeed.com"], ziprecruiter: ["ziprecruiter.com"],
     dice: ["dice.com"], workable: ["workable.com"], glassdoor: ["glassdoor.com"], monster: ["monster.com"],
     workday: ["myworkdayjobs.com", "workday.com"], greenhouse: ["greenhouse.io"], lever: ["lever.co"],
+    catho: ["catho.com.br"],
   };
   function boardFromHost(host) {
     host = (host || location.hostname).toLowerCase();
@@ -36,18 +37,21 @@
   function valueForLabel(label, p) {
     const l = (label || "").toLowerCase();
     const has = (...w) => w.some((x) => l.includes(x));
-    if (has("first name")) return p.first_name;
-    if (has("last name", "surname", "family name")) return p.last_name;
-    if (has("full name") || (has("name") && !has("user", "company", "file", "first", "last"))) return p.full_name;
-    if (has("email")) return p.email;
-    if (has("mobile", "phone")) return p.phone;
-    if (has("postal", "zip")) return p.postal_code;
-    if (has("city", "location")) return p.city || p.location;
-    if (has("country")) return p.country;
+    // Bilingual (EN + PT-BR) so Portuguese boards like Catho autofill too. Check
+    // last/full name before first name ("sobrenome" contains "nome").
+    if (has("last name", "surname", "family name", "sobrenome")) return p.last_name;
+    if (has("full name", "nome completo")) return p.full_name;
+    if (has("first name") || (has("nome") && !has("usuário", "usuario", "empresa", "arquivo"))) return p.first_name;
+    if (has("email", "e-mail", "mail")) return p.email;
+    if (has("mobile", "phone", "telefone", "celular", "fone")) return p.phone;
+    if (has("postal", "zip", "cep")) return p.postal_code;
+    if (has("city", "location", "cidade", "localidade", "munic")) return p.city || p.location;
+    if (has("country", "país", "pais")) return p.country;
     if (has("linkedin")) return p.linkedin_url;
     if (has("github")) return p.github_url;
-    if (has("portfolio", "website")) return p.portfolio_url || p.website_url;
-    if (has("years") && has("experience")) return p.years_experience != null ? String(p.years_experience) : null;
+    if (has("portfolio", "website", "portfólio")) return p.portfolio_url || p.website_url;
+    if (has("years", "anos") && has("experience", "experiência", "experiencia")) return p.years_experience != null ? String(p.years_experience) : null;
+    if (has("name") && !has("user", "company", "file", "first", "last")) return p.full_name;
     return null;
   }
 
@@ -80,7 +84,7 @@
       if (el.value && el.options[el.selectedIndex]?.value) return;
       const l = labelFor(el, root).toLowerCase();
       let want = null;
-      if (l.includes("country")) want = p.country;
+      if (l.includes("country") || l.includes("país") || l.includes("pais")) want = p.country;
       else if (l.includes("authoriz") || l.includes("eligible") || l.includes("legally")) want = p.authorized_to_work ? "yes" : "no";
       else if (l.includes("sponsor")) want = p.requires_sponsorship ? "yes" : "no";
       if (!want) return;
@@ -239,6 +243,17 @@
       nextPhrases: ["save and continue", "continue", "next", "review"],
       rootSelectors: ["[data-automation-id='applyFlowPage']", "[role='dialog']", "main", "form"],
       fillExtra: fillWorkday,
+      neverAutoSubmit: true,
+    },
+    // Catho (Brazil): Portuguese listings. "Candidatar-se" opens the application;
+    // forms vary, so autofill (bilingual field matcher) and stop for the user to
+    // review + submit. neverAutoSubmit until the adapter is hardened on a live PT
+    // listing (selectors/phrases below are a best-effort starting point).
+    catho: {
+      applyPhrases: ["candidatar-se", "candidatar", "quero me candidatar", "candidate-se", "enviar candidatura", "apply"],
+      submitPhrases: ["enviar candidatura", "finalizar candidatura", "confirmar", "finalizar", "enviar"],
+      nextPhrases: ["continuar", "próximo", "proximo", "avançar", "avancar", "next"],
+      rootSelectors: ["[role='dialog']", ".modal", "main form", "form"],
       neverAutoSubmit: true,
     },
   };
