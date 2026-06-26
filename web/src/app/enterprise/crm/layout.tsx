@@ -12,8 +12,8 @@ const TABS: { href: string; label: string; icon: typeof LayoutGrid; soon?: boole
   { href: "/enterprise/crm",            label: "Dashboard",  icon: LayoutGrid },
   { href: "/enterprise/crm/companies",  label: "Companies",  icon: Building2 },
   { href: "/enterprise/crm/contacts",   label: "Contacts",   icon: Users },
-  { href: "/enterprise/crm/job-orders", label: "Job Orders", icon: Briefcase, soon: true },
-  { href: "/enterprise/crm/deals",      label: "Deals",      icon: TrendingUp, soon: true },
+  { href: "/enterprise/crm/job-orders", label: "Job Orders", icon: Briefcase },
+  { href: "/enterprise/crm/deals",      label: "Deals",      icon: TrendingUp },
   { href: "/enterprise/crm/activities", label: "Activities", icon: Activity, soon: true },
   { href: "/enterprise/crm/tasks",      label: "Tasks",      icon: CheckSquare, soon: true },
 ];
