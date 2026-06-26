@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { extractText } from "@/lib/resume-extractor";
+import { supabaseAdmin } from "@/lib/supabase";
 import {
   resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail,
 } from "@/lib/enterprise-intake-inbox";
@@ -67,6 +68,41 @@ function mimeFor(a: Attachment): string {
   return a.content_type ?? "";
 }
 
+const decodeEntities = (s: string) =>
+  s.replace(/&amp;/gi, "&").replace(/&#3[49];/g, '"').replace(/&quot;/gi, '"').replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
+
+// Detect a Gmail / Google Workspace forwarding-verification email. When an org
+// forwards its hr@ mailbox to the intake address, Google emails a confirmation
+// code + verify link here. We surface it in Settings -> Intake rather than
+// parsing it into a junk candidate. Returns null for ordinary candidate mail.
+function parseForwardingConfirmation(
+  senderEmail: string, subject: string, bodyText: string, bodyHtml: string,
+): { code: string; link: string | null; from: string | null } | null {
+  const fromGoogle = /(^|@|\.)google\.com$/i.test(senderEmail.split(">").pop()?.trim() ?? senderEmail);
+  const looksLikeConfirm = /forwarding[- ]?confirmation/i.test(subject) ||
+    (/forward(ing)?/i.test(subject + bodyText) && /confirmation code|confirm the request|verify/i.test(bodyText));
+  if (!fromGoogle || !looksLikeConfirm) return null;
+
+  const haystack = `${subject}\n${bodyText}`;
+  const codeMatch =
+    haystack.match(/confirmation code[:\s(#]*?(\d{6,12})/i) ||
+    subject.match(/\(#\s*(\d{6,12})\)/) ||
+    haystack.match(/\b(\d{9})\b/);
+  if (!codeMatch) return null;
+
+  const linkSource = decodeEntities(`${bodyHtml} ${bodyText}`);
+  const linkMatch = linkSource.match(/https:\/\/mail\.google\.com\/\S+/i);
+  const fromMatch =
+    subject.match(/Receive Mail from\s+([^\s)<>"]+@[^\s)<>"]+)/i) ||
+    haystack.match(/forward\b[\s\S]{0,60}?from\s+([^\s)<>"]+@[^\s)<>"]+)/i);
+
+  return {
+    code: codeMatch[1],
+    link: linkMatch ? linkMatch[0].replace(/["'>).,]+$/, "") : null,
+    from: fromMatch ? fromMatch[1].toLowerCase() : null,
+  };
+}
+
 async function attachmentBuffer(a: Attachment): Promise<Buffer | null> {
   if (a.content) { try { return Buffer.from(a.content, "base64"); } catch { return null; } }
   if (a.content_url) {
@@ -109,7 +145,24 @@ export async function POST(req: NextRequest) {
   const fromRaw = (full?.from as string) ?? (data.from as string);
   const sender = parseAddress(fromRaw);
   const subject = full?.subject ?? (data.subject as string) ?? "";
-  const bodyText = full?.text ?? (full?.html ? full.html.replace(/<[^>]+>/g, " ") : "") ?? "";
+  const bodyHtml = full?.html ?? "";
+  const bodyText = full?.text ?? (bodyHtml ? bodyHtml.replace(/<[^>]+>/g, " ") : "") ?? "";
+
+  // Forwarding-confirmation email from Google? Capture the code/link for the
+  // Intake settings page and stop — don't create a candidate from it.
+  const confirm = parseForwardingConfirmation(fromRaw ?? sender.email, subject, bodyText, bodyHtml);
+  if (confirm) {
+    await supabaseAdmin
+      .from("enterprise_orgs")
+      .update({
+        intake_forward_code: confirm.code,
+        intake_forward_link: confirm.link,
+        intake_forward_from: confirm.from,
+        intake_forward_at: new Date().toISOString(),
+      })
+      .eq("id", org.id);
+    return NextResponse.json({ ok: true, forwarding_confirmation: true });
+  }
 
   // Resume text: from the first resume attachment, else the email body itself.
   let resumeText = "";

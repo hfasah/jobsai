@@ -47,7 +47,8 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links", "custom_domain", "white_label_email_from", "reply_to_email"]) {
+  // reply_to_email is managed (ungated) under Settings → Intake, not here.
+  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links", "custom_domain", "white_label_email_from"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }
 

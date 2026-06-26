@@ -835,19 +835,9 @@ function BrandingSettings() {
           </p>
         </div>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium">Reply-to email</label>
-          <input
-            type="email"
-            value={form.reply_to_email}
-            onChange={(e) => setForm((f) => ({ ...f, reply_to_email: e.target.value }))}
-            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            placeholder="hr@yourcompany.com"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            When a candidate replies to a platform email (interview invites, offers, reminders), it goes here — your team&apos;s monitored inbox. Leave blank to use your org contact email.
-          </p>
-        </div>
+        <p className="text-xs text-muted-foreground">
+          Candidate <span className="font-medium text-foreground">reply-to address</span> is set under <span className="font-medium text-foreground">Settings → Intake</span> (available on every plan).
+        </p>
 
         <button onClick={save} disabled={saving}
           className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
@@ -1398,11 +1388,19 @@ function SsoSettings() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 // ── Candidate Intake (email + upload) ──────────────────────────────────────────
+interface ForwardConfirm { code: string; link: string | null; from: string | null }
+
 function IntakeSettings() {
   const [address, setAddress] = useState("");
   const [handle, setHandle] = useState("");
   const [domain, setDomain] = useState("apply.jobsai.work");
   const [draft, setDraft] = useState("");
+  const [replyTo, setReplyTo] = useState("");
+  const [replyToSaving, setReplyToSaving] = useState(false);
+  const [replyToSaved, setReplyToSaved] = useState(false);
+  const [replyToErr, setReplyToErr] = useState<string | null>(null);
+  const [fwd, setFwd] = useState<ForwardConfirm | null>(null);
+  const [fwdCopied, setFwdCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1412,7 +1410,11 @@ function IntakeSettings() {
     fetch("/api/enterprise/inbox/intake")
       .then((r) => r.json())
       .then((j) => {
-        if (j.data) { setAddress(j.data.address); setHandle(j.data.handle); setDraft(j.data.handle); setDomain(j.data.domain); }
+        if (j.data) {
+          setAddress(j.data.address); setHandle(j.data.handle); setDraft(j.data.handle); setDomain(j.data.domain);
+          setReplyTo(j.data.reply_to_email ?? "");
+          setFwd(j.data.forward_confirm ?? null);
+        }
       })
       .finally(() => setLoading(false));
   }, []);
@@ -1428,12 +1430,54 @@ function IntakeSettings() {
     setSaving(false);
   };
 
+  const saveReplyTo = async () => {
+    setReplyToSaving(true); setReplyToSaved(false); setReplyToErr(null);
+    const res = await fetch("/api/enterprise/inbox/intake", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reply_to_email: replyTo }),
+    });
+    const j = await res.json();
+    if (res.ok) { setReplyTo(j.data.reply_to_email ?? ""); setReplyToSaved(true); setTimeout(() => setReplyToSaved(false), 2000); }
+    else setReplyToErr(j.error ?? "Couldn't save.");
+    setReplyToSaving(false);
+  };
+
+  const dismissFwd = async () => {
+    setFwd(null);
+    await fetch("/api/enterprise/inbox/intake", {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ clear_forward_confirm: true }),
+    });
+  };
+
+  const copyCode = () => { if (fwd) { navigator.clipboard.writeText(fwd.code); setFwdCopied(true); setTimeout(() => setFwdCopied(false), 1500); } };
   const copy = () => { navigator.clipboard.writeText(address); setCopied(true); setTimeout(() => setCopied(false), 1500); };
 
   if (loading) return <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading…</div>;
 
   return (
     <div className="space-y-6">
+      {fwd && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
+          <h2 className="mb-1 font-semibold text-amber-300">Confirm email forwarding</h2>
+          <p className="mb-3 text-sm text-amber-100/80">
+            Google asked you to confirm forwarding{fwd.from ? <> from <span className="font-medium text-amber-100">{fwd.from}</span></> : null} to your intake address. Enter this code in your mailbox&apos;s forwarding settings, or open the verify link.
+          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <code className="rounded-lg border border-amber-500/30 bg-background/40 px-3 py-2 text-lg font-bold tracking-widest text-amber-100">{fwd.code}</code>
+            <button onClick={copyCode} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 px-3 py-2 text-sm hover:bg-amber-500/10">
+              {fwdCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+              {fwdCopied ? "Copied" : "Copy code"}
+            </button>
+            {fwd.link && (
+              <a href={fwd.link} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-black hover:bg-amber-400">
+                Confirm in Gmail →
+              </a>
+            )}
+            <button onClick={dismissFwd} className="ml-auto text-sm text-amber-100/70 underline hover:text-amber-100">Dismiss</button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-border bg-card p-5">
         <div className="mb-1 flex items-center gap-2">
           <AtSign className="h-4 w-4 text-primary" />
@@ -1464,6 +1508,28 @@ function IntakeSettings() {
           </div>
           {msg && <p className={cn("mt-2 text-xs", msg.kind === "ok" ? "text-green-500" : "text-destructive")}>{msg.text}</p>}
         </div>
+      </div>
+
+      {/* Reply-to — available to every org, not just white-label */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="mb-1 flex items-center gap-2">
+          <Mail className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold">Reply-to address</h2>
+        </div>
+        <p className="mb-3 text-sm text-muted-foreground">
+          When a candidate replies to a platform email (interview invites, offers, reminders), it goes here — your team&apos;s monitored inbox. Leave blank to use your org contact email.
+        </p>
+        <div className="flex items-center gap-2">
+          <input type="email" value={replyTo} onChange={(e) => setReplyTo(e.target.value)}
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="hr@yourcompany.com" />
+          <button onClick={saveReplyTo} disabled={replyToSaving}
+            className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-2 text-sm font-semibold text-white shadow-glow disabled:opacity-50">
+            {replyToSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : replyToSaved ? <Check className="h-4 w-4" /> : null}
+            {replyToSaved ? "Saved" : "Save"}
+          </button>
+        </div>
+        {replyToErr && <p className="mt-2 text-xs text-destructive">{replyToErr}</p>}
       </div>
 
       {/* Forwarding instructions */}
