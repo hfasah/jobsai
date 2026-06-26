@@ -15,7 +15,7 @@ const ACTIVITY_ICON: Record<string, typeof Phone> = {
   candidate_submitted: Send, interview_scheduled: CalendarDays, offer_update: FileSignature,
 };
 
-type Scope = { company_id?: string; contact_id?: string };
+type Scope = { company_id?: string | null; contact_id?: string | null; deal_id?: string | null; job_order_id?: string | null };
 
 // ─── Activity timeline + quick composer ──────────────────────────────────────
 export function ActivityTimeline({ scope, activities, onChanged }: { scope: Scope; activities: CrmActivity[]; onChanged: () => void }) {

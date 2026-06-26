@@ -4,22 +4,35 @@ import { crmContext } from "@/lib/enterprise-crm";
 
 // GET — aggregate stats + actionable lists for the CRM dashboard. Volumes are
 // small per org, so we fetch and compute in JS rather than running many queries.
-// PR1 surfaces only built entities (companies / contacts / tasks); job-order,
-// deal, and pipeline-value cards arrive with PR2 — no placeholder zeros.
 export async function GET() {
   const ctx = await crmContext();
   if (!ctx.ok) return ctx.res;
   const orgId = ctx.org.id;
 
-  const [companiesRes, contactsRes, tasksRes] = await Promise.all([
+  const [companiesRes, contactsRes, tasksRes, jobOrdersRes, dealsRes] = await Promise.all([
     supabaseAdmin.from("crm_companies").select("id, name, status, owner_id, last_activity_at, next_follow_up_at, created_at").eq("org_id", orgId),
     supabaseAdmin.from("crm_contacts").select("id, first_name, last_name, company_id, relationship_status, last_contacted_at, next_follow_up_at").eq("org_id", orgId),
     supabaseAdmin.from("crm_tasks").select("*, company:crm_companies(id, name), contact:crm_contacts(id, first_name, last_name)").eq("org_id", orgId).eq("status", "open"),
+    supabaseAdmin.from("crm_job_orders").select("id, title, status, priority, placement_value, company:crm_companies(id, name)").eq("org_id", orgId),
+    supabaseAdmin.from("crm_deals").select("id, name, stage, value, expected_close_at, company:crm_companies(id, name)").eq("org_id", orgId),
   ]);
 
   const companies = companiesRes.data ?? [];
   const contacts = contactsRes.data ?? [];
   const openTasks = tasksRes.data ?? [];
+  const jobOrders = jobOrdersRes.data ?? [];
+  const deals = dealsRes.data ?? [];
+
+  const OPEN_JOB_STATUSES = ["intake", "open", "sourcing", "submitted", "interviewing", "offer"];
+  const openJobOrders = jobOrders.filter((j) => OPEN_JOB_STATUSES.includes(j.status));
+  const openDeals = deals.filter((d) => d.stage !== "won" && d.stage !== "lost");
+  const pipelineValue = openDeals.reduce((s, d) => s + (Number(d.value) || 0), 0);
+  const jobOrdersNeedingAction = openJobOrders
+    .filter((j) => j.priority === "high" || j.priority === "urgent")
+    .slice(0, 8);
+  const activeDeals = [...openDeals]
+    .sort((a, b) => (Number(b.value) || 0) - (Number(a.value) || 0))
+    .slice(0, 8);
 
   const now = Date.now();
   const endOfToday = new Date(); endOfToday.setHours(23, 59, 59, 999);
@@ -63,6 +76,9 @@ export async function GET() {
       openTasks: openTasks.length,
       overdueTasks: overdueTasks.length,
       followupsDueToday: tasksDueToday.length + companyFollowupsToday.length + contactFollowupsToday.length,
+      openJobOrders: openJobOrders.length,
+      dealsInPipeline: openDeals.length,
+      pipelineValue,
     },
     lists: {
       tasksDueToday,
@@ -71,6 +87,8 @@ export async function GET() {
       recentCompanies,
       dormantCompanies,
       staleContacts,
+      jobOrdersNeedingAction,
+      activeDeals,
     },
   });
 }

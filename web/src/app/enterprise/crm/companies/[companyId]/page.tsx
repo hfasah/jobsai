@@ -6,16 +6,18 @@ import {
   Loader2, ArrowLeft, Pencil, Globe, MapPin, Users, Plus, ExternalLink,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask } from "@/lib/crm-shared";
+import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask, type CrmJobOrder, type CrmDeal } from "@/lib/crm-shared";
 import { CompanyForm } from "@/components/enterprise/crm/company-form";
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
+import { JobOrderForm } from "@/components/enterprise/crm/job-order-form";
+import { DealForm } from "@/components/enterprise/crm/deal-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
-import { fmtDate, COMPANY_STATUS_STYLES, RELATIONSHIP_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
+import { fmtDate, fmtMoney, COMPANY_STATUS_STYLES, RELATIONSHIP_STYLES, JOB_ORDER_STATUS_STYLES, DEAL_STAGE_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
-interface Payload { data: CrmCompany; contacts: CrmContact[]; activities: CrmActivity[]; tasks: CrmTask[] }
-type Tab = "overview" | "contacts" | "activity" | "tasks";
+interface Payload { data: CrmCompany; contacts: CrmContact[]; activities: CrmActivity[]; tasks: CrmTask[]; jobOrders: CrmJobOrder[]; deals: CrmDeal[] }
+type Tab = "overview" | "contacts" | "joborders" | "deals" | "activity" | "tasks";
 
-const SOON: { label: string }[] = [{ label: "Job Orders" }, { label: "Deals" }, { label: "Submitted Candidates" }];
+const SOON: { label: string }[] = [{ label: "Submitted Candidates" }];
 
 export default function CompanyDetail({ params }: { params: Promise<{ companyId: string }> }) {
   const { companyId } = use(params);
@@ -24,6 +26,8 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
   const [tab, setTab] = useState<Tab>("overview");
   const [editOpen, setEditOpen] = useState(false);
   const [contactOpen, setContactOpen] = useState(false);
+  const [jobOrderOpen, setJobOrderOpen] = useState(false);
+  const [dealOpen, setDealOpen] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/enterprise/crm/companies/${companyId}`).then((r) => (r.ok ? r.json() : null)).then(setP).finally(() => setLoading(false));
@@ -61,7 +65,7 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1">
-            {([["overview", "Overview"], ["contacts", `Contacts (${p.contacts.length})`], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
+            {([["overview", "Overview"], ["contacts", `Contacts (${p.contacts.length})`], ["joborders", `Job Orders (${p.jobOrders.length})`], ["deals", `Deals (${p.deals.length})`], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
               <button key={k} onClick={() => setTab(k)}
                 className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", tab === k ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
                 {lbl}
@@ -147,12 +151,60 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
           </div>
         )}
 
+        {tab === "joborders" && (
+          <div>
+            <div className="mb-3 flex justify-end">
+              <button onClick={() => setJobOrderOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                <Plus className="h-3.5 w-3.5" /> New job order
+              </button>
+            </div>
+            {p.jobOrders.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-14 text-center"><p className="text-sm text-muted-foreground">No job orders for this client yet.</p></div>
+            ) : (
+              <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
+                {p.jobOrders.map((j) => (
+                  <li key={j.id}>
+                    <Link href={`/enterprise/crm/job-orders/${j.id}`} className="flex items-center justify-between gap-3 px-4 py-3 text-sm hover:bg-muted/20">
+                      <span className="flex items-center gap-2 truncate"><StatusBadge value={j.status} styles={JOB_ORDER_STATUS_STYLES} /> {j.title}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{fmtMoney(j.placement_value)}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {tab === "deals" && (
+          <div>
+            <div className="mb-3 flex justify-end">
+              <button onClick={() => setDealOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                <Plus className="h-3.5 w-3.5" /> New deal
+              </button>
+            </div>
+            {p.deals.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-border py-14 text-center"><p className="text-sm text-muted-foreground">No deals for this client yet.</p></div>
+            ) : (
+              <ul className="divide-y divide-border overflow-hidden rounded-2xl border border-border">
+                {p.deals.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-3 px-4 py-3 text-sm">
+                    <span className="flex items-center gap-2 truncate"><StatusBadge value={d.stage} styles={DEAL_STAGE_STYLES} /> {d.name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{fmtMoney(d.value)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
         {tab === "activity" && <ActivityTimeline scope={{ company_id: companyId }} activities={p.activities} onChanged={load} />}
         {tab === "tasks" && <TasksPanel scope={{ company_id: companyId }} tasks={p.tasks} onChanged={load} />}
       </div>
 
       <CompanyForm open={editOpen} onClose={() => setEditOpen(false)} company={c} onSaved={() => load()} />
       <ContactForm open={contactOpen} onClose={() => setContactOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
+      <JobOrderForm open={jobOrderOpen} onClose={() => setJobOrderOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
+      <DealForm open={dealOpen} onClose={() => setDealOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
     </main>
   );
 }
