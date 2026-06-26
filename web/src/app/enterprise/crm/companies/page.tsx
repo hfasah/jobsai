@@ -1,30 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Loader2, Plus, Search, Building2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { COMPANY_STATUSES, labelFor, type CrmCompany } from "@/lib/crm-shared";
 import { CompanyForm } from "@/components/enterprise/crm/company-form";
 import { fmtDate, relativeTime, isOverdue, COMPANY_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
-export default function CompaniesPage() {
+function CompaniesInner() {
+  const sp = useSearchParams();
+  const initialStatus = sp.get("status");
   const [companies, setCompanies] = useState<CrmCompany[]>([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("all");
+  const [filter, setFilter] = useState(initialStatus && COMPANY_STATUSES.includes(initialStatus as (typeof COMPANY_STATUSES)[number]) ? initialStatus : "all");
   const [search, setSearch] = useState("");
   const [formOpen, setFormOpen] = useState(false);
 
-  const load = useCallback(() => {
+  const load = () => {
     fetch("/api/enterprise/crm/companies").then((r) => r.json()).then((j) => setCompanies(j.data ?? [])).finally(() => setLoading(false));
-  }, []);
-  useEffect(() => { load(); }, [load]);
+  };
+  useEffect(() => { load(); }, []);
 
-  const counts = useMemo(() => {
-    const c: Record<string, number> = { all: companies.length };
-    for (const s of COMPANY_STATUSES) c[s] = companies.filter((x) => x.status === s).length;
-    return c;
-  }, [companies]);
+  const counts: Record<string, number> = { all: companies.length };
+  for (const s of COMPANY_STATUSES) counts[s] = companies.filter((x) => x.status === s).length;
 
   const visible = companies
     .filter((c) => filter === "all" || c.status === filter)
@@ -105,5 +105,13 @@ export default function CompaniesPage() {
 
       <CompanyForm open={formOpen} onClose={() => setFormOpen(false)} onSaved={() => load()} />
     </main>
+  );
+}
+
+export default function CompaniesPage() {
+  return (
+    <Suspense fallback={<div className="flex h-64 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+      <CompaniesInner />
+    </Suspense>
   );
 }

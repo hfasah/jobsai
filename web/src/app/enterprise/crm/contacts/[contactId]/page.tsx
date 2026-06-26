@@ -2,11 +2,12 @@
 
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, ArrowLeft, Pencil, Mail, Phone, Link2, Building2 } from "lucide-react";
+import { Loader2, ArrowLeft, Pencil, Mail, Phone, Link2, Building2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { labelFor, type CrmContact, type CrmActivity, type CrmTask } from "@/lib/crm-shared";
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
+import { CrmAiModal } from "@/components/enterprise/crm/crm-ai-modal";
 import { fmtDate, RELATIONSHIP_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
 type ContactRow = CrmContact & { company?: { id: string; name: string } | null };
@@ -20,6 +21,7 @@ export default function ContactDetail({ params }: { params: Promise<{ contactId:
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>("overview");
   const [editOpen, setEditOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/enterprise/crm/contacts/${contactId}`).then((r) => (r.ok ? r.json() : null)).then(setP).finally(() => setLoading(false));
@@ -56,9 +58,16 @@ export default function ContactDetail({ params }: { params: Promise<{ contactId:
                 {c.linkedin_url && link(c.linkedin_url.startsWith("http") ? c.linkedin_url : `https://${c.linkedin_url}`, Link2, "LinkedIn")}
               </div>
             </div>
-            <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
+            <div className="flex items-center gap-2">
+              {c.company && (
+                <button onClick={() => setAiOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10">
+                  <Sparkles className="h-3.5 w-3.5" /> Ask AI
+                </button>
+              )}
+              <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1">
@@ -100,6 +109,7 @@ export default function ContactDetail({ params }: { params: Promise<{ contactId:
       </div>
 
       <ContactForm open={editOpen} onClose={() => setEditOpen(false)} contact={c} companies={companies} onSaved={() => load()} />
+      {c.company && <CrmAiModal open={aiOpen} onClose={() => setAiOpen(false)} companyId={c.company.id} companyName={c.company.name} />}
     </main>
   );
 }
