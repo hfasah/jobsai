@@ -80,11 +80,12 @@ const BOARD_HOSTS = {
   linkedin: ["linkedin.com"], indeed: ["indeed.com"], ziprecruiter: ["ziprecruiter.com"],
   dice: ["dice.com"], workable: ["workable.com"], glassdoor: ["glassdoor.com"], monster: ["monster.com"],
   workday: ["myworkdayjobs.com", "workday.com"], greenhouse: ["greenhouse.io"], lever: ["lever.co"],
+  catho: ["catho.com.br"],
 };
 // Boards with an autofill adapter. Whether each AUTO-SUBMITS is a per-user toggle
 // (directBoards) — off by default until verified on a live listing. Workday/
-// Greenhouse/Lever autofill in the user's logged-in tab, then stop for review.
-const ADAPTER_BOARDS = new Set(["linkedin", "indeed", "ziprecruiter", "dice", "workable", "workday", "greenhouse", "lever"]);
+// Greenhouse/Lever/Catho autofill in the user's logged-in tab, then stop for review.
+const ADAPTER_BOARDS = new Set(["linkedin", "indeed", "ziprecruiter", "dice", "workable", "workday", "greenhouse", "lever", "catho"]);
 
 async function getDirectBoards() {
   const { directBoards } = await chrome.storage.local.get(["directBoards"]);
