@@ -140,3 +140,59 @@ export function quoteEmail(opts: {
     html: shell({ appUrl: opts.appUrl, preheader: `${opts.planName} plan for ${opts.company} — view your quote.`, content }),
   };
 }
+
+// What each role can do, shown so the invitee knows what they're joining as.
+const ROLE_BLURB: Record<string, { label: string; can: string[] }> = {
+  owner: { label: "Owner", can: ["Full access to the workspace, billing, and settings", "Manage the team and every job, candidate, and client", "Run AI sourcing, interviews, and outreach"] },
+  admin: { label: "Admin", can: ["Manage the team, jobs, candidates, and clients", "Run AI sourcing, interviews, and outreach", "Configure workspace settings"] },
+  recruiter: { label: "Recruiter", can: ["Post jobs and manage candidate pipelines", "Send candidate emails and schedule interviews", "Use AI sourcing, screening, and outreach"] },
+  hiring_manager: { label: "Hiring Manager", can: ["Review and move candidates through your pipeline", "Add interview notes and scorecards", "See reports for your roles"] },
+  interviewer: { label: "Interviewer", can: ["Review assigned candidates", "Add interview notes and feedback"] },
+  department_head: { label: "Department Head", can: ["Manage jobs and pipelines for your department", "Move candidates and send updates", "View department reports"] },
+  viewer: { label: "Viewer", can: ["Read-only access to applications and reports"] },
+};
+
+// Invitation to join a recruiting workspace as a team member.
+export function teamInviteEmail(opts: {
+  orgName: string;
+  role: string;
+  inviterName?: string | null;
+  acceptUrl: string;
+  appUrl: string;
+  expiresInDays?: number;
+}): { subject: string; html: string } {
+  const org = esc(opts.orgName);
+  const r = ROLE_BLURB[opts.role] ?? { label: opts.role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), can: [] };
+  const roleLabel = esc(r.label);
+  const inviter = opts.inviterName?.trim() ? esc(opts.inviterName.trim()) : "";
+  const firstName = inviter ? inviter.split(/\s+/)[0] : "";
+  const days = opts.expiresInDays ?? 7;
+
+  const subject = inviter
+    ? `${firstName} invited you to join ${opts.orgName} on JobsAI`
+    : `You're invited to join ${opts.orgName} on JobsAI`;
+
+  const canList = r.can.length
+    ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:6px 0 4px;">
+        ${r.can.map((c, i) => step(i + 1, esc(c))).join("")}
+      </table>`
+    : "";
+
+  const content = `
+    <div style="display:inline-block;background:#eef2ff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;color:${BRAND};margin-bottom:16px;">You're invited</div>
+    <h1 style="margin:0 0 12px;font-size:22px;font-weight:700;color:${INK};line-height:1.3;">Join ${org} on JobsAI Enterprise</h1>
+    <p style="margin:0 0 18px;font-size:15px;line-height:1.65;color:${MUTED};">${inviter ? `<strong style="color:${INK};">${inviter}</strong> has invited you` : "You've been invited"} to join <strong style="color:${INK};">${org}</strong>'s recruiting workspace as a <strong style="color:${INK};">${roleLabel}</strong>. JobsAI Enterprise is an AI-powered talent acquisition platform — applicant tracking, AI sourcing and interviews, outreach, and analytics, all in one place.</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 8px;border:1px solid ${LINE};border-radius:12px;background:${SURFACE};">
+      <tr><td style="padding:18px 20px;">
+        <p style="margin:0 0 8px;font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#6366f1;">Your role &middot; ${roleLabel}</p>
+        ${canList || `<p style="margin:0;font-size:14px;line-height:1.5;color:#64748b;">You'll join the team with ${roleLabel} access.</p>`}
+      </td></tr>
+    </table>
+    <p style="margin:24px 0 0;">${button(opts.acceptUrl, "Accept invitation")}</p>
+    <p style="margin:18px 0 0;font-size:13px;line-height:1.6;color:${FAINT};">This invitation expires in ${days} days. If you weren't expecting it, you can safely ignore this email.</p>`;
+
+  return {
+    subject,
+    html: shell({ appUrl: opts.appUrl, preheader: `${inviter ? `${inviter} invited you` : "You're invited"} to join ${opts.orgName} as a ${r.label} on JobsAI Enterprise.`, content }),
+  };
+}
