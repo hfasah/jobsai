@@ -46,7 +46,11 @@ export async function GET() {
     })
   );
 
-  const myRole = (members ?? []).find((m) => m.user_id === userId)?.role ?? "recruiter";
+  // Resolve my_role via getMyMembership so it matches what the mutation routes
+  // authorize against — this is impersonation-aware (a super-admin "Open
+  // workspace" session gets the synthetic owner role), so the Team UI isn't
+  // wrongly stuck in view-only when the viewer isn't a literal members row.
+  const myRole = (await getMyMembership(userId))?.role ?? "recruiter";
   return NextResponse.json({ data: { members: enriched, invitations: invitations ?? [], my_role: myRole, my_user_id: userId } });
 }
 
