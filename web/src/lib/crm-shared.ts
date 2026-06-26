@@ -29,6 +29,10 @@ export type Priority = (typeof PRIORITIES)[number];
 export type WorkMode = (typeof WORK_MODES)[number];
 export type DealStage = (typeof DEAL_STAGES)[number];
 
+// Candidate submissions (PR4).
+export const SUBMISSION_STATUSES = ["submitted", "client_review", "interview", "offer", "placed", "rejected", "withdrawn"] as const;
+export type SubmissionStatus = (typeof SUBMISSION_STATUSES)[number];
+
 // Human labels for enum values (snake_case → Title Case fallback handled below).
 export const LABELS: Record<string, string> = {
   prospect: "Prospect",
@@ -84,6 +88,12 @@ export const LABELS: Record<string, string> = {
   active_requirement: "Active Requirement",
   won: "Won",
   lost: "Lost",
+  // Submission statuses ("submitted" already defined above with job-order statuses)
+  client_review: "Client Review",
+  interview: "Interview",
+  placed: "Placed",
+  rejected: "Rejected",
+  withdrawn: "Withdrawn",
 };
 
 export const labelFor = (v: string | null | undefined): string =>
@@ -214,6 +224,26 @@ export interface CrmJobOrder {
   description: string | null;
   internal_notes: string | null;
   assigned_recruiter: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmSubmission {
+  id: string;
+  org_id: string;
+  company_id: string;
+  job_order_id: string | null;
+  contact_id: string | null;
+  application_id: string | null;
+  candidate_name: string;
+  candidate_email: string | null;
+  candidate_phone: string | null;
+  resume_url: string | null;
+  status: string;
+  submitted_at: string;
+  notes: string | null;
+  owner_id: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;

@@ -19,13 +19,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (!company) return NextResponse.json({ error: "Company not found." }, { status: 404 });
 
-  const [contacts, activities, tasks, jobOrders, deals] = await Promise.all([
+  const [contacts, activities, tasks, jobOrders, deals, submissions] = await Promise.all([
     supabaseAdmin.from("crm_contacts").select("*").eq("org_id", ctx.org.id).eq("company_id", companyId).order("created_at", { ascending: false }),
     supabaseAdmin.from("crm_activities").select("*").eq("org_id", ctx.org.id).eq("company_id", companyId).order("occurred_at", { ascending: false }).limit(100),
     supabaseAdmin.from("crm_tasks").select("*").eq("org_id", ctx.org.id).eq("company_id", companyId).order("due_at", { ascending: true, nullsFirst: false }),
-    // job orders/deals tables exist from migration 118; queries no-op (empty) before then.
+    // job orders/deals/submissions tables exist from migrations 118/119.
     supabaseAdmin.from("crm_job_orders").select("*").eq("org_id", ctx.org.id).eq("company_id", companyId).order("created_at", { ascending: false }),
     supabaseAdmin.from("crm_deals").select("*").eq("org_id", ctx.org.id).eq("company_id", companyId).order("created_at", { ascending: false }),
+    supabaseAdmin.from("crm_submissions").select("*, job_order:crm_job_orders(id, title)").eq("org_id", ctx.org.id).eq("company_id", companyId).order("submitted_at", { ascending: false }),
   ]);
 
   return NextResponse.json({
@@ -35,6 +36,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
     tasks: tasks.data ?? [],
     jobOrders: jobOrders.data ?? [],
     deals: deals.data ?? [],
+    submissions: submissions.data ?? [],
   });
 }
 

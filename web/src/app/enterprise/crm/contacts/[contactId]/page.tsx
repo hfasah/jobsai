@@ -8,11 +8,13 @@ import { labelFor, type CrmContact, type CrmActivity, type CrmTask } from "@/lib
 import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
 import { CrmAiModal } from "@/components/enterprise/crm/crm-ai-modal";
-import { fmtDate, RELATIONSHIP_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
+import { fmtDate, RELATIONSHIP_STYLES, SUBMISSION_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
+import { type CrmSubmission } from "@/lib/crm-shared";
 
 type ContactRow = CrmContact & { company?: { id: string; name: string } | null };
-interface Payload { data: ContactRow; activities: CrmActivity[]; tasks: CrmTask[] }
-type Tab = "overview" | "activity" | "tasks";
+type SubmissionRow = CrmSubmission & { job_order?: { id: string; title: string } | null };
+interface Payload { data: ContactRow; activities: CrmActivity[]; tasks: CrmTask[]; submissions: SubmissionRow[] }
+type Tab = "overview" | "activity" | "tasks" | "submissions";
 
 export default function ContactDetail({ params }: { params: Promise<{ contactId: string }> }) {
   const { contactId } = use(params);
@@ -71,15 +73,12 @@ export default function ContactDetail({ params }: { params: Promise<{ contactId:
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1">
-            {([["overview", "Overview"], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
+            {([["overview", "Overview"], ["submissions", `Submissions (${p.submissions.length})`], ["activity", `Activity (${p.activities.length})`], ["tasks", `Tasks (${openTasks})`]] as [Tab, string][]).map(([k, lbl]) => (
               <button key={k} onClick={() => setTab(k)}
                 className={cn("rounded-lg px-3 py-1.5 text-sm font-medium transition-colors", tab === k ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
                 {lbl}
               </button>
             ))}
-            <span className="inline-flex cursor-not-allowed items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-medium text-muted-foreground/50" title="Coming soon">
-              Submissions<span className="rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">Soon</span>
-            </span>
           </div>
         </div>
       </div>
@@ -103,6 +102,29 @@ export default function ContactDetail({ params }: { params: Promise<{ contactId:
               </div>
             )}
           </div>
+        )}
+        {tab === "submissions" && (
+          p.submissions.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-border py-14 text-center"><p className="text-sm text-muted-foreground">No candidates submitted via this contact yet.</p></div>
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-border">
+              <table className="w-full text-sm">
+                <thead className="border-b border-border bg-muted/30 text-left text-xs text-muted-foreground">
+                  <tr><th className="px-4 py-3 font-medium">Candidate</th><th className="hidden px-4 py-3 font-medium sm:table-cell">Job order</th><th className="px-4 py-3 font-medium">Status</th><th className="px-4 py-3 font-medium">Submitted</th></tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {p.submissions.map((s) => (
+                    <tr key={s.id} className="hover:bg-muted/20">
+                      <td className="px-4 py-3 font-medium">{s.candidate_name}</td>
+                      <td className="hidden px-4 py-3 text-muted-foreground sm:table-cell">{s.job_order ? <Link href={`/enterprise/crm/job-orders/${s.job_order.id}`} className="hover:text-primary">{s.job_order.title}</Link> : "—"}</td>
+                      <td className="px-4 py-3"><StatusBadge value={s.status} styles={SUBMISSION_STATUS_STYLES} /></td>
+                      <td className="px-4 py-3 text-muted-foreground">{fmtDate(s.submitted_at)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
         {tab === "activity" && <ActivityTimeline scope={{ contact_id: contactId, ...(c.company_id ? { company_id: c.company_id } : {}) }} activities={p.activities} onChanged={load} />}
         {tab === "tasks" && <TasksPanel scope={{ contact_id: contactId, ...(c.company_id ? { company_id: c.company_id } : {}) }} tasks={p.tasks} onChanged={load} />}

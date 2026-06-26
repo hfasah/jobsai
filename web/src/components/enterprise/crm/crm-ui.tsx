@@ -105,6 +105,16 @@ export const DEAL_STAGE_STYLES: Record<string, string> = {
   lost: "bg-red-500/15 text-red-500 border-red-500/30",
 };
 
+export const SUBMISSION_STATUS_STYLES: Record<string, string> = {
+  submitted: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+  client_review: "bg-purple-500/15 text-purple-500 border-purple-500/30",
+  interview: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  offer: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  placed: "bg-green-500/15 text-green-500 border-green-500/30",
+  rejected: "bg-red-500/15 text-red-500 border-red-500/30",
+  withdrawn: "bg-muted text-muted-foreground border-border",
+};
+
 export function StatusBadge({ value, styles }: { value: string; styles: Record<string, string> }) {
   return <span className={cn(badge, styles[value] ?? "bg-muted text-muted-foreground border-border")}>{labelFor(value)}</span>;
 }
