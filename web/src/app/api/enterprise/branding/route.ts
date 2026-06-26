@@ -27,6 +27,7 @@ export async function GET() {
     social_links: o.social_links ?? {},
     custom_domain: o.custom_domain ?? null,
     white_label_email_from: o.white_label_email_from ?? null,
+    reply_to_email: o.reply_to_email ?? o.contact_email ?? null,
   } });
 }
 
@@ -46,7 +47,7 @@ export async function PUT(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const update: Record<string, unknown> = {};
-  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links", "custom_domain", "white_label_email_from"]) {
+  for (const f of ["logo_url", "brand_color", "tagline", "careers_intro", "show_powered_by", "website", "cover_image_url", "culture_text", "benefits", "social_links", "custom_domain", "white_label_email_from", "reply_to_email"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }
 

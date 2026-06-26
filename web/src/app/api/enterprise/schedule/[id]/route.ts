@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseMailMeta } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { sendInterviewInvite } from "../route";
 
@@ -44,8 +44,9 @@ export async function DELETE(_req: NextRequest, { params }: Ctx) {
 
   await supabaseAdmin.from("enterprise_interview_schedule").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", id);
 
+  const { from, replyTo } = await enterpriseMailMeta(org.id);
   await resend.emails.send({
-    from: `${org.name} Recruiting <support@jobsai.work>`,
+    from, replyTo,
     to: row.candidate_email,
     subject: `Interview cancelled — ${row.title}`,
     html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto"><h2 style="color:#dc2626">Interview cancelled</h2><p>Hi ${row.candidate_name},</p><p>Your interview with ${org.name} has been cancelled. We'll be in touch about rescheduling.</p></div>`,

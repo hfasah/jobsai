@@ -1,7 +1,26 @@
 import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase";
+import { emailFromName } from "@/lib/email-utils";
 import type { EnterpriseOrg, EnterpriseMember } from "@/types/enterprise";
+
+// Branded From + Reply-To for a candidate-facing platform email. The From is the
+// org's name (or its white-label "from" name) on JobsAI's verified sending
+// domain; the Reply-To routes candidate replies to the org's own hiring inbox
+// (reply_to_email, falling back to contact_email). Use:
+//   const { from, replyTo } = await enterpriseMailMeta(orgId);
+//   await resend.emails.send({ from, replyTo, to, subject, html });
+export async function enterpriseMailMeta(orgId: string): Promise<{ from: string; replyTo?: string }> {
+  const { data } = await supabaseAdmin
+    .from("enterprise_orgs")
+    .select("name, white_label_email_from, reply_to_email, contact_email")
+    .eq("id", orgId)
+    .maybeSingle();
+  const name = (data?.name as string) || "Recruiting";
+  const from = `${emailFromName(name, data?.white_label_email_from as string | null)} <support@jobsai.work>`;
+  const replyTo = ((data?.reply_to_email as string) || (data?.contact_email as string) || "").trim() || undefined;
+  return { from, replyTo };
+}
 
 // Super-admin "Open workspace": a cookie names an org and overrides normal
 // membership resolution so a super-admin can enter any workspace for demos —
