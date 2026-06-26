@@ -43,7 +43,7 @@
     if (has("full name", "nome completo")) return p.full_name;
     if (has("first name") || (has("nome") && !has("usuário", "usuario", "empresa", "arquivo"))) return p.first_name;
     if (has("email", "e-mail", "mail")) return p.email;
-    if (has("mobile", "phone", "telefone", "celular", "fone")) return p.phone;
+    if (has("mobile", "phone", "telefone", "celular", "fone", "whatsapp", "contato")) return p.phone;
     if (has("postal", "zip", "cep")) return p.postal_code;
     if (has("city", "location", "cidade", "localidade", "munic")) return p.city || p.location;
     if (has("country", "país", "pais")) return p.country;
@@ -141,7 +141,26 @@
 
   function looksSubmitted(root = document) {
     const t = (root.innerText || "").toLowerCase();
-    return /application (was )?submitted|your application has been|successfully applied|applied\b|thank you for applying/.test(t);
+    return /application (was )?submitted|your application has been|successfully applied|applied\b|thank you for applying|candidatura (enviada|realizada)|sua candidatura foi/.test(t);
+  }
+
+  // DOM-diagnostic dump (opt-in via cfg.diagnose) — prints the real buttons and
+  // labeled fields so an adapter still being hardened (e.g. Catho) can be tuned
+  // from a live run instead of guesswork. Mirrors the LinkedIn adapter's
+  // failure-time logging. Safe/no-op in production for boards without diagnose.
+  function diagDump(root, stage) {
+    try {
+      const btns = [...(root || document).querySelectorAll("button, [role='button'], input[type='submit'], a")]
+        .filter((b) => b.offsetParent !== null)
+        .map((b) => (b.getAttribute("aria-label") || b.value || b.textContent || "").trim())
+        .filter(Boolean).slice(0, 25);
+      const fields = [...(root || document).querySelectorAll("input, textarea, select")]
+        .filter((el) => el.offsetParent !== null && el.type !== "hidden")
+        .map((el) => ({ label: labelFor(el, root || document), name: el.name || el.id || "", type: el.type || el.tagName.toLowerCase(), required: el.required || el.getAttribute("aria-required") === "true" }))
+        .slice(0, 30);
+      console.log(`[JobsAI][diag:${stage}] buttons:`, btns);
+      console.log(`[JobsAI][diag:${stage}] fields:`, fields);
+    } catch { /* diagnostics are best-effort */ }
   }
 
   // ─── Generic step-through apply engine (used by all non-LinkedIn boards) ─────────
@@ -162,6 +181,7 @@
 
     // 1. Trigger the apply flow if there's an entry button.
     const trigger = buttonByText(document, ...(cfg.applyPhrases || []));
+    if (cfg.diagnose && !trigger) diagDump(document, "no-apply-button");
     if (trigger) { trigger.click(); await sleep(1500); }
     if (looksSubmitted()) return "applied"; // some 1-click boards apply instantly
 
@@ -183,10 +203,10 @@
         return looksSubmitted() ? "applied" : "needs_review";
       }
 
-      if (hasUnfilledRequired(root)) return "needs_review";
+      if (hasUnfilledRequired(root)) { if (cfg.diagnose) diagDump(root, `unfilled-required-step${step}`); return "needs_review"; }
 
       const next = buttonByText(root, ...(cfg.nextPhrases || []));
-      if (!next) return "needs_review";
+      if (!next) { if (cfg.diagnose) diagDump(root, `no-next-step${step}`); return "needs_review"; }
       next.click();
       await sleep(900);
     }
@@ -248,13 +268,19 @@
     // Catho (Brazil): Portuguese listings. "Candidatar-se" opens the application;
     // forms vary, so autofill (bilingual field matcher) and stop for the user to
     // review + submit. neverAutoSubmit until the adapter is hardened on a live PT
-    // listing (selectors/phrases below are a best-effort starting point).
+    // listing. `diagnose` logs the real buttons/fields to the console on a live
+    // run so the selectors/phrases below can be tuned from actual DOM.
     catho: {
-      applyPhrases: ["candidatar-se", "candidatar", "quero me candidatar", "candidate-se", "enviar candidatura", "apply"],
-      submitPhrases: ["enviar candidatura", "finalizar candidatura", "confirmar", "finalizar", "enviar"],
-      nextPhrases: ["continuar", "próximo", "proximo", "avançar", "avancar", "next"],
-      rootSelectors: ["[role='dialog']", ".modal", "main form", "form"],
+      applyPhrases: [
+        "candidatar-se com 1 clique", "candidatura rápida", "candidatura rapida",
+        "candidatar-se a esta vaga", "candidatar-se", "candidatar", "quero me candidatar",
+        "candidate-se", "enviar candidatura", "apply",
+      ],
+      submitPhrases: ["enviar candidatura", "finalizar candidatura", "enviar minha candidatura", "confirmar candidatura", "confirmar", "finalizar", "enviar"],
+      nextPhrases: ["continuar", "próximo", "proximo", "avançar", "avancar", "prosseguir", "next"],
+      rootSelectors: ["[role='dialog']", "[class*='candidatura']", "[class*='Candidatura']", "[class*='modal']", "[class*='Modal']", "main form", "form"],
       neverAutoSubmit: true,
+      diagnose: true,
     },
   };
 
