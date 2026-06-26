@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 export const GOOGLE_ENTERPRISE_REDIRECT = `${APP_URL}/api/enterprise/google/callback`;
 
 // Google Workspace scopes for recruiters: calendar + Gmail send + read

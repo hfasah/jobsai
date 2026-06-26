@@ -3,7 +3,7 @@ import { classifyEmail, type InboxClass } from "@/lib/inbox";
 
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/$/, "");
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 export const GOOGLE_REDIRECT = `${APP_URL}/api/inbox/google/callback`;
 
 const SCOPES = [
