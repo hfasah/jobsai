@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { buildIcs } from "@/lib/ics";
+import { enterpriseMailMeta } from "@/lib/enterprise";
 
 // Called by Vercel Cron: every 30 minutes
 // Sends 24h and 1h reminder emails to candidates whose interviews are upcoming
@@ -70,8 +71,9 @@ export async function GET(req: NextRequest) {
       ? `<div style="margin:16px 0"><a href="${link}" style="background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600">Join the meeting →</a></div>`
       : "";
 
+    const { from, replyTo } = await enterpriseMailMeta(row.org_id as string);
     await resend.emails.send({
-      from: `${orgName} Recruiting <support@jobsai.work>`,
+      from, replyTo,
       to: row.candidate_email as string,
       subject: `Reminder: Your interview ${window === "24h" ? "tomorrow" : "in 1 hour"} — ${row.title}`,
       html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#0f172a">

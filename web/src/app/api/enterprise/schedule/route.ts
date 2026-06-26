@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { requirePermission } from "@/lib/enterprise-permissions";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseMailMeta } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { buildIcs } from "@/lib/ics";
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
 
 // Shared: send the candidate + interviewers a calendar invite with the meeting link
 export async function sendInterviewInvite(orgName: string, row: Record<string, unknown>) {
+  const { from, replyTo } = await enterpriseMailMeta(row.org_id as string);
   const start = new Date(row.scheduled_at as string);
   const link = (row.meeting_link as string) || (row.location as string) || "";
   const confirmUrl = `${APP_URL}/enterprise/confirm/${row.confirm_token}`;
@@ -115,7 +116,7 @@ export async function sendInterviewInvite(orgName: string, row: Record<string, u
 
   // Candidate email — with confirm CTA
   await resend.emails.send({
-    from: `${orgName} Recruiting <support@jobsai.work>`,
+    from, replyTo,
     to: row.candidate_email as string,
     subject: `Interview scheduled — ${row.title}`,
     html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
@@ -136,7 +137,7 @@ export async function sendInterviewInvite(orgName: string, row: Record<string, u
   const emails = (row.interviewer_emails as string[]) ?? [];
   if (emails.length) {
     await resend.emails.send({
-      from: `${orgName} Recruiting <support@jobsai.work>`,
+      from, replyTo,
       to: emails,
       subject: `Interview with ${row.candidate_name} — ${when}`,
       html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#0f172a">

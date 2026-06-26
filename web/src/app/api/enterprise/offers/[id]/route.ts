@@ -61,6 +61,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     const orgData = org as unknown as Record<string, unknown>;
     const showPoweredBy = (orgData.show_powered_by as boolean) ?? true;
     const fromName = emailFromName(org.name, orgData.white_label_email_from as string | null);
+    const replyTo = ((orgData.reply_to_email as string) || (orgData.contact_email as string) || "").trim() || undefined;
     const signingUrl = `${APP_URL}/enterprise/offer/${offer.sign_token}`;
     const html = `<div style="font-family:sans-serif;max-width:580px;margin:0 auto;color:#0f172a">
       <h2 style="color:#2563eb">You have received an offer from ${org.name}</h2>
@@ -84,6 +85,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!gmailResult.ok) {
       await resend.emails.send({
         from: `${fromName} <support@jobsai.work>`,
+        replyTo,
         to: offer.candidate_email as string,
         subject,
         html,

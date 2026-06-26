@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseMailMeta } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -24,8 +24,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   const subject = body.subject ?? `New opportunities at ${org.name}`;
   const message = body.message ?? `Hi ${candidate.candidate_name}, we have exciting new roles that match your profile. We'd love to reconnect.`;
 
+  const { from, replyTo } = await enterpriseMailMeta(org.id);
   await resend.emails.send({
-    from: `${org.name} Recruiting <support@jobsai.work>`,
+    from, replyTo,
     to: candidate.candidate_email,
     subject,
     html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">

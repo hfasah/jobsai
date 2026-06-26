@@ -626,7 +626,7 @@ function DataPrivacySettings() {
 
 // ── White-label Branding ──────────────────────────────────────────────────────
 function BrandingSettings() {
-  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "", cover_image_url: "", culture_text: "", benefits_raw: "", social_twitter: "", social_linkedin: "", social_instagram: "", custom_domain: "", white_label_email_from: "" });
+  const [form, setForm] = useState({ name: "", slug: "", logo_url: "", brand_color: "#2563eb", portal_title: "", tagline: "", careers_intro: "", show_powered_by: true, website: "", cover_image_url: "", culture_text: "", benefits_raw: "", social_twitter: "", social_linkedin: "", social_instagram: "", custom_domain: "", white_label_email_from: "", reply_to_email: "" });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -651,6 +651,7 @@ function BrandingSettings() {
           social_instagram: sl.instagram ?? "",
           custom_domain: d.custom_domain ?? "",
           white_label_email_from: d.white_label_email_from ?? "",
+          reply_to_email: d.reply_to_email ?? "",
         }));
       }
     }).finally(() => setLoading(false));
@@ -831,6 +832,20 @@ function BrandingSettings() {
           />
           <p className="mt-1 text-xs text-muted-foreground">
             Shown as the sender name on all candidate emails. Leave blank to use &quot;{form.name || "Your Company"} Recruiting&quot;.
+          </p>
+        </div>
+
+        <div>
+          <label className="mb-1.5 block text-sm font-medium">Reply-to email</label>
+          <input
+            type="email"
+            value={form.reply_to_email}
+            onChange={(e) => setForm((f) => ({ ...f, reply_to_email: e.target.value }))}
+            className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            placeholder="hr@yourcompany.com"
+          />
+          <p className="mt-1 text-xs text-muted-foreground">
+            When a candidate replies to a platform email (interview invites, offers, reminders), it goes here — your team&apos;s monitored inbox. Leave blank to use your org contact email.
           </p>
         </div>
 
