@@ -402,15 +402,55 @@ export const GUIDE: GuideCategory[] = [
         slug: "recruiting-crm",
         title: "Recruiting CRM",
         icon: "🤝",
-        summary: "Track clients, contacts, and candidate relationships over time.",
+        summary: "Manage client companies, contacts, job orders, deals, and candidate submissions in one workspace.",
         sections: [
           {
-            body: ["The CRM keeps your clients, contacts, and candidate pipelines together so nothing slips between roles."],
-            steps: [
-              "Use Candidates and Talent Pools to nurture relationships between active searches.",
-              "Log activity and notes on each candidate and client contact.",
-              "Re-engage warm candidates with a campaign when a matching role opens.",
+            body: [
+              "The Recruiting CRM is built for staffing and hiring agencies: track client companies, the people you work with, the roles they need filled (job orders), your business-development pipeline (deals), and the candidates you submit — all connected to your existing candidates and ATS.",
+              "Open it from CRM in the left navigation. The CRM has its own sub-nav: Dashboard, Companies, Contacts, Job Orders, Deals, Activities, and Tasks.",
             ],
+          },
+          {
+            heading: "Companies & contacts",
+            steps: [
+              "Companies → New company to add a client or prospect. Set a status (Prospect, Active Client, Past Client, Dormant), industry, owner, and tags.",
+              "Open a company to see the whole relationship across tabs: Overview, Contacts, Job Orders, Deals, Submitted, Activity, and Tasks.",
+              "Add the people you work with under Contacts — hiring managers, HR, founders — with a contact type and relationship status (New, Warm, Active, Unresponsive, Do Not Contact).",
+            ],
+            tip: "Set a Next follow-up date on a company or contact and it surfaces on the CRM Dashboard so nothing slips.",
+          },
+          {
+            heading: "Job orders",
+            body: ["A job order is a client requirement you're working to fill, with the commercials that matter to an agency."],
+            steps: [
+              "Job Orders → New job order: capture job type, priority, openings, pay/bill rate, fee %, markup, and estimated placement value.",
+              "From a job order, use Create posting to spin up a real job in the ATS and reuse the full candidate pipeline, interviews, and offers.",
+              "Track status from Intake → Open → Sourcing → Submitted → Interviewing → Offer → Filled.",
+            ],
+          },
+          {
+            heading: "Deals pipeline",
+            steps: [
+              "Deals shows your business-development pipeline as a board. Create a deal and set its value, probability, and stage.",
+              "Drag a deal between stage columns (Lead → Discovery → Proposal Sent → Agreement Sent → Active Requirement → Won / Lost).",
+              "The board totals open and won value so you can read your pipeline at a glance.",
+            ],
+          },
+          {
+            heading: "Submissions, activities & tasks",
+            steps: [
+              "Submit a candidate to a client from a company's Submitted tab or a job order's Candidates tab; track each submission (Submitted → Client Review → Interview → Offer → Placed).",
+              "Log calls, emails, meetings, and notes from any record's Activity tab — they thread into one client timeline.",
+              "Create follow-up Tasks with due dates; the Tasks page groups them Overdue / Today / Upcoming, and the Dashboard surfaces what's due.",
+            ],
+          },
+          {
+            heading: "AI assistant & search",
+            steps: [
+              "On any company or contact, use Ask AI to summarize the relationship, suggest the next best action, draft a follow-up or client-update email, write intake questions, or score the opportunity — grounded only in that client's CRM data.",
+              "Use the CRM search box to find any company, contact, job order, or deal, and the Dashboard's Quick views for one-click filtered lists.",
+            ],
+            tip: "The CRM is available on plans that include it. If you don't see CRM in the navigation, check Billing or ask your admin.",
           },
         ],
       },
