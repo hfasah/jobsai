@@ -6,8 +6,11 @@ const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").replace(/\/$/, "");
 export const GOOGLE_REDIRECT = `${APP_URL}/api/inbox/google/callback`;
 
+// NOTE: gmail.readonly (restricted) is intentionally NOT requested — it forces
+// the CASA security assessment in OAuth verification. We can send + schedule but
+// not read mailbox threads. Re-add it (and complete CASA) to restore the Inbox
+// reply-thread view.
 const SCOPES = [
-  "https://www.googleapis.com/auth/gmail.readonly",
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/calendar.events",
   "openid",
