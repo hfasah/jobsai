@@ -62,7 +62,7 @@ export default function TeamPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const canManage = ["owner", "admin"].includes(myRole);
-  const canRemove = myRole === "owner";
+  const canRemove = ["owner", "admin"].includes(myRole);
 
   const load = async () => {
     const res = await fetch("/api/enterprise/team");
@@ -88,13 +88,22 @@ export default function TeamPage() {
   };
 
   const changeRole = async (id: string, role: string) => {
+    const prev = members.find((x) => x.id === id)?.role;
     setMembers((m) => m.map((x) => x.id === id ? { ...x, role } : x));
-    await fetch(`/api/enterprise/team/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+    setError("");
+    const res = await fetch(`/api/enterprise/team/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role }) });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      setError(j.error ?? "Couldn't change role.");
+      if (prev) setMembers((m) => m.map((x) => x.id === id ? { ...x, role: prev } : x)); // revert
+    }
   };
   const removeMember = async (id: string) => {
-    setBusyId(id);
+    if (!confirm("Remove this team member from the workspace?")) return;
+    setBusyId(id); setError("");
     const res = await fetch(`/api/enterprise/team/${id}`, { method: "DELETE" });
     if (res.ok) setMembers((m) => m.filter((x) => x.id !== id));
+    else { const j = await res.json().catch(() => ({})); setError(j.error ?? "Couldn't remove member."); }
     setBusyId(null);
   };
   const revokeInvite = async (id: string) => {
@@ -158,7 +167,7 @@ export default function TeamPage() {
                         <Icon className="h-3 w-3" /> {ROLE_LABELS[m.role as MemberRole] ?? m.role}
                       </span>
                     )}
-                    {canRemove && !isSelf && (
+                    {canRemove && !isSelf && !(myRole === "admin" && m.role === "owner") && (
                       <button onClick={() => removeMember(m.id)} disabled={busyId === m.id}
                         className="rounded-lg p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors">
                         {busyId === m.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
