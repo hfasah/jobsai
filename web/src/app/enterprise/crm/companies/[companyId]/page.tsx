@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Loader2, ArrowLeft, Pencil, Globe, MapPin, Users, Plus, ExternalLink,
+  Loader2, ArrowLeft, Pencil, Globe, MapPin, Users, Plus, ExternalLink, Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { labelFor, type CrmCompany, type CrmContact, type CrmActivity, type CrmTask, type CrmJobOrder, type CrmDeal } from "@/lib/crm-shared";
@@ -12,6 +12,7 @@ import { ContactForm } from "@/components/enterprise/crm/contact-form";
 import { JobOrderForm } from "@/components/enterprise/crm/job-order-form";
 import { DealForm } from "@/components/enterprise/crm/deal-form";
 import { ActivityTimeline, TasksPanel } from "@/components/enterprise/crm/activity-log";
+import { CrmAiModal } from "@/components/enterprise/crm/crm-ai-modal";
 import { fmtDate, fmtMoney, COMPANY_STATUS_STYLES, RELATIONSHIP_STYLES, JOB_ORDER_STATUS_STYLES, DEAL_STAGE_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
 interface Payload { data: CrmCompany; contacts: CrmContact[]; activities: CrmActivity[]; tasks: CrmTask[]; jobOrders: CrmJobOrder[]; deals: CrmDeal[] }
@@ -28,6 +29,7 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
   const [contactOpen, setContactOpen] = useState(false);
   const [jobOrderOpen, setJobOrderOpen] = useState(false);
   const [dealOpen, setDealOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/enterprise/crm/companies/${companyId}`).then((r) => (r.ok ? r.json() : null)).then(setP).finally(() => setLoading(false));
@@ -59,9 +61,14 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
                 {c.size && <span>{c.size}</span>}
               </div>
             </div>
-            <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
-              <Pencil className="h-3.5 w-3.5" /> Edit
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setAiOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-sm font-medium text-primary hover:bg-primary/10">
+                <Sparkles className="h-3.5 w-3.5" /> Ask AI
+              </button>
+              <button onClick={() => setEditOpen(true)} className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </button>
+            </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1">
@@ -205,6 +212,7 @@ export default function CompanyDetail({ params }: { params: Promise<{ companyId:
       <ContactForm open={contactOpen} onClose={() => setContactOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
       <JobOrderForm open={jobOrderOpen} onClose={() => setJobOrderOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
       <DealForm open={dealOpen} onClose={() => setDealOpen(false)} companies={[{ id: c.id, name: c.name }]} defaultCompanyId={c.id} onSaved={() => load()} />
+      <CrmAiModal open={aiOpen} onClose={() => setAiOpen(false)} companyId={c.id} companyName={c.name} />
     </main>
   );
 }

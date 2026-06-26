@@ -95,6 +95,22 @@ export default function CrmDashboard() {
           <StatCard icon={Building2} label="Total companies" value={s.totalCompanies} />
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Quick views</span>
+          {[
+            ["Prospects", "/enterprise/crm/companies?status=prospect"],
+            ["Active clients", "/enterprise/crm/companies?status=active_client"],
+            ["Dormant", "/enterprise/crm/companies?status=dormant"],
+            ["All companies", "/enterprise/crm/companies"],
+            ["Open job orders", "/enterprise/crm/job-orders"],
+            ["Deals pipeline", "/enterprise/crm/deals"],
+          ].map(([label, href]) => (
+            <Link key={label} href={href} className="rounded-full border border-border px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-primary hover:text-primary">
+              {label}
+            </Link>
+          ))}
+        </div>
+
         <div className="grid gap-5 lg:grid-cols-2">
           <ListCard title="Tasks due today">
             {d.lists.tasksDueToday.length === 0 ? empty("Nothing due today. 🎉") : (
