@@ -78,6 +78,33 @@ export const RELATIONSHIP_STYLES: Record<string, string> = {
   do_not_contact: "bg-red-500/15 text-red-500 border-red-500/30",
 };
 
+export const JOB_ORDER_STATUS_STYLES: Record<string, string> = {
+  intake: "bg-muted text-muted-foreground border-border",
+  open: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+  sourcing: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+  submitted: "bg-purple-500/15 text-purple-500 border-purple-500/30",
+  interviewing: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  offer: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  filled: "bg-green-500/15 text-green-500 border-green-500/30",
+  on_hold: "bg-muted text-muted-foreground border-border",
+  cancelled: "bg-red-500/15 text-red-500 border-red-500/30",
+};
+export const PRIORITY_STYLES: Record<string, string> = {
+  low: "bg-muted text-muted-foreground border-border",
+  medium: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+  high: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  urgent: "bg-red-500/15 text-red-500 border-red-500/30",
+};
+export const DEAL_STAGE_STYLES: Record<string, string> = {
+  lead: "bg-muted text-muted-foreground border-border",
+  discovery: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+  proposal_sent: "bg-blue-500/15 text-blue-500 border-blue-500/30",
+  agreement_sent: "bg-purple-500/15 text-purple-500 border-purple-500/30",
+  active_requirement: "bg-amber-500/15 text-amber-500 border-amber-500/30",
+  won: "bg-green-500/15 text-green-500 border-green-500/30",
+  lost: "bg-red-500/15 text-red-500 border-red-500/30",
+};
+
 export function StatusBadge({ value, styles }: { value: string; styles: Record<string, string> }) {
   return <span className={cn(badge, styles[value] ?? "bg-muted text-muted-foreground border-border")}>{labelFor(value)}</span>;
 }
@@ -102,3 +129,7 @@ export function relativeTime(v: string | null | undefined): string {
 
 // True when a follow-up/due date is in the past (for amber/red highlighting).
 export const isOverdue = (v: string | null | undefined) => !!v && new Date(v).getTime() < Date.now();
+
+// Compact USD formatting (e.g. $12,500). Returns "—" for null/empty.
+export const fmtMoney = (v: number | null | undefined) =>
+  v == null || Number.isNaN(Number(v)) ? "—" : `$${Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 })}`;

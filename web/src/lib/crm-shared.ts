@@ -16,6 +16,19 @@ export type ContactType = (typeof CONTACT_TYPES)[number];
 export type RelationshipStatus = (typeof RELATIONSHIP_STATUSES)[number];
 export type ActivityType = (typeof ACTIVITY_TYPES)[number];
 
+// Job orders + deals (PR2).
+export const JOB_TYPES = ["permanent", "contract", "contract_to_hire", "temporary"] as const;
+export const JOB_ORDER_STATUSES = ["intake", "open", "sourcing", "submitted", "interviewing", "offer", "filled", "on_hold", "cancelled"] as const;
+export const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
+export const WORK_MODES = ["remote", "hybrid", "onsite"] as const;
+export const DEAL_STAGES = ["lead", "discovery", "proposal_sent", "agreement_sent", "active_requirement", "won", "lost"] as const;
+
+export type JobType = (typeof JOB_TYPES)[number];
+export type JobOrderStatus = (typeof JOB_ORDER_STATUSES)[number];
+export type Priority = (typeof PRIORITIES)[number];
+export type WorkMode = (typeof WORK_MODES)[number];
+export type DealStage = (typeof DEAL_STAGES)[number];
+
 // Human labels for enum values (snake_case → Title Case fallback handled below).
 export const LABELS: Record<string, string> = {
   prospect: "Prospect",
@@ -43,6 +56,34 @@ export const LABELS: Record<string, string> = {
   candidate_submitted: "Candidate Submitted",
   interview_scheduled: "Interview Scheduled",
   offer_update: "Offer Update",
+  // Job orders
+  permanent: "Permanent",
+  contract: "Contract",
+  contract_to_hire: "Contract-to-Hire",
+  temporary: "Temporary",
+  intake: "Intake",
+  open: "Open",
+  sourcing: "Sourcing",
+  submitted: "Submitted",
+  interviewing: "Interviewing",
+  offer: "Offer",
+  filled: "Filled",
+  on_hold: "On Hold",
+  cancelled: "Cancelled",
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
+  remote: "Remote",
+  hybrid: "Hybrid",
+  onsite: "Onsite",
+  // Deal stages
+  lead: "Lead",
+  discovery: "Discovery",
+  agreement_sent: "Agreement Sent",
+  active_requirement: "Active Requirement",
+  won: "Won",
+  lost: "Lost",
 };
 
 export const labelFor = (v: string | null | undefined): string =>
@@ -125,6 +166,54 @@ export interface CrmTask {
   notes: string | null;
   owner_id: string | null;
   completed_at: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmDeal {
+  id: string;
+  org_id: string;
+  name: string;
+  company_id: string | null;
+  contact_id: string | null;
+  value: number | null;
+  stage: string;
+  probability: number | null;
+  expected_close_at: string | null;
+  next_action: string | null;
+  notes: string | null;
+  owner_id: string | null;
+  created_by: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CrmJobOrder {
+  id: string;
+  org_id: string;
+  company_id: string;
+  contact_id: string | null;
+  deal_id: string | null;
+  job_id: string | null;
+  title: string;
+  job_type: string;
+  status: string;
+  priority: string;
+  openings: number;
+  location: string | null;
+  work_mode: string | null;
+  salary_min: number | null;
+  salary_max: number | null;
+  pay_rate: number | null;
+  bill_rate: number | null;
+  fee_pct: number | null;
+  markup: number | null;
+  placement_value: number | null;
+  expected_close_at: string | null;
+  description: string | null;
+  internal_notes: string | null;
+  assigned_recruiter: string | null;
   created_by: string;
   created_at: string;
   updated_at: string;

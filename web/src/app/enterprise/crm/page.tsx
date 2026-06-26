@@ -3,16 +3,17 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  Loader2, Building2, Users, CalendarClock, AlertTriangle, Sparkles, ArrowRight, Clock,
+  Loader2, Building2, Users, CalendarClock, AlertTriangle, Sparkles, ArrowRight, Clock, Briefcase, TrendingUp, DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { labelFor } from "@/lib/crm-shared";
-import { fmtDate, relativeTime, COMPANY_STATUS_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
+import { fmtDate, fmtMoney, relativeTime, COMPANY_STATUS_STYLES, JOB_ORDER_STATUS_STYLES, DEAL_STAGE_STYLES, StatusBadge } from "@/components/enterprise/crm/crm-ui";
 
 interface Dashboard {
   stats: {
     prospects: number; activeClients: number; pastClients: number; dormant: number;
     totalCompanies: number; totalContacts: number; openTasks: number; overdueTasks: number; followupsDueToday: number;
+    openJobOrders: number; dealsInPipeline: number; pipelineValue: number;
   };
   lists: {
     tasksDueToday: { id: string; title: string; due_at: string | null; company?: { id: string; name: string } | null }[];
@@ -21,17 +22,19 @@ interface Dashboard {
     recentCompanies: { id: string; name: string; status: string; created_at: string }[];
     dormantCompanies: { id: string; name: string; status: string }[];
     staleContacts: { id: string; first_name: string; last_name: string | null; relationship_status: string; last_contacted_at: string | null }[];
+    jobOrdersNeedingAction: { id: string; title: string; status: string; priority: string; company?: { id: string; name: string } | null }[];
+    activeDeals: { id: string; name: string; stage: string; value: number | null; company?: { id: string; name: string } | null }[];
   };
 }
 
-function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Building2; label: string; value: number; tone?: string }) {
+function StatCard({ icon: Icon, label, value, tone, money }: { icon: typeof Building2; label: string; value: number; tone?: string; money?: boolean }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center gap-2 text-muted-foreground">
         <Icon className={cn("h-4 w-4", tone)} />
         <span className="text-xs font-medium">{label}</span>
       </div>
-      <p className="mt-1.5 text-2xl font-bold tabular-nums">{value}</p>
+      <p className="mt-1.5 text-2xl font-bold tabular-nums">{money ? fmtMoney(value) : value}</p>
     </div>
   );
 }
@@ -82,12 +85,14 @@ export default function CrmDashboard() {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <StatCard icon={Building2} label="Prospects" value={s.prospects} tone="text-blue-500" />
           <StatCard icon={Building2} label="Active clients" value={s.activeClients} tone="text-green-500" />
+          <StatCard icon={Briefcase} label="Open job orders" value={s.openJobOrders} tone="text-blue-500" />
+          <StatCard icon={TrendingUp} label="Deals in pipeline" value={s.dealsInPipeline} tone="text-purple-500" />
+          <StatCard icon={DollarSign} label="Pipeline value" value={s.pipelineValue} tone="text-green-500" money />
           <StatCard icon={CalendarClock} label="Follow-ups due today" value={s.followupsDueToday} tone="text-amber-500" />
           <StatCard icon={AlertTriangle} label="Overdue tasks" value={s.overdueTasks} tone="text-red-500" />
+          <StatCard icon={Clock} label="Dormant clients" value={s.dormant} tone="text-amber-500" />
           <StatCard icon={Users} label="Contacts" value={s.totalContacts} />
           <StatCard icon={Building2} label="Total companies" value={s.totalCompanies} />
-          <StatCard icon={Clock} label="Dormant clients" value={s.dormant} tone="text-amber-500" />
-          <StatCard icon={CalendarClock} label="Open tasks" value={s.openTasks} />
         </div>
 
         <div className="grid gap-5 lg:grid-cols-2">
@@ -111,6 +116,34 @@ export default function CrmDashboard() {
                   <li key={t.id} className="flex items-center justify-between gap-3 text-sm">
                     <span className="truncate">{t.title}{t.company && <span className="text-muted-foreground"> · {t.company.name}</span>}</span>
                     <span className="shrink-0 text-xs text-red-500">{fmtDate(t.due_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ListCard>
+
+          <ListCard title="Job orders needing action">
+            {d.lists.jobOrdersNeedingAction.length === 0 ? empty("No high-priority open orders.") : (
+              <ul className="divide-y divide-border">
+                {d.lists.jobOrdersNeedingAction.map((j) => (
+                  <li key={j.id}>
+                    <Link href={`/enterprise/crm/job-orders/${j.id}`} className="flex items-center justify-between gap-3 py-2 text-sm hover:text-primary">
+                      <span className="flex items-center gap-2 truncate"><StatusBadge value={j.status} styles={JOB_ORDER_STATUS_STYLES} /> {j.title}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{j.company?.name ?? ""}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </ListCard>
+
+          <ListCard title="Active deals">
+            {d.lists.activeDeals.length === 0 ? empty("No open deals.") : (
+              <ul className="divide-y divide-border">
+                {d.lists.activeDeals.map((dl) => (
+                  <li key={dl.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span className="flex items-center gap-2 truncate"><StatusBadge value={dl.stage} styles={DEAL_STAGE_STYLES} /> {dl.name}</span>
+                    <span className="shrink-0 text-xs font-medium">{fmtMoney(dl.value)}</span>
                   </li>
                 ))}
               </ul>
