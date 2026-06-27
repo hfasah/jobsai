@@ -71,34 +71,50 @@ function mimeFor(a: Attachment): string {
 const decodeEntities = (s: string) =>
   s.replace(/&amp;/gi, "&").replace(/&#3[49];/g, '"').replace(/&quot;/gi, '"').replace(/&lt;/gi, "<").replace(/&gt;/gi, ">");
 
-// Detect a Gmail / Google Workspace forwarding-verification email. When an org
-// forwards its hr@ mailbox to the intake address, Google emails a confirmation
-// code + verify link here. We surface it in Settings -> Intake rather than
-// parsing it into a junk candidate. Returns null for ordinary candidate mail.
+// Detect a mailbox-forwarding verification email from ANY provider (Gmail,
+// Microsoft 365, one.com, cPanel, etc.). When an org forwards its hr@ mailbox to
+// the intake address, the host emails a confirmation code and/or a verify link
+// here. We surface it in Settings -> Intake rather than parsing it into a junk
+// candidate. Returns null for ordinary candidate mail.
 function parseForwardingConfirmation(
   senderEmail: string, subject: string, bodyText: string, bodyHtml: string,
 ): { code: string; link: string | null; from: string | null } | null {
-  const fromGoogle = /(^|@|\.)google\.com$/i.test(senderEmail.split(">").pop()?.trim() ?? senderEmail);
-  const looksLikeConfirm = /forwarding[- ]?confirmation/i.test(subject) ||
-    (/forward(ing)?/i.test(subject + bodyText) && /confirmation code|confirm the request|verify/i.test(bodyText));
-  if (!fromGoogle || !looksLikeConfirm) return null;
-
   const haystack = `${subject}\n${bodyText}`;
-  const codeMatch =
-    haystack.match(/confirmation code[:\s(#]*?(\d{6,12})/i) ||
-    subject.match(/\(#\s*(\d{6,12})\)/) ||
-    haystack.match(/\b(\d{9})\b/);
-  if (!codeMatch) return null;
+  // Require both a "forward" signal and a "confirm/verify" signal so ordinary
+  // candidate mail isn't swallowed.
+  const looksLikeConfirm =
+    /forwarding[- ]?(confirmation|request|verification)/i.test(subject) ||
+    (/forward/i.test(haystack) && /(confirm|verif|approve|activate|validate)/i.test(haystack));
+  if (!looksLikeConfirm) return null;
 
-  const linkSource = decodeEntities(`${bodyHtml} ${bodyText}`);
-  const linkMatch = linkSource.match(/https:\/\/mail\.google\.com\/\S+/i);
+  // Code (optional — many hosts use a link only). Google: "(#NNNNN)" or
+  // "confirmation code: NNNN"; generic: "code: NNNN".
+  const codeMatch =
+    haystack.match(/(?:confirmation|verification)\s*code[:\s(#]*?(\d{5,12})/i) ||
+    subject.match(/\(#\s*(\d{5,12})\)/) ||
+    haystack.match(/\bcode[:\s]+(\d{5,12})\b/i) ||
+    haystack.match(/\b(\d{9})\b/);
+
+  // Verify link (optional): prefer a URL that looks like a confirm/verify link,
+  // else a known host, else the first link in a message we've already judged to
+  // be a forwarding confirmation.
+  const urls = decodeEntities(`${bodyHtml} ${bodyText}`).match(/https?:\/\/[^\s"'<>]+/gi) ?? [];
+  const link =
+    urls.find((u) => /(confirm|verif|forward|approve|activate|validate)/i.test(u)) ||
+    urls.find((u) => /mail\.google\.com|one\.com|webmail/i.test(u)) ||
+    urls[0] ||
+    null;
+
+  // Need at least one actionable piece, or it's not a usable confirmation.
+  if (!codeMatch && !link) return null;
+
   const fromMatch =
     subject.match(/Receive Mail from\s+([^\s)<>"]+@[^\s)<>"]+)/i) ||
-    haystack.match(/forward\b[\s\S]{0,60}?from\s+([^\s)<>"]+@[^\s)<>"]+)/i);
+    haystack.match(/forward\b[\s\S]{0,80}?(?:from|of)\s+([^\s)<>"]+@[^\s)<>"]+)/i);
 
   return {
-    code: codeMatch[1],
-    link: linkMatch ? linkMatch[0].replace(/["'>).,]+$/, "") : null,
+    code: codeMatch ? codeMatch[1] : "",
+    link: link ? link.replace(/["'>).,]+$/, "") : null,
     from: fromMatch ? fromMatch[1].toLowerCase() : null,
   };
 }
