@@ -65,11 +65,11 @@ function CandidateRow({
           {app.ai_summary && <p className="text-[11px] text-muted-foreground leading-relaxed">{app.ai_summary}</p>}
 
           {/* Resume — inline, always available in the pool */}
-          {(app.resume_text || app.resume_url) && (
+          {(app.resume_text || app.resume_url || app.resume_storage_key) && (
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-medium text-primary hover:underline">
                 <FileUser className="h-3 w-3" /> View resume
-                {app.resume_url && <a href={app.resume_url} target="_blank" rel="noopener noreferrer" className="text-muted-foreground underline">· download</a>}
+                {(app.resume_storage_key || app.resume_url) && <a href={`/api/enterprise/inbox/applications/${app.id}/resume`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground underline">· download original</a>}
               </summary>
               {app.resume_text && (
                 <pre className="mt-1.5 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-2.5 text-[11px] leading-relaxed font-sans">

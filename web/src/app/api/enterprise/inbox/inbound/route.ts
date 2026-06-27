@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { extractText } from "@/lib/resume-extractor";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
-  resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail,
+  resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
 } from "@/lib/enterprise-intake-inbox";
 
 export const maxDuration = 60;
@@ -193,8 +193,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, forwarding_confirmation: true });
   }
 
-  // Resume text: from the first resume attachment, else the email body itself.
+  // Resume text + original file: from the first usable resume attachment.
   let resumeText = "";
+  let resumeStorageKey: string | null = null;
   const attachments = full?.attachments ?? [];
   for (const a of attachments) {
     if (!isResume(a)) continue;
@@ -202,7 +203,12 @@ export async function POST(req: NextRequest) {
     if (!buf) continue;
     try {
       const out = await extractText(buf, mimeFor(a));
-      if (out.text.trim().length >= 50) { resumeText = out.text; break; }
+      if (out.text.trim().length >= 50) {
+        resumeText = out.text;
+        // Keep the original file so recruiters can download it as sent.
+        resumeStorageKey = await storeResumeFile(org.id, buf, a.filename ?? "resume", mimeFor(a));
+        break;
+      }
     } catch { /* try next attachment */ }
   }
   if (!resumeText && bodyText.trim().length >= 50) resumeText = bodyText.trim();
@@ -217,7 +223,8 @@ export async function POST(req: NextRequest) {
 
   const { id, deduped } = await createIntakeApplication({
     orgId: org.id, jobId, name: candidateName, email: candidateEmail,
-    resumeText: resumeText || null, coverLetter: subject ? `Subject: ${subject}` : null, source: "email",
+    resumeText: resumeText || null, resumeStorageKey,
+    coverLetter: subject ? `Subject: ${subject}` : null, source: "email",
   });
 
   return NextResponse.json({
