@@ -33,19 +33,28 @@ export function firstEmail(text: string | null | undefined): string | null {
 export async function resolveIntakeOrg(
   toList: string[],
 ): Promise<{ id: string; slug: string } | null> {
-  const handles = toList
-    .map((addr) => parseAddress(addr).email)
-    .filter((e) => e.endsWith(`@${INTAKE_DOMAIN}`))
-    .map((e) => e.split("@")[0].toLowerCase());
+  const handles = [...new Set(
+    toList
+      .map((addr) => parseAddress(addr).email)
+      .filter((e) => e.endsWith(`@${INTAKE_DOMAIN}`))
+      .map((e) => e.split("@")[0].trim().toLowerCase())
+      .filter(Boolean),
+  )];
   if (!handles.length) return null;
 
-  // Match either a custom handle or the slug.
+  // Match a custom handle OR the slug, case-INSENSITIVELY. The handle is stored
+  // lowercased, but slugs/legacy rows may carry mixed case, so a plain `in`
+  // (case-sensitive) misses them — which surfaces as a dropped forwarding email
+  // ("no-intake-match"). Handles are validated to [a-z0-9-], so they carry no
+  // ilike wildcards.
+  const conds = handles.flatMap((h) => [
+    `intake_email_handle.ilike.${h}`,
+    `slug.ilike.${h}`,
+  ]);
   const { data } = await supabaseAdmin
     .from("enterprise_orgs")
     .select("id, slug, intake_email_handle")
-    .or(
-      `intake_email_handle.in.(${handles.join(",")}),slug.in.(${handles.join(",")})`,
-    )
+    .or(conds.join(","))
     .limit(1);
   const org = data?.[0] as { id: string; slug: string } | undefined;
   return org ?? null;
