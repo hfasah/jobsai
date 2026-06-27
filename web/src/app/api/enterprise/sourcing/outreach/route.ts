@@ -24,6 +24,16 @@ type CandidateRef = {
   fit_reason?: string;
 };
 
+// A friendly first name for the greeting. Many emailed candidates are stored
+// with their email handle as the name (e.g. "hfasah", "dimmples038"); greeting
+// those by handle looks like spam, so fall back to "there".
+function greetingName(name: string | undefined): string {
+  const n = (name ?? "").trim();
+  if (n.includes(" ")) return n.split(/\s+/)[0];                  // "Jane Doe" → "Jane"
+  if (!n || /[0-9_]/.test(n) || n === n.toLowerCase()) return "there"; // handle-like
+  return n;                                                        // already a proper single name
+}
+
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -65,27 +75,28 @@ export async function POST(req: NextRequest) {
     .maybeSingle();
   const orgName = orgData?.name ?? org.name;
   const fromName = emailFromName(orgName, orgData?.white_label_email_from ?? null);
-  const showPoweredBy = orgData?.show_powered_by ?? true;
 
   const results: { email: string; ok: boolean; error?: string }[] = [];
 
   for (const cand of candidates as CandidateRef[]) {
     try {
+      const greet = greetingName(cand.name);
       // Generate personalized message via GPT
-      const msgPrompt = `Write a short, ${message_style} outreach email from a recruiter at "${orgName}" to ${cand.name}.
+      const msgPrompt = `Write a short, ${message_style} outreach email from a recruiter at "${orgName}" to a candidate.
 
 Role we're reaching out about: ${jobTitle}
 ${jobDesc ? `Role context: ${jobDesc.slice(0, 300)}` : ""}
 Why this candidate is a fit: ${cand.fit_reason ?? "strong background that matches our needs"}
 
 Style: conversational, respectful, no fluff, 3-4 sentences max. No subject line needed (we add that separately).
-Start directly with "Hi ${cand.name}," — do NOT start with "I hope this email finds you well" or similar filler.
+Start directly with "Hi ${greet}," — do NOT start with "I hope this email finds you well" or similar filler.
+Sign off as the recruiting team at ${orgName} (e.g. "— The ${orgName} team"); do NOT mention JobsAI or any platform.
 End with a clear soft CTA: ask if they're open to a quick call.
 
 Return JSON: { "subject": "...", "body": "..." }`;
 
       let subject = `New opportunity at ${orgName} — ${jobTitle}`;
-      let bodyText = `Hi ${cand.name},\n\nWe came across your profile and think you'd be a great fit for our ${jobTitle} role at ${orgName}. ${cand.fit_reason ?? ""}\n\nWould you be open to a quick 15-minute call to explore this further?\n\nBest regards,\n${orgName} Recruiting`;
+      let bodyText = `Hi ${greet},\n\nWe came across your profile and think you'd be a great fit for our ${jobTitle} role at ${orgName}. ${cand.fit_reason ?? ""}\n\nWould you be open to a quick 15-minute call to explore this further?\n\nBest regards,\n${orgName} Recruiting`;
 
       try {
         const resp = await ai().chat.completions.create({
@@ -105,7 +116,9 @@ Return JSON: { "subject": "...", "body": "..." }`;
 
       const html = wrapEmail(
         `<p>${bodyText.replace(/\n/g, "<br>")}</p>`,
-        showPoweredBy,
+        // Cold candidate outreach is sent from the recruiter's own mailbox — it
+        // should read as the company's own email, never "Powered by JobsAI".
+        false,
       );
 
       const gmailResult = await sendFromRecruiterGmail(userId, {
