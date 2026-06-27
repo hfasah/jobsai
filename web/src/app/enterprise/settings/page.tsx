@@ -319,6 +319,8 @@ interface PipedriveStatus {
   last_sync?: string | null;
   companies?: number;
   synced?: number;
+  contacts?: number;
+  syncedContacts?: number;
 }
 
 // Pipedrive CRM sync — pushes JobsAI CRM companies into Pipedrive as Organizations.
@@ -354,8 +356,10 @@ function PipedriveCard() {
     const res = await fetch("/api/enterprise/integrations/pipedrive/sync", { method: "POST" });
     const j = await res.json();
     if (res.ok) {
-      const s = j.data as { total: number; created: number; updated: number; errors: number };
-      setMsg({ kind: "ok", text: `Synced ${s.total} companies — ${s.created} created, ${s.updated} updated${s.errors ? `, ${s.errors} failed` : ""}.` });
+      type Sum = { total: number; created: number; updated: number; errors: number };
+      const s = j.data as { companies: Sum; contacts: Sum };
+      const part = (label: string, x: Sum) => `${x.total} ${label} (${x.created} new, ${x.updated} updated${x.errors ? `, ${x.errors} failed` : ""})`;
+      setMsg({ kind: "ok", text: `Synced ${part("companies", s.companies)} and ${part("contacts", s.contacts)}.` });
       load();
     } else setMsg({ kind: "err", text: j.error ?? "Sync failed." });
     setBusy(null);
@@ -377,7 +381,7 @@ function PipedriveCard() {
         {status.connected && <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400">Connected</span>}
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        Push your CRM companies into Pipedrive as Organizations — new and updated companies sync automatically, and you can run a full sync any time.
+        Push your CRM companies and contacts into Pipedrive as Organizations and Persons — new and updated records sync automatically, and you can run a full sync any time.
       </p>
 
       {!status.connected ? (
@@ -406,9 +410,10 @@ function PipedriveCard() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
             <div><div className="text-xs text-muted-foreground">Account</div><div className="font-medium">{status.company_name || status.domain || "Pipedrive"}</div></div>
             <div><div className="text-xs text-muted-foreground">Companies synced</div><div className="font-medium">{status.synced ?? 0} / {status.companies ?? 0}</div></div>
+            <div><div className="text-xs text-muted-foreground">Contacts synced</div><div className="font-medium">{status.syncedContacts ?? 0} / {status.contacts ?? 0}</div></div>
             <div><div className="text-xs text-muted-foreground">Last full sync</div><div className="font-medium">{status.last_sync ? new Date(status.last_sync).toLocaleString() : "Never"}</div></div>
           </div>
           <div className="flex items-center gap-2">

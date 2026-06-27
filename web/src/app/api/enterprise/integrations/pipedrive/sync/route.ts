@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 import { getMyOrg, getMyMembership } from "@/lib/enterprise";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { audit } from "@/lib/enterprise-audit";
-import { getPipedriveIntegration, pushAllCompanies } from "@/lib/pipedrive";
+import { getPipedriveIntegration, syncAllToPipedrive } from "@/lib/pipedrive";
 
 export const maxDuration = 60;
 
-// POST — push all CRM companies to Pipedrive now ("Sync now").
+// POST — push all CRM companies + contacts to Pipedrive now ("Sync now").
 export async function POST() {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +24,7 @@ export async function POST() {
     return NextResponse.json({ error: "Pipedrive isn't connected." }, { status: 400 });
   }
 
-  const summary = await pushAllCompanies(org.id);
-  await audit({ org_id: org.id, user_id: userId, action: "integration.synced", resource_type: "integration", metadata: { provider: "pipedrive", ...summary } });
+  const summary = await syncAllToPipedrive(org.id);
+  await audit({ org_id: org.id, user_id: userId, action: "integration.synced", resource_type: "integration", metadata: { provider: "pipedrive", companies: summary.companies, contacts: summary.contacts } });
   return NextResponse.json({ data: summary });
 }

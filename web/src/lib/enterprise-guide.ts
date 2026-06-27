@@ -497,6 +497,45 @@ export const GUIDE: GuideCategory[] = [
         ],
       },
       {
+        slug: "crm-integration",
+        title: "CRM integration (Pipedrive & more)",
+        icon: "🔗",
+        summary: "Push your recruiting CRM — companies and contacts — into your sales CRM so both teams work from one set of records.",
+        sections: [
+          {
+            body: [
+              "If your team runs a separate sales CRM, JobsAI can push your CRM records into it so you never double-enter. Pipedrive is live today; HubSpot, Salesforce, Zoho and others are available on request. Sync is one-way (JobsAI → your CRM) and keyed, so updates modify the same record instead of creating duplicates, and nothing in your CRM is deleted.",
+            ],
+          },
+          {
+            heading: "Connect Pipedrive",
+            steps: [
+              "In Pipedrive, open Settings → Personal preferences → API and copy your personal API token.",
+              "In JobsAI, go to Settings → Integrations → Pipedrive CRM.",
+              "Paste the API token (plus your company domain — e.g. “acme” for acme.pipedrive.com — if you have one) and click Connect. JobsAI validates the token before saving, so a wrong token fails immediately.",
+              "Click Sync now to push your existing companies and contacts in one pass. After that, new and edited records sync automatically in the background.",
+            ],
+            tip: "Only owners and admins can connect a CRM, and it's part of the CRM module (Agency/Business/Enterprise).",
+          },
+          {
+            heading: "What syncs",
+            body: [
+              "Companies → Pipedrive Organizations (name, address).",
+              "Contacts → Pipedrive Persons (name, email, phone), automatically linked to their company's Organization.",
+              "Every create and update in your JobsAI CRM pushes in the background; the Integrations card shows how many companies and contacts are synced and when the last full sync ran.",
+            ],
+          },
+          {
+            heading: "Connecting a different CRM",
+            body: [
+              "Every CRM connection follows the same shape: authenticate under Settings → Integrations (an API token, or OAuth where the provider supports it), then JobsAI pushes your companies and contacts and keeps them current. Adding a new CRM is mostly mapping that CRM's organization and person objects to JobsAI's companies and contacts.",
+              "To request HubSpot, Salesforce, Zoho, or another CRM — or to ask for two-way sync, or for deals and activities to push as well — contact us with your workflow and we'll scope it. Those extensions are on the roadmap.",
+            ],
+            tip: "Disconnecting a CRM stops syncing but keeps the record links, so reconnecting later updates the same objects rather than duplicating them.",
+          },
+        ],
+      },
+      {
         slug: "connect-email-calendar",
         title: "Connect email & calendar",
         icon: "📬",

@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { crmContext } from "@/lib/enterprise-crm";
+import { pushContactToPipedrive } from "@/lib/pipedrive";
 
 // GET /api/enterprise/crm/contacts?company_id=&status=&owner=&tag=&q=
 // Returns contacts with their company name embedded for list display.
@@ -69,5 +70,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Mirror to Pipedrive as a Person if connected (no-op otherwise), backgrounded.
+  after(() => pushContactToPipedrive(ctx.org.id, data.id).catch(() => {}));
+
   return NextResponse.json({ data }, { status: 201 });
 }
