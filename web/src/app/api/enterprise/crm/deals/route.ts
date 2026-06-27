@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { crmContext, DEAL_STAGES } from "@/lib/enterprise-crm";
+import { pushDealToPipedrive } from "@/lib/pipedrive";
 
 // GET /api/enterprise/crm/deals?stage=&owner=&company_id=
 export async function GET(req: NextRequest) {
@@ -60,5 +61,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Mirror to Pipedrive as a Deal if connected (no-op otherwise), backgrounded.
+  after(() => pushDealToPipedrive(ctx.org.id, data.id).catch(() => {}));
+
   return NextResponse.json({ data }, { status: 201 });
 }

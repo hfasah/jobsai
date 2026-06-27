@@ -47,6 +47,8 @@ export async function GET() {
       synced: counts.synced,
       contacts: counts.contacts,
       syncedContacts: counts.syncedContacts,
+      deals: counts.deals,
+      syncedDeals: counts.syncedDeals,
     },
   });
 }
@@ -79,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   await audit({ org_id: g.org.id, user_id: g.userId, action: "integration.connected", resource_type: "integration", metadata: { provider: "pipedrive" } });
   const counts = await pipedriveSyncCounts(g.org.id);
-  return NextResponse.json({ data: { connected: true, domain, company_name: companyName, last_sync: null, companies: counts.companies, synced: counts.synced, contacts: counts.contacts, syncedContacts: counts.syncedContacts } }, { status: 201 });
+  return NextResponse.json({ data: { connected: true, domain, company_name: companyName, last_sync: null, companies: counts.companies, synced: counts.synced, contacts: counts.contacts, syncedContacts: counts.syncedContacts, deals: counts.deals, syncedDeals: counts.syncedDeals } }, { status: 201 });
 }
 
 // DELETE — disconnect. Keeps crm_pipedrive_links so reconnecting still updates

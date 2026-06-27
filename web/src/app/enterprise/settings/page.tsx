@@ -321,6 +321,8 @@ interface PipedriveStatus {
   synced?: number;
   contacts?: number;
   syncedContacts?: number;
+  deals?: number;
+  syncedDeals?: number;
 }
 
 // Pipedrive CRM sync — pushes JobsAI CRM companies into Pipedrive as Organizations.
@@ -357,9 +359,9 @@ function PipedriveCard() {
     const j = await res.json();
     if (res.ok) {
       type Sum = { total: number; created: number; updated: number; errors: number };
-      const s = j.data as { companies: Sum; contacts: Sum };
+      const s = j.data as { companies: Sum; contacts: Sum; deals: Sum };
       const part = (label: string, x: Sum) => `${x.total} ${label} (${x.created} new, ${x.updated} updated${x.errors ? `, ${x.errors} failed` : ""})`;
-      setMsg({ kind: "ok", text: `Synced ${part("companies", s.companies)} and ${part("contacts", s.contacts)}.` });
+      setMsg({ kind: "ok", text: `Synced ${part("companies", s.companies)}, ${part("contacts", s.contacts)}, and ${part("deals", s.deals)}.` });
       load();
     } else setMsg({ kind: "err", text: j.error ?? "Sync failed." });
     setBusy(null);
@@ -381,7 +383,7 @@ function PipedriveCard() {
         {status.connected && <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400">Connected</span>}
       </div>
       <p className="mb-4 text-sm text-muted-foreground">
-        Push your CRM companies and contacts into Pipedrive as Organizations and Persons — new and updated records sync automatically, and you can run a full sync any time.
+        Push your CRM companies, contacts, and deals into Pipedrive as Organizations, Persons, and Deals — new and updated records sync automatically, and you can run a full sync any time.
       </p>
 
       {!status.connected ? (
@@ -410,10 +412,11 @@ function PipedriveCard() {
         </div>
       ) : (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3 lg:grid-cols-5">
             <div><div className="text-xs text-muted-foreground">Account</div><div className="font-medium">{status.company_name || status.domain || "Pipedrive"}</div></div>
             <div><div className="text-xs text-muted-foreground">Companies synced</div><div className="font-medium">{status.synced ?? 0} / {status.companies ?? 0}</div></div>
             <div><div className="text-xs text-muted-foreground">Contacts synced</div><div className="font-medium">{status.syncedContacts ?? 0} / {status.contacts ?? 0}</div></div>
+            <div><div className="text-xs text-muted-foreground">Deals synced</div><div className="font-medium">{status.syncedDeals ?? 0} / {status.deals ?? 0}</div></div>
             <div><div className="text-xs text-muted-foreground">Last full sync</div><div className="font-medium">{status.last_sync ? new Date(status.last_sync).toLocaleString() : "Never"}</div></div>
           </div>
           <div className="flex items-center gap-2">

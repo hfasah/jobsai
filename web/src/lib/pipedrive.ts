@@ -196,6 +196,84 @@ export async function pushContactToPipedrive(
   return { status: "created", pipedriveId: res.data.id };
 }
 
+interface CrmDealRow { id: string; name: string; value: number | null; stage: string; probability: number | null; expected_close_at: string | null; company_id: string | null; contact_id: string | null }
+
+// Map the JobsAI deal stage to a Pipedrive Deal. Pipedrive stage_ids are
+// per-pipeline and account-specific, so we don't set one (Pipedrive places the
+// deal in the default pipeline's first stage). won/lost are reflected via the
+// Deal status; everything else is "open".
+function dealPayload(d: CrmDealRow, orgId?: number, personId?: number): Record<string, unknown> {
+  const status = d.stage === "won" ? "won" : d.stage === "lost" ? "lost" : "open";
+  const payload: Record<string, unknown> = { title: d.name, status };
+  if (d.value != null) payload.value = d.value;
+  if (d.probability != null) payload.probability = d.probability;
+  if (d.expected_close_at) payload.expected_close_date = String(d.expected_close_at).slice(0, 10);
+  if (orgId) payload.org_id = orgId;
+  if (personId) payload.person_id = personId;
+  return payload;
+}
+
+// Resolve the Pipedrive Person id for a JobsAI contact, pushing it first if it
+// hasn't synced yet — so a Deal attaches to the right Person.
+async function resolvePersonId(orgId: string, contactId: string): Promise<number | undefined> {
+  const read = () => supabaseAdmin.from("crm_pipedrive_links")
+    .select("pipedrive_id").eq("org_id", orgId).eq("entity_type", "contact").eq("entity_id", contactId).maybeSingle();
+  let { data: link } = await read();
+  if (!link?.pipedrive_id) { await pushContactToPipedrive(orgId, contactId); ({ data: link } = await read()); }
+  return link?.pipedrive_id ?? undefined;
+}
+
+// Push one JobsAI deal to Pipedrive as a Deal (create/update via the link table;
+// linked to its company's Organization and contact's Person). No-op when not connected.
+export async function pushDealToPipedrive(
+  orgId: string, dealId: string,
+): Promise<{ status: PushStatus; pipedriveId?: number; error?: string }> {
+  const integ = await getPipedriveIntegration(orgId);
+  if (!integ) return { status: "skipped" };
+
+  const { data: deal } = await supabaseAdmin
+    .from("crm_deals")
+    .select("id, name, value, stage, probability, expected_close_at, company_id, contact_id")
+    .eq("id", dealId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  if (!deal) return { status: "skipped" };
+  const d = deal as CrmDealRow;
+
+  const pdOrgId = d.company_id ? await resolveOrgId(orgId, d.company_id) : undefined;
+  const pdPersonId = d.contact_id ? await resolvePersonId(orgId, d.contact_id) : undefined;
+  const payload = dealPayload(d, pdOrgId, pdPersonId);
+
+  const { data: link } = await supabaseAdmin
+    .from("crm_pipedrive_links")
+    .select("pipedrive_id")
+    .eq("org_id", orgId).eq("entity_type", "deal").eq("entity_id", dealId)
+    .maybeSingle();
+
+  if (link?.pipedrive_id) {
+    const res = await pdRequest(integ, "PUT", `/deals/${link.pipedrive_id}`, payload);
+    if (!res.ok) {
+      if (res.status === 404) {
+        await supabaseAdmin.from("crm_pipedrive_links").delete()
+          .eq("org_id", orgId).eq("entity_type", "deal").eq("entity_id", dealId);
+      }
+      return { status: "error", error: res.error };
+    }
+    await supabaseAdmin.from("crm_pipedrive_links")
+      .update({ last_pushed_at: new Date().toISOString() })
+      .eq("org_id", orgId).eq("entity_type", "deal").eq("entity_id", dealId);
+    return { status: "updated", pipedriveId: link.pipedrive_id };
+  }
+
+  const res = await pdRequest<{ id: number }>(integ, "POST", "/deals", payload);
+  if (!res.ok || !res.data?.id) return { status: "error", error: res.error };
+  await supabaseAdmin.from("crm_pipedrive_links").upsert(
+    { org_id: orgId, entity_type: "deal", entity_id: dealId, pipedrive_id: res.data.id, last_pushed_at: new Date().toISOString() },
+    { onConflict: "org_id,entity_type,entity_id" },
+  );
+  return { status: "created", pipedriveId: res.data.id };
+}
+
 export interface SyncSummary { created: number; updated: number; errors: number; total: number; firstError?: string }
 
 // Push every company in the org (manual "Sync now"). Sequential to respect
@@ -250,24 +328,51 @@ export async function pushAllContacts(orgId: string): Promise<SyncSummary> {
   return { created, updated, errors, total: rows.length, firstError };
 }
 
+// Push every deal in the org. Sequential to respect Pipedrive rate limits.
+export async function pushAllDeals(orgId: string): Promise<SyncSummary> {
+  const integ = await getPipedriveIntegration(orgId);
+  if (!integ) return { created: 0, updated: 0, errors: 0, total: 0 };
+
+  const { data: deals } = await supabaseAdmin
+    .from("crm_deals")
+    .select("id")
+    .eq("org_id", orgId)
+    .order("updated_at", { ascending: false })
+    .limit(500);
+
+  const rows = (deals ?? []) as { id: string }[];
+  let created = 0, updated = 0, errors = 0;
+  let firstError: string | undefined;
+  for (const d of rows) {
+    const r = await pushDealToPipedrive(orgId, d.id);
+    if (r.status === "created") created++;
+    else if (r.status === "updated") updated++;
+    else if (r.status === "error") { errors++; firstError ??= r.error; }
+  }
+  return { created, updated, errors, total: rows.length, firstError };
+}
+
 // Full "Sync now": companies first (so Persons can link to Organizations), then
-// contacts. Stamps last_sync once at the end.
-export async function syncAllToPipedrive(orgId: string): Promise<{ companies: SyncSummary; contacts: SyncSummary }> {
+// contacts, then deals (which attach to both). Stamps last_sync once at the end.
+export async function syncAllToPipedrive(orgId: string): Promise<{ companies: SyncSummary; contacts: SyncSummary; deals: SyncSummary }> {
   const companies = await pushAllCompanies(orgId);
   const contacts = await pushAllContacts(orgId);
+  const deals = await pushAllDeals(orgId);
   await supabaseAdmin.from("enterprise_integrations")
     .update({ last_sync: new Date().toISOString() })
     .eq("org_id", orgId).eq("provider", "pipedrive");
-  return { companies, contacts };
+  return { companies, contacts, deals };
 }
 
 // Counts for the status card: total + already-linked, per entity type.
-export async function pipedriveSyncCounts(orgId: string): Promise<{ companies: number; synced: number; contacts: number; syncedContacts: number }> {
-  const [{ count: companies }, { count: synced }, { count: contacts }, { count: syncedContacts }] = await Promise.all([
+export async function pipedriveSyncCounts(orgId: string): Promise<{ companies: number; synced: number; contacts: number; syncedContacts: number; deals: number; syncedDeals: number }> {
+  const [{ count: companies }, { count: synced }, { count: contacts }, { count: syncedContacts }, { count: deals }, { count: syncedDeals }] = await Promise.all([
     supabaseAdmin.from("crm_companies").select("id", { count: "exact", head: true }).eq("org_id", orgId),
     supabaseAdmin.from("crm_pipedrive_links").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("entity_type", "company"),
     supabaseAdmin.from("crm_contacts").select("id", { count: "exact", head: true }).eq("org_id", orgId),
     supabaseAdmin.from("crm_pipedrive_links").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("entity_type", "contact"),
+    supabaseAdmin.from("crm_deals").select("id", { count: "exact", head: true }).eq("org_id", orgId),
+    supabaseAdmin.from("crm_pipedrive_links").select("id", { count: "exact", head: true }).eq("org_id", orgId).eq("entity_type", "deal"),
   ]);
-  return { companies: companies ?? 0, synced: synced ?? 0, contacts: contacts ?? 0, syncedContacts: syncedContacts ?? 0 };
+  return { companies: companies ?? 0, synced: synced ?? 0, contacts: contacts ?? 0, syncedContacts: syncedContacts ?? 0, deals: deals ?? 0, syncedDeals: syncedDeals ?? 0 };
 }
