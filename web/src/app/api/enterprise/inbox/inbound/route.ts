@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { extractText } from "@/lib/resume-extractor";
+import { parseResumeText } from "@/lib/resume-parser";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
   resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
@@ -213,16 +214,32 @@ export async function POST(req: NextRequest) {
   }
   if (!resumeText && bodyText.trim().length >= 50) resumeText = bodyText.trim();
 
-  // Candidate identity: a forwarded email's From is the recruiter, so prefer an
-  // address found in the body/resume; fall back to the actual sender.
-  const candidateEmail = firstEmail(resumeText) ?? firstEmail(bodyText) ?? sender.email;
-  const candidateName = sender.name ?? candidateEmail.split("@")[0];
+  // Structured extraction — run the same résumé parser the upload path uses, so
+  // emailed candidates get a real name, email, and phone (not just the sender
+  // handle). Skipped for short body-only mail; never blocks on parser failure.
+  let parsedName: string | null = null;
+  let parsedEmail: string | null = null;
+  let parsedPhone: string | null = null;
+  if (resumeText.trim().length >= 50) {
+    try {
+      const parsed = await parseResumeText(resumeText);
+      parsedName = parsed.name?.trim() || null;
+      parsedEmail = parsed.email?.trim().toLowerCase() || null;
+      parsedPhone = parsed.phone?.trim() || null;
+    } catch { /* fall back to sender/regex below */ }
+  }
+
+  // Candidate identity: a forwarded email's From is the recruiter, so the résumé
+  // is the most reliable source — prefer the parsed name/email, then the body,
+  // then the actual sender.
+  const candidateEmail = parsedEmail ?? firstEmail(resumeText) ?? firstEmail(bodyText) ?? sender.email;
+  const candidateName = parsedName ?? sender.name ?? candidateEmail.split("@")[0];
 
   const jobId = await getOrCreateIntakePool(org.id, "intake@email");
   if (!jobId) return NextResponse.json({ ok: true, error: "no-pool" });
 
   const { id, deduped } = await createIntakeApplication({
-    orgId: org.id, jobId, name: candidateName, email: candidateEmail,
+    orgId: org.id, jobId, name: candidateName, email: candidateEmail, phone: parsedPhone,
     resumeText: resumeText || null, resumeStorageKey,
     coverLetter: subject ? `Subject: ${subject}` : null, source: "email",
   });
