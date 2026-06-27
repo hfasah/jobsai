@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Lock, ArrowLeft } from "lucide-react";
 import { getMyOrg, orgHasAccess } from "@/lib/enterprise";
 import { StartOverButton } from "./start-over";
+import { ExitDemoButton } from "./exit-demo";
 
 // Shown when a recruiter's org exists but its subscription isn't active yet.
 export default async function EnterpriseLockedPage() {
@@ -47,6 +48,7 @@ export default async function EnterpriseLockedPage() {
 
         <div className="mt-4 flex flex-col items-center gap-3 border-t border-border/60 pt-5">
           <StartOverButton />
+          <ExitDemoButton />
           <Link
             href="/enterprise/home"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
