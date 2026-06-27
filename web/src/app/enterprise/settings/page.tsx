@@ -312,6 +312,123 @@ function MicrosoftCalendarCard() {
   );
 }
 
+interface PipedriveStatus {
+  connected: boolean;
+  domain?: string | null;
+  company_name?: string | null;
+  last_sync?: string | null;
+  companies?: number;
+  synced?: number;
+}
+
+// Pipedrive CRM sync — pushes JobsAI CRM companies into Pipedrive as Organizations.
+function PipedriveCard() {
+  const [status, setStatus] = useState<PipedriveStatus | null>(null);
+  const [token, setToken] = useState("");
+  const [domain, setDomain] = useState("");
+  const [busy, setBusy] = useState<null | "connect" | "sync" | "disconnect">(null);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+
+  const load = () =>
+    fetch("/api/enterprise/integrations/pipedrive")
+      .then((r) => r.json())
+      .then((j) => setStatus(j.data ?? { connected: false }))
+      .catch(() => setStatus({ connected: false }));
+  useEffect(() => { load(); }, []);
+
+  const connect = async () => {
+    if (!token.trim()) return;
+    setBusy("connect"); setMsg(null);
+    const res = await fetch("/api/enterprise/integrations/pipedrive", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ api_token: token, company_domain: domain }),
+    });
+    const j = await res.json();
+    if (res.ok) { setStatus(j.data); setToken(""); setMsg({ kind: "ok", text: `Connected${j.data?.company_name ? ` to ${j.data.company_name}` : ""}.` }); }
+    else setMsg({ kind: "err", text: j.error ?? "Couldn't connect." });
+    setBusy(null);
+  };
+
+  const sync = async () => {
+    setBusy("sync"); setMsg(null);
+    const res = await fetch("/api/enterprise/integrations/pipedrive/sync", { method: "POST" });
+    const j = await res.json();
+    if (res.ok) {
+      const s = j.data as { total: number; created: number; updated: number; errors: number };
+      setMsg({ kind: "ok", text: `Synced ${s.total} companies — ${s.created} created, ${s.updated} updated${s.errors ? `, ${s.errors} failed` : ""}.` });
+      load();
+    } else setMsg({ kind: "err", text: j.error ?? "Sync failed." });
+    setBusy(null);
+  };
+
+  const disconnect = async () => {
+    setBusy("disconnect");
+    await fetch("/api/enterprise/integrations/pipedrive", { method: "DELETE" });
+    setStatus({ connected: false }); setMsg(null); setBusy(null);
+  };
+
+  if (!status) return null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="text-lg">🔗</span>
+        <h2 className="font-semibold">Pipedrive CRM</h2>
+        {status.connected && <span className="rounded-full bg-green-500/10 px-2 py-0.5 text-xs font-medium text-green-400">Connected</span>}
+      </div>
+      <p className="mb-4 text-sm text-muted-foreground">
+        Push your CRM companies into Pipedrive as Organizations — new and updated companies sync automatically, and you can run a full sync any time.
+      </p>
+
+      {!status.connected ? (
+        <div className="space-y-3">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">API token</label>
+            <input value={token} onChange={(e) => setToken(e.target.value)} type="password" autoComplete="off"
+              placeholder="Pipedrive API token"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+            <p className="mt-1 text-xs text-muted-foreground">
+              In Pipedrive: <span className="text-foreground">Settings → Personal preferences → API</span> → copy your personal API token.
+            </p>
+          </div>
+          <div>
+            <label className="mb-1.5 block text-sm font-medium">Company domain <span className="text-muted-foreground">(optional)</span></label>
+            <div className="flex items-center gap-2">
+              <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="acme"
+                className="w-40 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              <span className="text-sm text-muted-foreground">.pipedrive.com</span>
+            </div>
+          </div>
+          <button onClick={connect} disabled={busy === "connect" || !token.trim()}
+            className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+            {busy === "connect" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Link2 className="h-4 w-4" />} Connect Pipedrive
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+            <div><div className="text-xs text-muted-foreground">Account</div><div className="font-medium">{status.company_name || status.domain || "Pipedrive"}</div></div>
+            <div><div className="text-xs text-muted-foreground">Companies synced</div><div className="font-medium">{status.synced ?? 0} / {status.companies ?? 0}</div></div>
+            <div><div className="text-xs text-muted-foreground">Last full sync</div><div className="font-medium">{status.last_sync ? new Date(status.last_sync).toLocaleString() : "Never"}</div></div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={sync} disabled={busy === "sync"}
+              className="btn-cta inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+              {busy === "sync" ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />} Sync now
+            </button>
+            <button onClick={disconnect} disabled={busy === "disconnect"}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm text-muted-foreground hover:bg-muted disabled:opacity-60">
+              {busy === "disconnect" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />} Disconnect
+            </button>
+          </div>
+        </div>
+      )}
+
+      {msg && <p className={cn("mt-3 text-xs", msg.kind === "ok" ? "text-green-500" : "text-destructive")}>{msg.text}</p>}
+    </div>
+  );
+}
+
 function IntegrationsSettings() {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [connecting, setConnecting] = useState<string | null>(null);
@@ -360,6 +477,7 @@ function IntegrationsSettings() {
     <div className="space-y-4">
       <GoogleCalendarCard />
       <MicrosoftCalendarCard />
+      <PipedriveCard />
       {PROVIDERS.map((p) => {
         const connected = integrations.find((i) => i.provider === p.id);
         const f = form[p.id] ?? { api_key: "", subdomain: "" };

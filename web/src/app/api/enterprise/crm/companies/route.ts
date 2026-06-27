@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { crmContext } from "@/lib/enterprise-crm";
+import { pushCompanyToPipedrive } from "@/lib/pipedrive";
 
 // GET /api/enterprise/crm/companies?status=&owner=&tag=&q=
 export async function GET(req: NextRequest) {
@@ -58,5 +59,10 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Mirror to Pipedrive if connected (no-op otherwise). Backgrounded so the
+  // response isn't blocked on an external API.
+  after(() => pushCompanyToPipedrive(ctx.org.id, data.id).catch(() => {}));
+
   return NextResponse.json({ data }, { status: 201 });
 }

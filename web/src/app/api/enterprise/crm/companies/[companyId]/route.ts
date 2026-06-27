@@ -1,6 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { crmContext } from "@/lib/enterprise-crm";
+import { pushCompanyToPipedrive } from "@/lib/pipedrive";
 
 type Ctx = { params: Promise<{ companyId: string }> };
 
@@ -66,6 +67,10 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
     .select("*")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Mirror the update to Pipedrive if connected (no-op otherwise), backgrounded.
+  after(() => pushCompanyToPipedrive(ctx.org.id, companyId).catch(() => {}));
+
   return NextResponse.json({ data });
 }
 
