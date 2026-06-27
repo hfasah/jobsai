@@ -56,6 +56,7 @@ export interface EnterpriseApplication {
   candidate_email: string;
   candidate_phone: string | null;
   resume_url: string | null;
+  resume_storage_key: string | null;
   resume_text: string | null;
   cover_letter: string | null;
   linkedin_url: string | null;

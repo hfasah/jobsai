@@ -5,7 +5,7 @@ import { getMyOrg } from "@/lib/enterprise";
 import { enforceLimit } from "@/lib/enterprise-limits";
 import { extractText } from "@/lib/resume-extractor";
 import { parseResumeText } from "@/lib/resume-parser";
-import { getOrCreateIntakePool, createIntakeApplication, firstEmail } from "@/lib/enterprise-intake-inbox";
+import { getOrCreateIntakePool, createIntakeApplication, firstEmail, storeResumeFile } from "@/lib/enterprise-intake-inbox";
 
 export const maxDuration = 60;
 
@@ -33,10 +33,13 @@ export async function POST(req: NextRequest) {
   }
 
   let text = "";
+  let resumeStorageKey: string | null = null;
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
     const out = await extractText(buffer, file.type);
     text = out.text;
+    // Keep the original file for download as-uploaded.
+    resumeStorageKey = await storeResumeFile(org.id, buffer, file.name, file.type);
   } catch {
     return NextResponse.json(
       { error: "Couldn't read that file. Upload a PDF or Word (.docx) resume." },
@@ -93,7 +96,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { id, deduped } = await createIntakeApplication({
-    orgId: org.id, jobId, name, email, phone: phone || null, resumeText: text, source: "upload",
+    orgId: org.id, jobId, name, email, phone: phone || null, resumeText: text, resumeStorageKey, source: "upload",
   });
   if (!id) return NextResponse.json({ error: "Couldn't save the candidate." }, { status: 500 });
 

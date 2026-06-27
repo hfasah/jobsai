@@ -1,4 +1,26 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import crypto from "crypto";
+import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+
+// Store the original resume file in the private resumes bucket and return its
+// storage key (path) — recruiters download it as-sent via a signed URL.
+// Best-effort: returns null on any failure so candidate creation is never blocked.
+export async function storeResumeFile(
+  orgId: string, buffer: Buffer, filename: string, contentType: string,
+): Promise<string | null> {
+  try {
+    const ext = (filename.split(".").pop() || "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8) || "bin";
+    const key = `enterprise/${orgId}/${crypto.randomUUID()}.${ext}`;
+    const { error } = await supabaseAdmin.storage.from(STORAGE_BUCKET).upload(key, buffer, {
+      contentType: contentType || "application/octet-stream",
+      upsert: true,
+    });
+    if (error) { console.warn("[intake] resume file upload failed:", error.message); return null; }
+    return key;
+  } catch (e) {
+    console.warn("[intake] resume file upload error:", e instanceof Error ? e.message : e);
+    return null;
+  }
+}
 
 // Domain that receives candidate resumes. Each org gets <handle>@<this domain>.
 // Configurable so staging can use a different inbound domain.
@@ -95,6 +117,7 @@ export interface IntakeCandidate {
   phone?: string | null;
   resumeText?: string | null;
   resumeUrl?: string | null;
+  resumeStorageKey?: string | null;
   source: "email" | "upload";
   coverLetter?: string | null;
 }
@@ -124,6 +147,7 @@ export async function createIntakeApplication(
       candidate_phone: c.phone ?? null,
       resume_text: c.resumeText ?? null,
       resume_url: c.resumeUrl ?? null,
+      resume_storage_key: c.resumeStorageKey ?? null,
       cover_letter: c.coverLetter ?? null,
       source: c.source,
       stage: "applied",

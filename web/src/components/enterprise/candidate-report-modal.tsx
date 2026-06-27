@@ -229,13 +229,13 @@ export function CandidateReportModal({
             {app.ai_summary && <p className="mt-2.5 text-xs text-muted-foreground leading-relaxed">{app.ai_summary}</p>}
 
             {/* Resume */}
-            {(app.resume_text || app.resume_url) && (
+            {(app.resume_text || app.resume_url || app.resume_storage_key) && (
               <div className="mt-3">
                 <button onClick={() => setShowResume((s) => !s)}
                   className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline">
                   <FileUser className="h-3.5 w-3.5" />
                   {showResume ? "Hide resume" : "View resume"}
-                  {app.resume_url && <span className="text-muted-foreground">· <a href={app.resume_url} target="_blank" rel="noopener noreferrer" className="underline">download file</a></span>}
+                  {(app.resume_storage_key || app.resume_url) && <span className="text-muted-foreground">· <a href={`/api/enterprise/inbox/applications/${app.id}/resume`} target="_blank" rel="noopener noreferrer" className="underline">download original</a></span>}
                 </button>
                 {showResume && app.resume_text && (
                   <pre className="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-border bg-background p-3 text-xs leading-relaxed text-foreground font-sans">
