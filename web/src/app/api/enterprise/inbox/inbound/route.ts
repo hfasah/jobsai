@@ -148,9 +148,13 @@ export async function POST(req: NextRequest) {
 
   const data = event.data ?? {};
   const emailId = (data.email_id ?? data.id) as string | undefined;
+  // Include received_for (the envelope recipient) — for forwarded mail the To:
+  // header can still be the original mailbox, while received_for is the address
+  // the message was actually delivered to (our intake address).
   const toList = ([] as string[])
     .concat((data.to as string[] | string) ?? [])
     .concat((data.cc as string[] | string) ?? [])
+    .concat((data.received_for as string[] | string) ?? [])
     .flat()
     .map(String);
 
