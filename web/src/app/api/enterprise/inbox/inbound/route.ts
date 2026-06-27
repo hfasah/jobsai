@@ -39,7 +39,12 @@ interface ReceivedEmail {
 
 async function fetchReceivedEmail(emailId: string): Promise<ReceivedEmail | null> {
   const key = process.env.RESEND_API_KEY;
-  if (!key) return null;
+  if (!key) {
+    // Without the API key we can't pull the body/attachments — only metadata
+    // arrives in the webhook — so emailed resumes land as empty candidates.
+    console.warn("[enterprise/inbound] RESEND_API_KEY not set — body & attachments cannot be fetched; resumes will not be parsed.");
+    return null;
+  }
   const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
     headers: { Authorization: `Bearer ${key}` },
   });
@@ -162,6 +167,10 @@ export async function POST(req: NextRequest) {
   if (!org) return NextResponse.json({ ok: true, ignored: "no-intake-match" });
 
   const full = emailId ? await fetchReceivedEmail(emailId) : null;
+  // If we had an email id but couldn't pull the full message, the body and any
+  // resume attachment are unavailable — surfaced in the response so the Resend
+  // event log explains why a candidate has no resume (usually RESEND_API_KEY).
+  const couldNotFetchFull = !!emailId && !full;
   const fromRaw = (full?.from as string) ?? (data.from as string);
   const sender = parseAddress(fromRaw);
   const subject = full?.subject ?? (data.subject as string) ?? "";
@@ -211,5 +220,13 @@ export async function POST(req: NextRequest) {
     resumeText: resumeText || null, coverLetter: subject ? `Subject: ${subject}` : null, source: "email",
   });
 
-  return NextResponse.json({ ok: true, application_id: id, deduped });
+  return NextResponse.json({
+    ok: true,
+    application_id: id,
+    deduped,
+    resume: !!resumeText,
+    ...(couldNotFetchFull
+      ? { warning: process.env.RESEND_API_KEY ? "could-not-fetch-full-email" : "RESEND_API_KEY-not-set-resume-skipped" }
+      : {}),
+  });
 }
