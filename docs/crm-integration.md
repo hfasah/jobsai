@@ -41,21 +41,25 @@ every create and edit syncs automatically.
 
 ## What syncs
 
-| JobsAI  | →   | Pipedrive        | Fields                                                  |
-| ------- | --- | ---------------- | ------------------------------------------------------ |
-| Company | →   | **Organization** | Name, address (from location)                          |
-| Contact | →   | **Person**       | Name, email, phone — **linked to its Organization**    |
+| JobsAI  | →   | Pipedrive        | Fields                                                       |
+| ------- | --- | ---------------- | ------------------------------------------------------------ |
+| Company | →   | **Organization** | Name, address (from location)                                |
+| Contact | →   | **Person**       | Name, email, phone — **linked to its Organization**          |
+| Deal    | →   | **Deal**         | Title, value, probability, expected close date — **linked to its Organization + Person** |
 
 When you push a contact whose company hasn't synced yet, JobsAI **creates the
 Organization first**, then attaches the Person to it — so your Pipedrive structure stays
-clean.
+clean. Deals link to both their company's Organization and their contact's Person the
+same way. JobsAI's **won/lost** stages set the Pipedrive deal **status**; other stages
+stay **open** in your default pipeline (Pipedrive stage IDs are account-specific, so the
+deal lands in the default pipeline's first stage).
 
 The Integrations card shows live status: **Companies synced X/Y**, **Contacts synced
 X/Y**, and the **last full sync** time.
 
 ## When does it sync?
 
-- **Automatically** — whenever you add or edit a company or contact in the JobsAI CRM
+- **Automatically** — whenever you add or edit a company, contact, or deal in the JobsAI CRM
   (runs in the background; never slows you down).
 - **Manually** — **Sync now** re-pushes everything (use after a bulk import, or to
   backfill). A single run processes up to 500 of each; run it again for larger datasets.
@@ -89,13 +93,13 @@ contacts and keeps them current. Onboarding a new CRM is mostly **mapping that C
 organization/person objects** to JobsAI's companies and contacts.
 
 To request **HubSpot, Salesforce, Zoho**, or another CRM — or to ask for **two-way
-sync**, or for **deals and activities** to push as well — contact us with your workflow
-and we'll scope it. These are on the roadmap.
+sync**, or for **activities** to push as well — contact us with your workflow and we'll
+scope it. These are on the roadmap.
 
 ## Not yet supported
 
-Deals → CRM Deals · Activities → CRM Activities · two-way sync · OAuth "Connect" button
-(Pipedrive uses an API token today).
+Activities → CRM Activities · two-way sync · OAuth "Connect" button (Pipedrive uses an
+API token today).
 
 ---
 
@@ -104,12 +108,13 @@ Deals → CRM Deals · Activities → CRM Activities · two-way sync · OAuth "C
 - **Auth + storage:** the per-org API token lives in `enterprise_integrations`
   (`provider = 'pipedrive'`, `api_key` = token, `subdomain` = company domain).
 - **Mapping table:** `crm_pipedrive_links` (migration `122`) keys each JobsAI entity
-  (`entity_type` = `company` | `contact`) to its `pipedrive_id`, deduping create vs.
+  (`entity_type` = `company` | `contact` | `deal`) to its `pipedrive_id`, deduping create vs.
   update. Disconnect keeps the links so reconnect updates rather than duplicates.
 - **Client:** `web/src/lib/pipedrive.ts` — `pushCompanyToPipedrive`,
-  `pushContactToPipedrive`, `pushAllCompanies`, `pushAllContacts`, `syncAllToPipedrive`.
-- **Real-time:** the CRM `companies` and `contacts` create/update routes call the push
-  via `after()` (a no-op when no integration is connected).
+  `pushContactToPipedrive`, `pushDealToPipedrive`, the matching `pushAll*`, and
+  `syncAllToPipedrive`.
+- **Real-time:** the CRM `companies`, `contacts`, and `deals` create/update routes call
+  the push via `after()` (a no-op when no integration is connected).
 - **Routes:** `GET/POST/DELETE /api/enterprise/integrations/pipedrive` (status / connect
   / disconnect) and `POST /api/enterprise/integrations/pipedrive/sync` ("Sync now"),
   gated behind the `crm` feature + owner/admin.

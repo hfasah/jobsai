@@ -531,13 +531,14 @@ export const GUIDE: GuideCategory[] = [
             body: [
               "Companies → Pipedrive Organizations (name, address).",
               "Contacts → Pipedrive Persons (name, email, phone), automatically linked to their company's Organization. If the company hasn't synced yet, JobsAI creates the Organization first, then attaches the Person — so your Pipedrive structure stays clean.",
-              "The Integrations card shows live status: companies synced X/Y, contacts synced X/Y, and the last full sync time.",
+              "Deals → Pipedrive Deals (title, value, probability, expected close date), linked to the deal's company Organization and contact Person. JobsAI's won/lost stages set the Pipedrive deal status; other stages stay open in your default pipeline.",
+              "The Integrations card shows live status: companies, contacts, and deals synced X/Y, plus the last full sync time.",
             ],
           },
           {
             heading: "When it syncs & disconnecting",
             body: [
-              "Automatically: whenever you add or edit a company or contact in the JobsAI CRM (in the background — it never slows you down).",
+              "Automatically: whenever you add or edit a company, contact, or deal in the JobsAI CRM (in the background — it never slows you down).",
               "Manually: Sync now re-pushes everything; use it after a bulk import or to backfill. One run processes up to 500 of each, so run it again for very large datasets.",
               "Disconnecting (Settings → Integrations → Pipedrive CRM → Disconnect) stops syncing but keeps the record links, so reconnecting later updates the same objects rather than duplicating them.",
             ],
@@ -553,8 +554,8 @@ export const GUIDE: GuideCategory[] = [
           {
             heading: "Connecting a different CRM",
             body: [
-              "Every CRM connection follows the same shape: authenticate under Settings → Integrations (an API token, or OAuth where the provider supports it), then JobsAI pushes your companies and contacts and keeps them current. Adding a new CRM is mostly mapping that CRM's organization and person objects to JobsAI's companies and contacts.",
-              "To request HubSpot, Salesforce, Zoho, or another CRM — or to ask for two-way sync, or for deals and activities to push as well — contact us with your workflow and we'll scope it. Those extensions are on the roadmap; not yet supported today are deals, activities, two-way sync, and an OAuth “Connect” button.",
+              "Every CRM connection follows the same shape: authenticate under Settings → Integrations (an API token, or OAuth where the provider supports it), then JobsAI pushes your companies, contacts, and deals and keeps them current. Adding a new CRM is mostly mapping that CRM's organization, person, and deal objects to JobsAI's CRM.",
+              "To request HubSpot, Salesforce, Zoho, or another CRM — or to ask for two-way sync or for activities to push as well — contact us with your workflow and we'll scope it. Those extensions are on the roadmap; not yet supported today are activities, two-way sync, and an OAuth “Connect” button.",
             ],
           },
         ],
