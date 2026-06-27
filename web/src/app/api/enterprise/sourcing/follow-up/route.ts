@@ -65,7 +65,8 @@ export async function GET(req: NextRequest) {
       from: `${orgName} Recruiting <support@jobsai.work>`,
       to: email,
       subject: subjects[num],
-      html: wrapEmail(`<p>${bodies[num].replace(/\n/g, "<br>")}</p>`, true),
+      // Candidate follow-up reads as the company's own email — no JobsAI footer.
+      html: wrapEmail(`<p>${bodies[num].replace(/\n/g, "<br>")}</p>`, false),
     });
 
     const field = num === 1 ? "follow_up_1_sent_at" : "follow_up_2_sent_at";
