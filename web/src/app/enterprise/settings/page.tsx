@@ -1585,18 +1585,24 @@ function IntakeSettings() {
         <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-5">
           <h2 className="mb-1 font-semibold text-amber-300">Confirm email forwarding</h2>
           <p className="mb-3 text-sm text-amber-100/80">
-            Google asked you to confirm forwarding{fwd.from ? <> from <span className="font-medium text-amber-100">{fwd.from}</span></> : null} to your intake address. Enter this code in your mailbox&apos;s forwarding settings, or open the verify link.
+            Your mail host asked you to confirm forwarding{fwd.from ? <> from <span className="font-medium text-amber-100">{fwd.from}</span></> : null} to your intake address.{" "}
+            {fwd.code ? "Enter this code in your mailbox's forwarding settings" : "Open the verify link to confirm"}
+            {fwd.code && fwd.link ? ", or open the verify link" : ""}.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <code className="rounded-lg border border-amber-500/30 bg-background/40 px-3 py-2 text-lg font-bold tracking-widest text-amber-100">{fwd.code}</code>
-            <button onClick={copyCode} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 px-3 py-2 text-sm hover:bg-amber-500/10">
-              {fwdCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-              {fwdCopied ? "Copied" : "Copy code"}
-            </button>
+            {fwd.code && (
+              <>
+                <code className="rounded-lg border border-amber-500/30 bg-background/40 px-3 py-2 text-lg font-bold tracking-widest text-amber-100">{fwd.code}</code>
+                <button onClick={copyCode} className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 px-3 py-2 text-sm hover:bg-amber-500/10">
+                  {fwdCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+                  {fwdCopied ? "Copied" : "Copy code"}
+                </button>
+              </>
+            )}
             {fwd.link && (
               <a href={fwd.link} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-2 text-sm font-semibold text-black hover:bg-amber-400">
-                Confirm in Gmail →
+                Confirm forwarding →
               </a>
             )}
             <button onClick={dismissFwd} className="ml-auto text-sm text-amber-100/70 underline hover:text-amber-100">Dismiss</button>

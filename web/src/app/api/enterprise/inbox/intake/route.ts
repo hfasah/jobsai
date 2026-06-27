@@ -9,14 +9,17 @@ type OrgRow = { slug: string; intake_email_handle?: string | null } & Record<str
 // Shape the intake payload (address/handle + reply-to + any pending Google
 // forwarding-confirmation) from the org row.
 function intakePayload(org: OrgRow) {
-  const code = (org.intake_forward_code as string) || null;
+  const code = (org.intake_forward_code as string) || "";
+  const link = (org.intake_forward_link as string) || null;
   return {
     address: intakeAddress(org), handle: intakeHandle(org), domain: INTAKE_DOMAIN,
     reply_to_email: (org.reply_to_email as string) ?? "",
-    forward_confirm: code
+    // Surface the banner whenever there's a code OR a verify link (many hosts
+    // use a link-only confirmation with no numeric code).
+    forward_confirm: (code || link)
       ? {
           code,
-          link: (org.intake_forward_link as string) || null,
+          link,
           from: (org.intake_forward_from as string) || null,
           at: (org.intake_forward_at as string) || null,
         }
