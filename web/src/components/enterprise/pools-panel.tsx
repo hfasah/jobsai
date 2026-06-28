@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
   Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
-  Move, Check, Settings2, X, CalendarClock, CalendarPlus,
+  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, EnterprisePool } from "@/types/enterprise";
@@ -20,18 +20,46 @@ const QTYPE_COLOR: Record<string, string> = {
 };
 
 function CandidateRow({
-  app, pools, onMove, onReport, onPreboard, jobId,
+  app, pools, onMove, onReport, onPreboard, onUpdate, jobId,
 }: {
   app: EnterpriseApplication;
   pools: EnterprisePool[];
   onMove: (appId: string, poolId: string) => void;
   onReport: (app: EnterpriseApplication) => void;
   onPreboard: (app: EnterpriseApplication) => void;
+  onUpdate: (appId: string, patch: Partial<EnterpriseApplication>) => void;
   jobId: string;
 }) {
   const [open, setOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    candidate_name: app.candidate_name ?? "",
+    candidate_email: app.candidate_email ?? "",
+    candidate_phone: app.candidate_phone ?? "",
+    linkedin_url: app.linkedin_url ?? "",
+  });
+
+  const saveEdit = async () => {
+    setSaving(true);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/applications/${app.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(form),
+    });
+    if (res.ok) {
+      onUpdate(app.id, {
+        candidate_name: form.candidate_name.trim(),
+        candidate_email: form.candidate_email.trim().toLowerCase(),
+        candidate_phone: form.candidate_phone.trim() || null,
+        linkedin_url: form.linkedin_url.trim() || null,
+      });
+      setEditing(false);
+    }
+    setSaving(false);
+  };
 
   return (
     <div className="rounded-xl border border-border bg-card">
@@ -55,12 +83,33 @@ function CandidateRow({
 
       {open && (
         <div className="border-t border-border px-2.5 pb-2.5 pt-2 space-y-2.5">
-          {/* contact */}
-          <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-            <a href={`mailto:${app.candidate_email}`} className="flex items-center gap-1 hover:text-foreground"><Mail className="h-3 w-3" />Email</a>
-            {app.candidate_phone && <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{app.candidate_phone}</span>}
-            {app.linkedin_url && <a href={app.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><ExternalLink className="h-3 w-3" />LinkedIn</a>}
-          </div>
+          {/* contact + inline edit */}
+          {!editing ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+              <a href={`mailto:${app.candidate_email}`} className="flex items-center gap-1 hover:text-foreground"><Mail className="h-3 w-3" />Email</a>
+              {app.candidate_phone
+                ? <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{app.candidate_phone}</span>
+                : <span className="flex items-center gap-1 italic opacity-70"><Phone className="h-3 w-3" />No phone</span>}
+              {app.linkedin_url && <a href={app.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><ExternalLink className="h-3 w-3" />LinkedIn</a>}
+              <button onClick={() => setEditing(true)} className="ml-auto flex items-center gap-1 text-primary hover:underline"><Pencil className="h-3 w-3" />Edit</button>
+            </div>
+          ) : (
+            <div className="space-y-1.5 rounded-lg border border-border bg-background p-2">
+              <input value={form.candidate_name} onChange={(e) => setForm((f) => ({ ...f, candidate_name: e.target.value }))} placeholder="Name" className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={form.candidate_email} onChange={(e) => setForm((f) => ({ ...f, candidate_email: e.target.value }))} placeholder="Email" className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={form.candidate_phone} onChange={(e) => setForm((f) => ({ ...f, candidate_phone: e.target.value }))} placeholder="Phone (e.g. +1 416 555 0100)" className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary" />
+              <input value={form.linkedin_url} onChange={(e) => setForm((f) => ({ ...f, linkedin_url: e.target.value }))} placeholder="LinkedIn URL" className="w-full rounded border border-border bg-card px-2 py-1 text-[11px] focus:outline-none focus:ring-1 focus:ring-primary" />
+              <div className="flex items-center gap-1.5 pt-0.5">
+                <button onClick={saveEdit} disabled={saving} className="inline-flex items-center gap-1 rounded bg-gradient-brand px-2 py-1 text-[11px] font-semibold text-white disabled:opacity-50">
+                  {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />} Save
+                </button>
+                <button onClick={() => { setEditing(false); setForm({ candidate_name: app.candidate_name ?? "", candidate_email: app.candidate_email ?? "", candidate_phone: app.candidate_phone ?? "", linkedin_url: app.linkedin_url ?? "" }); }}
+                  className="inline-flex items-center gap-1 rounded border border-border px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted">
+                  <X className="h-3 w-3" /> Cancel
+                </button>
+              </div>
+            </div>
+          )}
 
           {app.ai_summary && <p className="text-[11px] text-muted-foreground leading-relaxed">{app.ai_summary}</p>}
 
@@ -140,7 +189,7 @@ function CandidateRow({
 }
 
 function PoolColumn({
-  pool, apps, allPools, onMove, onReport, onPreboard, jobId, onPoolUpdate,
+  pool, apps, allPools, onMove, onReport, onPreboard, onUpdate, jobId, onPoolUpdate,
 }: {
   pool: EnterprisePool;
   apps: EnterpriseApplication[];
@@ -148,6 +197,7 @@ function PoolColumn({
   onMove: (appId: string, poolId: string) => void;
   onReport: (app: EnterpriseApplication) => void;
   onPreboard: (app: EnterpriseApplication) => void;
+  onUpdate: (appId: string, patch: Partial<EnterpriseApplication>) => void;
   jobId: string;
   onPoolUpdate: (p: EnterprisePool) => void;
 }) {
@@ -236,7 +286,7 @@ function PoolColumn({
       {/* Candidates */}
       <div className="space-y-2">
         {apps.map((app) => (
-          <CandidateRow key={app.id} app={app} pools={allPools} onMove={onMove} onReport={onReport} onPreboard={onPreboard} jobId={jobId} />
+          <CandidateRow key={app.id} app={app} pools={allPools} onMove={onMove} onReport={onReport} onPreboard={onPreboard} onUpdate={onUpdate} jobId={jobId} />
         ))}
         {apps.length === 0 && (
           <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-xs text-muted-foreground">
@@ -287,6 +337,9 @@ export function PoolsPanel({ jobId, onReport, onPreboard }: { jobId: string; onR
 
   const updatePool = (updated: EnterprisePool) => setPools((p) => p.map((x) => x.id === updated.id ? updated : x));
 
+  const onUpdate = (appId: string, patch: Partial<EnterpriseApplication>) =>
+    setApps((a) => a.map((x) => x.id === appId ? { ...x, ...patch } : x));
+
   if (loading) return <div className="flex flex-1 items-center justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
 
   const sorted = [...pools].sort((a, b) => a.sort_order - b.sort_order);
@@ -298,7 +351,7 @@ export function PoolsPanel({ jobId, onReport, onPreboard }: { jobId: string; onR
           <PoolColumn key={pool.id} pool={pool}
             apps={apps.filter((a) => a.pool_id === pool.id)}
             allPools={pools} onMove={move} onReport={onReport} onPreboard={onPreboard}
-            jobId={jobId} onPoolUpdate={updatePool} />
+            onUpdate={onUpdate} jobId={jobId} onPoolUpdate={updatePool} />
         ))}
 
         {/* New custom pool */}

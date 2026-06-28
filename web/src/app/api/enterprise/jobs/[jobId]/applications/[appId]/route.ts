@@ -50,6 +50,13 @@ export async function PUT(req: NextRequest, { params }: Ctx) {
   if (body.tags !== undefined) update.tags = body.tags;
   if (body.notes !== undefined) update.notes = body.notes;
   if (body.legal_hold !== undefined) { update.legal_hold = !!body.legal_hold; if (body.legal_hold_reason !== undefined) update.legal_hold_reason = body.legal_hold_reason || null; }
+  // Editable candidate contact details — recruiters can correct/complete these at
+  // any stage (e.g. add a phone so AI voice screening can run).
+  if (body.candidate_name !== undefined) update.candidate_name = String(body.candidate_name).trim() || null;
+  if (body.candidate_email !== undefined) update.candidate_email = String(body.candidate_email).trim().toLowerCase() || null;
+  if (body.candidate_phone !== undefined) update.candidate_phone = String(body.candidate_phone).trim() || null;
+  if (body.linkedin_url !== undefined) update.linkedin_url = String(body.linkedin_url).trim() || null;
+  if (body.portfolio_url !== undefined) update.portfolio_url = String(body.portfolio_url).trim() || null;
 
   const { data, error } = await supabaseAdmin
     .from("enterprise_applications")
