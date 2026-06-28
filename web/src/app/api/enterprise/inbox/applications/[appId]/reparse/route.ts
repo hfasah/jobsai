@@ -51,10 +51,12 @@ export async function POST(_req: Request, { params }: Ctx) {
   // Pull a real name / phone from the résumé.
   let name: string | null = null;
   let phone: string | null = null;
+  let skills: string[] = [];
   try {
     const parsed = await parseResumeText(text);
     name = parsed.name?.trim() || null;
     phone = parsed.phone?.trim() || null;
+    skills = Array.isArray(parsed.skills) ? parsed.skills.map((s) => String(s).trim()).filter(Boolean) : [];
   } catch { /* keep existing identity if the parser fails */ }
 
   const email = (app.candidate_email as string | null) ?? "";
@@ -63,6 +65,7 @@ export async function POST(_req: Request, { params }: Ctx) {
   // Only overwrite the name if we parsed a real one (not the email handle).
   if (name && name.toLowerCase() !== handle) update.candidate_name = name;
   if (phone) update.candidate_phone = phone;
+  if (skills.length) update.tags = skills.slice(0, 30);
 
   const { data, error } = await supabaseAdmin
     .from("enterprise_applications")

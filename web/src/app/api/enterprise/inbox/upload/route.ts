@@ -53,18 +53,19 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Identity: prefer what the recruiter typed; otherwise parse the resume.
+  // Identity + skills: prefer what the recruiter typed for identity; always
+  // parse the résumé so we capture skills (for the Skills column + search).
   let name = (form?.get("name") as string | null)?.trim() || "";
   let email = ((form?.get("email") as string | null)?.trim() || "").toLowerCase();
   let phone = (form?.get("phone") as string | null)?.trim() || "";
-  if (!name || !email) {
-    try {
-      const parsed = await parseResumeText(text);
-      name = name || (parsed.name ?? "").trim();
-      email = email || (parsed.email ?? "").trim().toLowerCase();
-      phone = phone || (parsed.phone ?? "").trim();
-    } catch { /* fall back to regex below */ }
-  }
+  let skills: string[] = [];
+  try {
+    const parsed = await parseResumeText(text);
+    name = name || (parsed.name ?? "").trim();
+    email = email || (parsed.email ?? "").trim().toLowerCase();
+    phone = phone || (parsed.phone ?? "").trim();
+    skills = Array.isArray(parsed.skills) ? parsed.skills.map((s) => String(s).trim()).filter(Boolean) : [];
+  } catch { /* fall back to regex below */ }
   if (!email) email = firstEmail(text) ?? "";
   if (!email) {
     return NextResponse.json(
@@ -96,7 +97,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { id, deduped } = await createIntakeApplication({
-    orgId: org.id, jobId, name, email, phone: phone || null, resumeText: text, resumeStorageKey, source: "upload",
+    orgId: org.id, jobId, name, email, phone: phone || null, resumeText: text, resumeStorageKey, skills, source: "upload",
   });
   if (!id) return NextResponse.json({ error: "Couldn't save the candidate." }, { status: 500 });
 

@@ -120,6 +120,7 @@ export interface IntakeCandidate {
   resumeText?: string | null;
   resumeUrl?: string | null;
   resumeStorageKey?: string | null;
+  skills?: string[] | null;
   source: "email" | "upload";
   coverLetter?: string | null;
 }
@@ -146,6 +147,7 @@ export async function createIntakeApplication(
     if (c.resumeUrl) patch.resume_url = c.resumeUrl;
     if (c.phone) patch.candidate_phone = c.phone;
     if (c.coverLetter) patch.cover_letter = c.coverLetter;
+    if (c.skills?.length) patch.tags = c.skills.slice(0, 30);
     // Upgrade the name too when the re-send parsed a real one (not the email handle).
     const newName = c.name?.trim();
     if (newName && newName.toLowerCase() !== email.split("@")[0]) patch.candidate_name = newName;
@@ -165,6 +167,7 @@ export async function createIntakeApplication(
       resume_url: c.resumeUrl ?? null,
       resume_storage_key: c.resumeStorageKey ?? null,
       cover_letter: c.coverLetter ?? null,
+      tags: c.skills?.length ? c.skills.slice(0, 30) : [],
       source: c.source,
       stage: "applied",
       triaged: false,
