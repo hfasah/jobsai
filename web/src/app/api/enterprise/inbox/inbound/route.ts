@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import {
   resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
 } from "@/lib/enterprise-intake-inbox";
-import { parseJobFromText, createDraftJobFromParsed } from "@/lib/job-intake";
+import { parseJobFromText, createDraftJobFromParsed, classifyIntakeEmail } from "@/lib/job-intake";
 
 // True when the email was sent to a job-intake sub-address (<handle>+jobs@…),
 // i.e. a hiring-manager job request rather than a candidate resume.
@@ -221,13 +221,16 @@ export async function POST(req: NextRequest) {
   }
   if (!resumeText && bodyText.trim().length >= 50) resumeText = bodyText.trim();
 
-  // Job intake: mail to <handle>+jobs@… is a job posting / hiring-manager
-  // request, not a candidate — AI-parse it into a draft job and stop.
-  if (isJobIntake(toList)) {
-    const jobText = `${subject}\n\n${resumeText || bodyText}`.trim();
-    if (jobText.length < 30) return NextResponse.json({ ok: true, ignored: "empty-job-email" });
+  // Job intake: either the explicit <handle>+jobs@… sub-address, or — for the
+  // common case where everyone uses one address — an email AI-classified as a
+  // job posting rather than a candidate résumé. Parse it into a draft job and
+  // stop. (Classifier defaults to "candidate" on any doubt, so résumés are safe.)
+  const jobBody = `${subject}\n\n${resumeText || bodyText}`.trim();
+  const routeToJob = isJobIntake(toList) || (await classifyIntakeEmail(subject, resumeText || bodyText)) === "job";
+  if (routeToJob) {
+    if (jobBody.length < 30) return NextResponse.json({ ok: true, ignored: "empty-job-email" });
     try {
-      const parsed = await parseJobFromText(jobText, { orgId: org.id, userId: "email-intake" });
+      const parsed = await parseJobFromText(jobBody, { orgId: org.id, userId: "email-intake" });
       const newJobId = await createDraftJobFromParsed(org.id, parsed, "email-intake");
       return NextResponse.json({ ok: true, draft_job: !!newJobId, job_id: newJobId, title: parsed.title ?? null });
     } catch {

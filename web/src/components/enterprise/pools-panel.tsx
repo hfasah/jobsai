@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
   Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
-  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil,
+  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil, Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, EnterprisePool } from "@/types/enterprise";
@@ -35,12 +35,27 @@ function CandidateRow({
   const [scheduleOpen, setScheduleOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [converting, setConverting] = useState(false);
   const [form, setForm] = useState({
     candidate_name: app.candidate_name ?? "",
     candidate_email: app.candidate_email ?? "",
     candidate_phone: app.candidate_phone ?? "",
     linkedin_url: app.linkedin_url ?? "",
   });
+
+  // Manual reclassify: this "candidate" is actually a job description.
+  const convertToJob = async () => {
+    if (!confirm("Reclassify this as a job? It becomes a draft job and is removed from candidates.")) return;
+    setConverting(true);
+    const res = await fetch("/api/enterprise/jobs/from-application", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ application_id: app.id }),
+    });
+    const json = await res.json();
+    if (res.ok && json.data?.job_id) { window.location.href = `/enterprise/jobs/${json.data.job_id}`; return; }
+    setConverting(false);
+    alert(json.error ?? "Couldn't convert to a job.");
+  };
 
   const saveEdit = async () => {
     setSaving(true);
@@ -149,6 +164,10 @@ function CandidateRow({
             <button onClick={() => setScheduleOpen(true)}
               className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
               <CalendarPlus className="h-3 w-3" /> Schedule
+            </button>
+            <button onClick={convertToJob} disabled={converting} title="This is actually a job description"
+              className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-50">
+              {converting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Briefcase className="h-3 w-3" />} Convert to job
             </button>
             {(app.stage === "offer" || app.stage === "hired") && (
               <button onClick={() => onPreboard(app)}

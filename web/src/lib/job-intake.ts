@@ -26,6 +26,32 @@ export interface ParsedJob {
   nice_to_have?: string;
 }
 
+// Classify an untagged inbound email as a job posting vs. a candidate
+// application, so one intake address can handle both. Defaults to "candidate"
+// on any uncertainty/failure — a résumé must never be lost.
+export async function classifyIntakeEmail(subject: string, text: string): Promise<"job" | "candidate"> {
+  if (text.trim().length < 80) return "candidate"; // too little to tell; safest default
+  try {
+    const completion = await ai().chat.completions.create({
+      model: "gpt-4o-mini",
+      max_tokens: 4,
+      temperature: 0,
+      messages: [{
+        role: "user",
+        content: `You triage inbound recruiting email. Is this a JOB POSTING / hiring-manager request (a role to be filled), or a CANDIDATE application / résumé (a specific person applying)? A job posting describes a role, responsibilities, and requirements; a résumé describes one person's own experience. Reply with exactly one word: job or candidate.
+
+Subject: ${subject}
+
+${text.slice(0, 4000)}`,
+      }],
+    });
+    const ans = (completion.choices[0]?.message?.content ?? "").toLowerCase();
+    return ans.includes("job") && !ans.includes("candidate") ? "job" : "candidate";
+  } catch {
+    return "candidate";
+  }
+}
+
 export async function parseJobFromText(
   text: string, ctx?: { orgId?: string; userId?: string },
 ): Promise<ParsedJob> {
