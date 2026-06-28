@@ -58,12 +58,14 @@ export async function POST(req: NextRequest) {
   let name = (form?.get("name") as string | null)?.trim() || "";
   let email = ((form?.get("email") as string | null)?.trim() || "").toLowerCase();
   let phone = (form?.get("phone") as string | null)?.trim() || "";
+  let location = (form?.get("location") as string | null)?.trim() || "";
   let skills: string[] = [];
   try {
     const parsed = await parseResumeText(text);
     name = name || (parsed.name ?? "").trim();
     email = email || (parsed.email ?? "").trim().toLowerCase();
     phone = phone || (parsed.phone ?? "").trim();
+    location = location || (parsed.location ?? "").trim();
     skills = Array.isArray(parsed.skills) ? parsed.skills.map((s) => String(s).trim()).filter(Boolean) : [];
   } catch { /* fall back to regex below */ }
   if (!email) email = firstEmail(text) ?? "";
@@ -97,7 +99,7 @@ export async function POST(req: NextRequest) {
   }
 
   const { id, deduped } = await createIntakeApplication({
-    orgId: org.id, jobId, name, email, phone: phone || null, resumeText: text, resumeStorageKey, skills, source: "upload",
+    orgId: org.id, jobId, name, email, phone: phone || null, location: location || null, resumeText: text, resumeStorageKey, skills, source: "upload",
   });
   if (!id) return NextResponse.json({ error: "Couldn't save the candidate." }, { status: 500 });
 

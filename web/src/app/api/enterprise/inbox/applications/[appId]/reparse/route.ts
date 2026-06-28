@@ -51,11 +51,13 @@ export async function POST(_req: Request, { params }: Ctx) {
   // Pull a real name / phone from the résumé.
   let name: string | null = null;
   let phone: string | null = null;
+  let location: string | null = null;
   let skills: string[] = [];
   try {
     const parsed = await parseResumeText(text);
     name = parsed.name?.trim() || null;
     phone = parsed.phone?.trim() || null;
+    location = parsed.location?.trim() || null;
     skills = Array.isArray(parsed.skills) ? parsed.skills.map((s) => String(s).trim()).filter(Boolean) : [];
   } catch { /* keep existing identity if the parser fails */ }
 
@@ -65,6 +67,7 @@ export async function POST(_req: Request, { params }: Ctx) {
   // Only overwrite the name if we parsed a real one (not the email handle).
   if (name && name.toLowerCase() !== handle) update.candidate_name = name;
   if (phone) update.candidate_phone = phone;
+  if (location) update.candidate_location = location;
   if (skills.length) update.tags = skills.slice(0, 30);
 
   const { data, error } = await supabaseAdmin
@@ -72,7 +75,7 @@ export async function POST(_req: Request, { params }: Ctx) {
     .update(update)
     .eq("id", appId)
     .eq("org_id", org.id)
-    .select("candidate_name, candidate_phone")
+    .select("candidate_name, candidate_phone, candidate_location")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -12,6 +12,7 @@ interface Applicant {
   candidate_name: string;
   candidate_email: string;
   candidate_phone: string | null;
+  candidate_location: string | null;
   stage: string | null;
   ats_score: number | null;
   match_score: number | null;
@@ -112,7 +113,7 @@ function AllApplicants() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/30">
               <tr>
-                {["Candidate", "Job", "Stage", "ATS", "Skills", ""].map((h) => (
+                {["Candidate", "Phone", "Location", "Job", "Stage", "ATS", "Skills", ""].map((h) => (
                   <th key={h} className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium text-muted-foreground">{h}</th>
                 ))}
               </tr>
@@ -124,6 +125,8 @@ function AllApplicants() {
                     <p className="font-medium">{a.candidate_name}</p>
                     <p className="text-xs text-muted-foreground">{a.candidate_email}</p>
                   </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">{a.candidate_phone || "—"}</td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{a.candidate_location || "—"}</td>
                   <td className="px-4 py-3 text-xs">
                     {a.job ? <Link href={`/enterprise/jobs/${a.job.id}`} className="text-primary hover:underline">{a.job.title}</Link> : <span className="text-muted-foreground">—</span>}
                   </td>

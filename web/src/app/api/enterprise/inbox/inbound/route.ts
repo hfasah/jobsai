@@ -265,6 +265,7 @@ export async function POST(req: NextRequest) {
   let parsedName: string | null = null;
   let parsedEmail: string | null = null;
   let parsedPhone: string | null = null;
+  let parsedLocation: string | null = null;
   let parsedSkills: string[] = [];
   if (resumeText.trim().length >= 50) {
     try {
@@ -272,6 +273,7 @@ export async function POST(req: NextRequest) {
       parsedName = parsed.name?.trim() || null;
       parsedEmail = parsed.email?.trim().toLowerCase() || null;
       parsedPhone = parsed.phone?.trim() || null;
+      parsedLocation = parsed.location?.trim() || null;
       parsedSkills = Array.isArray(parsed.skills) ? parsed.skills.map((s) => String(s).trim()).filter(Boolean) : [];
     } catch { /* fall back to sender/regex below */ }
   }
@@ -286,7 +288,7 @@ export async function POST(req: NextRequest) {
   if (!jobId) return NextResponse.json({ ok: true, error: "no-pool" });
 
   const { id, deduped } = await createIntakeApplication({
-    orgId: org.id, jobId, name: candidateName, email: candidateEmail, phone: parsedPhone,
+    orgId: org.id, jobId, name: candidateName, email: candidateEmail, phone: parsedPhone, location: parsedLocation,
     resumeText: resumeText || null, resumeStorageKey, skills: parsedSkills,
     coverLetter: subject ? `Subject: ${subject}` : null, source: "email",
   });
