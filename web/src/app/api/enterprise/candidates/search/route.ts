@@ -27,49 +27,54 @@ export async function POST(req: NextRequest) {
 
   if (!query) return NextResponse.json({ error: "Query required." }, { status: 400 });
 
-  // Step 1: use GPT to extract structured filters from the natural-language query
-  const filterPrompt = `Extract search filters from this recruiter query. Return ONLY valid JSON.
+  // Step 1: use the LLM to expand the natural-language query into search keywords
+  // (skills, location/country, job title, candidate name, experience terms — plus
+  // useful synonyms like "AWS" → "amazon web services") and any score/stage filter.
+  const filterPrompt = `A recruiter is searching their candidate database. Expand this query into search keywords and filters. Return ONLY valid JSON.
 
 Query: "${query}"
 
 Return:
 {
-  "skills": ["<skill>"],          // tech skills or keywords mentioned
-  "min_score": <number|null>,      // minimum match score 0-100
-  "stages": ["<stage>"],           // applied/screened/interview/offer/hired/rejected
-  "recommendation": "<string|null>", // strong_yes/yes/maybe/no
-  "limit": <number>                // how many results requested, default 10
+  "keywords": ["<term>"],           // every searchable term: skills, tools, location/country, job title, candidate name, seniority/experience — INCLUDE common synonyms/abbreviations (e.g. "aws" and "amazon web services")
+  "min_score": <number|null>,        // minimum ATS/match score 0-100 if the query asks for it
+  "stages": ["<stage>"],             // applied/screened/interview/offer/hired/rejected if mentioned
+  "recommendation": "<string|null>"  // strong_yes/yes/maybe/no if mentioned
 }`;
 
   const filterRes = await ai().chat.completions.create({
     model: AI_TIERS.fast.model,
-    max_tokens: 200,
+    max_tokens: 250,
     response_format: { type: "json_object" },
     messages: [{ role: "user", content: filterPrompt }],
   });
 
   let filters: {
-    skills?: string[];
+    keywords?: string[];
     min_score?: number | null;
     stages?: string[];
     recommendation?: string | null;
-    limit?: number;
   } = {};
   try {
     filters = JSON.parse(filterRes.choices[0]?.message?.content ?? "{}");
   } catch { /* use empty filters */ }
 
-  // Step 2: query Supabase with extracted filters
-  // When skills are part of the query we post-filter across the whole pool —
-  // including UNSCREENED candidates (no tags/summary yet) — by reading their raw
-  // résumé text, so fetch a broad set. Otherwise just the top matches.
-  const fetchLimit = (filters.skills?.length ?? 0) > 0 ? 400 : (filters.limit ?? 30);
+  // Combine the LLM keywords with the raw query words (so it still works if the
+  // model returns nothing). De-dupe, drop tiny stopwords.
+  const STOP = new Set(["the", "and", "for", "with", "who", "has", "any", "all", "yrs", "years", "year", "experience", "candidate", "candidates"]);
+  const keywords = [...new Set([
+    ...(filters.keywords ?? []),
+    ...query.split(/[\s,+/]+/),
+  ].map((k) => k.trim().toLowerCase()).filter((k) => k.length >= 2 && !STOP.has(k)))];
+
+  // Step 2: fetch a broad pool (incl. UNSCREENED candidates) so we can match
+  // keywords against everything — résumé text, phone, etc. — not just top scores.
   let dbQuery = supabaseAdmin
     .from("enterprise_applications")
-    .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,resume_text,source,created_at,job:enterprise_jobs(id,title)")
+    .select("id,candidate_name,candidate_email,candidate_phone,stage,match_score,ats_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,resume_text,resume_storage_key,resume_url,source,created_at,job:enterprise_jobs(id,title)")
     .eq("org_id", org.id)
     .order("match_score", { ascending: false, nullsFirst: false })
-    .limit(fetchLimit);
+    .limit(keywords.length ? 400 : 50);
 
   if (jobId) dbQuery = dbQuery.eq("job_id", jobId);
   if (filters.min_score) dbQuery = dbQuery.gte("match_score", filters.min_score);
@@ -79,24 +84,26 @@ Return:
   const { data: candidates, error } = await dbQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Step 3: post-filter by skills/keywords — match across tags, AI summary, AND
-  // raw résumé text (so candidates surface by skill even before AI screening).
-  const skills = (filters.skills ?? []).map((s) => s.toLowerCase());
-  const filtered = skills.length
-    ? (candidates ?? []).filter((c) => {
-        const haystack = [
-          ...(c.tags ?? []),
-          c.ai_summary ?? "",
-          c.resume_text ?? "",
-          c.candidate_name,
-        ].join(" ").toLowerCase();
-        return skills.some((s) => haystack.includes(s));
-      })
-    : (candidates ?? []);
+  // Step 3: match keywords across the WHOLE candidate — name, email, phone, tags,
+  // AI summary, and raw résumé text (so name / skill / country / phone /
+  // experience all work). Rank by how many keywords hit.
+  type Row = Record<string, unknown> & { tags?: string[] | null; ai_summary?: string | null; resume_text?: string | null; candidate_name?: string; candidate_email?: string; candidate_phone?: string | null; match_score?: number | null };
+  const scored = (candidates ?? []).map((c) => {
+    const row = c as Row;
+    const haystack = [
+      ...(row.tags ?? []),
+      row.candidate_name ?? "", row.candidate_email ?? "", row.candidate_phone ?? "",
+      row.ai_summary ?? "", row.resume_text ?? "",
+    ].join(" ").toLowerCase();
+    const hits = keywords.filter((k) => haystack.includes(k)).length;
+    return { row, hits };
+  });
+  const matched = keywords.length ? scored.filter((s) => s.hits > 0) : scored;
+  matched.sort((a, b) => (b.hits - a.hits) || ((b.row.match_score ?? -1) - (a.row.match_score ?? -1)));
 
   // Drop the heavy résumé text from the response payload (used only for matching).
-  const data = filtered.map((c) => {
-    const copy: Record<string, unknown> = { ...c };
+  const data = matched.map(({ row }) => {
+    const copy: Record<string, unknown> = { ...row };
     delete copy.resume_text;
     return copy;
   });

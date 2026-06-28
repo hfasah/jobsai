@@ -80,7 +80,7 @@ function AllApplicants() {
           <input
             value={query} onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") runSearch(); }}
-            placeholder="Search by name, email, or skills (e.g. “React + AWS, 5+ yrs”)…"
+            placeholder="Search by name, skill, country, phone, or experience (e.g. “AWS engineer in Canada”)…"
             className="w-full rounded-xl border border-border bg-background py-2 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
         </div>
         <button onClick={runSearch} disabled={searching}
