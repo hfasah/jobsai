@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
   Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
-  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil, Briefcase,
+  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil, Briefcase, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, EnterprisePool } from "@/types/enterprise";
@@ -36,12 +36,23 @@ function CandidateRow({
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
+  const [reparsing, setReparsing] = useState(false);
   const [form, setForm] = useState({
     candidate_name: app.candidate_name ?? "",
     candidate_email: app.candidate_email ?? "",
     candidate_phone: app.candidate_phone ?? "",
     linkedin_url: app.linkedin_url ?? "",
   });
+
+  // Re-parse from the stored résumé file — fix an email-handle name / empty text.
+  const reparse = async () => {
+    setReparsing(true);
+    const res = await fetch(`/api/enterprise/inbox/applications/${app.id}/reparse`, { method: "POST" });
+    const json = await res.json();
+    if (res.ok) onUpdate(app.id, { candidate_name: json.data?.candidate_name ?? app.candidate_name, candidate_phone: json.data?.candidate_phone ?? app.candidate_phone });
+    else alert(json.error ?? "Couldn't re-parse the résumé.");
+    setReparsing(false);
+  };
 
   // Manual reclassify: this "candidate" is actually a job description.
   const convertToJob = async () => {
@@ -106,7 +117,15 @@ function CandidateRow({
                 ? <span className="flex items-center gap-1"><Phone className="h-3 w-3" />{app.candidate_phone}</span>
                 : <span className="flex items-center gap-1 italic opacity-70"><Phone className="h-3 w-3" />No phone</span>}
               {app.linkedin_url && <a href={app.linkedin_url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:text-foreground"><ExternalLink className="h-3 w-3" />LinkedIn</a>}
-              <button onClick={() => setEditing(true)} className="ml-auto flex items-center gap-1 text-primary hover:underline"><Pencil className="h-3 w-3" />Edit</button>
+              <div className="ml-auto flex items-center gap-3">
+                {app.resume_storage_key && (
+                  <button onClick={reparse} disabled={reparsing} title="Re-parse name / phone / text from the résumé file"
+                    className="flex items-center gap-1 hover:text-foreground disabled:opacity-50">
+                    {reparsing ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />} Re-parse
+                  </button>
+                )}
+                <button onClick={() => setEditing(true)} className="flex items-center gap-1 text-primary hover:underline"><Pencil className="h-3 w-3" />Edit</button>
+              </div>
             </div>
           ) : (
             <div className="space-y-1.5 rounded-lg border border-border bg-background p-2">

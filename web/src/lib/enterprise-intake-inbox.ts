@@ -146,6 +146,9 @@ export async function createIntakeApplication(
     if (c.resumeUrl) patch.resume_url = c.resumeUrl;
     if (c.phone) patch.candidate_phone = c.phone;
     if (c.coverLetter) patch.cover_letter = c.coverLetter;
+    // Upgrade the name too when the re-send parsed a real one (not the email handle).
+    const newName = c.name?.trim();
+    if (newName && newName.toLowerCase() !== email.split("@")[0]) patch.candidate_name = newName;
     await supabaseAdmin.from("enterprise_applications").update(patch).eq("id", dup.id);
     return { id: dup.id, deduped: true };
   }
