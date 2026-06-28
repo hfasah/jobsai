@@ -12,7 +12,7 @@ import {
 import { cn } from "@/lib/utils";
 import { JobEditModal } from "@/components/enterprise/job-edit-modal";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
-import { ATS_TIERS, atsTier } from "@/types/enterprise";
+import { ATS_TIERS, atsTier, formatSalary } from "@/types/enterprise";
 import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
 import type { CompetencyFramework, RoleType } from "@/types/interview-intelligence";
 import { ROLE_TYPE_LABELS, ROLE_TYPE_COLORS } from "@/types/interview-intelligence";
@@ -902,7 +902,7 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {[job.department, job.location, job.employment_type].filter(Boolean).join(" · ")}
-                {job.salary_min && job.salary_max ? ` · $${job.salary_min.toLocaleString()}–$${job.salary_max.toLocaleString()}` : ""}
+                {(job.salary_min || job.salary_max) ? ` · ${formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period)}` : ""}
               </p>
               {(job.description || job.qualifications) && (
                 <details className="mt-1.5 group">

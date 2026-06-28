@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Loader2, X } from "lucide-react";
 import type { EnterpriseJob } from "@/types/enterprise";
+import { SALARY_CURRENCIES, SALARY_PERIODS } from "@/types/enterprise";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 
@@ -20,6 +21,8 @@ export function JobEditModal({ job, onClose, onSaved }: {
     employment_type: job.employment_type ?? "full-time",
     salary_min: job.salary_min?.toString() ?? "",
     salary_max: job.salary_max?.toString() ?? "",
+    salary_currency: job.salary_currency ?? "USD",
+    salary_period: job.salary_period ?? "year",
     description: job.description ?? "",
     responsibilities: job.responsibilities ?? "",
     qualifications: job.qualifications ?? "",
@@ -40,6 +43,8 @@ export function JobEditModal({ job, onClose, onSaved }: {
       employment_type: form.employment_type,
       salary_min: form.salary_min.trim() ? Number(form.salary_min) : null,
       salary_max: form.salary_max.trim() ? Number(form.salary_max) : null,
+      salary_currency: form.salary_currency,
+      salary_period: form.salary_period,
       description: form.description.trim() || null,
       responsibilities: form.responsibilities.trim() || null,
       qualifications: form.qualifications.trim() || null,
@@ -94,6 +99,18 @@ export function JobEditModal({ job, onClose, onSaved }: {
             <div>
               <label className="mb-1.5 block text-sm font-medium">Salary max</label>
               <input value={form.salary_max} onChange={(e) => set("salary_max", e.target.value.replace(/[^0-9]/g, ""))} inputMode="numeric" placeholder="120000" className={input} />
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Currency</label>
+              <select value={form.salary_currency} onChange={(e) => set("salary_currency", e.target.value)} className={input}>
+                {SALARY_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="mb-1.5 block text-sm font-medium">Pay period</label>
+              <select value={form.salary_period} onChange={(e) => set("salary_period", e.target.value)} className={input}>
+                {SALARY_PERIODS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+              </select>
             </div>
           </div>
           <div>

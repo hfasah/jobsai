@@ -65,6 +65,7 @@ export async function POST(req: NextRequest) {
       salary_min: body.salary_min ?? null,
       salary_max: body.salary_max ?? null,
       salary_currency: body.salary_currency ?? "USD",
+      salary_period: body.salary_period ?? "year",
       status: body.status ?? "draft",
       created_by: userId,
       published_at: body.status === "active" ? new Date().toISOString() : null,
