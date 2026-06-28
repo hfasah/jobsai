@@ -6,6 +6,13 @@ import { supabaseAdmin } from "@/lib/supabase";
 import {
   resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
 } from "@/lib/enterprise-intake-inbox";
+import { parseJobFromText, createDraftJobFromParsed } from "@/lib/job-intake";
+
+// True when the email was sent to a job-intake sub-address (<handle>+jobs@…),
+// i.e. a hiring-manager job request rather than a candidate resume.
+function isJobIntake(toList: string[]): boolean {
+  return toList.some((addr) => /\+jobs?\b/i.test(parseAddress(addr).email.split("@")[0]));
+}
 
 export const maxDuration = 60;
 
@@ -213,6 +220,20 @@ export async function POST(req: NextRequest) {
     } catch { /* try next attachment */ }
   }
   if (!resumeText && bodyText.trim().length >= 50) resumeText = bodyText.trim();
+
+  // Job intake: mail to <handle>+jobs@… is a job posting / hiring-manager
+  // request, not a candidate — AI-parse it into a draft job and stop.
+  if (isJobIntake(toList)) {
+    const jobText = `${subject}\n\n${resumeText || bodyText}`.trim();
+    if (jobText.length < 30) return NextResponse.json({ ok: true, ignored: "empty-job-email" });
+    try {
+      const parsed = await parseJobFromText(jobText, { orgId: org.id, userId: "email-intake" });
+      const newJobId = await createDraftJobFromParsed(org.id, parsed, "email-intake");
+      return NextResponse.json({ ok: true, draft_job: !!newJobId, job_id: newJobId, title: parsed.title ?? null });
+    } catch {
+      return NextResponse.json({ ok: true, draft_job: false, error: "job-parse-failed" });
+    }
+  }
 
   // Structured extraction — run the same résumé parser the upload path uses, so
   // emailed candidates get a real name, email, and phone (not just the sender

@@ -1527,6 +1527,7 @@ function IntakeSettings() {
   const [replyToErr, setReplyToErr] = useState<string | null>(null);
   const [fwd, setFwd] = useState<ForwardConfirm | null>(null);
   const [fwdCopied, setFwdCopied] = useState(false);
+  const [jobCopied, setJobCopied] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -1639,6 +1640,25 @@ function IntakeSettings() {
             </button>
           </div>
           {msg && <p className={cn("mt-2 text-xs", msg.kind === "ok" ? "text-green-500" : "text-destructive")}>{msg.text}</p>}
+        </div>
+      </div>
+
+      {/* Job intake — hiring managers email a JD here → draft job */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="mb-1 flex items-center gap-2">
+          <InboxIcon className="h-4 w-4 text-primary" />
+          <h2 className="font-semibold">Your job intake address</h2>
+        </div>
+        <p className="mb-4 text-sm text-muted-foreground">
+          Have a hiring manager <span className="font-medium text-foreground">email a job description</span> (in the body, or as a PDF/Word attachment) to this address — AI parses it into a <span className="font-medium text-foreground">draft job</span> under <span className="font-medium text-foreground">Jobs</span>, ready for you to review and publish.
+        </p>
+        <div className="flex items-center gap-2">
+          <code className="flex-1 truncate rounded-lg border border-border bg-muted/40 px-3 py-2 text-sm font-medium">{handle ? `${handle}+jobs@${domain}` : "…"}</code>
+          <button onClick={() => { navigator.clipboard.writeText(`${handle}+jobs@${domain}`); setJobCopied(true); setTimeout(() => setJobCopied(false), 1500); }}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-sm hover:bg-muted">
+            {jobCopied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+            {jobCopied ? "Copied" : "Copy"}
+          </button>
         </div>
       </div>
 

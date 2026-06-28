@@ -59,7 +59,9 @@ export async function resolveIntakeOrg(
     toList
       .map((addr) => parseAddress(addr).email)
       .filter((e) => e.endsWith(`@${INTAKE_DOMAIN}`))
-      .map((e) => e.split("@")[0].trim().toLowerCase())
+      // Strip any +tag (e.g. "acme+jobs" → "acme") so sub-addressed routing
+      // (job intake) still resolves to the org.
+      .map((e) => e.split("@")[0].split("+")[0].trim().toLowerCase())
       .filter(Boolean),
   )];
   if (!handles.length) return null;
