@@ -21,15 +21,19 @@ export async function GET() {
     userEmail = user.emailAddresses[0]?.emailAddress ?? "";
   } catch { /* ignore */ }
 
-  // 1. Jobs assigned to this HM
-  const { data: myJobs } = await supabaseAdmin
+  // 1. Roles I manage. Owners/admins manage the whole org, so they see every
+  //    active role; hiring managers / recruiters see roles where they're the
+  //    assigned hiring manager OR which they created.
+  const isOwnerAdmin = membership.role === "owner" || membership.role === "admin";
+  let myJobsQuery = supabaseAdmin
     .from("enterprise_jobs")
     .select("id,title,department,location,status,created_at,hiring_manager_id")
     .eq("org_id", org.id)
-    .eq("hiring_manager_id", userId)
     .in("status", ["active", "paused"])
     .order("created_at", { ascending: false })
-    .limit(20);
+    .limit(50);
+  if (!isOwnerAdmin) myJobsQuery = myJobsQuery.or(`hiring_manager_id.eq.${userId},created_by.eq.${userId}`);
+  const { data: myJobs } = await myJobsQuery;
 
   const jobIds = (myJobs ?? []).map((j) => j.id);
 
