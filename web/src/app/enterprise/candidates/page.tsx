@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, Loader2, ExternalLink, Send, CheckCircle2, Search, Sparkles, FileDown, X } from "lucide-react";
+import { Users, Loader2, ExternalLink, Send, CheckCircle2, Search, Sparkles, FileDown, X, Plus, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── All applicants (global database) ─────────────────────────────────────────
@@ -192,6 +192,11 @@ function TalentPool() {
   const [nurtureModal, setNurtureModal] = useState<PoolCandidate | null>(null);
   const [nurtureForm, setNurtureForm] = useState({ subject: "", message: "" });
   const [sent, setSent] = useState<Set<string>>(new Set());
+  const [addOpen, setAddOpen] = useState(false);
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [loadingApplicants, setLoadingApplicants] = useState(false);
+  const [addingId, setAddingId] = useState<string | null>(null);
+  const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/enterprise/talent-pool")
@@ -199,6 +204,23 @@ function TalentPool() {
       .then((j) => setCandidates(j.data ?? []))
       .finally(() => setLoading(false));
   }, []);
+
+  const refreshPool = () => fetch("/api/enterprise/talent-pool").then((r) => r.json()).then((j) => setCandidates(j.data ?? []));
+
+  const openAdd = () => {
+    setAddOpen(true); setLoadingApplicants(true);
+    fetch("/api/enterprise/candidates").then((r) => r.json()).then((j) => setApplicants(j.data ?? [])).finally(() => setLoadingApplicants(false));
+  };
+
+  const addToPool = async (applicationId: string) => {
+    setAddingId(applicationId);
+    const res = await fetch("/api/enterprise/talent-pool", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ application_id: applicationId }),
+    });
+    if (res.ok) { setAddedIds((s) => new Set(s).add(applicationId)); refreshPool(); }
+    setAddingId(null);
+  };
 
   const openNurture = (c: PoolCandidate) => {
     setNurtureForm({
@@ -223,17 +245,24 @@ function TalentPool() {
     setNurtureModal(null);
   };
 
-  if (loading) return <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>;
-  if (candidates.length === 0) return (
-    <div className="rounded-2xl border border-dashed border-border py-16 text-center">
-      <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
-      <p className="text-sm text-muted-foreground">No candidates in the talent pool yet.</p>
-      <p className="mt-1 text-xs text-muted-foreground">When reviewing applicants, add strong ones to the pool to reconnect later.</p>
-    </div>
-  );
-
   return (
     <>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">{loading ? "Loading…" : `${candidates.length} in your talent pool`}</p>
+        <button onClick={openAdd} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold">
+          <Plus className="h-3.5 w-3.5" /> Add candidates
+        </button>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
+      ) : candidates.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border py-16 text-center">
+          <Users className="mx-auto mb-3 h-8 w-8 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">No candidates in the talent pool yet.</p>
+          <p className="mt-1 text-xs text-muted-foreground">Add strong applicants to reconnect with them later.</p>
+        </div>
+      ) : (
       <div className="overflow-hidden rounded-2xl border border-border">
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/30">
@@ -277,6 +306,47 @@ function TalentPool() {
           </tbody>
         </table>
       </div>
+      )}
+
+      {/* Add-candidates picker */}
+      {addOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setAddOpen(false)}>
+          <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <h2 className="font-semibold">Add candidates to talent pool</h2>
+              <button onClick={() => setAddOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {loadingApplicants ? (
+                <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : applicants.length === 0 ? (
+                <p className="px-3 py-8 text-center text-sm text-muted-foreground">No applicants to add yet.</p>
+              ) : applicants.map((a) => {
+                const added = addedIds.has(a.id);
+                return (
+                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2 hover:bg-muted/30">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{a.candidate_name}</p>
+                      <p className="truncate text-xs text-muted-foreground">{a.candidate_email}{a.job ? ` · ${a.job.title}` : ""}</p>
+                    </div>
+                    {added ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-500"><Check className="h-3.5 w-3.5" /> Added</span>
+                    ) : (
+                      <button onClick={() => addToPool(a.id)} disabled={addingId === a.id}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary hover:bg-primary/20 disabled:opacity-50">
+                        {addingId === a.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />} Add
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="border-t border-border p-3 text-right">
+              <button onClick={() => setAddOpen(false)} className="btn-cta rounded-xl px-4 py-2 text-sm font-semibold">Done</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {nurtureModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
