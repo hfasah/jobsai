@@ -188,6 +188,18 @@ const STATUS_STYLES: Record<string, string> = {
   inactive: "bg-muted text-muted-foreground border-border",
 };
 
+interface PoolGroup { id: string; name: string; count: number; created_at: string }
+
+function PoolChip({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+  return (
+    <button onClick={onClick}
+      className={cn("rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+        active ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted hover:text-foreground")}>
+      {label}
+    </button>
+  );
+}
+
 function TalentPool() {
   const [candidates, setCandidates] = useState<PoolCandidate[]>([]);
   const [loading, setLoading] = useState(true);
@@ -200,15 +212,47 @@ function TalentPool() {
   const [loadingApplicants, setLoadingApplicants] = useState(false);
   const [addingId, setAddingId] = useState<string | null>(null);
   const [addedIds, setAddedIds] = useState<Set<string>>(new Set());
+  // Named pools
+  const [groups, setGroups] = useState<PoolGroup[]>([]);
+  const [ungroupedCount, setUngroupedCount] = useState(0);
+  const [total, setTotal] = useState(0);
+  const [selected, setSelected] = useState<string>("all"); // "all" | "none" | <groupId>
+  const [newOpen, setNewOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [creating, setCreating] = useState(false);
+  // Bulk nurture
+  const [bulkOpen, setBulkOpen] = useState(false);
+  const [bulkForm, setBulkForm] = useState({ subject: "", message: "" });
+  const [bulkSending, setBulkSending] = useState(false);
 
-  useEffect(() => {
-    fetch("/api/enterprise/talent-pool")
-      .then((r) => r.json())
-      .then((j) => setCandidates(j.data ?? []))
-      .finally(() => setLoading(false));
-  }, []);
+  const loadGroups = () => fetch("/api/enterprise/talent-pool/groups").then((r) => r.json()).then((j) => {
+    setGroups(j.data?.groups ?? []); setUngroupedCount(j.data?.ungrouped_count ?? 0); setTotal(j.data?.total ?? 0);
+  });
+  const loadMembers = (sel: string) => {
+    setLoading(true);
+    const qs = sel === "all" ? "" : `?group_id=${sel}`;
+    return fetch(`/api/enterprise/talent-pool${qs}`).then((r) => r.json()).then((j) => setCandidates(j.data ?? [])).finally(() => setLoading(false));
+  };
 
-  const refreshPool = () => fetch("/api/enterprise/talent-pool").then((r) => r.json()).then((j) => setCandidates(j.data ?? []));
+  useEffect(() => { loadGroups(); loadMembers("all"); }, []);
+
+  const selectPool = (sel: string) => { setSelected(sel); loadMembers(sel); };
+  const refreshPool = () => { loadGroups(); loadMembers(selected); };
+  // The group new candidates are added to: the selected named pool, else ungrouped.
+  const targetGroupId = selected !== "all" && selected !== "none" ? selected : null;
+
+  const createPool = async () => {
+    const name = newName.trim();
+    if (!name) return;
+    setCreating(true);
+    const res = await fetch("/api/enterprise/talent-pool/groups", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setCreating(false);
+    if (res.ok && j.data?.id) { setNewName(""); setNewOpen(false); await loadGroups(); selectPool(j.data.id); }
+    else alert(j.error ?? "Couldn't create the pool.");
+  };
 
   const openAdd = () => {
     setAddOpen(true); setLoadingApplicants(true);
@@ -219,11 +263,26 @@ function TalentPool() {
     setAddingId(applicationId);
     const res = await fetch("/api/enterprise/talent-pool", {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ application_id: applicationId }),
+      body: JSON.stringify({ application_id: applicationId, group_id: targetGroupId }),
     });
     if (res.ok) { setAddedIds((s) => new Set(s).add(applicationId)); refreshPool(); }
     setAddingId(null);
   };
+
+  const sendBulk = async () => {
+    if (!bulkForm.message.trim()) return;
+    setBulkSending(true);
+    const res = await fetch("/api/enterprise/talent-pool/nurture-all", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ group_id: selected === "all" ? undefined : selected, subject: bulkForm.subject, message: bulkForm.message }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setBulkSending(false);
+    if (res.ok) { alert(`Sent to ${j.data?.sent ?? 0} of ${j.data?.total ?? 0} candidates.`); setBulkOpen(false); refreshPool(); }
+    else alert(j.error ?? "Couldn't send.");
+  };
+
+  const selectedName = selected === "all" ? "the whole talent pool" : selected === "none" ? "Ungrouped" : (groups.find((g) => g.id === selected)?.name ?? "this pool");
 
   const openNurture = (c: PoolCandidate) => {
     setNurtureForm({
@@ -250,12 +309,44 @@ function TalentPool() {
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-xs text-muted-foreground">{loading ? "Loading…" : `${candidates.length} in your talent pool`}</p>
-        <button onClick={openAdd} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold">
-          <Plus className="h-3.5 w-3.5" /> Add candidates
+      {/* Named pool selector */}
+      <div className="mb-3 flex flex-wrap items-center gap-1.5">
+        <PoolChip label={`All (${total})`} active={selected === "all"} onClick={() => selectPool("all")} />
+        {groups.map((g) => (
+          <PoolChip key={g.id} label={`${g.name} (${g.count})`} active={selected === g.id} onClick={() => selectPool(g.id)} />
+        ))}
+        {ungroupedCount > 0 && <PoolChip label={`Ungrouped (${ungroupedCount})`} active={selected === "none"} onClick={() => selectPool("none")} />}
+        <button onClick={() => setNewOpen(true)} className="inline-flex items-center gap-1 rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground">
+          <Plus className="h-3 w-3" /> New pool
         </button>
       </div>
+
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <p className="text-xs text-muted-foreground">{loading ? "Loading…" : `${candidates.length} candidate${candidates.length === 1 ? "" : "s"} in ${selectedName}`}</p>
+        <div className="flex items-center gap-2">
+          {candidates.length > 0 && (
+            <button onClick={() => { setBulkForm({ subject: "", message: "" }); setBulkOpen(true); }}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+              <Send className="h-3.5 w-3.5" /> Email all ({candidates.length})
+            </button>
+          )}
+          <button onClick={openAdd} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold">
+            <Plus className="h-3.5 w-3.5" /> Add candidates
+          </button>
+        </div>
+      </div>
+
+      {newOpen && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-border bg-card p-2">
+          <input autoFocus value={newName} onChange={(e) => setNewName(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") createPool(); }}
+            placeholder="Pool name (e.g. AWS bench, Future leadership)…"
+            className="flex-1 rounded-lg border border-border bg-background px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+          <button onClick={createPool} disabled={creating || !newName.trim()} className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-50">
+            {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />} Create
+          </button>
+          <button onClick={() => { setNewOpen(false); setNewName(""); }} className="rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-muted">Cancel</button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
@@ -373,6 +464,38 @@ function TalentPool() {
               <button onClick={sendNurture} disabled={nurturing === nurtureModal.id}
                 className="btn-cta inline-flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold disabled:opacity-60">
                 {nurturing === nurtureModal.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bulk nurture — email everyone in the selected pool */}
+      {bulkOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setBulkOpen(false)}>
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="font-semibold">Email everyone in {selectedName}</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">{candidates.length} candidate{candidates.length === 1 ? "" : "s"} · sent white-label from your company, each personally greeted.</p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Subject <span className="font-normal text-muted-foreground">(optional)</span></label>
+                <input value={bulkForm.subject} onChange={(e) => setBulkForm((f) => ({ ...f, subject: e.target.value }))}
+                  placeholder="New opportunities for you"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-sm font-medium">Message</label>
+                <textarea value={bulkForm.message} onChange={(e) => setBulkForm((f) => ({ ...f, message: e.target.value }))}
+                  rows={5} placeholder="We have exciting new roles that match your background — we'd love to reconnect."
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                <p className="mt-1 text-[11px] text-muted-foreground">Each email opens with “Hi {"{first name}"},”.</p>
+              </div>
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button onClick={() => setBulkOpen(false)} className="flex-1 rounded-xl border border-border py-2 text-sm font-medium text-muted-foreground hover:bg-muted">Cancel</button>
+              <button onClick={sendBulk} disabled={bulkSending || !bulkForm.message.trim()}
+                className="btn-cta inline-flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold disabled:opacity-60">
+                {bulkSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Send to {candidates.length}
               </button>
             </div>
           </div>
