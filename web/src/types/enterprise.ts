@@ -39,6 +39,7 @@ export interface EnterpriseJob {
   salary_min: number | null;
   salary_max: number | null;
   salary_currency: string;
+  salary_period?: string; // 'year' | 'month' | 'hour'
   status: JobStatus;
   created_by: string;
   created_at: string;
@@ -46,6 +47,25 @@ export interface EnterpriseJob {
   closes_at: string | null;
   // computed
   application_count?: number;
+}
+
+// Currency + pay-period options for the job salary range, with display helpers.
+export const SALARY_CURRENCIES = ["USD", "CAD", "EUR", "GBP", "AUD", "INR", "NGN", "ZAR", "AED", "SGD"];
+export const SALARY_PERIODS: [string, string][] = [["year", "Per year"], ["month", "Per month"], ["hour", "Per hour"]];
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  USD: "$", CAD: "C$", EUR: "€", GBP: "£", AUD: "A$", INR: "₹", NGN: "₦", ZAR: "R", AED: "AED ", SGD: "S$",
+};
+const PERIOD_SUFFIX: Record<string, string> = { year: "/yr", month: "/mo", hour: "/hr" };
+
+/** "$75–$100/hr", "C$90,000–C$120,000/yr". Returns "" when no salary is set. */
+export function formatSalary(min: number | null, max: number | null, currency = "USD", period = "year"): string {
+  if (min == null && max == null) return "";
+  const sym = CURRENCY_SYMBOL[currency] ?? `${currency} `;
+  const suffix = PERIOD_SUFFIX[period] ?? "";
+  const fmt = (n: number) => `${sym}${n.toLocaleString()}`;
+  const range = min != null && max != null ? `${fmt(min)}–${fmt(max)}` : fmt((min ?? max)!);
+  return `${range}${suffix}`;
 }
 
 export interface EnterpriseApplication {

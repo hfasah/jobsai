@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2, Globe, UserCog, Upload, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SALARY_CURRENCIES, SALARY_PERIODS } from "@/types/enterprise";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const DEPARTMENTS = ["Engineering", "Product", "Design", "Marketing", "Sales", "Operations", "Finance", "HR", "Legal", "Customer Success", "Other"];
@@ -16,7 +17,8 @@ export default function NewJobPage() {
   const [form, setForm] = useState({
     title: "", department: "", location: "", employment_type: "full-time",
     description: "", responsibilities: "", qualifications: "", nice_to_have: "",
-    salary_min: "", salary_max: "", extra_context: "", status: "draft",
+    salary_min: "", salary_max: "", salary_currency: "USD", salary_period: "year",
+    extra_context: "", status: "draft",
     hiring_manager_id: "",
   });
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
@@ -235,6 +237,16 @@ export default function NewJobPage() {
                   <input value={form.salary_max} onChange={(e) => set("salary_max", e.target.value)}
                     placeholder="Max" type="number"
                     className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary" />
+                </div>
+                <div className="mt-2 flex items-center gap-2">
+                  <select value={form.salary_currency} onChange={(e) => set("salary_currency", e.target.value)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    {SALARY_CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <select value={form.salary_period} onChange={(e) => set("salary_period", e.target.value)}
+                    className="rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary">
+                    {SALARY_PERIODS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
+                  </select>
                 </div>
               </div>
             </div>

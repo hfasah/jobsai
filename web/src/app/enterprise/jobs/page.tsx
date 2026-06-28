@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Loader2, Users, MapPin, Clock, CheckCircle2, PauseCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseJob, JobStatus } from "@/types/enterprise";
+import { formatSalary } from "@/types/enterprise";
 
 const STATUS_STYLES: Record<JobStatus, string> = {
   active:  "bg-green-500/15 text-green-400 border-green-500/30",
@@ -81,8 +82,8 @@ export default function EnterpriseJobsPage() {
                       {job.department && <span>{job.department}</span>}
                       {job.location && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{job.location}</span>}
                       <span className="capitalize">{job.employment_type}</span>
-                      {job.salary_min && job.salary_max && (
-                        <span>${job.salary_min.toLocaleString()}–${job.salary_max.toLocaleString()}</span>
+                      {(job.salary_min || job.salary_max) && (
+                        <span>{formatSalary(job.salary_min, job.salary_max, job.salary_currency, job.salary_period)}</span>
                       )}
                     </div>
                   </div>
