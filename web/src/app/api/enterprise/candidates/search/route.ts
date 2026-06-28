@@ -60,12 +60,16 @@ Return:
   } catch { /* use empty filters */ }
 
   // Step 2: query Supabase with extracted filters
+  // When skills are part of the query we post-filter across the whole pool —
+  // including UNSCREENED candidates (no tags/summary yet) — by reading their raw
+  // résumé text, so fetch a broad set. Otherwise just the top matches.
+  const fetchLimit = (filters.skills?.length ?? 0) > 0 ? 400 : (filters.limit ?? 30);
   let dbQuery = supabaseAdmin
     .from("enterprise_applications")
-    .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,source,created_at,job:enterprise_jobs(id,title)")
+    .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,resume_text,source,created_at,job:enterprise_jobs(id,title)")
     .eq("org_id", org.id)
     .order("match_score", { ascending: false, nullsFirst: false })
-    .limit(filters.limit ?? 10);
+    .limit(fetchLimit);
 
   if (jobId) dbQuery = dbQuery.eq("job_id", jobId);
   if (filters.min_score) dbQuery = dbQuery.gte("match_score", filters.min_score);
@@ -75,22 +79,31 @@ Return:
   const { data: candidates, error } = await dbQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // Step 3: post-filter by skills/keywords client-side (Postgres full-text on tags + summary)
+  // Step 3: post-filter by skills/keywords — match across tags, AI summary, AND
+  // raw résumé text (so candidates surface by skill even before AI screening).
   const skills = (filters.skills ?? []).map((s) => s.toLowerCase());
   const filtered = skills.length
     ? (candidates ?? []).filter((c) => {
         const haystack = [
           ...(c.tags ?? []),
           c.ai_summary ?? "",
+          c.resume_text ?? "",
           c.candidate_name,
         ].join(" ").toLowerCase();
         return skills.some((s) => haystack.includes(s));
       })
     : (candidates ?? []);
 
+  // Drop the heavy résumé text from the response payload (used only for matching).
+  const data = filtered.map((c) => {
+    const copy: Record<string, unknown> = { ...c };
+    delete copy.resume_text;
+    return copy;
+  });
+
   return NextResponse.json({
-    data: filtered,
+    data,
     filters_applied: filters,
-    total: filtered.length,
+    total: data.length,
   });
 }
