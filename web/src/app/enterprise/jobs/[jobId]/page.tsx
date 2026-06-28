@@ -3,7 +3,7 @@
 import { use, useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft, Users, Sparkles, Loader2, ChevronRight,
+  ArrowLeft, ArrowRight, Users, Sparkles, Loader2, ChevronRight,
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
   Share2, BarChart3, Copy, Check, TrendingUp, Mic, Send,
@@ -783,6 +783,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [screeningIds, setScreeningIds] = useState<Set<string>>(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [moveJobOpen, setMoveJobOpen] = useState(false);
+  const [moveJobs, setMoveJobs] = useState<{ id: string; title: string; status: string }[] | null>(null);
   const [activeTab, setActiveTab] = useState<"pools" | "pipeline" | "ats" | "all" | "scorecard" | "distribute" | "analytics" | "interviews" | "search" | "sourcing" | "picks">("pools");
   const [compareOpen, setCompareOpen] = useState(false);
   const [smsOpen, setSmsOpen] = useState(false);
@@ -874,6 +876,32 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
     setApps((a) => a.map((x) => selectedIds.has(x.id) ? { ...x, stage } : x));
     setSelectedIds(new Set());
     setBulkLoading(false);
+  };
+
+  // Move selected candidates into another job's pipeline.
+  const openMoveJob = async () => {
+    setMoveJobOpen((o) => !o);
+    if (moveJobs === null) {
+      const res = await fetch("/api/enterprise/jobs");
+      const j = await res.json().catch(() => ({}));
+      setMoveJobs((j.data ?? []).filter((x: { id: string }) => x.id !== jobId));
+    }
+  };
+  const bulkMoveToJob = async (targetJobId: string) => {
+    if (!selectedIds.size) return;
+    setBulkLoading(true);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/applications/bulk`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids: [...selectedIds], action: "move_to_job", target_job_id: targetJobId }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setBulkLoading(false);
+    setMoveJobOpen(false);
+    if (res.ok) {
+      // Moved candidates leave this job's list.
+      setApps((a) => a.filter((x) => !selectedIds.has(x.id)));
+      setSelectedIds(new Set());
+    } else alert(j.error ?? "Couldn't move the candidates.");
   };
 
   const byStage = (stage: AppStage) => apps.filter((a) => a.stage === stage)
@@ -1005,6 +1033,27 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
               className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
               <Mail className="h-3 w-3" /> Email
             </button>
+            <div className="relative">
+              <button onClick={openMoveJob} disabled={bulkLoading}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50">
+                <ArrowRight className="h-3 w-3" /> Move to job
+              </button>
+              {moveJobOpen && (
+                <div className="absolute left-0 top-full z-20 mt-1 max-h-64 w-60 overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-xl">
+                  {moveJobs === null ? (
+                    <div className="flex items-center gap-1.5 px-2 py-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading jobs…</div>
+                  ) : moveJobs.length === 0 ? (
+                    <div className="px-2 py-2 text-xs text-muted-foreground">No other jobs to move to.</div>
+                  ) : moveJobs.map((mj) => (
+                    <button key={mj.id} onClick={() => bulkMoveToJob(mj.id)} disabled={bulkLoading}
+                      className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted disabled:opacity-50">
+                      <span className="truncate">{mj.title}</span>
+                      <span className="shrink-0 text-[10px] capitalize text-muted-foreground">{mj.status}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={() => setSelectedIds(new Set())} className="ml-auto text-xs text-muted-foreground hover:text-foreground">
               Clear
             </button>
