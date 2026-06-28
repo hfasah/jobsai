@@ -179,6 +179,7 @@ interface PoolCandidate {
   match_score: number | null; source_job_title: string | null;
   skills_tags: string[]; notes: string | null;
   status: string; last_contacted: string | null; created_at: string;
+  group_ids?: string[];
 }
 
 const STATUS_STYLES: Record<string, string> = {
@@ -220,6 +221,7 @@ function TalentPool() {
   const [newOpen, setNewOpen] = useState(false);
   const [newName, setNewName] = useState("");
   const [creating, setCreating] = useState(false);
+  const [poolMenuFor, setPoolMenuFor] = useState<string | null>(null); // member id whose add-pool menu is open
   // Bulk nurture
   const [bulkOpen, setBulkOpen] = useState(false);
   const [bulkForm, setBulkForm] = useState({ subject: "", message: "" });
@@ -267,6 +269,26 @@ function TalentPool() {
     });
     if (res.ok) { setAddedIds((s) => new Set(s).add(applicationId)); refreshPool(); }
     setAddingId(null);
+  };
+
+  // Add / remove a candidate to/from a named pool (many-to-many).
+  const addMemberToGroup = async (memberId: string, groupId: string) => {
+    setCandidates((prev) => prev.map((c) => c.id === memberId ? { ...c, group_ids: [...(c.group_ids ?? []), groupId] } : c));
+    setPoolMenuFor(null);
+    await fetch(`/api/enterprise/talent-pool/${memberId}/groups`, {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ group_id: groupId }),
+    });
+    loadGroups();
+  };
+  const removeMemberFromGroup = async (memberId: string, groupId: string) => {
+    setCandidates((prev) => prev
+      .map((c) => c.id === memberId ? { ...c, group_ids: (c.group_ids ?? []).filter((g) => g !== groupId) } : c)
+      // If we're viewing a specific pool, drop the row once removed from it.
+      .filter((c) => !(c.id === memberId && selected !== "all" && selected !== "none" && groupId === selected)));
+    await fetch(`/api/enterprise/talent-pool/${memberId}/groups`, {
+      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ group_id: groupId }),
+    });
+    loadGroups();
   };
 
   const sendBulk = async () => {
@@ -361,7 +383,7 @@ function TalentPool() {
         <table className="w-full text-sm">
           <thead className="border-b border-border bg-muted/30">
             <tr>
-              {["Candidate", "Score", "Previous role", "Status", "Last contact", ""].map((h) => (
+              {["Candidate", "Score", "Pools", "Status", "Last contact", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left text-xs font-medium text-muted-foreground">{h}</th>
               ))}
             </tr>
@@ -378,7 +400,36 @@ function TalentPool() {
                     ? <span className={cn("font-bold tabular-nums", c.match_score >= 70 ? "text-green-400" : "text-amber-400")}>{c.match_score}%</span>
                     : "—"}
                 </td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{c.source_job_title ?? "—"}</td>
+                <td className="px-4 py-3">
+                  <div className="relative flex flex-wrap items-center gap-1">
+                    {(c.group_ids ?? []).map((gid) => {
+                      const g = groups.find((x) => x.id === gid);
+                      if (!g) return null;
+                      return (
+                        <span key={gid} className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                          {g.name}
+                          <button onClick={() => removeMemberFromGroup(c.id, gid)} className="hover:text-foreground" title="Remove from pool"><X className="h-2.5 w-2.5" /></button>
+                        </span>
+                      );
+                    })}
+                    {(c.group_ids ?? []).length === 0 && <span className="text-[10px] text-muted-foreground">—</span>}
+                    {groups.some((g) => !(c.group_ids ?? []).includes(g.id)) && (
+                      <>
+                        <button onClick={() => setPoolMenuFor(poolMenuFor === c.id ? null : c.id)}
+                          className="inline-flex items-center rounded-full border border-dashed border-border px-1.5 py-0.5 text-[10px] text-muted-foreground hover:bg-muted hover:text-foreground" title="Add to a pool">
+                          <Plus className="h-2.5 w-2.5" />
+                        </button>
+                        {poolMenuFor === c.id && (
+                          <div className="absolute left-0 top-full z-10 mt-1 max-h-48 w-44 overflow-y-auto rounded-lg border border-border bg-card p-1 shadow-xl">
+                            {groups.filter((g) => !(c.group_ids ?? []).includes(g.id)).map((g) => (
+                              <button key={g.id} onClick={() => addMemberToGroup(c.id, g.id)} className="block w-full truncate rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted">{g.name}</button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </td>
                 <td className="px-4 py-3">
                   <span className={cn("rounded-full border px-2 py-0.5 text-[10px] font-medium capitalize", STATUS_STYLES[c.status] ?? STATUS_STYLES.inactive)}>{c.status}</span>
                 </td>
@@ -407,7 +458,7 @@ function TalentPool() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setAddOpen(false)}>
           <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-border p-4">
-              <h2 className="font-semibold">Add candidates to talent pool</h2>
+              <h2 className="font-semibold">Add candidates to {targetGroupId ? selectedName : "the talent pool"}</h2>
               <button onClick={() => setAddOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-2">

@@ -12,17 +12,25 @@ export async function GET(req: NextRequest) {
 
   // Optional ?group_id=<id> to filter to one named pool ("none" = ungrouped).
   const group = req.nextUrl.searchParams.get("group_id");
-  let query = supabaseAdmin
-    .from("enterprise_talent_pool")
-    .select("*")
-    .eq("org_id", org.id)
-    .order("created_at", { ascending: false });
-  if (group === "none") query = query.is("group_id", null);
-  else if (group) query = query.eq("group_id", group);
 
-  const { data, error } = await query;
+  const [{ data: rows, error }, { data: memberships }] = await Promise.all([
+    supabaseAdmin.from("enterprise_talent_pool").select("*").eq("org_id", org.id).order("created_at", { ascending: false }),
+    supabaseAdmin.from("enterprise_talent_pool_memberships").select("talent_pool_id, group_id").eq("org_id", org.id),
+  ]);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ data: data ?? [] });
+
+  // Attach each candidate's pool memberships (a candidate can be in many pools).
+  const byMember = new Map<string, string[]>();
+  for (const m of memberships ?? []) {
+    const arr = byMember.get(m.talent_pool_id as string) ?? [];
+    arr.push(m.group_id as string);
+    byMember.set(m.talent_pool_id as string, arr);
+  }
+  let data = (rows ?? []).map((r) => ({ ...r, group_ids: byMember.get(r.id as string) ?? [] }));
+  if (group === "none") data = data.filter((r) => r.group_ids.length === 0);
+  else if (group) data = data.filter((r) => r.group_ids.includes(group));
+
+  return NextResponse.json({ data });
 }
 
 // Add a candidate to the talent pool
@@ -64,6 +72,10 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (body.group_id && data?.id) {
+      await supabaseAdmin.from("enterprise_talent_pool_memberships")
+        .upsert({ org_id: org.id, talent_pool_id: data.id, group_id: body.group_id }, { onConflict: "talent_pool_id,group_id" });
+    }
     return NextResponse.json({ data }, { status: 201 });
   }
 
@@ -88,5 +100,9 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (body.group_id && data?.id) {
+    await supabaseAdmin.from("enterprise_talent_pool_memberships")
+      .upsert({ org_id: org.id, talent_pool_id: data.id, group_id: body.group_id }, { onConflict: "talent_pool_id,group_id" });
+  }
   return NextResponse.json({ data }, { status: 201 });
 }
