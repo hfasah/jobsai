@@ -71,7 +71,7 @@ Return:
   // keywords against everything — résumé text, phone, etc. — not just top scores.
   let dbQuery = supabaseAdmin
     .from("enterprise_applications")
-    .select("id,candidate_name,candidate_email,candidate_phone,stage,match_score,ats_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,resume_text,resume_storage_key,resume_url,source,created_at,job:enterprise_jobs(id,title)")
+    .select("id,candidate_name,candidate_email,candidate_phone,candidate_location,stage,match_score,ats_score,skills_score,experience_score,ai_summary,ai_recommendation,tags,risk_flags,resume_text,resume_storage_key,resume_url,source,created_at,job:enterprise_jobs(id,title)")
     .eq("org_id", org.id)
     .order("match_score", { ascending: false, nullsFirst: false })
     .limit(keywords.length ? 400 : 50);
@@ -87,12 +87,12 @@ Return:
   // Step 3: match keywords across the WHOLE candidate — name, email, phone, tags,
   // AI summary, and raw résumé text (so name / skill / country / phone /
   // experience all work). Rank by how many keywords hit.
-  type Row = Record<string, unknown> & { tags?: string[] | null; ai_summary?: string | null; resume_text?: string | null; candidate_name?: string; candidate_email?: string; candidate_phone?: string | null; match_score?: number | null };
+  type Row = Record<string, unknown> & { tags?: string[] | null; ai_summary?: string | null; resume_text?: string | null; candidate_name?: string; candidate_email?: string; candidate_phone?: string | null; candidate_location?: string | null; match_score?: number | null };
   const scored = (candidates ?? []).map((c) => {
     const row = c as Row;
     const haystack = [
       ...(row.tags ?? []),
-      row.candidate_name ?? "", row.candidate_email ?? "", row.candidate_phone ?? "",
+      row.candidate_name ?? "", row.candidate_email ?? "", row.candidate_phone ?? "", row.candidate_location ?? "",
       row.ai_summary ?? "", row.resume_text ?? "",
     ].join(" ").toLowerCase();
     const hits = keywords.filter((k) => haystack.includes(k)).length;

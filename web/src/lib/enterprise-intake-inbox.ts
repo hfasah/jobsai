@@ -117,6 +117,7 @@ export interface IntakeCandidate {
   name: string;
   email: string;
   phone?: string | null;
+  location?: string | null;
   resumeText?: string | null;
   resumeUrl?: string | null;
   resumeStorageKey?: string | null;
@@ -146,6 +147,7 @@ export async function createIntakeApplication(
     if (c.resumeStorageKey) patch.resume_storage_key = c.resumeStorageKey;
     if (c.resumeUrl) patch.resume_url = c.resumeUrl;
     if (c.phone) patch.candidate_phone = c.phone;
+    if (c.location) patch.candidate_location = c.location;
     if (c.coverLetter) patch.cover_letter = c.coverLetter;
     if (c.skills?.length) patch.tags = c.skills.slice(0, 30);
     // Upgrade the name too when the re-send parsed a real one (not the email handle).
@@ -163,6 +165,7 @@ export async function createIntakeApplication(
       candidate_name: c.name.trim() || email.split("@")[0],
       candidate_email: email,
       candidate_phone: c.phone ?? null,
+      candidate_location: c.location ?? null,
       resume_text: c.resumeText ?? null,
       resume_url: c.resumeUrl ?? null,
       resume_storage_key: c.resumeStorageKey ?? null,

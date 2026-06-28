@@ -17,12 +17,12 @@ export async function GET(req: NextRequest) {
 
   let query = supabaseAdmin
     .from("enterprise_applications")
-    .select("id,candidate_name,candidate_email,candidate_phone,stage,ats_score,match_score,tags,resume_storage_key,resume_url,ai_summary,source,created_at,job:enterprise_jobs(id,title)")
+    .select("id,candidate_name,candidate_email,candidate_phone,candidate_location,stage,ats_score,match_score,tags,resume_storage_key,resume_url,ai_summary,source,created_at,job:enterprise_jobs(id,title)")
     .eq("org_id", org.id)
     .order("created_at", { ascending: false })
     .limit(300);
 
-  if (q) query = query.or(`candidate_name.ilike.%${q}%,candidate_email.ilike.%${q}%`);
+  if (q) query = query.or(`candidate_name.ilike.%${q}%,candidate_email.ilike.%${q}%,candidate_location.ilike.%${q}%`);
   if (stage && stage !== "all") query = query.eq("stage", stage);
 
   const { data, error } = await query;
