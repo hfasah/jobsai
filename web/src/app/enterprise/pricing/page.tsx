@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Building2 } from "lucide-react";
+import { Check, Building2, Sparkles } from "lucide-react";
 import { PlanComparison } from "@/components/enterprise/plan-comparison";
 import { EnterprisePricingCards } from "@/components/enterprise/pricing-cards";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
@@ -14,11 +14,11 @@ export const metadata = {
 const BOOK_DEMO = "/enterprise/demo";
 
 const ADDONS = [
-  { name: "AI Interview Suite", price: "+$199/mo", desc: "AI voice & avatar interviews, auto-scoring, transcripts." },
-  { name: "Autonomous Recruiting Agent", price: "+$499/mo", desc: "24/7 sourcing, outreach, follow-ups & recommendations." },
-  { name: "SMS & WhatsApp", price: "+$99/mo", desc: "Instant candidate messaging & automated reminders." },
-  { name: "White Label Plus", price: "+$199/mo", desc: "Custom domain, branding removal & custom email branding." },
-  { name: "Additional Recruiters", price: "+$29/user/mo", desc: "Add seats beyond your plan limit." },
+  { name: "AI Interview Suite", price: "+$199/mo", desc: "AI voice & avatar interviews, auto-scoring, transcripts.", value: "Screen every applicant 24/7 — ranked, scored shortlists in hours, not weeks." },
+  { name: "Autonomous Recruiting Agent", price: "+$499/mo", desc: "24/7 sourcing, outreach, follow-ups & recommendations.", value: "An always-on AI recruiter at a fraction of a sourcer's cost — keeps your pipeline full." },
+  { name: "SMS & WhatsApp", price: "+$99/mo", desc: "Instant candidate messaging & automated reminders.", value: "Candidates reply far faster than email — fewer no-shows, faster scheduling." },
+  { name: "White Label Plus", price: "+$199/mo", desc: "Custom domain, branding removal & custom email branding.", value: "Fully your brand & domain, no “powered by” — builds trust, looks enterprise-grade." },
+  { name: "Additional Recruiters", price: "+$29/user/mo", desc: "Add seats beyond your plan limit.", value: "Scale seats instantly — each recruiter gets their own workspace & pipeline." },
 ];
 
 const WHY = ["ATS", "Recruiting CRM", "AI Sourcing", "AI Screening", "AI Interviews", "Workflow Automation", "Offer Management", "Analytics", "Compliance", "Enterprise Security"];
@@ -82,10 +82,14 @@ export default function PublicPricingPage() {
           <p className="mb-8 text-center text-sm text-muted-foreground">Available on any plan — add or remove anytime from inside your workspace.</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {ADDONS.map((a) => (
-              <div key={a.name} className="rounded-2xl border border-border bg-card p-5">
+              <div key={a.name} className="flex flex-col rounded-2xl border border-border bg-card p-5">
                 <h3 className="font-semibold">{a.name}</h3>
                 <p className="mt-1 text-sm font-bold text-primary">{a.price}</p>
                 <p className="mt-2 text-sm text-muted-foreground">{a.desc}</p>
+                <p className="mt-2.5 flex items-start gap-1.5 rounded-lg bg-primary/5 px-2.5 py-2 text-xs leading-relaxed text-primary/90">
+                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                  <span>{a.value}</span>
+                </p>
               </div>
             ))}
           </div>
