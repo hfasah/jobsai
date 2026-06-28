@@ -4,6 +4,7 @@ import { resend } from "@/lib/resend";
 import { wrapEmail } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity, greetingName } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
+import { enterpriseSenderEmail } from "@/lib/enterprise";
 import { logMessage } from "@/lib/enterprise-messages";
 
 // Vercel Cron: daily at 9am UTC
@@ -76,9 +77,10 @@ export async function GET(req: NextRequest) {
     // Reply-To = the org intake address so replies stay in-system.
     const intake = orgRow?.slug ? intakeAddress({ slug: orgRow.slug, intake_email_handle: orgRow.intake_email_handle }) : null;
     const replyTo = intake ? `${orgName} <${intake}>` : (recruiterEmail ?? undefined);
+    const senderEmail = enterpriseSenderEmail(intake);
 
     await resend.emails.send({
-      from: `${orgName} Recruiting <support@jobsai.work>`,
+      from: `${orgName} Recruiting <${senderEmail}>`,
       to: email,
       subject: subjects[num],
       html,
@@ -90,7 +92,7 @@ export async function GET(req: NextRequest) {
       applicationId: row.candidate_source === "application" ? (row.source_id as string | null) : null,
       outreachId: row.id as string,
       direction: "outbound",
-      fromEmail: "support@jobsai.work",
+      fromEmail: senderEmail,
       toEmail: email,
       subject: subjects[num],
       body: bodies[num],

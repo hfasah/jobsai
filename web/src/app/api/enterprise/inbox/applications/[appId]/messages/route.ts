@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseSenderEmail } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const { name: recruiterName, email: recruiterEmail } = await getRecruiterIdentity(userId);
   const intake = orgData?.slug ? intakeAddress({ slug: orgData.slug, intake_email_handle: orgData.intake_email_handle }) : null;
   const replyTo = intake ? `${orgName} <${intake}>` : (recruiterEmail ?? undefined);
+  const senderEmail = enterpriseSenderEmail(intake);
 
   // Keep the same subject thread when possible.
   const { data: last } = await supabaseAdmin
@@ -73,7 +74,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const html = wrapEmail(renderOutreachBody(String(body), recruiterName, orgName), false);
   const { error } = await resend.emails.send({
-    from: `${fromName} <support@jobsai.work>`,
+    from: `${fromName} <${senderEmail}>`,
     to: app.candidate_email as string,
     subject: subjectLine,
     html,
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   await logMessage({
     orgId: org.id, applicationId: appId, direction: "outbound",
-    fromEmail: "support@jobsai.work", toEmail: app.candidate_email as string,
+    fromEmail: senderEmail, toEmail: app.candidate_email as string,
     subject: subjectLine, body: String(body),
   });
 

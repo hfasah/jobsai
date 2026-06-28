@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
+import { enterpriseMailMeta } from "@/lib/enterprise";
 
 export interface AgentApplication {
   id: string;
@@ -111,8 +112,9 @@ async function executeSingleAction(
       if (cfg.send_email && app.candidate_email) {
         const orgRes = await supabaseAdmin.from("enterprise_orgs").select("name").eq("id", app.org_id).maybeSingle();
         const orgName = orgRes.data?.name ?? "The hiring team";
+        const { from, replyTo } = await enterpriseMailMeta(app.org_id);
         await resend.emails.send({
-          from: `${orgName} <support@jobsai.work>`,
+          from, replyTo,
           to: app.candidate_email,
           subject: `Your application for ${jobTitle}`,
           html: `<div style="font-family:sans-serif;max-width:560px;color:#0f172a">
@@ -190,8 +192,9 @@ async function executeSingleAction(
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
       const orgRes = await supabaseAdmin.from("enterprise_orgs").select("name").eq("id", app.org_id).maybeSingle();
       const orgName = orgRes.data?.name ?? "The hiring team";
+      const { from, replyTo } = await enterpriseMailMeta(app.org_id);
       await resend.emails.send({
-        from: `${orgName} <support@jobsai.work>`,
+        from, replyTo,
         to: app.candidate_email,
         subject: `Interview invitation: ${jobTitle}`,
         html: `<div style="font-family:sans-serif;max-width:560px;color:#0f172a">

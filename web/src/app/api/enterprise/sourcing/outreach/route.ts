@@ -5,7 +5,7 @@ import OpenAI from "openai";
 import { getAIClient } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseSenderEmail } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity, greetingName } from "@/lib/sourcing-email";
@@ -75,6 +75,7 @@ export async function POST(req: NextRequest) {
   // JobsAI inbox (captured by the inbound webhook) and the thread stays in-system.
   const intake = orgData?.slug ? intakeAddress({ slug: orgData.slug, intake_email_handle: orgData.intake_email_handle }) : null;
   const replyTo = intake ? `${orgName} <${intake}>` : (recruiterEmail ?? undefined);
+  const senderEmail = enterpriseSenderEmail(intake);
 
   const results: { email: string; ok: boolean; error?: string }[] = [];
 
@@ -119,7 +120,7 @@ Return JSON where "body" uses "\\n\\n" between paragraphs: { "subject": "...", "
       const html = wrapEmail(renderOutreachBody(bodyText, recruiterName, orgName), false);
 
       await resend.emails.send({
-        from: `${fromName} <support@jobsai.work>`,
+        from: `${fromName} <${senderEmail}>`,
         to: cand.email,
         subject,
         html,
@@ -132,7 +133,7 @@ Return JSON where "body" uses "\\n\\n" between paragraphs: { "subject": "...", "
         orgId: org.id,
         applicationId: cand.source === "application" ? cand.id : null,
         direction: "outbound",
-        fromEmail: "support@jobsai.work",
+        fromEmail: senderEmail,
         toEmail: cand.email,
         subject,
         body: bodyText,
