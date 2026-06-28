@@ -28,6 +28,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
       .in("id", ids)
       .eq("org_id", org.id)
       .eq("job_id", jobId);
+  } else if (action === "move_to_job") {
+    // Move selected candidates into another job's pipeline (e.g. out of the
+    // General Applications intake pool). They enter as fresh, unscreened
+    // applicants so they can be screened against the target role.
+    const targetJobId: string = body.target_job_id;
+    if (!targetJobId) return NextResponse.json({ error: "Target job is required." }, { status: 400 });
+    if (targetJobId === jobId) return NextResponse.json({ error: "Pick a different job." }, { status: 400 });
+    const { data: target } = await supabaseAdmin
+      .from("enterprise_jobs").select("id").eq("id", targetJobId).eq("org_id", org.id).maybeSingle();
+    if (!target) return NextResponse.json({ error: "Target job not found." }, { status: 404 });
+
+    await supabaseAdmin
+      .from("enterprise_applications")
+      .update({ job_id: targetJobId, pool_id: null, stage: "applied", stage_updated_at: new Date().toISOString(), screened_at: null, triaged: false })
+      .in("id", ids)
+      .eq("org_id", org.id)
+      .eq("job_id", jobId);
   } else if (action === "add_tag") {
     const tag: string = body.tag;
     if (!tag) return NextResponse.json({ error: "Tag is required." }, { status: 400 });
