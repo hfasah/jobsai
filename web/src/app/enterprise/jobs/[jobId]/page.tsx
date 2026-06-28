@@ -7,9 +7,10 @@ import {
   CheckCircle2, AlertCircle, Tag, SlidersHorizontal,
   ExternalLink, MoreHorizontal, XCircle, Mail,
   Share2, BarChart3, Copy, Check, TrendingUp, Mic, Send,
-  ClipboardList, Scale, FileText, ChevronDown, Upload,
+  ClipboardList, Scale, FileText, ChevronDown, Upload, Pencil, Rocket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { JobEditModal } from "@/components/enterprise/job-edit-modal";
 import type { EnterpriseJob, EnterpriseApplication, AppStage } from "@/types/enterprise";
 import { ATS_TIERS, atsTier } from "@/types/enterprise";
 import { STAGES, STAGE_LABELS, STAGE_COLORS } from "@/types/enterprise";
@@ -787,6 +788,8 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const [smsOpen, setSmsOpen] = useState(false);
   const [gmailOpen, setGmailOpen] = useState(false);
   const [csvImportOpen, setCsvImportOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [publishing, setPublishing] = useState(false);
   const [voiceScreenApp, setVoiceScreenApp] = useState<EnterpriseApplication | null>(null);
   const [framework, setFramework] = useState<CompetencyFramework | null>(null);
   const [reportApp, setReportApp] = useState<EnterpriseApplication | null>(null);
@@ -844,6 +847,20 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
   const screenAll = async () => {
     const unscreened = apps.filter((a) => !a.screened_at && a.stage === "applied").map((a) => a.id);
     for (const id of unscreened) await screenApp(id);
+  };
+
+  // Confirm a draft → publish it live (opens the public application page).
+  const publishJob = async () => {
+    if (!job) return;
+    setPublishing(true);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}`, {
+      method: "PUT", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "active" }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setPublishing(false);
+    if (res.ok) setJob((j) => j ? { ...j, status: "active", published_at: json.data?.published_at ?? new Date().toISOString() } : j);
+    else alert(json.error ?? "Couldn't publish the job.");
   };
 
   const bulkMove = async (stage: AppStage) => {
@@ -910,6 +927,16 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
                 <Users className="h-4 w-4 text-muted-foreground" />
                 {apps.length}
               </div>
+              <button onClick={() => setEditOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
+                <Pencil className="h-3.5 w-3.5" /> Edit
+              </button>
+              {job.status === "draft" && (
+                <button onClick={publishJob} disabled={publishing}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white shadow-glow disabled:opacity-50">
+                  {publishing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Rocket className="h-3.5 w-3.5" />} Confirm &amp; publish
+                </button>
+              )}
               <button onClick={() => setCsvImportOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
                 <Upload className="h-3.5 w-3.5" /> Import CSV
@@ -1150,6 +1177,15 @@ export default function JobDetailPage({ params }: { params: Promise<{ jobId: str
         <GmailComposeModal
           apps={apps.filter((a) => selectedIds.has(a.id))}
           onClose={() => setGmailOpen(false)}
+        />
+      )}
+
+      {/* Edit job modal */}
+      {editOpen && job && (
+        <JobEditModal
+          job={job}
+          onClose={() => setEditOpen(false)}
+          onSaved={(patch) => setJob((j) => j ? { ...j, ...patch } : j)}
         />
       )}
 
