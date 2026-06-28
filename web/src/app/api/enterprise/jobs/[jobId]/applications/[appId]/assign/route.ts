@@ -5,6 +5,7 @@ import { requirePermission } from "@/lib/enterprise-permissions";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
+import { buildFitReportHtml, fitReportFilename } from "@/lib/fit-report";
 
 export const maxDuration = 30;
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://app.jobsai.work").replace(/\/$/, "");
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     .from("enterprise_applications")
     .update({ assigned_to: hiring_manager_id, updated_at: new Date().toISOString() })
     .eq("id", appId).eq("org_id", org.id)
-    .select("candidate_name, job:enterprise_jobs(title)")
+    .select("candidate_name,candidate_email,candidate_phone,match_score,skills_score,experience_score,ats_score,ai_recommendation,ai_summary,notes,tags,risk_flags, job:enterprise_jobs(title)")
     .single();
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -44,15 +45,32 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     const hm = await (await clerkClient()).users.getUser(hiring_manager_id);
     const to = hm.emailAddresses.find((e) => e.id === hm.primaryEmailAddressId)?.emailAddress ?? hm.emailAddresses[0]?.emailAddress;
     if (to) {
-      const jobTitle = (app.job as { title?: string } | null)?.title;
+      const jobTitle = (app.job as { title?: string } | null)?.title ?? null;
+      const reportHtml = buildFitReportHtml({
+        candidate_name: app.candidate_name,
+        candidate_email: app.candidate_email,
+        candidate_phone: app.candidate_phone,
+        job_title: jobTitle,
+        org_name: org.name,
+        match_score: app.match_score,
+        skills_score: app.skills_score,
+        experience_score: app.experience_score,
+        ats_score: app.ats_score,
+        ai_recommendation: app.ai_recommendation,
+        ai_summary: app.ai_summary,
+        notes: app.notes,
+        tags: app.tags,
+        risk_flags: app.risk_flags,
+      });
       await resend.emails.send({
         from: `${emailFromName(org.name, (o.white_label_email_from as string) ?? null)} <support@jobsai.work>`,
         to,
         subject: `Candidate assigned for your review: ${app.candidate_name}`,
         html: wrapEmail(
-          `<p>Hi,</p><p><strong>${app.candidate_name}</strong>${jobTitle ? ` (for <strong>${jobTitle}</strong>)` : ""} has been assigned to you for review.</p><p>Open your <a href="${APP_URL}/enterprise/hiring-manager">Workspace</a> to view the résumé and make a decision.</p>`,
+          `<p>Hi,</p><p><strong>${app.candidate_name}</strong>${jobTitle ? ` (for <strong>${jobTitle}</strong>)` : ""} has been assigned to you for review.</p><p>Their <strong>fit report</strong> (scores, AI assessment, skills) is attached. Open your <a href="${APP_URL}/enterprise/hiring-manager">Workspace</a> to view the résumé and make a decision.</p>`,
           (o.show_powered_by as boolean) ?? true,
         ),
+        attachments: [{ filename: fitReportFilename(app.candidate_name), content: Buffer.from(reportHtml).toString("base64") }],
       });
     }
   } catch { /* notification is best-effort */ }
