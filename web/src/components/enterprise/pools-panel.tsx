@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
-  Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
+  Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText, MessagesSquare,
   Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil, Briefcase, RefreshCw, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,11 @@ import { POOL_COLORS } from "@/types/enterprise";
 import { ScheduleModal } from "@/components/enterprise/schedule-modal";
 
 const SCORE_COLOR = (n: number) => n >= 75 ? "text-green-400" : n >= 50 ? "text-amber-400" : "text-red-400";
+
+type ConvoMessage = {
+  id: string; direction: "outbound" | "inbound";
+  from_email: string | null; subject: string | null; body: string | null; created_at: string;
+};
 
 const QTYPE_COLOR: Record<string, string> = {
   behavioral: "bg-blue-500/15 text-blue-400", technical: "bg-purple-500/15 text-purple-400",
@@ -41,6 +46,11 @@ function CandidateRow({
   const [hmList, setHmList] = useState<{ user_id: string; name: string; email: string; role: string }[] | null>(null);
   const [assigning, setAssigning] = useState<string | null>(null);
   const [assignedTo, setAssignedTo] = useState<string | null>((app as { assigned_to?: string | null }).assigned_to ?? null);
+  const [convoLoaded, setConvoLoaded] = useState(false);
+  const [convoLoading, setConvoLoading] = useState(false);
+  const [messages, setMessages] = useState<ConvoMessage[]>([]);
+  const [replyText, setReplyText] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
   const [form, setForm] = useState({
     candidate_name: app.candidate_name ?? "",
     candidate_email: app.candidate_email ?? "",
@@ -95,6 +105,36 @@ function CandidateRow({
     setAssigning(null);
     if (res.ok) { setAssignedTo(m.user_id); setHmOpen(false); }
     else alert(json.error ?? "Couldn't send to the hiring manager.");
+  };
+
+  // Conversation thread — load on first open of the Conversation section.
+  const loadConvo = async () => {
+    if (convoLoaded || convoLoading) return;
+    setConvoLoading(true);
+    const res = await fetch(`/api/enterprise/inbox/applications/${app.id}/messages`);
+    const json = await res.json().catch(() => ({}));
+    if (res.ok) setMessages(json.data?.messages ?? []);
+    setConvoLoaded(true);
+    setConvoLoading(false);
+  };
+
+  const sendReply = async () => {
+    const text = replyText.trim();
+    if (!text) return;
+    setSendingReply(true);
+    const res = await fetch(`/api/enterprise/inbox/applications/${app.id}/messages`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: text }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setSendingReply(false);
+    if (res.ok) {
+      setMessages((m) => [...m, {
+        id: `local-${Date.now()}`, direction: "outbound", from_email: null,
+        subject: null, body: text, created_at: new Date().toISOString(),
+      }]);
+      setReplyText("");
+    } else alert(json.error ?? "Couldn't send the reply.");
   };
 
   const saveEdit = async () => {
@@ -202,6 +242,40 @@ function CandidateRow({
               </p>
             </details>
           )}
+
+          {/* conversation thread */}
+          <details className="group" onToggle={(e) => { if (e.currentTarget.open) loadConvo(); }}>
+            <summary className="flex cursor-pointer list-none items-center gap-1.5 text-[11px] font-medium text-primary hover:underline">
+              <MessagesSquare className="h-3 w-3" /> Conversation{messages.length ? ` (${messages.length})` : ""}
+            </summary>
+            <div className="mt-1.5 space-y-2 rounded-lg border border-border bg-background p-2.5">
+              {convoLoading && <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading…</p>}
+              {convoLoaded && messages.length === 0 && (
+                <p className="text-[11px] text-muted-foreground">No emails yet. Send the first message below — replies land back here automatically.</p>
+              )}
+              {messages.length > 0 && (
+                <div className="max-h-56 space-y-2 overflow-y-auto">
+                  {messages.map((m) => (
+                    <div key={m.id} className={cn("rounded-lg border px-2.5 py-1.5", m.direction === "outbound" ? "ml-6 border-primary/30 bg-primary/5" : "mr-6 border-border bg-card")}>
+                      <p className="mb-0.5 text-[10px] font-medium text-muted-foreground">
+                        {m.direction === "outbound" ? "You" : (m.from_email ?? "Candidate")} · {new Date(m.created_at).toLocaleString()}
+                      </p>
+                      <p className="whitespace-pre-wrap text-[11px] leading-relaxed">{m.body}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-end gap-1.5 pt-0.5">
+                <textarea value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={2}
+                  placeholder="Write a reply… (sent from your company, replies return here)"
+                  className="min-w-0 flex-1 resize-none rounded-lg border border-border bg-card px-2 py-1.5 text-[11px] outline-none focus:border-primary" />
+                <button onClick={sendReply} disabled={sendingReply || !replyText.trim()}
+                  className="inline-flex items-center gap-1 rounded-lg bg-gradient-brand px-2.5 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50">
+                  {sendingReply ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Send
+                </button>
+              </div>
+            </div>
+          </details>
 
           {/* actions */}
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">

@@ -6,10 +6,11 @@ import { getAIClient } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
-import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
 import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity, greetingName } from "@/lib/sourcing-email";
+import { intakeAddress } from "@/lib/enterprise-intake-inbox";
+import { logMessage } from "@/lib/enterprise-messages";
 import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 60;
@@ -58,19 +59,22 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Load org branding
+  // Load org branding + intake handle (for the Reply-To)
   const { data: orgData } = await supabaseAdmin
     .from("enterprise_orgs")
-    .select("name, show_powered_by, white_label_email_from")
+    .select("name, show_powered_by, white_label_email_from, slug, intake_email_handle")
     .eq("id", org.id)
     .maybeSingle();
   const orgName = orgData?.name ?? org.name;
   const fromName = emailFromName(orgName, orgData?.white_label_email_from ?? null);
 
-  // Recruiter identity — used for the signature, the From display name, and the
-  // Reply-To so candidate replies always reach the recruiter (never get lost).
-  const { name: recruiterName, email: replyToEmail } = await getRecruiterIdentity(userId);
-  const senderName = recruiterName || fromName;
+  // Recruiter name for the signature; their email is only a last-resort Reply-To.
+  const { name: recruiterName, email: recruiterEmail } = await getRecruiterIdentity(userId);
+
+  // Reply-To = the org's intake address, so candidate replies flow back into the
+  // JobsAI inbox (captured by the inbound webhook) and the thread stays in-system.
+  const intake = orgData?.slug ? intakeAddress({ slug: orgData.slug, intake_email_handle: orgData.intake_email_handle }) : null;
+  const replyTo = intake ? `${orgName} <${intake}>` : (recruiterEmail ?? undefined);
 
   const results: { email: string; ok: boolean; error?: string }[] = [];
 
@@ -110,27 +114,29 @@ Return JSON where "body" uses "\\n\\n" between paragraphs: { "subject": "...", "
         // fall through to default message
       }
 
-      // Cold candidate outreach is sent from the recruiter's own mailbox — it
-      // should read as the company's own email, never "Powered by JobsAI".
+      // White-label send: reads as the company's own email (no "Powered by
+      // JobsAI"), with Reply-To pointing at the in-system intake address.
       const html = wrapEmail(renderOutreachBody(bodyText, recruiterName, orgName), false);
 
-      const gmailResult = await sendFromRecruiterGmail(userId, {
+      await resend.emails.send({
+        from: `${fromName} <support@jobsai.work>`,
         to: cand.email,
         subject,
         html,
-        fromName: senderName,
-      }).catch(() => ({ ok: false }));
+        ...(replyTo ? { replyTo } : {}),
+      });
 
-      if (!gmailResult.ok) {
-        await resend.emails.send({
-          from: `${fromName} <support@jobsai.work>`,
-          to: cand.email,
-          subject,
-          html,
-          // Replies reach the recruiter even on the Resend fallback path.
-          ...(replyToEmail ? { replyTo: replyToEmail } : {}),
-        });
-      }
+      // Thread the outbound message to the candidate's application so the whole
+      // conversation lives in JobsAI.
+      await logMessage({
+        orgId: org.id,
+        applicationId: cand.source === "application" ? cand.id : null,
+        direction: "outbound",
+        fromEmail: "support@jobsai.work",
+        toEmail: cand.email,
+        subject,
+        body: bodyText,
+      });
 
       // Mark talent pool candidate as contacted
       if (cand.source === "pool") {

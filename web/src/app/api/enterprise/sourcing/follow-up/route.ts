@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { wrapEmail } from "@/lib/email-utils";
-import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
 import { renderOutreachBody, getRecruiterIdentity, greetingName } from "@/lib/sourcing-email";
+import { intakeAddress } from "@/lib/enterprise-intake-inbox";
+import { logMessage } from "@/lib/enterprise-messages";
 
 // Vercel Cron: daily at 9am UTC
 // Sends follow-up 1 (3 days after initial) and follow-up 2 (7 days after initial)
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   const [{ data: fu1Due }, { data: fu2Due }] = await Promise.all([
     supabaseAdmin
       .from("enterprise_sourcing_outreach")
-      .select("*, org:enterprise_orgs(name), job:enterprise_jobs(title)")
+      .select("*, org:enterprise_orgs(name, slug, intake_email_handle), job:enterprise_jobs(title)")
       .is("replied_at", null)
       .is("follow_up_1_sent_at", null)
       .eq("unsubscribed", false)
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
       .lte("created_at", fu1End),
     supabaseAdmin
       .from("enterprise_sourcing_outreach")
-      .select("*, org:enterprise_orgs(name), job:enterprise_jobs(title)")
+      .select("*, org:enterprise_orgs(name, slug, intake_email_handle), job:enterprise_jobs(title)")
       .is("replied_at", null)
       .not("follow_up_1_sent_at", "is", null)
       .is("follow_up_2_sent_at", null)
@@ -54,6 +55,7 @@ export async function GET(req: NextRequest) {
     const greet = greetingName(row.candidate_name as string);
     const email = row.candidate_email as string;
     const sentBy = (row.sent_by as string | null) ?? null;
+    const orgRow = row.org as { name?: string; slug?: string; intake_email_handle?: string | null } | null;
 
     const subjects: Record<number, string> = {
       1: `Following up — ${jobTitle} at ${orgName}`,
@@ -64,27 +66,35 @@ export async function GET(req: NextRequest) {
       2: `Hi ${greet},\n\nI'll keep this brief — we're wrapping up our search for the ${jobTitle} role at ${orgName}. If you have any interest, now would be a great time to connect. Otherwise, no worries at all — I'll remove you from my list.\n\nHope to hear from you!`,
     };
 
-    // Send from the same recruiter who started the thread, so it threads in their
-    // mailbox and replies land there. Identity also drives the signature + Reply-To.
-    const { name: recruiterName, email: replyToEmail } = sentBy
+    // Recruiter name for the signature; email is only a last-resort Reply-To.
+    const { name: recruiterName, email: recruiterEmail } = sentBy
       ? await getRecruiterIdentity(sentBy)
       : { name: "", email: null };
     // Candidate follow-up reads as the company's own email — no JobsAI footer.
     const html = wrapEmail(renderOutreachBody(bodies[num], recruiterName, orgName), false);
 
-    const gmailResult = sentBy
-      ? await sendFromRecruiterGmail(sentBy, { to: email, subject: subjects[num], html, fromName: recruiterName || `${orgName} Recruiting` }).catch(() => ({ ok: false }))
-      : { ok: false };
+    // Reply-To = the org intake address so replies stay in-system.
+    const intake = orgRow?.slug ? intakeAddress({ slug: orgRow.slug, intake_email_handle: orgRow.intake_email_handle }) : null;
+    const replyTo = intake ? `${orgName} <${intake}>` : (recruiterEmail ?? undefined);
 
-    if (!gmailResult.ok) {
-      await resend.emails.send({
-        from: `${orgName} Recruiting <support@jobsai.work>`,
-        to: email,
-        subject: subjects[num],
-        html,
-        ...(replyToEmail ? { replyTo: replyToEmail } : {}),
-      });
-    }
+    await resend.emails.send({
+      from: `${orgName} Recruiting <support@jobsai.work>`,
+      to: email,
+      subject: subjects[num],
+      html,
+      ...(replyTo ? { replyTo } : {}),
+    });
+
+    await logMessage({
+      orgId: row.org_id as string,
+      applicationId: row.candidate_source === "application" ? (row.source_id as string | null) : null,
+      outreachId: row.id as string,
+      direction: "outbound",
+      fromEmail: "support@jobsai.work",
+      toEmail: email,
+      subject: subjects[num],
+      body: bodies[num],
+    });
 
     const field = num === 1 ? "follow_up_1_sent_at" : "follow_up_2_sent_at";
     await supabaseAdmin
