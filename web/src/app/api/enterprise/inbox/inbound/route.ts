@@ -7,6 +7,7 @@ import {
   resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
 } from "@/lib/enterprise-intake-inbox";
 import { parseJobFromText, createDraftJobFromParsed, classifyIntakeEmail } from "@/lib/job-intake";
+import { logMessage, findApplicationIdByEmail, markOutreachReplied } from "@/lib/enterprise-messages";
 
 // True when the email was sent to a job-intake sub-address (<handle>+jobs@…),
 // i.e. a hiring-manager job request rather than a candidate resume.
@@ -204,6 +205,7 @@ export async function POST(req: NextRequest) {
   // Resume text + original file: from the first usable resume attachment.
   let resumeText = "";
   let resumeStorageKey: string | null = null;
+  let resumeFromAttachment = false;
   const attachments = full?.attachments ?? [];
   for (const a of attachments) {
     if (!isResume(a)) continue;
@@ -213,12 +215,31 @@ export async function POST(req: NextRequest) {
       const out = await extractText(buf, mimeFor(a));
       if (out.text.trim().length >= 50) {
         resumeText = out.text;
+        resumeFromAttachment = true;
         // Keep the original file so recruiters can download it as sent.
         resumeStorageKey = await storeResumeFile(org.id, buf, a.filename ?? "resume", mimeFor(a));
         break;
       }
     } catch { /* try next attachment */ }
   }
+
+  // Reply from a known candidate (no new résumé attached) → it's a continuation
+  // of an existing thread, not a new application. Capture it into the candidate's
+  // conversation and stop the follow-up sequence. This must run before job
+  // classification so a candidate's "Re:" reply is never misrouted to a job.
+  if (!resumeFromAttachment) {
+    const existingAppId = await findApplicationIdByEmail(org.id, sender.email);
+    if (existingAppId) {
+      await logMessage({
+        orgId: org.id, applicationId: existingAppId, direction: "inbound",
+        fromEmail: sender.email, toEmail: parseAddress(toList[0] ?? "").email || null,
+        subject, body: bodyText || null,
+      });
+      await markOutreachReplied(org.id, sender.email);
+      return NextResponse.json({ ok: true, threaded: existingAppId });
+    }
+  }
+
   if (!resumeText && bodyText.trim().length >= 50) resumeText = bodyText.trim();
 
   // Job intake: either the explicit <handle>+jobs@… sub-address, or — for the
@@ -269,6 +290,15 @@ export async function POST(req: NextRequest) {
     resumeText: resumeText || null, resumeStorageKey, skills: parsedSkills,
     coverLetter: subject ? `Subject: ${subject}` : null, source: "email",
   });
+
+  // Log the inbound email into the candidate's conversation thread.
+  if (id) {
+    await logMessage({
+      orgId: org.id, applicationId: id, direction: "inbound",
+      fromEmail: sender.email, toEmail: parseAddress(toList[0] ?? "").email || null,
+      subject, body: bodyText || (resumeFromAttachment ? "[résumé attached]" : null),
+    });
+  }
 
   return NextResponse.json({
     ok: true,
