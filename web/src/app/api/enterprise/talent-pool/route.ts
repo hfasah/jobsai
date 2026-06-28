@@ -4,6 +4,17 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 
+// Add a pool membership without relying on an ON CONFLICT unique constraint.
+async function ensureMembership(orgId: string, talentPoolId: string, groupId: string) {
+  const { data: existing } = await supabaseAdmin
+    .from("enterprise_talent_pool_memberships")
+    .select("id").eq("talent_pool_id", talentPoolId).eq("group_id", groupId).maybeSingle();
+  if (!existing) {
+    await supabaseAdmin.from("enterprise_talent_pool_memberships")
+      .insert({ org_id: orgId, talent_pool_id: talentPoolId, group_id: groupId });
+  }
+}
+
 export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -72,10 +83,7 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    if (body.group_id && data?.id) {
-      await supabaseAdmin.from("enterprise_talent_pool_memberships")
-        .upsert({ org_id: org.id, talent_pool_id: data.id, group_id: body.group_id }, { onConflict: "talent_pool_id,group_id" });
-    }
+    if (body.group_id && data?.id) await ensureMembership(org.id, data.id as string, body.group_id);
     return NextResponse.json({ data }, { status: 201 });
   }
 
@@ -100,9 +108,6 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (body.group_id && data?.id) {
-    await supabaseAdmin.from("enterprise_talent_pool_memberships")
-      .upsert({ org_id: org.id, talent_pool_id: data.id, group_id: body.group_id }, { onConflict: "talent_pool_id,group_id" });
-  }
+  if (body.group_id && data?.id) await ensureMembership(org.id, data.id as string, body.group_id);
   return NextResponse.json({ data }, { status: 201 });
 }

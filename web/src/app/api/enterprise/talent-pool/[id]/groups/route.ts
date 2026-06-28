@@ -25,10 +25,17 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!group_id) return NextResponse.json({ error: "group_id required." }, { status: 400 });
   if (!(await ownsMember(org.id, id))) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
-  const { error } = await supabaseAdmin
+  // Check-then-insert (no ON CONFLICT, so it doesn't depend on a unique
+  // constraint being present) — already a member is a no-op.
+  const { data: existing } = await supabaseAdmin
     .from("enterprise_talent_pool_memberships")
-    .upsert({ org_id: org.id, talent_pool_id: id, group_id }, { onConflict: "talent_pool_id,group_id" });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    .select("id").eq("talent_pool_id", id).eq("group_id", group_id).maybeSingle();
+  if (!existing) {
+    const { error } = await supabaseAdmin
+      .from("enterprise_talent_pool_memberships")
+      .insert({ org_id: org.id, talent_pool_id: id, group_id });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
   return NextResponse.json({ ok: true });
 }
 
