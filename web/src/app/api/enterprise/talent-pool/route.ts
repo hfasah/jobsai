@@ -4,18 +4,23 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   const { userId } = await auth();
   if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
-  const { data, error } = await supabaseAdmin
+  // Optional ?group_id=<id> to filter to one named pool ("none" = ungrouped).
+  const group = req.nextUrl.searchParams.get("group_id");
+  let query = supabaseAdmin
     .from("enterprise_talent_pool")
     .select("*")
     .eq("org_id", org.id)
     .order("created_at", { ascending: false });
+  if (group === "none") query = query.is("group_id", null);
+  else if (group) query = query.eq("group_id", group);
 
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ data: data ?? [] });
 }
@@ -53,6 +58,7 @@ export async function POST(req: NextRequest) {
         source_job_title: (app.job as { title: string } | null)?.title ?? null,
         notes: body.notes ?? null,
         skills_tags: body.skills_tags ?? [],
+        group_id: body.group_id ?? null,
       }, { onConflict: "org_id,candidate_email" })
       .select("*")
       .single();
@@ -76,6 +82,7 @@ export async function POST(req: NextRequest) {
       linkedin_url: body.linkedin_url ?? null,
       notes: body.notes ?? null,
       skills_tags: body.skills_tags ?? [],
+      group_id: body.group_id ?? null,
     }, { onConflict: "org_id,candidate_email" })
     .select("*")
     .single();
