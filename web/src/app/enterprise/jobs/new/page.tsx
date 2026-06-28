@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2, Globe, UserCog } from "lucide-react";
+import { Sparkles, Loader2, Save, ArrowLeft, CheckCircle2, Globe, UserCog, Upload, FileText } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const EMPLOYMENT_TYPES = ["full-time", "part-time", "contract", "internship"];
 const DEPARTMENTS = ["Engineering", "Product", "Design", "Marketing", "Sales", "Operations", "Finance", "HR", "Legal", "Customer Success", "Other"];
@@ -35,8 +36,41 @@ export default function NewJobPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
+  const [importText, setImportText] = useState("");
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const set = (k: string, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Paste a JD or upload a PDF/Word file → AI parses it → pre-fills the form.
+  const parseJob = async (file?: File) => {
+    if (!file && !importText.trim()) return;
+    setImporting(true); setImportMsg(null); setError("");
+    try {
+      const res = file
+        ? await fetch("/api/enterprise/jobs/parse", { method: "POST", body: (() => { const fd = new FormData(); fd.append("file", file); return fd; })() })
+        : await fetch("/api/enterprise/jobs/parse", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: importText }) });
+      const json = await res.json();
+      if (!res.ok) { setImportMsg({ kind: "err", text: json.error ?? "Couldn't parse that." }); return; }
+      const d = json.data ?? {};
+      setForm((f) => ({
+        ...f,
+        title: d.title?.trim() || f.title,
+        department: DEPARTMENTS.includes(d.department) ? d.department : f.department,
+        employment_type: EMPLOYMENT_TYPES.includes(d.employment_type) ? d.employment_type : f.employment_type,
+        location: d.location?.trim() || f.location,
+        salary_min: d.salary_min != null ? String(d.salary_min) : f.salary_min,
+        salary_max: d.salary_max != null ? String(d.salary_max) : f.salary_max,
+        description: d.description?.trim() || f.description,
+        responsibilities: d.responsibilities?.trim() || f.responsibilities,
+        qualifications: d.qualifications?.trim() || f.qualifications,
+        nice_to_have: d.nice_to_have?.trim() || f.nice_to_have,
+      }));
+      setImportMsg({ kind: "ok", text: "Filled the form below — review and post." });
+    } finally {
+      setImporting(false);
+    }
+  };
 
   // Step 1: Create stub job first so we have an ID for the JD generator
   const ensureJobId = async (): Promise<string | null> => {
@@ -120,6 +154,34 @@ export default function NewJobPage() {
         </div>
 
         <div className="space-y-6">
+          {/* Import a job — paste or upload, AI pre-fills the form */}
+          <section className="rounded-2xl border border-border bg-card p-6">
+            <div className="mb-1 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              <h2 className="font-semibold">Start from an existing job</h2>
+            </div>
+            <p className="mb-3 text-xs text-muted-foreground">
+              Got a JD from a hiring manager? <span className="text-foreground">Paste it</span> or <span className="text-foreground">upload a PDF/Word file</span> — AI fills in everything below for you to review. (Or just fill the form manually.)
+            </p>
+            <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={4}
+              placeholder="Paste the job description or hiring-manager request here…"
+              className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary placeholder:text-muted-foreground" />
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button onClick={() => parseJob()} disabled={importing || !importText.trim()}
+                className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-4 py-2 text-sm font-semibold text-white shadow-glow transition-opacity hover:opacity-90 disabled:opacity-50">
+                {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+                {importing ? "Parsing…" : "Parse & pre-fill"}
+              </button>
+              <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted">
+                <Upload className="h-4 w-4" /> Upload PDF/Word
+                <input type="file" className="hidden"
+                  accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) parseJob(f); e.target.value = ""; }} />
+              </label>
+              {importMsg && <span className={cn("text-xs", importMsg.kind === "err" ? "text-destructive" : "text-green-500")}>{importMsg.text}</span>}
+            </div>
+          </section>
+
           {/* Basic info */}
           <section className="rounded-2xl border border-border bg-card p-6">
             <h2 className="mb-4 font-semibold">Job details</h2>
