@@ -9,6 +9,7 @@ import { getMyOrg } from "@/lib/enterprise";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
 import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
+import { renderOutreachBody, getRecruiterIdentity, greetingName } from "@/lib/sourcing-email";
 import { recordUsage } from "@/lib/llm-usage";
 
 export const maxDuration = 60;
@@ -23,16 +24,6 @@ type CandidateRef = {
   email: string;
   fit_reason?: string;
 };
-
-// A friendly first name for the greeting. Many emailed candidates are stored
-// with their email handle as the name (e.g. "hfasah", "dimmples038"); greeting
-// those by handle looks like spam, so fall back to "there".
-function greetingName(name: string | undefined): string {
-  const n = (name ?? "").trim();
-  if (n.includes(" ")) return n.split(/\s+/)[0];                  // "Jane Doe" → "Jane"
-  if (!n || /[0-9_]/.test(n) || n === n.toLowerCase()) return "there"; // handle-like
-  return n;                                                        // already a proper single name
-}
 
 export async function POST(req: NextRequest) {
   const { userId } = await auth();
@@ -76,6 +67,11 @@ export async function POST(req: NextRequest) {
   const orgName = orgData?.name ?? org.name;
   const fromName = emailFromName(orgName, orgData?.white_label_email_from ?? null);
 
+  // Recruiter identity — used for the signature, the From display name, and the
+  // Reply-To so candidate replies always reach the recruiter (never get lost).
+  const { name: recruiterName, email: replyToEmail } = await getRecruiterIdentity(userId);
+  const senderName = recruiterName || fromName;
+
   const results: { email: string; ok: boolean; error?: string }[] = [];
 
   for (const cand of candidates as CandidateRef[]) {
@@ -88,15 +84,15 @@ Role we're reaching out about: ${jobTitle}
 ${jobDesc ? `Role context: ${jobDesc.slice(0, 300)}` : ""}
 Why this candidate is a fit: ${cand.fit_reason ?? "strong background that matches our needs"}
 
-Style: conversational, respectful, no fluff, 3-4 sentences max. No subject line needed (we add that separately).
-Start directly with "Hi ${greet}," — do NOT start with "I hope this email finds you well" or similar filler.
-Sign off as the recruiting team at ${orgName} (e.g. "— The ${orgName} team"); do NOT mention JobsAI or any platform.
-End with a clear soft CTA: ask if they're open to a quick call.
+Style: conversational, respectful, no fluff. No subject line needed (we add that separately).
+Structure the body as a greeting line starting with "Hi ${greet}," then 1-2 short paragraphs (a sentence or two each), separated by a blank line. Do NOT start with "I hope this email finds you well" or similar filler.
+End the last paragraph with a clear soft CTA: ask if they're open to a quick call.
+Do NOT include any sign-off or signature (no "Best regards", no name, no "— The team") — that is added automatically. Do NOT mention JobsAI or any platform.
 
-Return JSON: { "subject": "...", "body": "..." }`;
+Return JSON where "body" uses "\\n\\n" between paragraphs: { "subject": "...", "body": "..." }`;
 
       let subject = `New opportunity at ${orgName} — ${jobTitle}`;
-      let bodyText = `Hi ${greet},\n\nWe came across your profile and think you'd be a great fit for our ${jobTitle} role at ${orgName}. ${cand.fit_reason ?? ""}\n\nWould you be open to a quick 15-minute call to explore this further?\n\nBest regards,\n${orgName} Recruiting`;
+      let bodyText = `Hi ${greet},\n\nWe came across your profile and think you'd be a great fit for our ${jobTitle} role at ${orgName}.${cand.fit_reason ? ` ${cand.fit_reason}` : ""}\n\nWould you be open to a quick 15-minute call to explore this further?`;
 
       try {
         const resp = await ai().chat.completions.create({
@@ -114,17 +110,15 @@ Return JSON: { "subject": "...", "body": "..." }`;
         // fall through to default message
       }
 
-      const html = wrapEmail(
-        `<p>${bodyText.replace(/\n/g, "<br>")}</p>`,
-        // Cold candidate outreach is sent from the recruiter's own mailbox — it
-        // should read as the company's own email, never "Powered by JobsAI".
-        false,
-      );
+      // Cold candidate outreach is sent from the recruiter's own mailbox — it
+      // should read as the company's own email, never "Powered by JobsAI".
+      const html = wrapEmail(renderOutreachBody(bodyText, recruiterName, orgName), false);
 
       const gmailResult = await sendFromRecruiterGmail(userId, {
         to: cand.email,
         subject,
         html,
+        fromName: senderName,
       }).catch(() => ({ ok: false }));
 
       if (!gmailResult.ok) {
@@ -133,6 +127,8 @@ Return JSON: { "subject": "...", "body": "..." }`;
           to: cand.email,
           subject,
           html,
+          // Replies reach the recruiter even on the Resend fallback path.
+          ...(replyToEmail ? { replyTo: replyToEmail } : {}),
         });
       }
 
