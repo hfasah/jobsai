@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { wrapEmail } from "@/lib/email-utils";
+import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
+import { renderOutreachBody, getRecruiterIdentity, greetingName } from "@/lib/sourcing-email";
 
 // Vercel Cron: daily at 9am UTC
 // Sends follow-up 1 (3 days after initial) and follow-up 2 (7 days after initial)
@@ -49,25 +51,40 @@ export async function GET(req: NextRequest) {
   ) => {
     const orgName = (row.org as { name: string } | null)?.name ?? "the company";
     const jobTitle = (row.job as { title: string } | null)?.title ?? "our open role";
-    const name = row.candidate_name as string;
+    const greet = greetingName(row.candidate_name as string);
     const email = row.candidate_email as string;
+    const sentBy = (row.sent_by as string | null) ?? null;
 
     const subjects: Record<number, string> = {
       1: `Following up — ${jobTitle} at ${orgName}`,
       2: `Last note — ${jobTitle} at ${orgName}`,
     };
     const bodies: Record<number, string> = {
-      1: `Hi ${name},\n\nI wanted to follow up on my previous note about the ${jobTitle} role at ${orgName}. We're still looking for great candidates and your background stood out to us.\n\nWould you be open to a quick 15-minute call this week? Happy to work around your schedule.`,
-      2: `Hi ${name},\n\nI'll keep this brief — we're wrapping up our search for the ${jobTitle} role at ${orgName}. If you have any interest, now would be a great time to connect. Otherwise, no worries at all — I'll remove you from my list.\n\nHope to hear from you!`,
+      1: `Hi ${greet},\n\nI wanted to follow up on my previous note about the ${jobTitle} role at ${orgName}. We're still looking for great candidates and your background stood out to us.\n\nWould you be open to a quick 15-minute call this week? Happy to work around your schedule.`,
+      2: `Hi ${greet},\n\nI'll keep this brief — we're wrapping up our search for the ${jobTitle} role at ${orgName}. If you have any interest, now would be a great time to connect. Otherwise, no worries at all — I'll remove you from my list.\n\nHope to hear from you!`,
     };
 
-    await resend.emails.send({
-      from: `${orgName} Recruiting <support@jobsai.work>`,
-      to: email,
-      subject: subjects[num],
-      // Candidate follow-up reads as the company's own email — no JobsAI footer.
-      html: wrapEmail(`<p>${bodies[num].replace(/\n/g, "<br>")}</p>`, false),
-    });
+    // Send from the same recruiter who started the thread, so it threads in their
+    // mailbox and replies land there. Identity also drives the signature + Reply-To.
+    const { name: recruiterName, email: replyToEmail } = sentBy
+      ? await getRecruiterIdentity(sentBy)
+      : { name: "", email: null };
+    // Candidate follow-up reads as the company's own email — no JobsAI footer.
+    const html = wrapEmail(renderOutreachBody(bodies[num], recruiterName, orgName), false);
+
+    const gmailResult = sentBy
+      ? await sendFromRecruiterGmail(sentBy, { to: email, subject: subjects[num], html, fromName: recruiterName || `${orgName} Recruiting` }).catch(() => ({ ok: false }))
+      : { ok: false };
+
+    if (!gmailResult.ok) {
+      await resend.emails.send({
+        from: `${orgName} Recruiting <support@jobsai.work>`,
+        to: email,
+        subject: subjects[num],
+        html,
+        ...(replyToEmail ? { replyTo: replyToEmail } : {}),
+      });
+    }
 
     const field = num === 1 ? "follow_up_1_sent_at" : "follow_up_2_sent_at";
     await supabaseAdmin
