@@ -137,7 +137,18 @@ export async function createIntakeApplication(
     .eq("job_id", c.jobId)
     .eq("candidate_email", email)
     .maybeSingle();
-  if (dup?.id) return { id: dup.id, deduped: true };
+  if (dup?.id) {
+    // Re-applied / re-emailed: don't silently drop the new content — refresh the
+    // résumé (and phone) with the latest, so the freshest version is kept.
+    const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (c.resumeText) patch.resume_text = c.resumeText;
+    if (c.resumeStorageKey) patch.resume_storage_key = c.resumeStorageKey;
+    if (c.resumeUrl) patch.resume_url = c.resumeUrl;
+    if (c.phone) patch.candidate_phone = c.phone;
+    if (c.coverLetter) patch.cover_letter = c.coverLetter;
+    await supabaseAdmin.from("enterprise_applications").update(patch).eq("id", dup.id);
+    return { id: dup.id, deduped: true };
+  }
 
   const { data, error } = await supabaseAdmin
     .from("enterprise_applications")
