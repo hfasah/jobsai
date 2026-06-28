@@ -57,13 +57,27 @@ export async function GET() {
   const { data: pendingApps } = jobIds.length > 0
     ? await supabaseAdmin
         .from("enterprise_applications")
-        .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_recommendation,ai_summary,notes,hm_decision,hm_notes,tags,risk_flags,resume_url,source,created_at,stage_updated_at,assigned_to, job:enterprise_jobs(id,title)")
+        .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_recommendation,ai_summary,notes,hm_decision,hm_notes,tags,risk_flags,resume_url,resume_storage_key,source,created_at,stage_updated_at,assigned_to, job:enterprise_jobs(id,title)")
         .in("job_id", jobIds)
         .in("stage", ["screened", "interview", "offer"])
         .is("hm_decision", null)
         .order("match_score", { ascending: false })
         .limit(50)
     : { data: [] };
+
+  // 2b. Candidates directly assigned to this HM (any job/stage) — the
+  // "send to hiring manager" flow. Merged with the job-based list, de-duped.
+  const { data: assignedApps } = await supabaseAdmin
+    .from("enterprise_applications")
+    .select("id,candidate_name,candidate_email,stage,match_score,skills_score,experience_score,ai_recommendation,ai_summary,notes,hm_decision,hm_notes,tags,risk_flags,resume_url,resume_storage_key,source,created_at,stage_updated_at,assigned_to, job:enterprise_jobs(id,title)")
+    .eq("org_id", org.id)
+    .eq("assigned_to", userId)
+    .is("hm_decision", null)
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  const seenAppIds = new Set((pendingApps ?? []).map((a) => a.id));
+  const allPending = [...(pendingApps ?? []), ...((assignedApps ?? []).filter((a) => !seenAppIds.has(a.id)))];
 
   // 3. Interviews involving this user (by email or userId as created_by)
   const today = new Date().toISOString().slice(0, 10);
@@ -109,7 +123,7 @@ export async function GET() {
   // Stats
   const stats = {
     my_jobs: jobsWithCounts.length,
-    awaiting_decision: (pendingApps ?? []).length,
+    awaiting_decision: allPending.length,
     upcoming_interviews: (upcomingInterviews ?? []).length,
     pending_feedback: pendingFeedback.length,
   };
@@ -117,7 +131,7 @@ export async function GET() {
   return NextResponse.json({
     stats,
     jobs: jobsWithCounts,
-    pending_applications: pendingApps ?? [],
+    pending_applications: allPending,
     upcoming_interviews: upcomingInterviews ?? [],
     pending_feedback: pendingFeedback,
     role: membership.role,

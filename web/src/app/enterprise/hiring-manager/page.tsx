@@ -19,7 +19,7 @@ interface PendingApp {
   match_score: number | null; skills_score: number | null; experience_score: number | null;
   ai_recommendation: string | null; ai_summary: string | null; notes: string | null;
   hm_notes: string | null; tags: string[] | null; risk_flags: string[] | null;
-  resume_url: string | null; source: string; created_at: string;
+  resume_url: string | null; resume_storage_key: string | null; source: string; created_at: string;
   job: { id: string; title: string } | null;
 }
 
@@ -160,8 +160,8 @@ function CandidateDecisionCard({ app, onDecision }: {
 
           {/* External links */}
           <div className="flex flex-wrap gap-2">
-            {app.resume_url && (
-              <a href={app.resume_url} target="_blank" rel="noopener noreferrer"
+            {(app.resume_storage_key || app.resume_url) && (
+              <a href={`/api/enterprise/inbox/applications/${app.id}/resume`} target="_blank" rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
                 View resume <ArrowRight className="h-3 w-3" />
               </a>

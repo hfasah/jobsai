@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import {
   Loader2, Sparkles, Plus, ChevronDown, ChevronRight, FileUser,
   Mail, Phone, ExternalLink, Users, ClipboardList, MessageSquareText,
-  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil, Briefcase, RefreshCw,
+  Move, Check, Settings2, X, CalendarClock, CalendarPlus, Pencil, Briefcase, RefreshCw, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseApplication, EnterprisePool } from "@/types/enterprise";
@@ -37,6 +37,10 @@ function CandidateRow({
   const [saving, setSaving] = useState(false);
   const [converting, setConverting] = useState(false);
   const [reparsing, setReparsing] = useState(false);
+  const [hmOpen, setHmOpen] = useState(false);
+  const [hmList, setHmList] = useState<{ user_id: string; name: string; email: string; role: string }[] | null>(null);
+  const [assigning, setAssigning] = useState<string | null>(null);
+  const [assignedTo, setAssignedTo] = useState<string | null>((app as { assigned_to?: string | null }).assigned_to ?? null);
   const [form, setForm] = useState({
     candidate_name: app.candidate_name ?? "",
     candidate_email: app.candidate_email ?? "",
@@ -66,6 +70,31 @@ function CandidateRow({
     if (res.ok && json.data?.job_id) { window.location.href = `/enterprise/jobs/${json.data.job_id}`; return; }
     setConverting(false);
     alert(json.error ?? "Couldn't convert to a job.");
+  };
+
+  // Send to hiring manager — pick an internal team member; assign + notify them
+  // so the candidate appears in their Workspace with résumé + report.
+  const openHm = async () => {
+    setHmOpen((o) => !o);
+    if (hmList === null) {
+      const res = await fetch("/api/enterprise/team");
+      const json = await res.json().catch(() => ({}));
+      const members = (json.data?.members ?? []).filter((m: { role: string }) =>
+        ["owner", "admin", "recruiter", "hiring_manager", "department_head"].includes(m.role));
+      setHmList(members);
+    }
+  };
+
+  const sendToHm = async (m: { user_id: string }) => {
+    setAssigning(m.user_id);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/applications/${app.id}/assign`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hiring_manager_id: m.user_id }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setAssigning(null);
+    if (res.ok) { setAssignedTo(m.user_id); setHmOpen(false); }
+    else alert(json.error ?? "Couldn't send to the hiring manager.");
   };
 
   const saveEdit = async () => {
@@ -184,6 +213,32 @@ function CandidateRow({
               className="inline-flex items-center gap-1 rounded-lg bg-primary/10 px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/20">
               <CalendarPlus className="h-3 w-3" /> Schedule
             </button>
+            <div className="relative">
+              <button onClick={openHm}
+                className={cn("inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11px] font-medium",
+                  assignedTo ? "bg-green-500/10 text-green-400 hover:bg-green-500/20" : "bg-gradient-brand text-white hover:opacity-90")}>
+                <Send className="h-3 w-3" /> {assignedTo ? "Sent to hiring manager" : "Send to hiring manager"}
+              </button>
+              {hmOpen && (
+                <div className="absolute left-0 top-full z-10 mt-1 w-60 rounded-lg border border-border bg-card p-1 shadow-xl">
+                  <p className="px-2 pb-1 pt-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">Assign &amp; notify</p>
+                  {hmList === null ? (
+                    <div className="flex items-center gap-1.5 px-2 py-2 text-xs text-muted-foreground"><Loader2 className="h-3 w-3 animate-spin" /> Loading team…</div>
+                  ) : hmList.length === 0 ? (
+                    <div className="px-2 py-2 text-xs text-muted-foreground">No team members to assign yet.</div>
+                  ) : hmList.map((m) => (
+                    <button key={m.user_id} onClick={() => sendToHm(m)} disabled={assigning !== null}
+                      className="flex w-full items-center justify-between gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted disabled:opacity-50">
+                      <span className="min-w-0">
+                        <span className="block truncate font-medium">{m.name}</span>
+                        <span className="block truncate text-[10px] capitalize text-muted-foreground">{m.role.replace("_", " ")}</span>
+                      </span>
+                      {assigning === m.user_id ? <Loader2 className="h-3 w-3 shrink-0 animate-spin" /> : assignedTo === m.user_id ? <Check className="h-3 w-3 shrink-0 text-green-400" /> : null}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <button onClick={convertToJob} disabled={converting} title="This is actually a job description"
               className="inline-flex items-center gap-1 rounded-lg bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground hover:text-foreground disabled:opacity-50">
               {converting ? <Loader2 className="h-3 w-3 animate-spin" /> : <Briefcase className="h-3 w-3" />} Convert to job
