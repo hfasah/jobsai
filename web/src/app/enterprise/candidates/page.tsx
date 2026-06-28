@@ -273,21 +273,37 @@ function TalentPool() {
 
   // Add / remove a candidate to/from a named pool (many-to-many).
   const addMemberToGroup = async (memberId: string, groupId: string) => {
-    setCandidates((prev) => prev.map((c) => c.id === memberId ? { ...c, group_ids: [...(c.group_ids ?? []), groupId] } : c));
     setPoolMenuFor(null);
-    await fetch(`/api/enterprise/talent-pool/${memberId}/groups`, {
+    // Optimistic add, de-duped.
+    setCandidates((prev) => prev.map((c) => c.id === memberId ? { ...c, group_ids: [...new Set([...(c.group_ids ?? []), groupId])] } : c));
+    const res = await fetch(`/api/enterprise/talent-pool/${memberId}/groups`, {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ group_id: groupId }),
     });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      // Revert so the UI reflects what's actually saved.
+      setCandidates((prev) => prev.map((c) => c.id === memberId ? { ...c, group_ids: (c.group_ids ?? []).filter((g) => g !== groupId) } : c));
+      alert(j.error ?? "Couldn't add to the pool. Please try again.");
+      return;
+    }
     loadGroups();
   };
   const removeMemberFromGroup = async (memberId: string, groupId: string) => {
+    const prevIds = candidates.find((c) => c.id === memberId)?.group_ids ?? [];
     setCandidates((prev) => prev
       .map((c) => c.id === memberId ? { ...c, group_ids: (c.group_ids ?? []).filter((g) => g !== groupId) } : c)
       // If we're viewing a specific pool, drop the row once removed from it.
       .filter((c) => !(c.id === memberId && selected !== "all" && selected !== "none" && groupId === selected)));
-    await fetch(`/api/enterprise/talent-pool/${memberId}/groups`, {
+    const res = await fetch(`/api/enterprise/talent-pool/${memberId}/groups`, {
       method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ group_id: groupId }),
     });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      // Revert the removal.
+      setCandidates((prev) => prev.map((c) => c.id === memberId ? { ...c, group_ids: prevIds } : c));
+      alert(j.error ?? "Couldn't remove from the pool. Please try again.");
+      return;
+    }
     loadGroups();
   };
 
