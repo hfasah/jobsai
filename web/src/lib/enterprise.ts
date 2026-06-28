@@ -4,21 +4,41 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { emailFromName } from "@/lib/email-utils";
 import type { EnterpriseOrg, EnterpriseMember } from "@/types/enterprise";
 
-// Branded From + Reply-To for a candidate-facing platform email. The From is the
-// org's name (or its white-label "from" name) on JobsAI's verified sending
-// domain; the Reply-To routes candidate replies to the org's own hiring inbox
-// (reply_to_email, falling back to contact_email). Use:
+const INTAKE_DOMAIN = process.env.ENTERPRISE_INTAKE_DOMAIN || "talent.jobsai.work";
+
+// The org's intake mailbox, e.g. "investorclub100@talent.jobsai.work" — where
+// candidate replies are received and captured back into JobsAI (the inbound
+// webhook). Built from the custom handle, falling back to the slug.
+export function orgIntakeAddress(slug: string | null | undefined, handle?: string | null): string | null {
+  const h = (handle ?? slug ?? "").toLowerCase().trim();
+  return h ? `${h}@${INTAKE_DOMAIN}` : null;
+}
+
+// The verified mailbox we send candidate-facing email FROM. Defaults to JobsAI's
+// verified domain; once the intake domain (talent.jobsai.work) is verified for
+// SENDING in Resend, set ENTERPRISE_SEND_FROM_INTAKE=true to send as the org's
+// own intake address so support@jobsai.work never appears on candidate email.
+export function enterpriseSenderEmail(intakeAddr: string | null): string {
+  return process.env.ENTERPRISE_SEND_FROM_INTAKE === "true" && intakeAddr ? intakeAddr : "support@jobsai.work";
+}
+
+// Branded From + Reply-To for a candidate-facing platform email. Reply-To always
+// routes to a real inbox the org controls — an explicit reply_to_email if set,
+// otherwise the org's intake address (so replies are captured in JobsAI), never
+// support@jobsai.work. Use:
 //   const { from, replyTo } = await enterpriseMailMeta(orgId);
 //   await resend.emails.send({ from, replyTo, to, subject, html });
 export async function enterpriseMailMeta(orgId: string): Promise<{ from: string; replyTo?: string }> {
   const { data } = await supabaseAdmin
     .from("enterprise_orgs")
-    .select("name, white_label_email_from, reply_to_email, contact_email")
+    .select("name, white_label_email_from, reply_to_email, contact_email, slug, intake_email_handle")
     .eq("id", orgId)
     .maybeSingle();
   const name = (data?.name as string) || "Recruiting";
-  const from = `${emailFromName(name, data?.white_label_email_from as string | null)} <support@jobsai.work>`;
-  const replyTo = ((data?.reply_to_email as string) || (data?.contact_email as string) || "").trim() || undefined;
+  const fromName = emailFromName(name, data?.white_label_email_from as string | null);
+  const intake = orgIntakeAddress(data?.slug as string | null, data?.intake_email_handle as string | null);
+  const from = `${fromName} <${enterpriseSenderEmail(intake)}>`;
+  const replyTo = ((data?.reply_to_email as string) || intake || (data?.contact_email as string) || "").trim() || undefined;
   return { from, replyTo };
 }
 

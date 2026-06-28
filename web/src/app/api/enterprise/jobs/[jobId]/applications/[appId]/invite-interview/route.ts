@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseMailMeta } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
@@ -50,8 +50,9 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   const jobTitle = (app.job as { title: string } | null)?.title ?? "the role";
   const interviewUrl = `${APP_URL}/enterprise/interview/${interview.token}`;
 
+  const { from, replyTo } = await enterpriseMailMeta(org.id);
   await resend.emails.send({
-    from: `${org.name} Recruiting <support@jobsai.work>`,
+    from, replyTo,
     to: app.candidate_email,
     subject: `Interview invitation — ${jobTitle} at ${org.name}`,
     html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto">

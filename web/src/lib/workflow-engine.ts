@@ -1,7 +1,8 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { sendFromRecruiterGmail } from "@/lib/recruiter-gmail";
-import { wrapEmail, emailFromName } from "@/lib/email-utils";
+import { wrapEmail } from "@/lib/email-utils";
+import { enterpriseMailMeta } from "@/lib/enterprise";
 import type { AppStage } from "@/types/enterprise";
 
 export type WorkflowTrigger =
@@ -67,15 +68,15 @@ async function executeAction(rule: Record<string, unknown>, ctx: WorkflowContext
       const subject = interpolate((cfg.subject as string) ?? "Update on your application", ctx);
       const bodyHtml = interpolate((cfg.body as string) ?? "<p>Hi {{name}},</p><p>We have an update on your application.</p>", ctx);
       const html = wrapEmail(bodyHtml, ctx.show_powered_by ?? true);
-      const fromName = emailFromName(ctx.org_name, ctx.email_from_name);
 
       const gmailResult = ctx.recruiter_id
         ? await sendFromRecruiterGmail(ctx.recruiter_id, { to: ctx.candidate_email, subject, html }).catch(() => ({ ok: false }))
         : { ok: false };
 
       if (!gmailResult.ok) {
+        const { from, replyTo } = await enterpriseMailMeta(ctx.org_id);
         await resend.emails.send({
-          from: `${fromName} <support@jobsai.work>`,
+          from, replyTo,
           to: ctx.candidate_email,
           subject,
           html,

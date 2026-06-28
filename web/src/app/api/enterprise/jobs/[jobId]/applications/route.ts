@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg } from "@/lib/enterprise";
+import { getMyOrg, enterpriseMailMeta } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { sendWebhookEvent } from "@/lib/enterprise-webhooks";
 import { runWorkflows } from "@/lib/workflow-engine";
@@ -130,8 +130,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
        ${statusLinkHtml}
        <p>In the meantime, if you have any questions about the role, feel free to use the chat assistant on the job page.</p>`;
 
+  const { from, replyTo } = await enterpriseMailMeta(job.org_id);
   await resend.emails.send({
-    from: `${orgName} Recruiting <support@jobsai.work>`,
+    from, replyTo,
     to: app.candidate_email,
     subject,
     html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#0f172a">
