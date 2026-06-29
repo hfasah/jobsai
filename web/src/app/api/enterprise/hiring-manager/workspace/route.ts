@@ -25,6 +25,7 @@ export async function GET() {
   //    active role; hiring managers / recruiters see roles where they're the
   //    assigned hiring manager OR which they created.
   const isOwnerAdmin = membership.role === "owner" || membership.role === "admin";
+
   let myJobsQuery = supabaseAdmin
     .from("enterprise_jobs")
     .select("id,title,department,location,status,created_at,hiring_manager_id")
@@ -33,9 +34,38 @@ export async function GET() {
     .order("created_at", { ascending: false })
     .limit(50);
   if (!isOwnerAdmin) myJobsQuery = myJobsQuery.or(`hiring_manager_id.eq.${userId},created_by.eq.${userId}`);
-  const { data: myJobs } = await myJobsQuery;
+  const { data: activeJobs } = await myJobsQuery;
 
-  const jobIds = (myJobs ?? []).map((j) => j.id);
+  // Also surface DRAFT roles that have candidates awaiting a decision, so
+  // screened candidates aren't hidden just because the role isn't published yet
+  // (empty drafts stay hidden).
+  let draftJobsQuery = supabaseAdmin
+    .from("enterprise_jobs")
+    .select("id,title,department,location,status,created_at,hiring_manager_id")
+    .eq("org_id", org.id)
+    .eq("status", "draft")
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (!isOwnerAdmin) draftJobsQuery = draftJobsQuery.or(`hiring_manager_id.eq.${userId},created_by.eq.${userId}`);
+  const { data: draftJobs } = await draftJobsQuery;
+
+  const draftIds = (draftJobs ?? []).map((j) => j.id);
+  const { data: draftPending } = draftIds.length > 0
+    ? await supabaseAdmin
+        .from("enterprise_applications")
+        .select("job_id")
+        .in("job_id", draftIds)
+        .in("stage", ["screened", "interview", "offer"])
+        .is("hm_decision", null)
+    : { data: [] };
+  const draftsWithCandidates = new Set((draftPending ?? []).map((a) => a.job_id));
+
+  const myJobs = [
+    ...(activeJobs ?? []),
+    ...(draftJobs ?? []).filter((j) => draftsWithCandidates.has(j.id)),
+  ];
+
+  const jobIds = myJobs.map((j) => j.id);
 
   // For each job, count candidates at each stage
   const { data: stageCounts } = jobIds.length > 0
