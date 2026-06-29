@@ -43,6 +43,13 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["pdf-parse"],
+  // Serve next/image output as AVIF (then WebP) — AVIF is ~20-30% smaller than
+  // WebP — and cache the optimized variants for 31 days so repeat visits and
+  // crawlers don't re-fetch. Defaults are WebP-only with a 60s TTL.
+  images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 2678400, // 31 days
+  },
   turbopack: {
     root: path.join(__dirname, ".."),
   },
