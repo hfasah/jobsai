@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
-import { Search, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Loader2, ChevronLeft, ChevronRight, Building2, User } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface UserRow {
@@ -10,6 +10,9 @@ interface UserRow {
   subscriptionStatus: string; createdAt: number; lastActiveAt: number | null;
   resumeCount: number; jobCount: number; imageUrl: string;
   suspended?: boolean;
+  type?: "enterprise" | "consumer";
+  orgName?: string | null;
+  orgRole?: string | null;
 }
 
 const PLAN_BADGE: Record<string, string> = {
@@ -36,20 +39,21 @@ export default function AdminUsers() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [plan, setPlan] = useState("all");
+  const [type, setType] = useState("all");
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const params = new URLSearchParams({ q: search, plan, page: String(page) });
+    const params = new URLSearchParams({ q: search, plan, type, page: String(page) });
     const res = await fetch(`/api/admin/users?${params}`);
     const json = await res.json();
     setUsers(json.users ?? []);
     setTotal(json.total ?? 0);
     setPages(json.pages ?? 1);
     setLoading(false);
-  }, [search, plan, page]);
+  }, [search, plan, type, page]);
 
-  useEffect(() => { setPage(1); }, [search, plan]);
+  useEffect(() => { setPage(1); }, [search, plan, type]);
   useEffect(() => { load(); }, [load]);
 
   return (
@@ -68,6 +72,12 @@ export default function AdminUsers() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search by name or email…"
             className="h-10 w-full rounded-xl border border-border bg-card pl-9 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary" />
         </div>
+        <select value={type} onChange={(e) => setType(e.target.value)}
+          className="h-10 rounded-xl border border-border bg-card px-3 text-sm outline-none">
+          <option value="all">All types</option>
+          <option value="consumer">Consumer</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
         <select value={plan} onChange={(e) => setPlan(e.target.value)}
           className="h-10 rounded-xl border border-border bg-card px-3 text-sm outline-none">
           <option value="all">All plans</option>
@@ -89,7 +99,7 @@ export default function AdminUsers() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">
               <tr>
-                {["User", "Plan", "Resumes", "Jobs", "Joined", "Last Active", ""].map((h) => (
+                {["User", "Type", "Plan", "Resumes", "Jobs", "Joined", "Last Active", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
                 ))}
               </tr>
@@ -110,6 +120,17 @@ export default function AdminUsers() {
                         <p className="text-xs text-muted-foreground">{u.email}</p>
                       </div>
                     </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    {u.type === "enterprise" ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-indigo-500/15 px-2.5 py-0.5 text-xs font-semibold text-indigo-400" title={u.orgRole ? `${u.orgName} · ${u.orgRole}` : (u.orgName ?? "Enterprise")}>
+                        <Building2 className="h-3 w-3" /> {u.orgName ?? "Enterprise"}
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+                        <User className="h-3 w-3" /> Consumer
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", PLAN_BADGE[u.plan] ?? PLAN_BADGE.free)}>
