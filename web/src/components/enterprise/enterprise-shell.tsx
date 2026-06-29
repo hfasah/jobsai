@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { UserButton, SignOutButton } from "@clerk/nextjs";
+import { UserButton, useClerk } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
   Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug, Megaphone, BookOpen, ExternalLink, Handshake,
@@ -45,6 +45,11 @@ interface Ent { planName: string | null; accessStatus: string | null; trialEndsA
 
 function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent | null; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const { signOut } = useClerk();
+  // Sign out via the Clerk hook (more reliable than wrapping a <button> in
+  // <SignOutButton>) and land on the login page, not the org's public careers
+  // page — so it's unambiguous you're logged out.
+  const handleSignOut = () => signOut({ redirectUrl: "/enterprise-login" });
   // ent === null => entitlements not loaded yet, show everything optimistically.
   const features = ent?.features ?? null;
   const nav = NAV.filter((item) => !item.feature || features === null || features.includes(item.feature));
@@ -110,11 +115,10 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
         <LanguageSwitcher />
         <div className="flex items-center gap-2 px-1">
           <UserButton appearance={{ elements: { avatarBox: "h-8 w-8" } }} />
-          <SignOutButton redirectUrl={org?.slug ? `/e/${org.slug}` : "/enterprise-login"}>
-            <button className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive">
-              <LogOut className="h-4 w-4" /> Sign out
-            </button>
-          </SignOutButton>
+          <button onClick={handleSignOut}
+            className="flex flex-1 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm font-medium text-foreground transition-colors hover:border-destructive/40 hover:bg-destructive/10 hover:text-destructive">
+            <LogOut className="h-4 w-4" /> Sign out
+          </button>
         </div>
       </div>
     </div>
