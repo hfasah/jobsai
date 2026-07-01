@@ -39,7 +39,7 @@ function CompetencyBar({ c }: { c: CompetencyScore }) {
   );
 }
 
-function ReportCard({ report, app, jobId }: { report: InterviewReport; app: EnterpriseApplication; jobId: string }) {
+function ReportCard({ report, app, jobId, orgBrand }: { report: InterviewReport; app: EnterpriseApplication; jobId: string; orgBrand: { name: string; showPoweredBy: boolean } }) {
   const [open, setOpen] = useState(true);
   const [copied, setCopied] = useState(false);
   const [emailOpen, setEmailOpen] = useState(false);
@@ -54,6 +54,8 @@ function ReportCard({ report, app, jobId }: { report: InterviewReport; app: Ente
     candidateName: app.candidate_name,
     candidateEmail: app.candidate_email,
     jobTitle: (app as unknown as { job?: { title?: string } }).job?.title ?? null,
+    orgName: orgBrand.name || null,
+    showPoweredBy: orgBrand.showPoweredBy,
   });
   const slug = (app.candidate_name || "candidate").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "candidate";
 
@@ -239,6 +241,7 @@ export function CandidateReportModal({
   const appId = app.id;
   const candidateName = app.candidate_name;
   const [reports, setReports] = useState<InterviewReport[]>([]);
+  const [orgBrand, setOrgBrand] = useState<{ name: string; showPoweredBy: boolean }>({ name: "", showPoweredBy: true });
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState<"pre" | "post" | null>(null);
   const [error, setError] = useState("");
@@ -251,6 +254,7 @@ export function CandidateReportModal({
     const res = await fetch(`/api/enterprise/jobs/${jobId}/applications/${appId}/report`);
     const json = await res.json();
     setReports(json.data ?? []);
+    if (json.org) setOrgBrand({ name: json.org.name, showPoweredBy: json.org.show_powered_by });
     setLoading(false);
   }, [jobId, appId]);
 
@@ -387,7 +391,7 @@ export function CandidateReportModal({
             </p>
           ) : (
             <div className="space-y-3">
-              {reports.map((r) => <ReportCard key={r.id} report={r} app={app} jobId={jobId} />)}
+              {reports.map((r) => <ReportCard key={r.id} report={r} app={app} jobId={jobId} orgBrand={orgBrand} />)}
             </div>
           )}
         </div>
