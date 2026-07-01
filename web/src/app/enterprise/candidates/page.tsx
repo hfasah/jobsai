@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Users, Loader2, ExternalLink, Send, CheckCircle2, Search, Sparkles, FileDown, X, Plus, Check } from "lucide-react";
+import { Users, Loader2, ExternalLink, Send, CheckCircle2, Search, Sparkles, FileDown, X, Plus, Check, Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── All applicants (global database) ─────────────────────────────────────────
@@ -34,12 +34,20 @@ const STAGE_STYLE: Record<string, string> = {
   rejected: "bg-red-500/15 text-red-400",
 };
 
+type AssignJob = { id: string; title: string; status: string };
+
 function AllApplicants() {
   const [apps, setApps] = useState<Applicant[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [aiMode, setAiMode] = useState(false);
   const [searching, setSearching] = useState(false);
+  // Assign-to-jobs modal
+  const [assignFor, setAssignFor] = useState<Applicant | null>(null);
+  const [jobs, setJobs] = useState<AssignJob[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [assigning, setAssigning] = useState(false);
+  const [assignMsg, setAssignMsg] = useState<string | null>(null);
 
   const loadAll = () => {
     setLoading(true);
@@ -71,6 +79,34 @@ function AllApplicants() {
   };
 
   const resumeHref = (a: Applicant) => (a.resume_storage_key || a.resume_url) ? `/api/enterprise/inbox/applications/${a.id}/resume` : null;
+
+  // Open the "assign to jobs" picker for a candidate; lazy-load real jobs once.
+  const openAssign = (a: Applicant) => {
+    setAssignFor(a); setPicked(new Set()); setAssignMsg(null);
+    if (jobs === null) {
+      fetch("/api/enterprise/jobs").then((r) => r.json()).then((j) => {
+        const list = (j.data ?? []).filter((x: { is_intake_pool?: boolean; status?: string }) => !x.is_intake_pool && x.status !== "closed");
+        setJobs(list.map((x: { id: string; title: string; status: string }) => ({ id: x.id, title: x.title, status: x.status })));
+      });
+    }
+  };
+  const toggleJob = (id: string) => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  const runAssign = async () => {
+    if (!assignFor || picked.size === 0) return;
+    setAssigning(true); setAssignMsg(null);
+    const res = await fetch(`/api/enterprise/candidates/${assignFor.id}/assign-jobs`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ job_ids: [...picked] }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setAssigning(false);
+    if (res.ok) {
+      const { created = 0, skipped = 0 } = j.data ?? {};
+      setAssignMsg(`Assigned to ${created} job${created === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped (already in pipeline)` : ""}.`);
+      loadAll();
+    } else setAssignMsg(j.error ?? "Couldn't assign.");
+  };
 
   return (
     <div>
@@ -148,6 +184,10 @@ function AllApplicants() {
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2 whitespace-nowrap">
+                      <button onClick={() => openAssign(a)}
+                        className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" title="Assign this candidate to one or more jobs">
+                        <Briefcase className="h-3.5 w-3.5" /> Assign
+                      </button>
                       {resumeHref(a) && (
                         <a href={resumeHref(a)!} target="_blank" rel="noopener noreferrer"
                           className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground" title="Download résumé">
@@ -165,6 +205,45 @@ function AllApplicants() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Assign candidate to jobs */}
+      {assignFor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setAssignFor(null)}>
+          <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-2xl border border-border bg-card shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between border-b border-border p-4">
+              <div>
+                <h2 className="font-semibold">Assign to jobs</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">{assignFor.candidate_name} · pick one or more openings to consider them for.</p>
+              </div>
+              <button onClick={() => setAssignFor(null)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {jobs === null ? (
+                <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : jobs.length === 0 ? (
+                <p className="px-3 py-8 text-center text-sm text-muted-foreground">No open jobs to assign to.</p>
+              ) : jobs.map((j) => (
+                <label key={j.id} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 hover:bg-muted/30">
+                  <input type="checkbox" checked={picked.has(j.id)} onChange={() => toggleJob(j.id)}
+                    className="h-4 w-4 rounded border-border accent-primary" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium">{j.title}</span>
+                    <span className="block text-[10px] capitalize text-muted-foreground">{j.status}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            {assignMsg && <p className="px-4 py-1 text-xs text-muted-foreground">{assignMsg}</p>}
+            <div className="flex items-center justify-between gap-2 border-t border-border p-3">
+              <span className="text-xs text-muted-foreground">{picked.size} selected</span>
+              <button onClick={runAssign} disabled={assigning || picked.size === 0}
+                className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50">
+                {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Assign
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
