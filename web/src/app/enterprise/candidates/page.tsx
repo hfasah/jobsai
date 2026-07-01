@@ -48,6 +48,7 @@ function AllApplicants() {
   const [picked, setPicked] = useState<Set<string>>(new Set());
   const [assigning, setAssigning] = useState(false);
   const [assignMsg, setAssignMsg] = useState<string | null>(null);
+  const [assignOk, setAssignOk] = useState(false);
 
   const loadAll = () => {
     setLoading(true);
@@ -94,7 +95,8 @@ function AllApplicants() {
 
   const runAssign = async () => {
     if (!assignFor || picked.size === 0) return;
-    setAssigning(true); setAssignMsg(null);
+    setAssigning(true); setAssignMsg(null); setAssignOk(false);
+    const name = assignFor.candidate_name;
     const res = await fetch(`/api/enterprise/candidates/${assignFor.id}/assign-jobs`, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ job_ids: [...picked] }),
@@ -103,9 +105,12 @@ function AllApplicants() {
     setAssigning(false);
     if (res.ok) {
       const { created = 0, skipped = 0 } = j.data ?? {};
-      setAssignMsg(`Assigned to ${created} job${created === 1 ? "" : "s"}${skipped ? ` · ${skipped} skipped (already in pipeline)` : ""}.`);
+      setAssignOk(true);
+      setAssignMsg(`${name} assigned to ${created} job${created === 1 ? "" : "s"}${skipped ? ` · ${skipped} already in pipeline` : ""}.`);
       loadAll();
-    } else setAssignMsg(j.error ?? "Couldn't assign.");
+      // Close automatically once the success is visible.
+      window.setTimeout(() => { setAssignFor(null); setAssignMsg(null); setAssignOk(false); setPicked(new Set()); }, 1500);
+    } else { setAssignOk(false); setAssignMsg(j.error ?? "Couldn't assign. Please try again."); }
   };
 
   return (
@@ -235,10 +240,16 @@ function AllApplicants() {
                 </label>
               ))}
             </div>
-            {assignMsg && <p className="px-4 py-1 text-xs text-muted-foreground">{assignMsg}</p>}
+            {assignMsg && (
+              <div className={cn("mx-3 mb-1 mt-2 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium",
+                assignOk ? "bg-green-500/15 text-green-400" : "bg-red-500/15 text-red-400")}>
+                {assignOk ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <X className="h-4 w-4 shrink-0" />}
+                {assignMsg}
+              </div>
+            )}
             <div className="flex items-center justify-between gap-2 border-t border-border p-3">
               <span className="text-xs text-muted-foreground">{picked.size} selected</span>
-              <button onClick={runAssign} disabled={assigning || picked.size === 0}
+              <button onClick={runAssign} disabled={assigning || picked.size === 0 || assignOk}
                 className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-50">
                 {assigning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />} Assign
               </button>
