@@ -4,9 +4,10 @@ import { useState, useEffect, useCallback } from "react";
 import {
   X, Loader2, Sparkles, FileText, ClipboardList, CheckCircle2,
   AlertCircle, Copy, Check, ChevronDown, UserCheck, Mic,
-  Mail, Phone, Globe, FileUser, ExternalLink,
+  Mail, Phone, Globe, FileUser, ExternalLink, Printer, Download, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { buildInterviewReportHtml } from "@/lib/interview-report-html";
 import type { InterviewReport, CompetencyScore } from "@/types/interview-intelligence";
 import { RECOMMENDATION_META } from "@/types/interview-intelligence";
 import type { AIRecommendation, EnterpriseApplication } from "@/types/enterprise";
@@ -38,10 +39,67 @@ function CompetencyBar({ c }: { c: CompetencyScore }) {
   );
 }
 
-function ReportCard({ report }: { report: InterviewReport }) {
+function ReportCard({ report, app, jobId }: { report: InterviewReport; app: EnterpriseApplication; jobId: string }) {
   const [open, setOpen] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [emailOpen, setEmailOpen] = useState(false);
+  const [recipient, setRecipient] = useState("");
+  const [team, setTeam] = useState<{ email: string; name: string; role: string }[] | null>(null);
+  const [sending, setSending] = useState(false);
+  const [emailMsg, setEmailMsg] = useState<string | null>(null);
   const rec = report.recommendation ? RECOMMENDATION_META[report.recommendation as AIRecommendation] : null;
+
+  const reportHtml = () => buildInterviewReportHtml({
+    report,
+    candidateName: app.candidate_name,
+    candidateEmail: app.candidate_email,
+    jobTitle: (app as unknown as { job?: { title?: string } }).job?.title ?? null,
+  });
+  const slug = (app.candidate_name || "candidate").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "candidate";
+
+  // Print → the browser's "Save as PDF" is the reliable, dependency-free path.
+  const printReport = () => {
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(reportHtml());
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 400);
+  };
+
+  // Download as a Word-openable .doc (HTML with the Word MIME type).
+  const downloadDoc = () => {
+    const blob = new Blob([reportHtml()], { type: "application/msword" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `Interview-Report-${slug}.doc`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const openEmail = () => {
+    setEmailOpen((o) => !o); setEmailMsg(null);
+    if (team === null) {
+      fetch("/api/enterprise/team").then((r) => r.json()).then((j) => {
+        const members = (j.data?.members ?? []).filter((m: { email?: string }) => m.email);
+        setTeam(members.map((m: { email: string; name: string; role: string }) => ({ email: m.email, name: m.name, role: m.role })));
+      }).catch(() => setTeam([]));
+    }
+  };
+
+  const sendEmail = async () => {
+    const to = recipient.trim();
+    if (!to) return;
+    setSending(true); setEmailMsg(null);
+    const res = await fetch(`/api/enterprise/jobs/${jobId}/applications/${app.id}/report/email`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ report_id: report.id, recipients: [to] }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setSending(false);
+    if (res.ok) { setEmailMsg(`Sent to ${to}.`); setRecipient(""); setTimeout(() => setEmailOpen(false), 1500); }
+    else setEmailMsg(j.error ?? "Couldn't send.");
+  };
 
   const copyText = () => {
     const text = `${report.report_type === "pre_interview" ? "PRE-INTERVIEW BRIEFING" : "INTERVIEW REPORT"} — ${report.round_name ?? ""}
@@ -127,11 +185,46 @@ ${report.concerns.map((s) => `• ${s}`).join("\n")}`;
             )}
           </div>
 
-          <button onClick={copyText}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
-            {copied ? <Check className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied!" : "Copy report"}
-          </button>
+          <div className="flex flex-wrap items-center gap-1.5">
+            {([
+              [copied ? <Check key="c" className="h-3.5 w-3.5 text-green-400" /> : <Copy key="c" className="h-3.5 w-3.5" />, copied ? "Copied!" : "Copy", copyText],
+              [<Printer key="p" className="h-3.5 w-3.5" />, "Print / PDF", printReport],
+              [<Download key="d" className="h-3.5 w-3.5" />, "Download", downloadDoc],
+            ] as const).map(([icon, label, fn], i) => (
+              <button key={i} onClick={fn}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground transition-colors">
+                {icon} {label}
+              </button>
+            ))}
+            <button onClick={openEmail}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary/10 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/20 transition-colors">
+              <Send className="h-3.5 w-3.5" /> Email to hiring manager
+            </button>
+          </div>
+
+          {emailOpen && (
+            <div className="mt-2 rounded-lg border border-border bg-muted/20 p-3">
+              {team && team.length > 0 && (
+                <div className="mb-2 flex flex-wrap gap-1.5">
+                  {team.map((m) => (
+                    <button key={m.email} onClick={() => setRecipient(m.email)}
+                      className={cn("rounded-full border px-2 py-0.5 text-[11px]", recipient === m.email ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted")}>
+                      {m.name} <span className="capitalize opacity-60">· {m.role.replace("_", " ")}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                <input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="hiring.manager@company.com"
+                  className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs outline-none focus:border-primary" />
+                <button onClick={sendEmail} disabled={sending || !recipient.trim()}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-brand px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-50">
+                  {sending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Send
+                </button>
+              </div>
+              {emailMsg && <p className="mt-1.5 text-[11px] text-muted-foreground">{emailMsg}</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -294,7 +387,7 @@ export function CandidateReportModal({
             </p>
           ) : (
             <div className="space-y-3">
-              {reports.map((r) => <ReportCard key={r.id} report={r} />)}
+              {reports.map((r) => <ReportCard key={r.id} report={r} app={app} jobId={jobId} />)}
             </div>
           )}
         </div>

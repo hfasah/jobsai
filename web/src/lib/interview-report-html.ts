@@ -1,0 +1,94 @@
+import type { InterviewReport } from "@/types/interview-intelligence";
+import { RECOMMENDATION_META } from "@/types/interview-intelligence";
+
+// Self-contained, print-friendly HTML for a candidate interview / HR report.
+// Used for Print→PDF, .doc download, and the emailed copy — one source of truth
+// so all three look identical. No external assets; opens/prints anywhere.
+
+export interface ReportHtmlInput {
+  report: InterviewReport;
+  candidateName: string;
+  candidateEmail?: string | null;
+  jobTitle?: string | null;
+  orgName?: string | null;
+}
+
+function esc(s: string): string {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+function scoreColor(n: number): string {
+  return n >= 75 ? "#16a34a" : n >= 50 ? "#d97706" : "#dc2626";
+}
+
+export function reportFilename(name: string, ext: string): string {
+  const slug = (name || "candidate").replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 50) || "candidate";
+  return `Interview-Report-${slug}.${ext}`;
+}
+
+export function buildInterviewReportHtml(r: ReportHtmlInput): string {
+  const rep = r.report;
+  const date = new Date(rep.generated_at || Date.now()).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const typeLabel = rep.report_type === "pre_interview" ? "Pre-Interview Briefing" : (rep.round_name || "Interview Report");
+  const recMeta = rep.recommendation ? RECOMMENDATION_META[rep.recommendation] : null;
+  const recLabel = recMeta?.label ?? null;
+
+  const overall = rep.overall_score != null
+    ? `<div class="overall"><div class="onum" style="color:${scoreColor(rep.overall_score)}">${rep.overall_score}</div><div class="olabel">Overall / 100</div></div>` : "";
+
+  const rec = recLabel ? `<span class="rec">${esc(recLabel)}</span>` : "";
+
+  const comps = (rep.competency_scores ?? []).map((c) => {
+    const col = scoreColor(c.score);
+    return `<div class="comp">
+      <div class="comp-top"><span class="comp-name">${esc(c.name)}${c.weight ? ` <span class="wt">· ${c.weight}%</span>` : ""}</span><span class="comp-score" style="color:${col}">${c.score}</span></div>
+      <div class="bar"><div class="bar-fill" style="width:${Math.max(0, Math.min(100, c.score))}%;background:${col}"></div></div>
+      ${c.evidence ? `<p class="evidence">${esc(c.evidence)}</p>` : ""}
+    </div>`;
+  }).join("");
+
+  const list = (items: string[]) => `<ul>${items.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`;
+  const strengths = (rep.strengths ?? []).length ? `<section class="col strengths"><h3>Strengths</h3>${list(rep.strengths)}</section>` : "";
+  const concerns = (rep.concerns ?? []).length ? `<section class="col concerns"><h3>Concerns / probe</h3>${list(rep.concerns)}</section>` : "";
+  const summary = rep.summary ? `<section><h2>Summary</h2><p>${esc(rep.summary)}</p></section>` : "";
+
+  const contact = [r.candidateEmail ? esc(r.candidateEmail) : "", r.jobTitle ? `for ${esc(r.jobTitle)}` : ""].filter(Boolean).join(" · ");
+
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Interview Report — ${esc(r.candidateName)}</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;background:#f4f4f5;color:#18181b;font:15px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+  .page{max-width:780px;margin:24px auto;background:#fff;border-radius:14px;padding:40px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+  .eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#6366f1;margin:0 0 4px}
+  h1{font-size:26px;margin:0 0 2px} .sub{color:#52525b;margin:0 0 4px;font-size:15px} .contact{color:#71717a;font-size:13px;margin:0}
+  .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .overall{text-align:center;border:1px solid #e4e4e7;border-radius:12px;padding:10px 16px;min-width:96px}
+  .onum{font-size:34px;font-weight:800;line-height:1} .olabel{font-size:11px;color:#71717a;margin-top:2px}
+  .rec{display:inline-block;margin:12px 0 0;padding:5px 12px;border-radius:999px;background:#eef2ff;color:#4338ca;font-weight:600;font-size:13px}
+  section{margin-top:24px} h2{font-size:13px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#52525b;margin:0 0 8px;border-top:1px solid #e4e4e7;padding-top:18px}
+  section p{margin:0;color:#27272a}
+  .comp{margin:14px 0} .comp-top{display:flex;justify-content:space-between;align-items:baseline} .comp-name{font-weight:600;font-size:14px} .wt{color:#a1a1aa;font-weight:400;font-size:12px}
+  .comp-score{font-weight:800;font-size:16px} .bar{height:7px;background:#f4f4f5;border-radius:999px;overflow:hidden;margin:5px 0} .bar-fill{height:100%;border-radius:999px}
+  .evidence{margin:4px 0 0;font-size:13px;color:#71717a;font-style:italic}
+  .cols{display:flex;gap:16px;margin-top:24px} .col{flex:1;border:1px solid #e4e4e7;border-radius:10px;padding:14px 16px}
+  .col h3{margin:0 0 6px;font-size:13px;font-weight:700} .strengths h3{color:#16a34a} .concerns h3{color:#d97706}
+  .col ul{margin:0;padding-left:18px} .col li{margin:3px 0;font-size:14px;color:#27272a}
+  .footer{margin-top:28px;border-top:1px solid #e4e4e7;padding-top:14px;color:#a1a1aa;font-size:12px;text-align:center}
+  @media print{body{background:#fff}.page{box-shadow:none;margin:0;border-radius:0;max-width:none;padding:24px}}
+</style></head><body>
+<div class="page">
+  <div class="top">
+    <div>
+      <p class="eyebrow">${esc(r.orgName || "JobsAI")} · ${esc(typeLabel)}</p>
+      <h1>${esc(r.candidateName)}</h1>
+      ${contact ? `<p class="contact">${contact}</p>` : ""}
+      ${rec}
+    </div>
+    ${overall}
+  </div>
+  ${summary}
+  ${comps ? `<section><h2>Competency scores</h2>${comps}</section>` : ""}
+  ${strengths || concerns ? `<div class="cols">${strengths}${concerns}</div>` : ""}
+  <div class="footer">Generated by JobsAI on ${esc(date)}</div>
+</div>
+</body></html>`;
+}
