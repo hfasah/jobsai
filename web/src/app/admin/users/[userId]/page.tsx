@@ -301,6 +301,57 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
         </div>
       )}
 
+      {/* Auto-Apply Outcomes */}
+      {(() => {
+        const aa = data.autoApply as {
+          total: number; submitted: number; failed: number; manual_required: number; stuck: number; pending: number;
+          recent: { id: string; job_id: string; platform: string; status: string; error_msg: string | null; created_at: string }[];
+        } | undefined;
+        if (!aa) return null;
+        const STATUS_STYLE: Record<string, string> = {
+          submitted: "bg-emerald-500/15 text-emerald-400", failed: "bg-red-500/15 text-red-400",
+          manual_required: "bg-amber-500/15 text-amber-400", pending: "bg-blue-500/15 text-blue-400",
+        };
+        return (
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <h2 className="mb-3 font-semibold">Auto-Apply Outcomes</h2>
+            {aa.total === 0 ? (
+              <p className="text-sm text-muted-foreground">No automated application attempts on record.</p>
+            ) : (
+              <>
+                <div className="mb-4 grid grid-cols-3 gap-3 sm:grid-cols-6">
+                  {[
+                    ["Attempts", aa.total, "text-foreground"],
+                    ["Submitted", aa.submitted, "text-emerald-400"],
+                    ["Failed", aa.failed, "text-red-400"],
+                    ["Manual req.", aa.manual_required, "text-amber-400"],
+                    ["In progress", aa.pending, "text-blue-400"],
+                    ["Stuck >1h", aa.stuck, "text-red-400"],
+                  ].map(([label, val, color]) => (
+                    <div key={String(label)} className="rounded-lg border border-border bg-background p-2.5 text-center">
+                      <p className={cn("text-lg font-bold tabular-nums", color as string)}>{val as number}</p>
+                      <p className="text-[10px] text-muted-foreground">{label as string}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="space-y-1">
+                  {aa.recent.map((a) => (
+                    <div key={a.id} className="flex items-center justify-between gap-3 text-xs">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <span className={cn("shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium capitalize", STATUS_STYLE[a.status] ?? "bg-muted text-muted-foreground")}>{a.status.replace("_", " ")}</span>
+                        <span className="truncate text-muted-foreground">{a.platform}{a.error_msg ? ` · ${a.error_msg}` : ""}</span>
+                      </span>
+                      <span className="shrink-0 text-muted-foreground">{new Date(a.created_at).toLocaleString()}</span>
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-[11px] text-muted-foreground">Note: only Skyvern <em>launch</em> failures are auto-refunded; post-launch failures keep the 600 tokens. A “stuck” pending usually means the completion webhook never landed.</p>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Resumes */}
         <div className="rounded-2xl border border-border bg-card p-5">
