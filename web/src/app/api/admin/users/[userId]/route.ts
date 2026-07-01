@@ -22,13 +22,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
   const clerkUser = await client.users.getUser(userId).catch(() => null);
   if (!clerkUser) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  const [billing, resumes, jobs, notifications, churnFeedback, applyProfile] = await Promise.all([
+  const [billing, resumes, jobs, notifications, churnFeedback, applyProfile, applyAttempts] = await Promise.all([
     supabaseAdmin.from("user_billing").select("*").eq("user_id", userId).maybeSingle(),
     supabaseAdmin.from("resume_documents").select("*, active_version:resume_versions!resume_documents_active_version_id_fkey(id, file_name, parse_status, uploaded_at)").eq("user_id", userId).eq("is_archived", false).order("created_at", { ascending: false }),
     supabaseAdmin.from("jobs").select("id, status, created_at, parsed").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     supabaseAdmin.from("user_notifications").select("*").eq("user_id", userId).order("created_at", { ascending: false }).limit(20),
     supabaseAdmin.from("churn_feedback").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabaseAdmin.from("apply_profiles").select("auto_apply_enabled, auto_reply, created_at").eq("user_id", userId).maybeSingle(),
+    supabaseAdmin.from("apply_attempts").select("id, job_id, platform, status, error_msg, submitted_at, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(50),
   ]);
 
   const b = billing.data;
@@ -41,6 +42,22 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     getTokenAccount(userId).catch(() => null),
     supabaseAdmin.from("token_ledger").select("delta, balance_after, reason, feature, metadata, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
   ]);
+
+  // Auto-apply outcomes — summarise this user's automated application attempts
+  // (Skyvern "agent" + direct-ATS) so a complaint can be verified at a glance.
+  // A "pending" older than 1h is likely stuck (webhook never resolved it).
+  const attempts = applyAttempts.data ?? [];
+  const STUCK_MS = 60 * 60 * 1000;
+  const now = Date.now();
+  const autoApply = {
+    total: attempts.length,
+    submitted: attempts.filter((a) => a.status === "submitted").length,
+    failed: attempts.filter((a) => a.status === "failed").length,
+    manual_required: attempts.filter((a) => a.status === "manual_required").length,
+    stuck: attempts.filter((a) => a.status === "pending" && now - new Date(a.created_at).getTime() > STUCK_MS).length,
+    pending: attempts.filter((a) => a.status === "pending" && now - new Date(a.created_at).getTime() <= STUCK_MS).length,
+    recent: attempts.slice(0, 20),
+  };
 
   return NextResponse.json({
     user: {
@@ -60,6 +77,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     notifications: notifications.data ?? [],
     churnFeedback: churnFeedback.data ?? [],
     applyProfile: applyProfile.data ?? null,
+    autoApply,
   });
 }
 
