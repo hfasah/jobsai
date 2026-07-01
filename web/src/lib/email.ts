@@ -199,11 +199,11 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
     ${p(`<strong style="color:#4f46e5;">Apply Less. Interview More.</strong>`)}
     <table role="presentation" cellpadding="0" cellspacing="0" align="left" style="margin:20px 0 0;">
       <tr>
-        ${avatarCell("Hippolyte Asah", 64)}
+        ${avatarCell(FOUNDER.name, 64, FOUNDER.photo ?? null)}
         <td style="width:16px;">&nbsp;</td>
         <td style="vertical-align:middle;">
-          <p style="margin:0;font-size:16px;font-weight:700;color:#111827;">Hippolyte Asah</p>
-          <p style="margin:2px 0 0;font-size:13px;color:#6b7280;">Founder, JobsAI</p>
+          <p style="margin:0;font-size:16px;font-weight:700;color:#111827;">${escapeHtml(FOUNDER.name)}</p>
+          <p style="margin:2px 0 0;font-size:13px;color:#6b7280;">${escapeHtml(FOUNDER.title)}</p>
         </td>
       </tr>
     </table>
@@ -399,25 +399,36 @@ export async function sendAutoApplyDigest(
 // send before the account is this old (lets the welcome land first). Signed from
 // the founder — swap `FOUNDER` for a real teammate persona if you add staff.
 
-const FOUNDER = { name: "Hippolyte Asah", title: "Founder, JobsAI" };
+type Persona = { name: string; title: string; photo?: string | null };
 
 const FOUNDER_PHOTO = "/team/hippolyte-asah.jpg";
 
-// Avatar cell: the founder photo on a colored disc. The disc + initials alt mean
-// image-blocking clients still show a clean avatar (never a broken icon), while
-// everyone else sees the real photo.
-function avatarCell(name: string, size = 56, photo: string = FOUNDER_PHOTO): string {
+// The founder — used only by the one-time welcome email (a personal note).
+const FOUNDER: Persona = { name: "Hippolyte Asah", title: "Founder, JobsAI", photo: FOUNDER_PHOTO };
+
+// Recurring subscriber nurture letters are signed by the talent team, not the
+// founder. No photo on file → the avatar falls back to a clean initials disc.
+const TALENT_MANAGER: Persona = { name: "Alex Bernier", title: "Talent Manager, JobsAI", photo: null };
+
+// Avatar cell: a headshot on a colored disc when a photo is provided; otherwise
+// a clean initials disc. The initials also serve as the image-blocked fallback,
+// so no client ever shows a broken-image icon.
+function avatarCell(name: string, size = 56, photo: string | null = FOUNDER_PHOTO): string {
   const initials =
     name.trim().split(/\s+/).map((w) => w[0] ?? "").slice(0, 2).join("").toUpperCase() || "JA";
   const r = Math.round(size / 2);
-  return `<td width="${size}" height="${size}" align="center" valign="middle" style="width:${size}px;height:${size}px;background:#4f46e5;border-radius:${r}px;color:#ffffff;font-size:${Math.round(size * 0.36)}px;font-weight:800;text-align:center;line-height:${size}px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;"><img src="${APP_URL}${photo}" width="${size}" height="${size}" alt="${escapeHtml(initials)}" style="width:${size}px;height:${size}px;border-radius:${r}px;display:block;object-fit:cover;border:1px solid rgba(255,255,255,0.25);" /></td>`;
+  const disc = `width:${size}px;height:${size}px;background:#4f46e5;border-radius:${r}px;color:#ffffff;font-size:${Math.round(size * 0.36)}px;font-weight:800;text-align:center;line-height:${size}px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;`;
+  const inner = photo
+    ? `<img src="${APP_URL}${photo}" width="${size}" height="${size}" alt="${escapeHtml(initials)}" style="width:${size}px;height:${size}px;border-radius:${r}px;display:block;object-fit:cover;border:1px solid rgba(255,255,255,0.25);" />`
+    : escapeHtml(initials);
+  return `<td width="${size}" height="${size}" align="center" valign="middle" style="${disc}">${inner}</td>`;
 }
 
-function personaSignoff(persona: { name: string; title: string }): string {
+function personaSignoff(persona: Persona): string {
   return `
     <table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0 0;">
       <tr>
-        ${avatarCell(persona.name)}
+        ${avatarCell(persona.name, 56, persona.photo ?? null)}
         <td style="width:14px;">&nbsp;</td>
         <td style="vertical-align:middle;">
           <p style="margin:0;font-size:15px;font-weight:700;color:#111827;">${escapeHtml(persona.name)}</p>
@@ -449,7 +460,7 @@ function nurtureBody(key: string, hi: string): { subject: string; body: string }
           ${btn(`${APP_URL}/dashboard/resumes`, "Get your free résumé review")}
           ${p(`Already happy with it? Tailor it to a specific role in one click from any job in your list.`, true)}
           ${p(`We're here to help you land your next role.`)}
-          ${personaSignoff(FOUNDER)}`,
+          ${personaSignoff(TALENT_MANAGER)}`,
       };
     case "auto-apply":
       return {
@@ -461,7 +472,7 @@ function nurtureBody(key: string, hi: string): { subject: string; body: string }
           ${p(`✅ <strong>Auto</strong> — apply to strong matches automatically<br>✅ <strong>Hybrid</strong> — we apply to the best, you approve the rest<br>✅ <strong>Review</strong> — nothing goes out without your say-so`)}
           ${btn(`${APP_URL}/dashboard/auto-apply`, "Turn on Auto-Apply")}
           ${p(`You stay in control — and you're only charged when an application actually goes through.`, true)}
-          ${personaSignoff(FOUNDER)}`,
+          ${personaSignoff(TALENT_MANAGER)}`,
       };
     case "interview-prep":
       return {
@@ -473,7 +484,7 @@ function nurtureBody(key: string, hi: string): { subject: string; body: string }
           ${btn(`${APP_URL}/dashboard/jobs`, "Practice for an interview")}
           ${p(`Open any job in your list and tap Interview Prep to start.`, true)}
           ${p(`Rooting for you.`)}
-          ${personaSignoff(FOUNDER)}`,
+          ${personaSignoff(TALENT_MANAGER)}`,
       };
     default:
       return null;
