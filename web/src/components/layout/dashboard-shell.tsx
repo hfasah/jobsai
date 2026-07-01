@@ -80,6 +80,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: "nav.analytics", href: "/dashboard/analytics", icon: BarChart3 },
       { label: "nav.salaries",  href: "/dashboard/salaries",  icon: LineChart },
+      { label: "Credits & Usage", href: "/dashboard/credits", icon: Coins },
       { label: "Referrals",     href: "/dashboard/referrals", icon: Coins },
       { label: "Feature Requests", href: "/dashboard/feature-requests", icon: Lightbulb },
       { label: "Watch Demo", href: "https://youtu.be/5XXL3VFrRis", icon: PlayCircle, external: true },
