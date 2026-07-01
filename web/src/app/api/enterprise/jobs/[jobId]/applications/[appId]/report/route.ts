@@ -30,14 +30,21 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
   const { appId } = await params;
 
-  const { data } = await supabaseAdmin
-    .from("enterprise_interview_reports")
-    .select("*")
-    .eq("application_id", appId)
-    .eq("org_id", org.id)
-    .order("generated_at", { ascending: false });
+  const [{ data }, { data: orgRow }] = await Promise.all([
+    supabaseAdmin
+      .from("enterprise_interview_reports")
+      .select("*")
+      .eq("application_id", appId)
+      .eq("org_id", org.id)
+      .order("generated_at", { ascending: false }),
+    supabaseAdmin.from("enterprise_orgs").select("name, show_powered_by").eq("id", org.id).maybeSingle(),
+  ]);
 
-  return NextResponse.json({ data: data ?? [] });
+  // White-label: reports are branded with the service provider's (org's) name.
+  return NextResponse.json({
+    data: data ?? [],
+    org: { name: orgRow?.name ?? org.name, show_powered_by: orgRow?.show_powered_by ?? true },
+  });
 }
 
 // POST — generate a report.

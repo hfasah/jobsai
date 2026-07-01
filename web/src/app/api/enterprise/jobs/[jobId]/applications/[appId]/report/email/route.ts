@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const [{ data: report }, { data: app }, { data: orgData }] = await Promise.all([
     supabaseAdmin.from("enterprise_interview_reports").select("*").eq("id", body.report_id).eq("org_id", org.id).eq("application_id", appId).maybeSingle(),
     supabaseAdmin.from("enterprise_applications").select("candidate_name, candidate_email, job:enterprise_jobs(title)").eq("id", appId).eq("org_id", org.id).maybeSingle(),
-    supabaseAdmin.from("enterprise_orgs").select("name, white_label_email_from, slug, intake_email_handle").eq("id", org.id).maybeSingle(),
+    supabaseAdmin.from("enterprise_orgs").select("name, white_label_email_from, slug, intake_email_handle, show_powered_by").eq("id", org.id).maybeSingle(),
   ]);
   if (!report || !app) return NextResponse.json({ error: "Report not found." }, { status: 404 });
 
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     candidateEmail: app.candidate_email as string | null,
     jobTitle,
     orgName,
+    showPoweredBy: (orgData as { show_powered_by?: boolean } | null)?.show_powered_by ?? true,
   });
 
   const fromName = emailFromName(orgName, orgData?.white_label_email_from ?? null);
