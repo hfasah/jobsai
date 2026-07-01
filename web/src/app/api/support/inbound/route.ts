@@ -56,12 +56,17 @@ function parseAddress(raw: string | null | undefined): { name: string | null; em
   return { name: null, email: s.toLowerCase() };
 }
 
+// Mail-system / forwarding-provider domains whose automated mail (e.g. one.com's
+// "verify email forward" bot) should never receive an auto-reply.
+const MAIL_SYSTEM_DOMAINS = ["one.com", "amazonses.com", "amazonaws.com", "sendgrid.net", "mailgun.org"];
+
 // Don't auto-reply to automated senders (avoids mail loops with no-reply
 // addresses, mailer-daemons, forwarding-confirmation bots, or ourselves).
 function isAutomatedSender(email: string): boolean {
-  return /(^|[._-])(no[._-]?reply|do[._-]?not[._-]?reply|donotreply|mailer[-_]?daemon|postmaster|bounce|notifications?)@/i.test(email)
+  return /(^|[._-])(no[._-]?reply|do[._-]?not[._-]?reply|donotreply|mailer[-_]?daemon|postmaster|bounce|notifications?|forward(ing)?[._-]?(verification|confirm)?)@/i.test(email)
     || email.endsWith("@jobsai.work")
-    || email.endsWith(`@${INTAKE_DOMAIN}`);
+    || email.endsWith(`@${INTAKE_DOMAIN}`)
+    || MAIL_SYSTEM_DOMAINS.some((d) => email === `@${d}` || email.endsWith(`@${d}`) || email.endsWith(`.${d}`));
 }
 
 export async function POST(req: NextRequest) {
