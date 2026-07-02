@@ -62,9 +62,18 @@ export async function POST(req: NextRequest) {
     mode: "subscription",
     customer: customerId,
     line_items: [{ price: priceId, quantity: 1 }],
+    // Always collect a card — even for the free trial. (This is Stripe's default
+    // for subscription mode, but we set it explicitly so the requirement can't
+    // silently change.) For trials, cancel rather than lapse into an unpaid
+    // subscription if no valid payment method is on file when the trial ends.
+    payment_method_collection: "always",
     subscription_data: trialUsed
       ? { metadata: { org_id: org.id } }
-      : { trial_period_days: 14, metadata: { org_id: org.id } },
+      : {
+          trial_period_days: 14,
+          trial_settings: { end_behavior: { missing_payment_method: "cancel" } },
+          metadata: { org_id: org.id },
+        },
     allow_promotion_codes: true, // lets founding customers apply the coupon
     success_url: `${base}/enterprise/dashboard?welcome=1`,
     cancel_url: `${base}/enterprise/plans`,
