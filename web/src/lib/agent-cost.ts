@@ -10,6 +10,7 @@
 // are ESTIMATES; the Skyvern dashboard remains the source of truth for billing.
 
 import { supabaseAdmin } from "@/lib/supabase";
+import { deductTokens } from "@/lib/tokens";
 
 export const ACTIONS_PER_STEP = 4.5;
 export const CREDITS_PER_ACTION = 30;
@@ -54,4 +55,36 @@ export async function recordAgentCost(
     .eq("job_id", jobId)
     .eq("platform", "agent");
   if (error) console.warn("[agent-cost] record failed (run migration 051?):", error.message);
+}
+
+/**
+ * Revenue-leak fix (shared with the consumer flow): reverse a refund given
+ * because Skyvern reported an auto-apply "failed" when the EMPLOYER later
+ * confirmed the application was received. Idempotent; only acts on a job that
+ * has an auto_apply_failed_refund and wasn't already reclaimed. Best-effort.
+ * Operates on the shared Supabase (token_ledger / inbox_messages).
+ */
+export async function reclaimConfirmedApply(userId: string, jobId: string, opts: { dryRun?: boolean } = {}): Promise<number> {
+  if (!userId || !jobId) return 0;
+
+  const { data: already } = await supabaseAdmin
+    .from("token_ledger").select("id")
+    .eq("user_id", userId).eq("reason", "auto_apply_confirmed_recharge")
+    .filter("metadata->>job_id", "eq", jobId).limit(1).maybeSingle();
+  if (already) return 0;
+
+  const { data: refund } = await supabaseAdmin
+    .from("token_ledger").select("delta")
+    .eq("user_id", userId).eq("reason", "auto_apply_failed_refund")
+    .filter("metadata->>job_id", "eq", jobId)
+    .gt("delta", 0)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!refund) return 0;
+
+  const amount = Math.abs(Number(refund.delta));
+  if (!amount) return 0;
+  if (opts.dryRun) return amount;
+
+  const r = await deductTokens(userId, amount, "auto_apply_confirmed_recharge", { job_id: jobId, source: "employer_confirmation" });
+  return r.ok ? amount : 0;
 }
