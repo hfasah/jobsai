@@ -53,7 +53,7 @@ export const JOB_BOARDS: JobBoard[] = [
   { id: "workday",        label: "Workday",            applyMode: "assisted", accountRequired: true, hosts: ["myworkdayjobs.com", "workday.com"],                       note: "Account required" },
   { id: "successfactors", label: "SAP SuccessFactors", applyMode: "assisted", accountRequired: true, hosts: ["successfactors.com", "successfactors.eu", "sapsf.com"],   note: "Account required" },
   { id: "taleo",          label: "Oracle Taleo",       applyMode: "assisted", accountRequired: true, hosts: ["taleo.net"],                                              note: "Account required" },
-  { id: "manual",      label: "JobsAI Jobs (Manual)",  applyMode: "manual",   hosts: [],                                                note: "Opens the listing" },
+  { id: "manual",      label: "JobsAI Jobs",           applyMode: "manual",   hosts: [],                                                note: "Opens the listing" },
 ];
 
 const MANUAL = JOB_BOARDS.find((b) => b.id === "manual")!;

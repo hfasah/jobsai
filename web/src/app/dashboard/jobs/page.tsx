@@ -635,8 +635,9 @@ export default function JobsPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground">No resume</span>
                         ))}
-                        {/* Per-row apply button — credits charged, confirmed in modal */}
-                        {ready && !agentState && (
+                        {/* Per-row apply button — hidden once applied so an
+                            already-applied job never shows a contradictory "Apply". */}
+                        {ready && !agentState && !job.progress?.applied && (
                           <button
                             onClick={(e) => { e.stopPropagation(); requestAgentApply([job.id]); }}
                             title={`${applyCost} credits · balance ${balance}`}
@@ -644,6 +645,11 @@ export default function JobsPage() {
                           >
                             <Zap className="h-3 w-3" /> Apply
                           </button>
+                        )}
+                        {ready && !agentState && job.progress?.applied && (
+                          <span className="flex items-center gap-1 text-[11px] font-medium text-desyn-success">
+                            <CheckCircle2 className="h-3.5 w-3.5" /> Applied
+                          </span>
                         )}
                       </div>
                     </div>
