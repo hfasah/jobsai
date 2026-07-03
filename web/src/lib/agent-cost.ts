@@ -160,3 +160,39 @@ export async function refundFailedAgentApply(opts: {
   await addTokens(userId, chargedUpfront, "auto_apply_failed_refund", { job_id: jobId });
   return { metered: 0, delta: -chargedUpfront, applied: true };
 }
+
+/**
+ * Revenue-leak fix: reclaim a refund that was given because Skyvern reported an
+ * auto-apply as "failed" — when the EMPLOYER later confirms the application was
+ * actually received. We treat the employer confirmation as ground truth and
+ * reverse the erroneous `auto_apply_failed_refund`, so a successful application
+ * isn't billed as free. Precise + idempotent: only acts when a failed-refund
+ * exists for the job and hasn't already been reclaimed. Best-effort — if the
+ * user has since spent the credits below the reclaim amount, we skip.
+ */
+export async function reclaimConfirmedApply(userId: string, jobId: string): Promise<number> {
+  if (!userId || !jobId) return 0;
+
+  // Already reclaimed for this job? (idempotency — a job may get several
+  // confirmation emails.)
+  const { data: already } = await supabaseAdmin
+    .from("token_ledger").select("id")
+    .eq("user_id", userId).eq("reason", "auto_apply_confirmed_recharge")
+    .filter("metadata->>job_id", "eq", jobId).limit(1).maybeSingle();
+  if (already) return 0;
+
+  // Find the erroneous full refund (auto-apply marked failed) for this job.
+  const { data: refund } = await supabaseAdmin
+    .from("token_ledger").select("delta")
+    .eq("user_id", userId).eq("reason", "auto_apply_failed_refund")
+    .filter("metadata->>job_id", "eq", jobId)
+    .gt("delta", 0)
+    .order("created_at", { ascending: false }).limit(1).maybeSingle();
+  if (!refund) return 0; // nothing was refunded for this job → nothing to reclaim
+
+  const amount = Math.abs(Number(refund.delta));
+  if (!amount) return 0;
+
+  const r = await deductTokens(userId, amount, "auto_apply_confirmed_recharge", { job_id: jobId, source: "employer_confirmation" });
+  return r.ok ? amount : 0;
+}

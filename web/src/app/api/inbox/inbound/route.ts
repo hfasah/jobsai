@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { lookupAlias, findOurAlias } from "@/lib/apply-alias";
 import { classifyEmail } from "@/lib/inbox";
 import { advanceStageFromClass } from "@/lib/inbox-stage";
+import { reclaimConfirmedApply } from "@/lib/agent-cost";
 import { sendEmployerReplyCopy } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 
@@ -127,6 +128,13 @@ export async function POST(req: NextRequest) {
 
   // Move the pipeline card to reflect the reply.
   await advanceStageFromClass(owner.user_id, owner.job_id, classification).catch(() => {});
+
+  // Revenue-leak fix: an employer "Application received" confirmation is ground
+  // truth that the auto-apply succeeded. If Skyvern had reported it "failed" and
+  // we refunded, reclaim that refund so a real application isn't billed as free.
+  if (classification === "confirmation") {
+    await reclaimConfirmedApply(owner.user_id, owner.job_id).catch(() => 0);
+  }
 
   // Job label for the forward + notification.
   const { data: jp } = await supabaseAdmin
