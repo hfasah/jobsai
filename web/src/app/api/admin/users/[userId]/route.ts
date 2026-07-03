@@ -37,11 +37,37 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     b?.subscription_status === "active" || b?.subscription_status === "trialing"
       ? b.plan : "free";
 
-  // Token balance + recent ledger (credits/refunds audit trail).
-  const [tokenAccount, ledger] = await Promise.all([
+  // Token balance + recent ledger (credits/refunds audit trail) + the FULL
+  // ledger, aggregated into a since-signup spend breakdown ("where did the
+  // 18,000 go?"). The full pull is capped high; a user with more rows than that
+  // is vanishingly rare and the summary degrades gracefully.
+  const [tokenAccount, ledger, fullLedger] = await Promise.all([
     getTokenAccount(userId).catch(() => null),
     supabaseAdmin.from("token_ledger").select("delta, balance_after, reason, feature, metadata, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
+    supabaseAdmin.from("token_ledger").select("delta, reason, feature, created_at").eq("user_id", userId).order("created_at", { ascending: true }).limit(5000),
   ]);
+
+  // Since-signup spend summary: credits IN by reason, credits OUT by feature/reason.
+  const allRows = (fullLedger.data ?? []) as { delta: number; reason: string; feature: string | null; created_at: string }[];
+  const grantsIn: Record<string, number> = {};
+  const spendOut: Record<string, number> = {};
+  let creditedTotal = 0;
+  let spentTotal = 0;
+  for (const r of allRows) {
+    const d = Number(r.delta) || 0;
+    if (d > 0) { grantsIn[r.reason] = (grantsIn[r.reason] ?? 0) + d; creditedTotal += d; }
+    else if (d < 0) { const k = r.feature || r.reason; spendOut[k] = (spendOut[k] ?? 0) + d; spentTotal += d; }
+  }
+  const toSorted = (o: Record<string, number>) =>
+    Object.entries(o).map(([key, amount]) => ({ key, amount })).sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
+  const tokenSummary = {
+    rows: allRows.length,
+    since: allRows[0]?.created_at ?? null,
+    credited_total: creditedTotal,
+    spent_total: Math.abs(spentTotal),
+    grants_in: toSorted(grantsIn),
+    spend_by_feature: toSorted(spendOut).map((r) => ({ ...r, amount: Math.abs(r.amount) })),
+  };
 
   // Auto-apply outcomes — summarise this user's automated application attempts
   // (Skyvern "agent" + direct-ATS) so a complaint can be verified at a glance.
@@ -72,6 +98,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     billing: b ? { ...b, plan: activePlan } : null,
     tokens: tokenAccount ? { balance: tokenAccount.balance, plan: tokenAccount.plan } : null,
     ledger: ledger.data ?? [],
+    tokenSummary,
     resumes: resumes.data ?? [],
     jobs: jobs.data ?? [],
     notifications: notifications.data ?? [],

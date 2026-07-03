@@ -15,6 +15,22 @@ const PLAN_BADGE: Record<string, string> = {
 
 const PLANS = ["free", "pro", "premium", "accelerator", "enterprise"];
 
+// Friendly labels for token_ledger reasons/features in the spend breakdown.
+const LEDGER_LABEL: Record<string, string> = {
+  auto_apply: "Auto-apply", ats_scan: "ATS scan", resume_tailor: "Resume tailor",
+  cover_letter: "Cover letter", interview_coach: "Interview coach", free_apply: "Free apply",
+  signup_grant: "Signup grant", monthly_grant: "Monthly grant", admin_credit: "Admin credit",
+  auto_apply_failed_refund: "Auto-apply refund", auto_apply_meter_refund: "Auto-apply meter refund",
+  auto_apply_confirmed_recharge: "Confirmed re-charge", monthly_grant_clawback: "Grant claw-back",
+};
+const ledgerLabel = (k: string) => LEDGER_LABEL[k] ?? k.replace(/_/g, " ");
+
+type TokenSummary = {
+  rows: number; since: string | null; credited_total: number; spent_total: number;
+  grants_in: { key: string; amount: number }[];
+  spend_by_feature: { key: string; amount: number }[];
+};
+
 export default function AdminUserDetail({ params }: { params: Promise<{ userId: string }> }) {
   const { userId } = use(params);
   const [data, setData] = useState<Record<string, unknown> | null>(null);
@@ -142,6 +158,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const applyProfile = data.applyProfile as Record<string, unknown> | null;
   const tokens = data.tokens as { balance: number; plan: string } | null;
   const ledger = (data.ledger as Record<string, unknown>[]) ?? [];
+  const summary = (data.tokenSummary as TokenSummary | undefined) ?? null;
   const currentPlan = (billing?.plan as string) ?? "free";
   const banned = Boolean(user.banned);
 
@@ -272,6 +289,40 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
         </div>
 
         {actionMsg && <p className="mt-3 text-sm font-medium text-desyn-success">{actionMsg}</p>}
+
+        {summary && summary.rows > 0 && (
+          <div className="mt-4 rounded-xl border border-border bg-background/40 p-4">
+            <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Credit spend since signup</p>
+              {summary.since && <span className="text-xs text-muted-foreground">since {new Date(summary.since).toLocaleDateString()} · {summary.rows} entries</span>}
+            </div>
+            <div className="mb-4 grid grid-cols-3 gap-3 text-center">
+              <div><p className="text-lg font-bold tabular-nums text-desyn-success">+{summary.credited_total.toLocaleString()}</p><p className="text-[11px] text-muted-foreground">Total credited</p></div>
+              <div><p className="text-lg font-bold tabular-nums text-foreground">−{summary.spent_total.toLocaleString()}</p><p className="text-[11px] text-muted-foreground">Total consumed</p></div>
+              <div><p className="text-lg font-bold tabular-nums text-foreground">{tokens ? tokens.balance.toLocaleString() : "—"}</p><p className="text-[11px] text-muted-foreground">Balance now</p></div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Consumed by feature</p>
+                {summary.spend_by_feature.length === 0
+                  ? <p className="text-xs text-muted-foreground">No spend yet.</p>
+                  : <div className="space-y-1">{summary.spend_by_feature.map((s) => (
+                      <div key={s.key} className="flex items-center justify-between gap-3 text-xs">
+                        <span className="truncate text-muted-foreground">{ledgerLabel(s.key)}</span>
+                        <span className="shrink-0 font-medium tabular-nums">{s.amount.toLocaleString()}</span>
+                      </div>))}</div>}
+              </div>
+              <div>
+                <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Credited by source</p>
+                <div className="space-y-1">{summary.grants_in.map((g) => (
+                  <div key={g.key} className="flex items-center justify-between gap-3 text-xs">
+                    <span className="truncate text-muted-foreground">{ledgerLabel(g.key)}</span>
+                    <span className="shrink-0 font-medium tabular-nums text-desyn-success">+{g.amount.toLocaleString()}</span>
+                  </div>))}</div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {ledger.length > 0 && (
           <div className="mt-4">
