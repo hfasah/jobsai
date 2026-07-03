@@ -36,6 +36,7 @@ interface JobListItem {
     cover: boolean;
     ats: boolean;
     applied: boolean;
+    confirmed: boolean;
     report: boolean;
   };
 }
@@ -598,7 +599,9 @@ export default function JobsPage() {
                         {/* Saved-work badges so users can see/resume what's done */}
                         {job.progress && (job.progress.applied || job.progress.tailored || job.progress.cover || job.progress.ats || job.progress.report) && (
                           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                            {job.progress.applied && <span className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-[10px] font-medium text-desyn-success">✓ Applied</span>}
+                            {job.progress.confirmed
+                              ? <span className="rounded-full bg-desyn-success/20 px-2 py-0.5 text-[10px] font-semibold text-desyn-success" title="The employer emailed a confirmation that your application was received">✓ Confirmed by employer</span>
+                              : job.progress.applied && <span className="rounded-full bg-desyn-success/15 px-2 py-0.5 text-[10px] font-medium text-desyn-success">✓ Applied</span>}
                             {job.progress.tailored && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Résumé tailored</span>}
                             {job.progress.cover && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">Cover letter</span>}
                             {job.progress.ats && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">ATS scan</span>}
