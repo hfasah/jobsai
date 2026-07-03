@@ -40,7 +40,7 @@ export async function GET() {
   // can resume work / review reports after logging back in.
   const ids = jobs.map((j) => j.id as string);
   if (ids.length > 0) {
-    const [tailored, covers, ats, applied, sessions, pipeline] = await Promise.all([
+    const [tailored, covers, ats, applied, sessions, pipeline, confirmed] = await Promise.all([
       supabaseAdmin.from("tailored_resumes").select("job_id").eq("user_id", userId).in("job_id", ids),
       supabaseAdmin.from("cover_letters").select("job_id").eq("user_id", userId).in("job_id", ids),
       supabaseAdmin.from("ats_scans").select("job_id").eq("user_id", userId).in("job_id", ids),
@@ -48,15 +48,21 @@ export async function GET() {
       supabaseAdmin.from("interview_sessions").select("job_id").eq("user_id", userId).in("job_id", ids),
       // Durable "applied" signal: any pipeline card past the saved stage.
       supabaseAdmin.from("applications").select("job_id, stage").eq("user_id", userId).in("job_id", ids),
+      // Employer "Application received" confirmation captured in the inbox — proof
+      // the application actually landed with the company.
+      supabaseAdmin.from("inbox_messages").select("job_id").eq("user_id", userId).eq("classification", "confirmation").in("job_id", ids),
     ]);
     const setOf = (rows: { job_id: string }[] | null) => new Set((rows ?? []).map((r) => r.job_id));
     const tSet = setOf(tailored.data), cSet = setOf(covers.data), aSet = setOf(ats.data), sSet = setOf(sessions.data);
+    const confirmedSet = setOf(confirmed.data);
     // A job counts as applied if it has a submitted attempt OR a pipeline card
-    // that's moved beyond "saved" (covers agent applies confirmed at launch).
+    // that's moved beyond "saved" (covers agent applies confirmed at launch), OR
+    // the employer emailed a confirmation.
     const apSet = setOf(applied.data);
     (pipeline.data ?? []).forEach((r) => {
       if (r.stage && r.stage !== "saved") apSet.add(r.job_id as string);
     });
+    confirmedSet.forEach((id) => apSet.add(id));
     jobs.forEach((j) => {
       const id = j.id as string;
       (j as Record<string, unknown>).progress = {
@@ -64,6 +70,7 @@ export async function GET() {
         cover: cSet.has(id),
         ats: aSet.has(id),
         applied: apSet.has(id),
+        confirmed: confirmedSet.has(id),
         report: sSet.has(id),
       };
     });
