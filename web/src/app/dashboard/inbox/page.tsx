@@ -23,10 +23,11 @@ const CLASS_TONE: Record<InboxClass, string> = {
   otp: "bg-[var(--cta)]/15 text-[var(--cta)]",
   rejection: "bg-destructive/15 text-destructive",
   update: "bg-muted text-foreground/70",
+  promotional: "bg-muted text-foreground/45",
   other: "bg-muted text-foreground/70",
 };
 
-const FILTERS: (InboxClass | "all")[] = ["all", "interview", "confirmation", "rejection", "otp", "update", "other"];
+const FILTERS: (InboxClass | "all")[] = ["all", "interview", "confirmation", "rejection", "otp", "update", "promotional", "other"];
 
 function ago(iso: string): string {
   const d = Date.parse(iso);
@@ -127,7 +128,9 @@ export default function InboxPage() {
     } catch { setReplyState("error"); setReplyError("Send failed. Please try again."); }
   }
 
-  const messages = (data?.messages ?? []).filter((m) => filter === "all" ? true : m.classification === filter);
+  // "All" hides promotional aggregator blasts (they're still reachable via the
+  // Promotional tab); an explicit filter shows exactly that class.
+  const messages = (data?.messages ?? []).filter((m) => filter === "all" ? m.classification !== "promotional" : m.classification === filter);
 
   if (loading) {
     return <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6"><div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Loading inbox…</div></main>;
