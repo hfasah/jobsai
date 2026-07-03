@@ -170,7 +170,7 @@ export async function refundFailedAgentApply(opts: {
  * exists for the job and hasn't already been reclaimed. Best-effort — if the
  * user has since spent the credits below the reclaim amount, we skip.
  */
-export async function reclaimConfirmedApply(userId: string, jobId: string): Promise<number> {
+export async function reclaimConfirmedApply(userId: string, jobId: string, opts: { dryRun?: boolean } = {}): Promise<number> {
   if (!userId || !jobId) return 0;
 
   // Already reclaimed for this job? (idempotency — a job may get several
@@ -192,6 +192,9 @@ export async function reclaimConfirmedApply(userId: string, jobId: string): Prom
 
   const amount = Math.abs(Number(refund.delta));
   if (!amount) return 0;
+
+  // Preview only — report what would be reclaimed without charging.
+  if (opts.dryRun) return amount;
 
   const r = await deductTokens(userId, amount, "auto_apply_confirmed_recharge", { job_id: jobId, source: "employer_confirmation" });
   return r.ok ? amount : 0;
