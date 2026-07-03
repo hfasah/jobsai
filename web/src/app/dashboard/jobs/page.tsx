@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Plus, Loader2, Briefcase, MapPin, Search, X, ChevronDown, Check,
-  TrendingUp, FileText, Star, Send, Zap, CheckCircle2, Bot,
+  TrendingUp, FileText, Star, Send, Zap, CheckCircle2, Bot, RotateCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -141,6 +141,9 @@ const SORT_OPTIONS: { value: SortKey; label: string }[] = [
   { value: "score_asc",  label: "Score: low → high" },
 ];
 
+// A job "processing" longer than this is treated as stalled → offer a retry.
+const STUCK_MS = 90_000;
+
 function FilterBar({
   search, setSearch,
   scoreFilter, setScoreFilter,
@@ -273,6 +276,10 @@ export default function JobsPage() {
   // Bulk-apply selection
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // When a stalled job was last retried, so we re-arm the grace period.
+  const [retriedAt, setRetriedAt] = useState<Record<string, number>>({});
+  // Ticks with the poll so stuck detection is a pure read of state, not Date.now().
+  const [now, setNow] = useState(() => Date.now());
   const toggleSelect = (id: string) =>
     setSelected((prev) => {
       const next = new Set(prev);
@@ -366,9 +373,17 @@ export default function JobsPage() {
     setLoading(false);
   }, []);
 
+  // Re-run a stalled job's analysis (its background work was killed). Re-arms the
+  // grace period so it shows "Scoring" again, and the 4s poll picks up the result.
+  const retryJob = useCallback(async (jobId: string) => {
+    setRetriedAt((m) => ({ ...m, [jobId]: Date.now() }));
+    await fetch(`/api/jobs/${jobId}/reprocess`, { method: "POST" }).catch(() => {});
+    fetchJobs();
+  }, [fetchJobs]);
+
   useEffect(() => {
     fetchJobs();
-    const interval = setInterval(fetchJobs, 4000);
+    const interval = setInterval(() => { fetchJobs(); setNow(Date.now()); }, 4000);
     return () => clearInterval(interval);
   }, [fetchJobs]);
 
@@ -536,6 +551,11 @@ export default function JobsPage() {
                 {filteredJobs.map((job) => {
                   const parsed = Array.isArray(job.parsed) ? job.parsed[0] : job.parsed;
                   const processing = job.status === "processing" || job.status === "created";
+                  // A job that's been "processing" past the threshold is almost
+                  // certainly stalled (serverless background work killed) — offer a
+                  // retry instead of spinning forever. Re-armed from the last retry.
+                  const startedAt = Math.max(new Date(job.created_at).getTime(), retriedAt[job.id] ?? 0);
+                  const stuck = processing && now - startedAt > STUCK_MS;
                   const ready = job.status === "ready";
                   const isSel = selected.has(job.id);
                   const board = boardForUrl(job.posting_url || job.source_url);
@@ -570,8 +590,13 @@ export default function JobsPage() {
                         <Briefcase className="h-4.5 w-4.5 text-primary" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        {processing ? (
+                        {processing && !stuck ? (
                           <ProcessingPlaceholder />
+                        ) : stuck ? (
+                          <div>
+                            <p className="truncate text-sm font-medium">{parsed?.title ?? "Import"}</p>
+                            <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">Analysis stalled — tap Retry to finish it.</p>
+                          </div>
                         ) : (
                           <p className="truncate text-sm font-medium">
                             {parsed?.title ?? "Untitled role"}
@@ -625,7 +650,15 @@ export default function JobsPage() {
                           <span className="text-xs font-medium text-destructive">Failed</span>
                         )}
                         {/* Score */}
-                        {!agentState && (processing ? (
+                        {!agentState && (stuck ? (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); retryJob(job.id); }}
+                            title="Analysis stalled — retry"
+                            className="inline-flex items-center gap-1 rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors"
+                          >
+                            <RotateCw className="h-3 w-3" /> Retry
+                          </button>
+                        ) : processing ? (
                           <span className="flex items-center gap-1.5 text-xs text-blue-500">
                             <Loader2 className="h-3.5 w-3.5 animate-spin" /> Scoring
                           </span>
