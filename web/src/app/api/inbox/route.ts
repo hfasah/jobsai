@@ -20,7 +20,8 @@ export async function GET() {
     .order("received_at", { ascending: false })
     .limit(200);
 
-  const unread = (messages ?? []).filter((m) => !m.is_read && m.direction === "inbound").length;
+  // Promotional aggregator blasts don't count as unread — they shouldn't nag.
+  const unread = (messages ?? []).filter((m) => !m.is_read && m.direction === "inbound" && m.classification !== "promotional").length;
 
   // The platform collects employer replies via per-application aliases, so the
   // inbox is active even without a connected Gmail account — show it once any

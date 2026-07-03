@@ -1,7 +1,7 @@
 // Provider-agnostic inbox helpers (classification + labels). Ingestion/sending
 // live in the provider lib (gmail.ts).
 
-export type InboxClass = "confirmation" | "rejection" | "interview" | "otp" | "update" | "other";
+export type InboxClass = "confirmation" | "rejection" | "interview" | "otp" | "update" | "promotional" | "other";
 
 export const CLASS_LABELS: Record<InboxClass, string> = {
   confirmation: "Application received",
@@ -9,6 +9,7 @@ export const CLASS_LABELS: Record<InboxClass, string> = {
   interview: "Interview",
   otp: "Verification",
   update: "Update",
+  promotional: "Promotional",
   other: "Other",
 };
 
@@ -22,6 +23,14 @@ export function classifyEmail(subject: string, body: string): InboxClass {
   // 2. Rejection — BEFORE interview. A "no" that mentions the interview process
   //    ("we interviewed many candidates… not this time") is still a rejection.
   if (/\b(unfortunately|not (be )?moving forward|won'?t be moving forward|not selected|other candidates|regret to inform|will not be moving|decided not to (move|proceed|continue)|no longer under consideration|not this time|not be progressing|position (has been|is) filled|pursue other candidates|not to proceed)\b/.test(t)) return "rejection";
+
+  // 2b. Promotional / re-engagement from job aggregators — "complete your
+  //     application", "don't miss out", "apply now", "jobs just added", etc.
+  //     These are marketing blasts, NOT employer replies, and must be down-ranked
+  //     so they don't read as failed/pending applications. Checked before the
+  //     confirmation/update rules so a "complete your application" nudge isn't
+  //     mistaken for a real receipt.
+  if (/\b(complete your application|finish (your )?application|haven'?t (yet )?completed|didn'?t (finish|complete)|don'?t miss out|resume your application|continue your application|start(ed)? applying|complete your profile|finish applying|almost there|one step away|pick up where you left|apply now|jobs? (just )?added|new jobs?( for you| in| matching| just added)|top jobs|explore (new|top)|discover (top|new)|opportunities (in|for you)|recommended (jobs|for you)|upload your resume to)\b/.test(t)) return "promotional";
 
   // 3. Application received — BEFORE interview. A confirmation that says "we'll
   //    schedule interviews with shortlisted candidates" is still just a receipt.
