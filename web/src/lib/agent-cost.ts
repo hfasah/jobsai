@@ -77,6 +77,40 @@ export function meteredCreditsForSteps(stepCount: number | null | undefined): nu
 
 export interface MeterResult { metered: number; delta: number; applied: boolean }
 
+// Reasons that mark an agent apply as already settled in the ledger. Used as a
+// fallback idempotency guard when the metered_credits column can't be claimed.
+const SETTLEMENT_REASONS = ["auto_apply_failed_refund", "auto_apply_meter_refund", "auto_apply_meter_overage"];
+
+type Claim = "claimed" | "already" | "unavailable";
+
+// Try to atomically claim the settlement by stamping metered_credits (still null
+// → this caller wins). "already" = another delivery settled it; "unavailable" =
+// the column errored (e.g. migration 128 not applied) so we can't use it as the
+// guard and must fall back to the ledger.
+async function claimSettlement(taskId: string, value: number): Promise<Claim> {
+  const { data, error } = await supabaseAdmin
+    .from("agent_apply_tasks")
+    .update({ metered_credits: value })
+    .eq("task_id", taskId)
+    .is("metered_credits", null)
+    .select("task_id")
+    .maybeSingle();
+  if (error) return "unavailable";
+  return data ? "claimed" : "already";
+}
+
+// Has this job already been settled in the ledger? (Fallback idempotency for the
+// degraded path where the metered_credits column is missing.)
+async function settledInLedger(userId: string, jobId: string): Promise<boolean> {
+  const { data } = await supabaseAdmin
+    .from("token_ledger").select("id")
+    .eq("user_id", userId)
+    .in("reason", SETTLEMENT_REASONS)
+    .filter("metadata->>job_id", "eq", jobId)
+    .limit(1).maybeSingle();
+  return Boolean(data);
+}
+
 /**
  * Reconcile the flat upfront charge against the run's real step_count.
  * Idempotent: the first call to set agent_apply_tasks.metered_credits wins, so
@@ -95,20 +129,16 @@ export async function settleAgentApply(opts: {
 
   const metered = meteredCreditsForSteps(stepCount);
 
-  // Claim the settlement: set metered_credits only if still null. If no row
-  // comes back, another webhook delivery already settled it (or column missing).
-  const { data: claimed, error } = await supabaseAdmin
-    .from("agent_apply_tasks")
-    .update({ metered_credits: metered })
-    .eq("task_id", taskId)
-    .is("metered_credits", null)
-    .select("task_id")
-    .maybeSingle();
-  if (error) {
-    console.warn("[meter] settle guard failed (run migration 128?):", error.message);
-    return null;
+  // Claim the settlement atomically via the metered_credits column. If the
+  // column is unavailable (migration 128 not applied), DON'T silently keep the
+  // full charge — fall back to ledger idempotency so a light run is still
+  // refunded its overpayment. Loud log so the missing migration gets fixed.
+  const claim = await claimSettlement(taskId, metered);
+  if (claim === "already") return null;
+  if (claim === "unavailable") {
+    console.error("[meter] metered_credits unavailable — settling via ledger fallback. APPLY MIGRATION 128.");
+    if (await settledInLedger(userId, jobId)) return null;
   }
-  if (!claimed) return null; // already settled
 
   // Free applies (charged 0) are never billed post-hoc.
   if (chargedUpfront <= 0) return { metered, delta: 0, applied: false };
@@ -143,18 +173,15 @@ export async function refundFailedAgentApply(opts: {
 }): Promise<MeterResult | null> {
   const { taskId, userId, jobId, chargedUpfront } = opts;
 
-  const { data: claimed, error } = await supabaseAdmin
-    .from("agent_apply_tasks")
-    .update({ metered_credits: 0 })
-    .eq("task_id", taskId)
-    .is("metered_credits", null)
-    .select("task_id")
-    .maybeSingle();
-  if (error) {
-    console.warn("[meter] refund guard failed (run migration 128?):", error.message);
-    return null;
+  // Claim atomically via the column; if it's unavailable (migration 128 not
+  // applied) fall back to ledger idempotency and STILL refund — a failed apply
+  // submitted nothing, so the user must never be left holding the charge.
+  const claim = await claimSettlement(taskId, 0);
+  if (claim === "already") return null;            // already settled/refunded
+  if (claim === "unavailable") {
+    console.error("[meter] metered_credits unavailable — refunding failed apply via ledger fallback. APPLY MIGRATION 128.");
+    if (await settledInLedger(userId, jobId)) return null;
   }
-  if (!claimed) return null;            // already settled/refunded
   if (chargedUpfront <= 0) return { metered: 0, delta: 0, applied: false }; // free apply
 
   await addTokens(userId, chargedUpfront, "auto_apply_failed_refund", { job_id: jobId });
