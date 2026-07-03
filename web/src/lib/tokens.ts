@@ -86,8 +86,14 @@ async function writeBuckets(userId: string, grant: number, topup: number): Promi
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function sameMonth(a: Date, b: Date): boolean {
-  return a.getUTCFullYear() === b.getUTCFullYear() && a.getUTCMonth() === b.getUTCMonth();
+// The monthly allowance is due once a FULL month has elapsed since the last
+// grant — i.e. on the user's own anniversary of last_granted_at, NOT on the 1st
+// of the calendar month. (A calendar-month check double-grants anyone who signs
+// up before month-end: e.g. signup on the 28th → a second full grant on the 1st.)
+function monthlyGrantDue(lastGranted: Date, now: Date): boolean {
+  const due = new Date(lastGranted);
+  due.setUTCMonth(due.getUTCMonth() + 1);
+  return now >= due;
 }
 
 async function writeLedger(
@@ -114,7 +120,8 @@ async function writeLedger(
 
 // ─── Account read + grant reconciliation ───────────────────────────────────────
 // Lazily creates the account, applies the signup grant, refreshes on plan change,
-// and credits the monthly allowance once per calendar month for recurring plans.
+// and credits the monthly allowance once a full month has elapsed since the last
+// grant (the user's own cycle) for recurring plans.
 
 export async function getTokenAccount(userId: string): Promise<TokenAccount> {
   const plan = await getUserPlan(userId);
@@ -151,7 +158,7 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
   const now = new Date();
   const planChanged = existing.plan !== plan;
 
-  const needsMonthly = grant.recurring && !sameMonth(lastGranted, now);
+  const needsMonthly = grant.recurring && monthlyGrantDue(lastGranted, now);
   const needsUpgradeGrant = planChanged && grant.recurring;
 
   if (needsMonthly || needsUpgradeGrant) {
