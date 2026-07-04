@@ -24,6 +24,16 @@ type ClawSummary = {
   error?: string;
 };
 
+type BackfillSummary = {
+  dryRun: boolean;
+  failed_unsettled_tasks: number;
+  refunded_tasks: number;
+  refunded_credits: number;
+  users_affected: number;
+  per_user: { user_id: string; tasks: number; credits: number }[];
+  error?: string;
+};
+
 function Stat({ label, value, accent }: { label: string; value: number; accent?: boolean }) {
   return (
     <div className="rounded-xl border border-border bg-card p-4">
@@ -45,6 +55,12 @@ export default function AdminReclaim() {
   const [clawResult, setClawResult] = useState<ClawSummary | null>(null);
   const [clawLoading, setClawLoading] = useState<"preview" | "run" | null>(null);
   const [clawError, setClawError] = useState<string | null>(null);
+
+  // Failed-apply refund backfill (metering-outage remediation).
+  const [bfPreview, setBfPreview] = useState<BackfillSummary | null>(null);
+  const [bfResult, setBfResult] = useState<BackfillSummary | null>(null);
+  const [bfLoading, setBfLoading] = useState<"preview" | "run" | null>(null);
+  const [bfError, setBfError] = useState<string | null>(null);
 
   const runPreview = async () => {
     setLoading("preview"); setError(null); setResult(null);
@@ -107,6 +123,36 @@ export default function AdminReclaim() {
   };
 
   const claw = clawResult ?? clawPreview;
+
+  const runBfPreview = async () => {
+    setBfLoading("preview"); setBfError(null); setBfResult(null);
+    try {
+      const res = await fetch("/api/admin/backfill-failed-applies");
+      const j = await res.json();
+      if (!res.ok) setBfError(j.error ?? "Preview failed.");
+      else setBfPreview(j);
+    } catch { setBfError("Preview failed."); }
+    setBfLoading(null);
+  };
+
+  const runBfExecute = async () => {
+    if (!bfPreview) return;
+    if (!confirm(
+      `This will REFUND ${bfPreview.refunded_credits.toLocaleString()} credits to ${bfPreview.users_affected} user(s) ` +
+      `for ${bfPreview.failed_unsettled_tasks} failed auto-applies that were charged during the metering outage. ` +
+      `This is a real billing action. Continue?`,
+    )) return;
+    setBfLoading("run"); setBfError(null);
+    try {
+      const res = await fetch("/api/admin/backfill-failed-applies", { method: "POST" });
+      const j = await res.json();
+      if (!res.ok) setBfError(j.error ?? "Execution failed.");
+      else setBfResult(j);
+    } catch { setBfError("Execution failed."); }
+    setBfLoading(null);
+  };
+
+  const bf = bfResult ?? bfPreview;
 
   return (
     <div className="space-y-10">
@@ -225,6 +271,71 @@ export default function AdminReclaim() {
                         <td className="px-4 py-2 font-mono text-xs">{u.user_id}</td>
                         <td className="px-4 py-2 tabular-nums">{u.erroneous_grants}</td>
                         <td className="px-4 py-2 tabular-nums">{u.clawed_credits.toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Failed-apply refund backfill (metering outage) ──────────────────── */}
+      <section className="space-y-6 border-t border-border pt-8">
+        <div>
+          <h2 className="flex items-center gap-2 text-xl font-bold"><Coins className="h-5 w-5 text-primary" /> Failed-apply refund backfill</h2>
+          <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+            While migration 128 was unapplied, the meter/refund path silently no-op&rsquo;d, so <strong>failed</strong> auto-applies
+            (nothing submitted) kept their full upfront charge. This refunds every unsettled failed apply that was actually charged.
+            Submitted applies are left billed at the flat quote. Idempotent (stamps <code>metered_credits=0</code>) &amp; safe to re-run.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap gap-3">
+          <button onClick={runBfPreview} disabled={bfLoading !== null}
+            className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50">
+            {bfLoading === "preview" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Coins className="h-4 w-4" />} Preview (dry-run)
+          </button>
+          <button onClick={runBfExecute} disabled={bfLoading !== null || !bfPreview || bfPreview.failed_unsettled_tasks === 0}
+            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-40">
+            {bfLoading === "run" ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle2 className="h-4 w-4" />} Execute refunds
+          </button>
+        </div>
+
+        {bfError && <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3 text-sm text-red-400">{bfError}</div>}
+
+        {bf && (
+          <div>
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              {bfResult
+                ? <span className="flex items-center gap-1.5 text-emerald-400"><CheckCircle2 className="h-4 w-4" /> Refunds issued</span>
+                : "Dry-run preview · no credits refunded"}
+            </p>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <Stat label="Failed unsettled tasks" value={bf.failed_unsettled_tasks} />
+              <Stat label={bfResult ? "Tasks refunded" : "Tasks to refund"} value={bfResult ? bf.refunded_tasks : bf.failed_unsettled_tasks} accent />
+              <Stat label="Credits to refund" value={bf.refunded_credits} accent />
+              <Stat label="Users affected" value={bf.users_affected} />
+            </div>
+            {!bfResult && bf.failed_unsettled_tasks === 0 && (
+              <p className="mt-3 text-sm text-muted-foreground">Nothing to refund — every failed apply is already settled. 🎉</p>
+            )}
+            {!bfResult && bf.failed_unsettled_tasks > 0 && (
+              <p className="mt-3 text-sm text-amber-400">Executing will refund {bf.refunded_credits.toLocaleString()} credits to {bf.users_affected} user(s).</p>
+            )}
+            {bf.per_user.length > 0 && (
+              <div className="mt-4 overflow-hidden rounded-xl border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 text-left text-xs uppercase tracking-wide text-muted-foreground">
+                    <tr><th className="px-4 py-2 font-medium">User ID</th><th className="px-4 py-2 font-medium">Failed applies</th><th className="px-4 py-2 font-medium">Refund</th></tr>
+                  </thead>
+                  <tbody>
+                    {bf.per_user.map((u) => (
+                      <tr key={u.user_id} className="border-t border-border">
+                        <td className="px-4 py-2 font-mono text-xs">{u.user_id}</td>
+                        <td className="px-4 py-2 tabular-nums">{u.tasks}</td>
+                        <td className="px-4 py-2 tabular-nums text-emerald-400">+{u.credits.toLocaleString()}</td>
                       </tr>
                     ))}
                   </tbody>
