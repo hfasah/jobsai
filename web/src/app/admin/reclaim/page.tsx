@@ -220,9 +220,10 @@ export default function AdminReclaim() {
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold"><Undo2 className="h-5 w-5 text-primary" /> Double-grant claw-back</h2>
           <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-            Reverse monthly credit grants that fired <strong>before a full month elapsed</strong> since the user&rsquo;s prior grant —
+            Reverse monthly credit grants that <strong>duplicated the same-plan allowance</strong> before a full month elapsed —
             the calendar-month leak fixed in PR #268 (e.g. sign up on the 28th, get a second full allowance on the 1st).
-            Claw-back never pushes a balance below zero and is idempotent. Grandfathered emails below are always excluded.
+            Plan <strong>upgrade</strong> grants (a different, higher amount) are legit and never touched. Claw-back never
+            pushes a balance below zero and is idempotent. Grandfathered emails below are always excluded.
           </p>
         </div>
 
