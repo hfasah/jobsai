@@ -55,9 +55,10 @@ interface UserResult {
 }
 
 // One-time (idempotent) remediation: reverse monthly_grant ledger entries that
-// fired BEFORE a full month had elapsed since the user's prior grant — the
-// calendar-month leak fixed in PR #268. Reads the SHARED Supabase, so it runs
-// from this deploy too. GET = dry-run preview (no charges); POST = execute.
+// DUPLICATED the current allowance (same amount as the prior grant) and fired
+// BEFORE a full month had elapsed — the calendar-month leak fixed in PR #268.
+// Plan-UPGRADE grants (a different, higher amount) are legit and never touched.
+// Reads the SHARED Supabase. GET = dry-run preview (no charges); POST = execute.
 async function run(req: NextRequest, dryRun: boolean) {
   // Build the exclusion set: always-grandfather list + any extra ?exclude_emails.
   const extra = (new URL(req.url).searchParams.get("exclude_emails") ?? "")
@@ -102,14 +103,24 @@ async function run(req: NextRequest, dryRun: boolean) {
   for (const [userId, grants] of byUser) {
     if (excludeUserIds.has(userId)) continue;
 
-    // Find this user's early monthly grants (compared to the immediately prior grant).
+    // Find this user's erroneous calendar-month grants. A grant is the bug ONLY
+    // if it DUPLICATES the current allowance — i.e. a monthly_grant of the SAME
+    // amount as the prior legit grant, fired < 1 month after it. A grant with a
+    // DIFFERENT amount is a plan UPGRADE (new higher allowance) and is legit, so
+    // it must never be clawed back. `baseline` tracks the last legit grant and
+    // only advances on legit grants, so a duplicate doesn't reset the clock.
     const early: GrantRow[] = [];
+    let baseline = grants[0]; // earliest grant (signup) is always legit
     for (let i = 1; i < grants.length; i++) {
       const g = grants[i];
-      if (g.reason !== "monthly_grant") continue;
-      if (!grantWasEarly(new Date(grants[i - 1].created_at), new Date(g.created_at))) continue;
-      if (alreadyClawed.has(`${userId}::${g.created_at}`)) continue;
-      early.push(g);
+      const sameAllowance = g.delta === baseline.delta;
+      const tooSoon = grantWasEarly(new Date(baseline.created_at), new Date(g.created_at));
+      if (g.reason === "monthly_grant" && sameAllowance && tooSoon) {
+        if (!alreadyClawed.has(`${userId}::${g.created_at}`)) early.push(g);
+        // erroneous duplicate → do NOT advance the baseline
+      } else {
+        baseline = g; // legit grant (upgrade or a real monthly) → new baseline
+      }
     }
     if (early.length === 0) continue;
 
