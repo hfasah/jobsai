@@ -27,6 +27,8 @@ type ClawSummary = {
 type BackfillSummary = {
   dryRun: boolean;
   failed_unsettled_tasks: number;
+  excluded_tasks: number;
+  grandfathered: number;
   refunded_tasks: number;
   refunded_credits: number;
   users_affected: number;
@@ -61,6 +63,7 @@ export default function AdminReclaim() {
   const [bfResult, setBfResult] = useState<BackfillSummary | null>(null);
   const [bfLoading, setBfLoading] = useState<"preview" | "run" | null>(null);
   const [bfError, setBfError] = useState<string | null>(null);
+  const [bfExclude, setBfExclude] = useState("tom.bianco@gmail.com");
 
   const runPreview = async () => {
     setLoading("preview"); setError(null); setResult(null);
@@ -124,10 +127,15 @@ export default function AdminReclaim() {
 
   const claw = clawResult ?? clawPreview;
 
+  const bfUrl = () => {
+    const q = bfExclude.trim() ? `?exclude_emails=${encodeURIComponent(bfExclude.trim())}` : "";
+    return `/api/admin/backfill-failed-applies${q}`;
+  };
+
   const runBfPreview = async () => {
     setBfLoading("preview"); setBfError(null); setBfResult(null);
     try {
-      const res = await fetch("/api/admin/backfill-failed-applies");
+      const res = await fetch(bfUrl());
       const j = await res.json();
       if (!res.ok) setBfError(j.error ?? "Preview failed.");
       else setBfPreview(j);
@@ -140,11 +148,11 @@ export default function AdminReclaim() {
     if (!confirm(
       `This will REFUND ${bfPreview.refunded_credits.toLocaleString()} credits to ${bfPreview.users_affected} user(s) ` +
       `for ${bfPreview.failed_unsettled_tasks} failed auto-applies that were charged during the metering outage. ` +
-      `This is a real billing action. Continue?`,
+      `${bfPreview.grandfathered} user(s) are excluded (incl. Thomas). This is a real billing action. Continue?`,
     )) return;
     setBfLoading("run"); setBfError(null);
     try {
-      const res = await fetch("/api/admin/backfill-failed-applies", { method: "POST" });
+      const res = await fetch(bfUrl(), { method: "POST" });
       const j = await res.json();
       if (!res.ok) setBfError(j.error ?? "Execution failed.");
       else setBfResult(j);
@@ -292,6 +300,14 @@ export default function AdminReclaim() {
           </p>
         </div>
 
+        <div className="max-w-lg">
+          <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-muted-foreground">Exclude (don&rsquo;t refund) — comma-separated emails</label>
+          <input value={bfExclude} onChange={(e) => setBfExclude(e.target.value)} disabled={bfLoading !== null}
+            placeholder="tom.bianco@gmail.com"
+            className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-50" />
+          <p className="mt-1 text-xs text-muted-foreground">Thomas Bianco is excluded server-side regardless — his balance is held at 18,030 (no refund).</p>
+        </div>
+
         <div className="flex flex-wrap gap-3">
           <button onClick={runBfPreview} disabled={bfLoading !== null}
             className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-50">
@@ -312,11 +328,12 @@ export default function AdminReclaim() {
                 ? <span className="flex items-center gap-1.5 text-emerald-400"><CheckCircle2 className="h-4 w-4" /> Refunds issued</span>
                 : "Dry-run preview · no credits refunded"}
             </p>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <Stat label="Failed unsettled tasks" value={bf.failed_unsettled_tasks} />
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-5">
               <Stat label={bfResult ? "Tasks refunded" : "Tasks to refund"} value={bfResult ? bf.refunded_tasks : bf.failed_unsettled_tasks} accent />
               <Stat label="Credits to refund" value={bf.refunded_credits} accent />
               <Stat label="Users affected" value={bf.users_affected} />
+              <Stat label="Excluded (held)" value={bf.grandfathered} />
+              <Stat label="Excluded tasks" value={bf.excluded_tasks} />
             </div>
             {!bfResult && bf.failed_unsettled_tasks === 0 && (
               <p className="mt-3 text-sm text-muted-foreground">Nothing to refund — every failed apply is already settled. 🎉</p>
