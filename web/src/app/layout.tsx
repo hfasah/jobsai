@@ -97,7 +97,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
+    <ClerkProvider afterSignOutUrl="/enterprise/home">
       <html
         lang="en"
         className={`${inter.variable} ${plusJakarta.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}

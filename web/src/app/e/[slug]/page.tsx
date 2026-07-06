@@ -9,10 +9,20 @@ import { supabaseAdmin } from "@/lib/supabase";
 // - Signed-in members go straight to their workspace.
 // - Everyone else (incl. after logout) sees the company's branded landing with a
 //   request to log in. Intentionally minimal — no JobsAI marketing content.
-export default async function EnterpriseHome({ params }: { params: Promise<{ slug: string }> }) {
+export default async function EnterpriseHome({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ signed_out?: string }>;
+}) {
   const { slug } = await params;
+  // After sign-out we land here with ?signed_out=1. Suppress the members-forward
+  // so a session that hasn't fully torn down yet can't bounce the user straight
+  // back into the workspace — they see the branded login instead. See handleSignOut.
+  const justSignedOut = (await searchParams).signed_out === "1";
   const { userId } = await auth();
-  if (userId) {
+  if (userId && !justSignedOut) {
     // First visit after a fresh sign-up: auto-join the org this email was
     // invited to, so the link lands them in the workspace.
     try {
