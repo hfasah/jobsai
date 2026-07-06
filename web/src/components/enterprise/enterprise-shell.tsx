@@ -47,9 +47,14 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
   const pathname = usePathname();
   const { signOut } = useClerk();
   // Sign out via the Clerk hook (more reliable than wrapping a <button> in
-  // <SignOutButton>) and land on the login page, not the org's public careers
-  // page — so it's unambiguous you're logged out.
-  const handleSignOut = () => signOut({ redirectUrl: "/enterprise-login" });
+  // <SignOutButton>). Land on a destination that will NOT forward an
+  // authenticated session back into the app: `/e/{slug}?signed_out=1` shows the
+  // branded login and its members-forward is suppressed by the signed_out flag,
+  // so even if the session lingers a beat you can't get bounced back in. (The
+  // old `/enterprise-login` target went through <SignIn> → /launch, both of
+  // which forward members to the dashboard — the root of "I can't log out".)
+  const handleSignOut = () =>
+    signOut({ redirectUrl: org?.slug ? `/e/${org.slug}?signed_out=1` : "/enterprise/home" });
   // ent === null => entitlements not loaded yet, show everything optimistically.
   const features = ent?.features ?? null;
   const nav = NAV.filter((item) => !item.feature || features === null || features.includes(item.feature));
