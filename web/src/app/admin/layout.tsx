@@ -4,9 +4,9 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, CreditCard, Building2,
-  MessageSquareWarning, ShieldCheck, LogOut, Inbox, BarChart3, Globe, Handshake, Target, Newspaper, Rocket, Coins,
+  MessageSquareWarning, ShieldCheck, Inbox, BarChart3, Globe, Handshake, Target, Newspaper, Rocket, Coins,
 } from "lucide-react";
-import { SignOutButton } from "@clerk/nextjs";
+import { AdminSignOut } from "@/components/admin-sign-out";
 
 async function checkAdmin() {
   const { userId } = await auth();
@@ -52,11 +52,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           ))}
         </nav>
         <div className="border-t border-border p-3 space-y-1">
-          <SignOutButton redirectUrl="/sign-in">
-            <button className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive">
-              <LogOut className="h-3.5 w-3.5" /> Sign out
-            </button>
-          </SignOutButton>
+          <AdminSignOut />
         </div>
       </aside>
 
