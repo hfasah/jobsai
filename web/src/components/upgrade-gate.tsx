@@ -15,16 +15,24 @@ interface UpgradeGateProps {
   lockedElement?: React.ReactNode;
   /** The children to render when the user has access */
   children: React.ReactNode;
+  /**
+   * If set, users who aren't on a paid plan but hold at least this many tokens
+   * ALSO get access — because they bought a token pack for this exact feature.
+   * Use for token-metered features (e.g. Agent Apply). Omit for paid-only ones.
+   */
+  unlockWithTokens?: number;
   className?: string;
 }
 
-/** Wraps any element. Free users see a lock + modal nudge; paid users see the real thing. */
-export function UpgradeGate({ feature, description, lockedElement, children, className }: UpgradeGateProps) {
-  const { plan, loading } = usePlan();
+/** Wraps any element. Free users see a lock + modal nudge; paid users (or, for
+ *  token-metered features, users with enough tokens) see the real thing. */
+export function UpgradeGate({ feature, description, lockedElement, children, unlockWithTokens, className }: UpgradeGateProps) {
+  const { plan, balance, loading } = usePlan();
   const [showModal, setShowModal] = useState(false);
 
   if (loading) return null;
-  if (isPaidPlan(plan)) return <>{children}</>;
+  const hasTokenAccess = unlockWithTokens != null && balance >= unlockWithTokens;
+  if (isPaidPlan(plan) || hasTokenAccess) return <>{children}</>;
 
   return (
     <>
