@@ -588,3 +588,29 @@
 .blog-content table { @apply mt-4 w-full border-collapse text-sm; }
 .blog-content th, .blog-content td { @apply border border-border px-3 py-2 text-left; }
 .blog-content hr { @apply my-8 border-border; }
+
+/* ── Soro blog embed (jobsai.work/blog): recolor for the dark theme ──────────
+   Soro injects its content into a plain <div id="soro-blog"> (no shadow DOM) with
+   default styles built for a LIGHT background (#1a1a1a text), which is invisible
+   on our dark bg. Soro's rules are single-class, so scoping with #soro-blog wins
+   without !important. See components/marketing/soro-blog.tsx. */
+#soro-blog .soro-blog-card-title,
+#soro-blog .soro-blog-article-title,
+#soro-blog .soro-blog-article-content :where(h1, h2, h3, h4, h5, h6),
+#soro-blog .soro-blog-article-content strong,
+#soro-blog .soro-blog-article-content b {
+  color: var(--foreground);
+}
+#soro-blog .soro-blog-article-content,
+#soro-blog .soro-blog-article-content :where(p, li, blockquote, td, th) {
+  color: var(--muted-foreground);
+}
+#soro-blog .soro-blog-card-excerpt,
+#soro-blog .soro-blog-card-date,
+#soro-blog .soro-blog-article-date {
+  color: var(--muted-foreground);
+}
+#soro-blog .soro-blog-article-content a,
+#soro-blog .soro-blog-back {
+  color: var(--primary);
+}
