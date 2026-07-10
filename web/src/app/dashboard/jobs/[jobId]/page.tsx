@@ -476,10 +476,11 @@ export default function JobDetailPage({
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap items-center gap-2">
-                  {/* Agent Apply — gated for free users */}
+                  {/* Agent Apply — paid plans OR a token pack (600 = TOKEN_COSTS.auto_apply per apply) */}
                   <UpgradeGate
                     feature="Agent Apply"
-                    description="The browser agent opens the job site, fills every form field, handles CAPTCHA, and submits — automatically. Available on all paid plans."
+                    description="The browser agent opens the job site, fills every form field, handles CAPTCHA, and submits — automatically. Available on any paid plan, or with a token pack."
+                    unlockWithTokens={600}
                     lockedElement={
                       <button className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground">
                         🔒 Agent Apply (Auto) — Paid

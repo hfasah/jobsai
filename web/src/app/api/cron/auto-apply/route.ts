@@ -8,7 +8,7 @@ import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
-import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, TOKEN_COSTS } from "@/lib/tokens";
+import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import type { UserPreferences } from "@/types/preferences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
@@ -36,7 +36,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ok: true, users_processed: 0, message: "No users with auto-apply enabled." });
   }
 
-  // Only run for paid users
+  // Eligible = active paid subscription OR a token balance that covers an apply
+  // (token packs unlock auto-apply too — each apply just spends TOKEN_COSTS.auto_apply).
   const { data: billingRows } = await supabaseAdmin
     .from("user_billing")
     .select("user_id, plan, subscription_status")
@@ -45,7 +46,19 @@ export async function GET(req: NextRequest) {
     .in("subscription_status", ["active", "trialing"]);
 
   const paidUserIds = new Set((billingRows ?? []).map((b) => b.user_id));
-  const activePrefs = (enabledPrefs as UserPreferences[]).filter((p) => paidUserIds.has(p.user_id));
+
+  // Non-subscription users with enough tokens also qualify (each run stops naturally
+  // when their balance can't cover the next apply).
+  const nonPaid = (enabledPrefs as UserPreferences[]).filter((p) => !paidUserIds.has(p.user_id));
+  const tokenUserIds = new Set<string>();
+  for (const p of nonPaid) {
+    const bal = await getTokenBalance(p.user_id).catch(() => 0);
+    if (bal >= TOKEN_COSTS.auto_apply) tokenUserIds.add(p.user_id);
+  }
+
+  const activePrefs = (enabledPrefs as UserPreferences[]).filter(
+    (p) => paidUserIds.has(p.user_id) || tokenUserIds.has(p.user_id),
+  );
 
   const summary = {
     users_processed: 0,
