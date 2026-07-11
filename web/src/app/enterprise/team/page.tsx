@@ -53,6 +53,7 @@ const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   can_import_sourced:      "Import sourced candidates",
   can_export_sourced:      "Export sourcing results",
   can_manage_sourcing:     "Manage sourcing providers & credits",
+  can_manage_ai_sdr:       "Manage AI SDR auto-reply",
 };
 
 export default function TeamPage() {

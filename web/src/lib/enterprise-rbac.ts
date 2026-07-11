@@ -16,7 +16,9 @@ export type Permission =
   | "can_reveal_contacts"
   | "can_import_sourced"
   | "can_export_sourced"
-  | "can_manage_sourcing";
+  | "can_manage_sourcing"
+  // AI SDR (per-campaign auto-reply)
+  | "can_manage_ai_sdr";
 
 type PermissionSet = Record<Permission, boolean>;
 
@@ -38,6 +40,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      true,
     can_export_sourced:      true,
     can_manage_sourcing:     true,
+    can_manage_ai_sdr:       true,
   },
   admin: {
     can_view_applications:   true,
@@ -55,6 +58,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      true,
     can_export_sourced:      true,
     can_manage_sourcing:     true,
+    can_manage_ai_sdr:       true,
   },
   recruiter: {
     can_view_applications:   true,
@@ -72,6 +76,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      true,
     can_export_sourced:      true,
     can_manage_sourcing:     false,
+    can_manage_ai_sdr:       true,
   },
   hiring_manager: {
     can_view_applications:   true,
@@ -89,6 +94,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      false,
     can_export_sourced:      false,
     can_manage_sourcing:     false,
+    can_manage_ai_sdr:       false,
   },
   interviewer: {
     can_view_applications:   true,
@@ -106,6 +112,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      false,
     can_export_sourced:      false,
     can_manage_sourcing:     false,
+    can_manage_ai_sdr:       false,
   },
   department_head: {
     can_view_applications:   true,
@@ -123,6 +130,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      false,
     can_export_sourced:      false,
     can_manage_sourcing:     false,
+    can_manage_ai_sdr:       false,
   },
   viewer: {
     can_view_applications:   true,
@@ -140,6 +148,7 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_import_sourced:      false,
     can_export_sourced:      false,
     can_manage_sourcing:     false,
+    can_manage_ai_sdr:       false,
   },
 };
 
