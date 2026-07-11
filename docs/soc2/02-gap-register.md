@@ -5,7 +5,7 @@ the resulting evidence in [`01-control-matrix.md`](01-control-matrix.md).
 
 | ID | Gap | Criteria | Priority | Owner | Effort | Status |
 |---|---|---|---|---|---|---|
-| **G1** | **Secrets management** — prod keys were exposed in a OneDrive-synced folder; rotate all 5 (Supabase service-role, Clerk, Stripe, OpenAI, Resend); write a key-management/rotation policy; confirm no secrets in VCS | CC6.7 | Founder+Eng | S | 🔴 rotation pending |
+| **G1** | **Secrets management** — prod keys exposed in a OneDrive-synced `web/.env.local`. **Wave 1 done + verified 2026-07-09** (Clerk, Stripe, Supabase service_role, OpenAI, Resend, LiveAvatar rotated → old keys 401; prod healthy; local file cleaned). **Wave 2 pending**: DeepSeek, Adzuna, JSearch, Merge, Google + Microsoft client secrets, Stripe + Resend webhook secrets, PostHog. Root cause: move repo off cloud-sync. Evidence: `evidence/governance/key-rotation-2026-07.md` | CC6.7 | Founder+Eng | S | 🟡 Wave 1 closed, Wave 2 pending |
 | **G2** | **Change management** — enable GitHub **branch protection** on `main`/`enterprise` (require PR review + passing checks, no direct pushes) + add a **CI workflow** (typecheck/lint/build gate) | CC8.1, CC5.2 | Eng | S | 🔴 |
 | **G3** | **Vulnerability management** — enable **Dependabot** (deps + security updates) and **CodeQL** code scanning | CC7.1 | Eng | S | 🔴 |
 | **G4** | **Monitoring/incident detection** — add **Sentry** (error + performance) with alerting; document log review | CC7.2 | Eng | S | 🔴 |
