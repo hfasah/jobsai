@@ -8,7 +8,7 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Inbox, Loader2, Send, Star, CalendarClock, UserX, MailX, Share2, Moon,
-  Check, CircleDot, Search, RefreshCw, ChevronDown, Flame,
+  Check, CircleDot, Search, RefreshCw, ChevronDown, Flame, Bot, Pencil,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,8 +43,9 @@ interface ThreadRow {
   intent: Intent | null; intent_confidence: number | null; intent_manual: boolean;
   interest_score: number | null; interest_level: InterestLevel | null;
   ai_summary: string | null; status: "open" | "snoozed" | "done"; assignee_user_id: string | null;
-  last_inbound_at: string | null; reply_count: number; unread: boolean;
+  last_inbound_at: string | null; reply_count: number; unread: boolean; has_ai_draft?: boolean;
 }
+interface AiDraft { id: string; draft_subject: string | null; draft_body: string; model: string | null }
 interface Message { id: string; direction: "inbound" | "outbound"; from_email: string | null; subject: string | null; body: string | null; created_at: string }
 
 function IntentBadge({ intent, confidence, manual }: { intent: Intent | null; confidence: number | null; manual: boolean }) {
@@ -80,6 +81,8 @@ function InboxInner() {
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
+  const [draftBusy, setDraftBusy] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<"open" | "done" | "all">("open");
   const [filterIntent, setFilterIntent] = useState<Intent | "">("");
@@ -112,6 +115,7 @@ function InboxInner() {
     setDetail(null);
     setReply("");
     setReplyError(null);
+    setAiDraft(null);
     const res = await fetch(`/api/enterprise/outreach/inbox/${id}`);
     const json = await res.json();
     if (res.ok) {
@@ -119,7 +123,27 @@ function InboxInner() {
       // reflect read state in the list without a refetch
       setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, unread: false } : t)));
     }
+    // Fetch any pending AI SDR draft for this thread.
+    fetch(`/api/enterprise/outreach/inbox/${id}/ai-draft`)
+      .then((r) => r.json())
+      .then((j) => setAiDraft(j.data ?? null))
+      .catch(() => {});
   }, []);
+
+  const actOnDraft = async (action: "send" | "dismiss", body?: string) => {
+    if (!selectedId) return;
+    setDraftBusy(true);
+    const res = await fetch(`/api/enterprise/outreach/inbox/${selectedId}/ai-draft`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, body }),
+    });
+    setDraftBusy(false);
+    if (res.ok) {
+      setAiDraft(null);
+      if (action === "send") { openThread(selectedId); loadList(); }
+    }
+  };
 
   useEffect(() => {
     const initial = params.get("thread");
@@ -238,6 +262,11 @@ function InboxInner() {
                 <div className="flex flex-wrap items-center gap-1.5">
                   <IntentBadge intent={t.intent} confidence={t.intent_confidence} manual={t.intent_manual} />
                   <InterestBadge level={t.interest_level} />
+                  {t.has_ai_draft && (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+                      <Bot className="h-3 w-3" /> AI draft
+                    </span>
+                  )}
                   {t.assignee_user_id && <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">{t.assignee_user_id === me ? "you" : "assigned"}</span>}
                   {t.reply_count > 1 && <span className="text-[10px] text-muted-foreground">{t.reply_count} replies</span>}
                 </div>
@@ -311,6 +340,37 @@ function InboxInner() {
                 </p>
               ) : (
                 <>
+                  {aiDraft && (
+                    <div className="mb-2 rounded-xl border border-primary/40 bg-primary/5 p-2.5">
+                      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-primary">
+                        <Bot className="h-3.5 w-3.5" /> AI SDR suggests a reply
+                      </div>
+                      <p className="mb-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-foreground/90">{aiDraft.draft_body}</p>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => actOnDraft("send")}
+                          disabled={draftBusy}
+                          className="btn-cta inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-60"
+                        >
+                          {draftBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Approve &amp; send
+                        </button>
+                        <button
+                          onClick={() => { setReply(aiDraft.draft_body); actOnDraft("dismiss"); }}
+                          disabled={draftBusy}
+                          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-60"
+                        >
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </button>
+                        <button
+                          onClick={() => actOnDraft("dismiss")}
+                          disabled={draftBusy}
+                          className="rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-red-400 disabled:opacity-60"
+                        >
+                          Dismiss
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   {replyError && <p className="mb-1.5 text-xs text-red-400">{replyError}</p>}
                   <div className="flex items-end gap-2">
                     <textarea
