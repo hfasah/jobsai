@@ -10,7 +10,9 @@ export type AuditAction =
   | "data.exported" | "data.deleted"
   | "sourcing.search_executed" | "sourcing.contact_revealed" | "sourcing.profile_enriched"
   | "sourcing.candidate_imported" | "sourcing.results_exported" | "sourcing.candidate_suppressed"
-  | "sourcing.provider_updated" | "sourcing.credits_adjusted";
+  | "sourcing.provider_updated" | "sourcing.credits_adjusted"
+  | "outreach.domain_added" | "outreach.domain_verified" | "outreach.domain_removed"
+  | "outreach.mailbox_added" | "outreach.mailbox_paused" | "outreach.mailbox_resumed";
 
 interface AuditEntry {
   org_id: string;
