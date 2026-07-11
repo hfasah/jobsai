@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
     ? body.resultIds.filter((x: unknown): x is string => typeof x === "string").slice(0, MAX_BULK)
     : [];
   if (resultIds.length === 0) return NextResponse.json({ error: "resultIds is required." }, { status: 400 });
-  const target: ImportTarget = ["talent_pool", "job", "intake"].includes(body.target) ? body.target : "talent_pool";
+  const target: ImportTarget = ["talent_pool", "job", "intake", "crm_contact", "campaign"].includes(body.target) ? body.target : "talent_pool";
   const onDuplicate: OnDuplicate = ["skip", "import_anyway", "merge"].includes(body.onDuplicate) ? body.onDuplicate : "skip";
 
-  if (target !== "talent_pool") {
+  if (target === "job" || target === "intake") {
     const limited = await enforceLimit(userId, "candidates", resultIds.length);
     if (limited) return limited;
   }
@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
       target,
       jobId: typeof body.jobId === "string" ? body.jobId : null,
       groupId: typeof body.groupId === "string" ? body.groupId : null,
+      campaignId: typeof body.campaignId === "string" ? body.campaignId : null,
       onDuplicate,
     });
     if (outcome.status === "imported") { summary.imported++; importedResultIds.push(row.id); }

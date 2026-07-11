@@ -8,7 +8,7 @@ import { loadInternalIndex, dedupeVerdict } from "./dedupe";
 import { titleCase } from "./normalize";
 import type { DedupVerdict, ExternalCandidate } from "./types";
 
-export type ImportTarget = "talent_pool" | "job" | "intake";
+export type ImportTarget = "talent_pool" | "job" | "intake" | "crm_contact" | "campaign";
 export type OnDuplicate = "skip" | "import_anyway" | "merge";
 
 export interface StoredCandidateRow {
@@ -36,6 +36,8 @@ export interface ImportOutcome {
   verdict?: DedupVerdict;
   application_id?: string;
   talent_pool_id?: string;
+  crm_contact_id?: string;
+  enrollment_id?: string;
   error?: string;
 }
 
@@ -75,6 +77,9 @@ async function recordImport(args: {
   applicationId?: string | null;
   talentPoolId?: string | null;
   poolGroupId?: string | null;
+  crmContactId?: string | null;
+  campaignId?: string | null;
+  enrollmentId?: string | null;
   dedupStatus: string;
   decision: "imported_new" | "imported_anyway" | "merged" | "skipped";
 }): Promise<void> {
@@ -87,6 +92,9 @@ async function recordImport(args: {
     application_id: args.applicationId ?? null,
     talent_pool_id: args.talentPoolId ?? null,
     pool_group_id: args.poolGroupId ?? null,
+    crm_contact_id: args.crmContactId ?? null,
+    campaign_id: args.campaignId ?? null,
+    enrollment_id: args.enrollmentId ?? null,
     dedup_status: args.dedupStatus,
     dedup_decision: args.decision,
   });
@@ -99,6 +107,7 @@ export async function importExternalCandidate(args: {
   target: ImportTarget;
   jobId?: string | null;
   groupId?: string | null;
+  campaignId?: string | null;
   onDuplicate?: OnDuplicate;
 }): Promise<ImportOutcome> {
   const { orgId, userId, candidate, target } = args;
@@ -189,6 +198,120 @@ export async function importExternalCandidate(args: {
     }
     await recordImport({ orgId, userId, candidateId: candidate.id, target, talentPoolId: poolId, poolGroupId: args.groupId ?? null, dedupStatus: verdict.status, decision });
     return { status: "imported", verdict, talent_pool_id: poolId };
+  }
+
+  // CRM contact — for lead-gen / decision-maker outreach. Creates (or links)
+  // the company, then a contact keyed by email. Dedup by (org, email).
+  if (target === "crm_contact") {
+    const first = candidate.first_name ?? (candidate.full_name ?? name).split(" ")[0];
+    const last = candidate.last_name ?? (candidate.full_name ?? "").split(" ").slice(1).join(" ") || null;
+
+    let companyId: string | null = null;
+    if (candidate.company) {
+      const { data: existingCo } = await supabaseAdmin
+        .from("crm_companies")
+        .select("id")
+        .eq("org_id", orgId)
+        .ilike("name", candidate.company)
+        .maybeSingle();
+      if (existingCo) companyId = (existingCo as { id: string }).id;
+      else {
+        const { data: newCo } = await supabaseAdmin
+          .from("crm_companies")
+          .insert({ org_id: orgId, name: candidate.company, source: "sourcing", created_by: userId })
+          .select("id")
+          .single();
+        companyId = (newCo as { id: string } | null)?.id ?? null;
+      }
+    }
+
+    // Dedup: update an existing contact with the same email rather than dup.
+    const { data: existingContact } = await supabaseAdmin
+      .from("crm_contacts")
+      .select("id")
+      .eq("org_id", orgId)
+      .ilike("email", email)
+      .maybeSingle();
+    let contactId: string;
+    if (existingContact) {
+      contactId = (existingContact as { id: string }).id;
+    } else {
+      const { data: contact, error } = await supabaseAdmin
+        .from("crm_contacts")
+        .insert({
+          org_id: orgId,
+          company_id: companyId,
+          first_name: first,
+          last_name: last,
+          title: titleCase(candidate.job_title),
+          email,
+          phone: candidate.phones[0]?.value ?? null,
+          linkedin_url: candidate.linkedin_url,
+          contact_type: "other",
+          tags: candidate.skills.slice(0, 12),
+          notes: importNote,
+          created_by: userId,
+        })
+        .select("id")
+        .single();
+      if (error || !contact) return { status: "error", error: error?.message ?? "Could not create contact." };
+      contactId = (contact as { id: string }).id;
+    }
+    await recordImport({ orgId, userId, candidateId: candidate.id, target, crmContactId: contactId, dedupStatus: verdict.status, decision: existingContact ? "merged" : decision });
+    return { status: existingContact ? "merged" : "imported", verdict, crm_contact_id: contactId };
+  }
+
+  // Campaign — enroll straight into a cold-email sequence (search → outreach).
+  if (target === "campaign") {
+    if (!args.campaignId) return { status: "error", error: "A campaign is required." };
+    const { data: campaign } = await supabaseAdmin
+      .from("enterprise_campaigns")
+      .select("id")
+      .eq("id", args.campaignId)
+      .eq("org_id", orgId)
+      .maybeSingle();
+    if (!campaign) return { status: "error", error: "Campaign not found." };
+
+    const { data: steps } = await supabaseAdmin
+      .from("enterprise_campaign_steps")
+      .select("delay_days")
+      .eq("campaign_id", args.campaignId)
+      .order("step_order", { ascending: true })
+      .limit(1);
+    if (!steps || steps.length === 0) return { status: "error", error: "Add a step to the campaign before enrolling." };
+
+    // Already enrolled → don't double-message.
+    const { data: existingEnroll } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .select("id")
+      .eq("campaign_id", args.campaignId)
+      .ilike("candidate_email", email)
+      .maybeSingle();
+    if (existingEnroll) {
+      await recordImport({ orgId, userId, candidateId: candidate.id, target, campaignId: args.campaignId, enrollmentId: (existingEnroll as { id: string }).id, dedupStatus: verdict.status, decision: "merged" });
+      return { status: "merged", verdict, enrollment_id: (existingEnroll as { id: string }).id };
+    }
+
+    const nextSendAt = new Date(Date.now() + Math.max(0, steps[0].delay_days || 0) * 86_400_000).toISOString();
+    const { data: enrollment, error } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .insert({
+        campaign_id: args.campaignId,
+        org_id: orgId,
+        candidate_name: name,
+        candidate_email: email,
+        candidate_source: "sourcing",
+        status: "active",
+        current_step_order: 0,
+        next_send_at: nextSendAt,
+        enrolled_by: userId,
+      })
+      .select("id")
+      .single();
+    if (error || !enrollment) return { status: "error", error: error?.message ?? "Could not enroll." };
+    const enrollmentId = (enrollment as { id: string }).id;
+    await recordImport({ orgId, userId, candidateId: candidate.id, target, campaignId: args.campaignId, enrollmentId, dedupStatus: verdict.status, decision });
+    return { status: "imported", verdict, enrollment_id: enrollmentId };
   }
 
   // job / intake -> an enterprise_applications row
