@@ -7,6 +7,8 @@ import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { recordUsage } from "@/lib/llm-usage";
 import { renderTemplate, firstName, type CampaignVars } from "@/lib/campaigns";
+import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
+import { loadRotationPool, claimFromPool, type RotationPool } from "@/lib/outreach/rotation";
 
 export const maxDuration = 60;
 
@@ -27,7 +29,7 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
+    .select("*, campaign:enterprise_campaigns(status, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -35,6 +37,12 @@ export async function POST(req: NextRequest) {
     .limit(BATCH);
 
   if (!due || due.length === 0) return NextResponse.json({ ok: true, sent: 0 });
+
+  // One rotation pool per org in this batch (mailbox rotation across the
+  // org's healthy sending mailboxes; legacy shared-address send when none).
+  const orgIds = [...new Set(due.map((e) => e.org_id as string))];
+  const pools = new Map<string, RotationPool>();
+  await Promise.all(orgIds.map(async (orgId) => pools.set(orgId, await loadRotationPool(orgId))));
 
   // Load all steps for the campaigns in this batch, grouped by campaign.
   const campaignIds = [...new Set(due.map((e) => e.campaign_id))];
@@ -53,10 +61,22 @@ export async function POST(req: NextRequest) {
   let sent = 0;
 
   const processOne = async (e: Record<string, unknown>) => {
-    const campaignStatus = (e.campaign as { status: string } | null)?.status;
+    const campaign = e.campaign as
+      | ({ status: string } & SendWindow)
+      | null;
     // Only send for live campaigns. Paused/draft enrollments wait (next_send_at
     // stays put, so they resume the moment the campaign goes active again).
-    if (campaignStatus !== "active") return;
+    if (campaign?.status !== "active") return;
+
+    // Send window: outside the campaign's local-time window (or on a weekend
+    // when business-days-only), park the enrollment until the window opens.
+    if (!isWithinSendWindow(campaign, now)) {
+      await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update({ next_send_at: nextWindowOpen(campaign, now).toISOString() })
+        .eq("id", e.id as string);
+      return;
+    }
 
     const steps = stepsByCampaign.get(e.campaign_id as string) ?? [];
     const stepOrder = e.current_step_order as number;
@@ -86,8 +106,24 @@ export async function POST(req: NextRequest) {
       sender_name: `${orgName} Recruiting`,
     };
 
-    let subject = renderTemplate(step.subject, vars);
-    let bodyText = renderTemplate(step.body, vars);
+    // A/B: sticky per-enrollment bucket (assigned on first send, persisted so
+    // a candidate sees a consistent variant across the whole sequence).
+    let bucket = (e.ab_bucket as "A" | "B" | null) ?? null;
+    if (!bucket) {
+      let hash = 0;
+      const email = (e.candidate_email as string) ?? "";
+      for (let i = 0; i < email.length; i++) hash = (hash * 31 + email.charCodeAt(i)) | 0;
+      bucket = Math.abs(hash) % 2 === 0 ? "A" : "B";
+      await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update({ ab_bucket: bucket })
+        .eq("id", e.id as string);
+    }
+    const useB = bucket === "B" && !!(step.ab_subject || step.ab_body);
+    const variant = useB ? "B" : step.ab_subject || step.ab_body ? "A" : null;
+
+    let subject = renderTemplate(useB && step.ab_subject ? step.ab_subject : step.subject, vars);
+    let bodyText = renderTemplate(useB && step.ab_body ? step.ab_body : step.body, vars);
 
     // Optional per-candidate AI rewrite — keeps the recruiter's intent, makes it personal.
     if (step.ai_personalize) {
@@ -111,6 +147,26 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Mailbox rotation: claim a slot on the org's healthiest mailbox. Falls
+    // back to the legacy shared address when the org has no domain mailboxes;
+    // when it HAS mailboxes but they're all exhausted/paused, defer to
+    // tomorrow rather than overflowing onto the shared domain.
+    const pool = pools.get(e.org_id as string) ?? { mailboxes: [] };
+    let fromEmail = "support@jobsai.work";
+    let mailboxId: string | null = null;
+    if (pool.mailboxes.length > 0) {
+      const claimed = await claimFromPool(pool);
+      if (!claimed) {
+        await supabaseAdmin
+          .from("enterprise_campaign_enrollments")
+          .update({ next_send_at: new Date(now.getTime() + 86_400_000).toISOString() })
+          .eq("id", e.id as string);
+        return;
+      }
+      fromEmail = claimed.address;
+      mailboxId = claimed.id;
+    }
+
     // Insert the send row first so we have an id for the open-tracking pixel.
     const { data: send } = await supabaseAdmin
       .from("enterprise_campaign_sends")
@@ -122,6 +178,9 @@ export async function POST(req: NextRequest) {
         org_id: e.org_id as string,
         candidate_email: e.candidate_email as string,
         subject,
+        variant,
+        mailbox_id: mailboxId,
+        from_email: fromEmail,
       })
       .select("id")
       .single();
@@ -131,7 +190,7 @@ export async function POST(req: NextRequest) {
 
     try {
       await resend.emails.send({
-        from: `${fromName} <support@jobsai.work>`,
+        from: `${fromName} <${fromEmail}>`,
         to: e.candidate_email as string,
         subject,
         html,

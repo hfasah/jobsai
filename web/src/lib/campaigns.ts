@@ -12,6 +12,10 @@ export interface CampaignStepInput {
   body: string;
   ai_personalize?: boolean;
   ai_prompt?: string | null;
+  // A/B test: optional variant B for this step. Candidates are split 50/50
+  // per-enrollment (sticky bucket across the whole sequence).
+  ab_subject?: string | null;
+  ab_body?: string | null;
 }
 
 export interface CampaignStep extends CampaignStepInput {
@@ -60,6 +64,11 @@ export function validateSteps(steps: CampaignStepInput[]): string | null {
     if (!s.body?.trim()) return `Step ${i + 1} needs a body.`;
     if (typeof s.delay_days !== "number" || s.delay_days < 0 || s.delay_days > 60) {
       return `Step ${i + 1} delay must be between 0 and 60 days.`;
+    }
+    // A/B variants must be complete pairs of intent: a variant with an empty
+    // counterpart field silently falls back, which surprises operators.
+    if ((s.ab_subject?.trim() || s.ab_body?.trim()) && !(s.ab_subject?.trim() && s.ab_body?.trim())) {
+      return `Step ${i + 1}: an A/B variant needs both a subject and a body (variant B).`;
     }
   }
   return null;

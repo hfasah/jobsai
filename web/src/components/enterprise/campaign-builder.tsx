@@ -3,44 +3,66 @@
 import { useState } from "react";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Sparkles, Clock, Mail,
-  Loader2, X, Wand2,
+  Loader2, X, Wand2, FlaskConical, CalendarClock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_VARS, type CampaignStepInput, type CampaignPreset } from "@/lib/campaigns";
 
 export interface BuilderStep extends CampaignStepInput {
   _key: string;
+  _abOpen?: boolean; // UI-only: A/B panel expanded before any variant text typed
+}
+
+export interface SendWindowDraft {
+  enabled: boolean;
+  start: number;              // local hour 0-23
+  end: number;                // local hour 1-24
+  timezone: string;           // IANA name
+  business_days_only: boolean;
 }
 
 export interface CampaignDraft {
   name: string;
   description: string;
   steps: BuilderStep[];
+  sendWindow: SendWindowDraft;
 }
 
 let _k = 0;
 const newKey = () => `s${Date.now()}-${_k++}`;
 
+function localTz(): string {
+  try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC"; } catch { return "UTC"; }
+}
+
+function defaultWindow(): SendWindowDraft {
+  return { enabled: false, start: 8, end: 17, timezone: localTz(), business_days_only: true };
+}
+
 function blankStep(delay = 2): BuilderStep {
-  return { _key: newKey(), delay_days: delay, subject: "", body: "", ai_personalize: false, ai_prompt: "" };
+  return { _key: newKey(), delay_days: delay, subject: "", body: "", ai_personalize: false, ai_prompt: "", ab_subject: "", ab_body: "" };
 }
 
 export function emptyDraft(): CampaignDraft {
-  return { name: "", description: "", steps: [{ ...blankStep(0) }] };
+  return { name: "", description: "", steps: [{ ...blankStep(0) }], sendWindow: defaultWindow() };
 }
 
 export function presetToDraft(p: CampaignPreset): CampaignDraft {
   return {
     name: p.name,
     description: p.description,
-    steps: p.steps.map((s) => ({ ...s, _key: newKey(), ai_prompt: s.ai_prompt ?? "" })),
+    steps: p.steps.map((s) => ({ ...s, _key: newKey(), ai_prompt: s.ai_prompt ?? "", ab_subject: "", ab_body: "" })),
+    sendWindow: defaultWindow(),
   };
 }
 
 export function draftFromCampaign(c: {
   name: string; description: string | null;
-  steps: { delay_days: number; subject: string; body: string; ai_personalize: boolean; ai_prompt: string | null }[];
+  send_window_start?: number | null; send_window_end?: number | null;
+  send_timezone?: string | null; business_days_only?: boolean;
+  steps: { delay_days: number; subject: string; body: string; ai_personalize: boolean; ai_prompt: string | null; ab_subject?: string | null; ab_body?: string | null }[];
 }): CampaignDraft {
+  const win = defaultWindow();
   return {
     name: c.name,
     description: c.description ?? "",
@@ -51,7 +73,16 @@ export function draftFromCampaign(c: {
       body: s.body,
       ai_personalize: s.ai_personalize,
       ai_prompt: s.ai_prompt ?? "",
+      ab_subject: s.ab_subject ?? "",
+      ab_body: s.ab_body ?? "",
     })),
+    sendWindow: {
+      enabled: c.send_window_start != null && c.send_window_end != null,
+      start: c.send_window_start ?? win.start,
+      end: c.send_window_end ?? win.end,
+      timezone: c.send_timezone ?? win.timezone,
+      business_days_only: c.business_days_only ?? true,
+    },
   };
 }
 
@@ -243,6 +274,50 @@ export function CampaignBuilder({
                   />
                 )}
               </div>
+
+              {/* A/B test variant B */}
+              {(() => {
+                const abOn = (step.ab_subject ?? "") !== "" || (step.ab_body ?? "") !== "" || step._abOpen;
+                return (
+                  <div className={cn("mt-2 rounded-xl border p-2.5 transition-colors", abOn ? "border-amber-500/40 bg-amber-500/5" : "border-border")}>
+                    <label className="flex cursor-pointer items-center gap-2.5">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (abOn) patchStep(i, { ab_subject: "", ab_body: "", _abOpen: false });
+                          else patchStep(i, { _abOpen: true });
+                        }}
+                        className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", abOn ? "bg-amber-500" : "bg-muted")}
+                      >
+                        <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all", abOn ? "left-[18px]" : "left-0.5")} />
+                      </button>
+                      <p className="flex items-center gap-1.5 text-sm font-medium">
+                        <FlaskConical className={cn("h-3.5 w-3.5", abOn ? "text-amber-400" : "text-muted-foreground")} />
+                        A/B test this step
+                      </p>
+                      <span className="text-xs text-muted-foreground">Candidates split 50/50; the split is consistent across the sequence.</span>
+                    </label>
+                    {abOn && (
+                      <div className="mt-2 space-y-2 border-l-2 border-amber-500/30 pl-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-400/80">Variant B</p>
+                        <input
+                          value={step.ab_subject ?? ""}
+                          onChange={(e) => patchStep(i, { ab_subject: e.target.value })}
+                          placeholder="Variant B subject line"
+                          className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium outline-none focus:border-amber-500"
+                        />
+                        <textarea
+                          value={step.ab_body ?? ""}
+                          onChange={(e) => patchStep(i, { ab_body: e.target.value })}
+                          rows={4}
+                          placeholder="Variant B email body"
+                          className="w-full resize-y rounded-lg border border-border bg-background px-3 py-2 text-sm leading-relaxed outline-none focus:border-amber-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           );
         })}
@@ -254,6 +329,60 @@ export function CampaignBuilder({
       >
         <Plus className="h-4 w-4" /> Add step
       </button>
+
+      {/* Send window */}
+      <div className={cn("mt-4 rounded-2xl border p-4 transition-colors", draft.sendWindow.enabled ? "border-primary/40 bg-primary/5" : "border-border bg-card")}>
+        <label className="flex cursor-pointer items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => setDraft({ ...draft, sendWindow: { ...draft.sendWindow, enabled: !draft.sendWindow.enabled } })}
+            className={cn("relative h-5 w-9 shrink-0 rounded-full transition-colors", draft.sendWindow.enabled ? "bg-primary" : "bg-muted")}
+          >
+            <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all", draft.sendWindow.enabled ? "left-[18px]" : "left-0.5")} />
+          </button>
+          <p className="flex items-center gap-1.5 text-sm font-medium">
+            <CalendarClock className={cn("h-4 w-4", draft.sendWindow.enabled ? "text-primary" : "text-muted-foreground")} />
+            Only send during business hours
+          </p>
+        </label>
+        {draft.sendWindow.enabled && (
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 pl-11 text-sm">
+            <span className="flex items-center gap-1.5">
+              <span className="text-muted-foreground">Between</span>
+              <select
+                value={draft.sendWindow.start}
+                onChange={(e) => setDraft({ ...draft, sendWindow: { ...draft.sendWindow, start: Number(e.target.value) } })}
+                className="rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+              >
+                {Array.from({ length: 24 }, (_, h) => <option key={h} value={h}>{`${h.toString().padStart(2, "0")}:00`}</option>)}
+              </select>
+              <span className="text-muted-foreground">and</span>
+              <select
+                value={draft.sendWindow.end}
+                onChange={(e) => setDraft({ ...draft, sendWindow: { ...draft.sendWindow, end: Number(e.target.value) } })}
+                className="rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+              >
+                {Array.from({ length: 24 }, (_, h) => h + 1).map((h) => <option key={h} value={h}>{`${h.toString().padStart(2, "0")}:00`}</option>)}
+              </select>
+            </span>
+            <input
+              value={draft.sendWindow.timezone}
+              onChange={(e) => setDraft({ ...draft, sendWindow: { ...draft.sendWindow, timezone: e.target.value } })}
+              placeholder="Timezone (IANA)"
+              className="w-48 rounded-lg border border-border bg-background px-2 py-1 text-sm outline-none focus:border-primary"
+            />
+            <label className="flex items-center gap-1.5 text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={draft.sendWindow.business_days_only}
+                onChange={(e) => setDraft({ ...draft, sendWindow: { ...draft.sendWindow, business_days_only: e.target.checked } })}
+                className="h-3.5 w-3.5 rounded border-border accent-[var(--primary)]"
+              />
+              Weekdays only
+            </label>
+          </div>
+        )}
+      </div>
 
       {/* Footer actions */}
       <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-2 border-t border-border bg-background/95 py-3 backdrop-blur">

@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { CAMPAIGN_FEATURE_KEY, validateSteps, type CampaignStepInput } from "@/lib/campaigns";
+import { preflightCampaign } from "@/lib/outreach/preflight";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -55,8 +56,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!campaign) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps } = body as {
+  const { name, description, status, steps, send_window } = body as {
     name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
+    send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
   };
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -65,16 +67,21 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     update.name = name.trim();
   }
   if (typeof description === "string") update.description = description.trim() || null;
-  if (typeof status === "string") {
-    if (!["draft", "active", "paused", "archived"].includes(status)) {
-      return NextResponse.json({ error: "Invalid status." }, { status: 400 });
-    }
-    update.status = status;
+  if (typeof status === "string" && !["draft", "active", "paused", "archived"].includes(status)) {
+    return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+  }
+  if (send_window && typeof send_window === "object") {
+    const start = send_window.start;
+    const end = send_window.end;
+    update.send_window_start = typeof start === "number" && start >= 0 && start <= 23 ? Math.floor(start) : null;
+    update.send_window_end = typeof end === "number" && end >= 1 && end <= 24 ? Math.floor(end) : null;
+    update.send_timezone = typeof send_window.timezone === "string" && send_window.timezone.trim() ? send_window.timezone.trim() : null;
+    update.business_days_only = send_window.business_days_only === true;
   }
 
-  await supabaseAdmin.from("enterprise_campaigns").update(update).eq("id", id);
-
   // Replacing steps is destructive — only when the client explicitly sends them.
+  // (Runs BEFORE the activation preflight so a single save-and-launch request
+  // validates the steps it just wrote.)
   if (Array.isArray(steps)) {
     const stepErr = validateSteps(steps);
     if (stepErr) return NextResponse.json({ error: stepErr }, { status: 400 });
@@ -87,9 +94,35 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       body: s.body.trim(),
       ai_personalize: !!s.ai_personalize,
       ai_prompt: s.ai_prompt?.trim() || null,
+      ab_subject: s.ab_subject?.trim() || null,
+      ab_body: s.ab_body?.trim() || null,
     }));
     const { error } = await supabaseAdmin.from("enterprise_campaign_steps").insert(rows);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  // Apply content/settings edits first — they should survive a blocked launch.
+  await supabaseAdmin.from("enterprise_campaigns").update(update).eq("id", id);
+
+  // HARD LAUNCH GATE: activating a campaign requires a passing preflight
+  // (steps and settings above are already saved, so the preflight sees the
+  // exact state that would go live). Failures return 422 with the full check
+  // list so the UI shows exactly what to fix; warns don't block.
+  if (typeof status === "string") {
+    if (status === "active") {
+      const preflight = await preflightCampaign(a.org.id, id);
+      if (!preflight.ok) {
+        return NextResponse.json(
+          { error: "Launch blocked — fix the failing checks first.", preflight },
+          { status: 422 },
+        );
+      }
+    }
+    await supabaseAdmin
+      .from("enterprise_campaigns")
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("org_id", a.org.id);
   }
 
   return NextResponse.json({ ok: true });
