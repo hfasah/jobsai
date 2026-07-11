@@ -22,13 +22,16 @@ export async function GET(req: NextRequest) {
 
   let q = supabaseAdmin
     .from("inbox_threads")
-    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, ai_summary, status, assignee_user_id, last_inbound_at, reply_count, unread, updated_at")
+    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, interest_score, interest_level, ai_summary, status, assignee_user_id, last_inbound_at, reply_count, unread, updated_at")
     .eq("org_id", org.id);
 
   const status = p.get("status");
   if (status && ["open", "snoozed", "done"].includes(status)) q = q.eq("status", status);
   const intent = p.get("intent");
   if (intent) q = q.eq("intent", intent);
+  const interest = p.get("interest");
+  if (interest && ["none", "low", "medium", "high", "very_high"].includes(interest)) q = q.eq("interest_level", interest);
+  const sort = p.get("sort");
   if (p.get("unread") === "1") q = q.eq("unread", true);
   const assignee = p.get("assignee");
   if (assignee === "me") q = q.eq("assignee_user_id", userId);
@@ -38,9 +41,16 @@ export async function GET(req: NextRequest) {
   if (search) q = q.or(`candidate_email.ilike.%${search}%,candidate_name.ilike.%${search}%`);
 
   const from = page * PAGE_SIZE;
-  const { data } = await q
-    .order("last_inbound_at", { ascending: false, nullsFirst: false })
-    .range(from, from + PAGE_SIZE - 1);
+  // Default: newest replies first. "interest" sort surfaces the warmest leads
+  // at the top (recency as the tiebreaker) — like the competitor's hot list.
+  if (sort === "interest") {
+    q = q
+      .order("interest_score", { ascending: false, nullsFirst: false })
+      .order("last_inbound_at", { ascending: false, nullsFirst: false });
+  } else {
+    q = q.order("last_inbound_at", { ascending: false, nullsFirst: false });
+  }
+  const { data } = await q.range(from, from + PAGE_SIZE - 1);
 
   const rows = data ?? [];
 

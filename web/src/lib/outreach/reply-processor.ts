@@ -5,7 +5,7 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { emailFromName } from "@/lib/email-utils";
-import { classifyIntent, isPositiveIntent, type Intent } from "./intent";
+import { classifyIntent, isPositiveIntent, type Intent, type InterestLevel } from "./intent";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
@@ -22,6 +22,7 @@ export interface ReplyOutcome {
   threadId: string;
   intent: Intent;
   confidence: number;
+  interestLevel: InterestLevel;
   autoActions: string[];
 }
 
@@ -146,6 +147,8 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
     patch.intent_confidence = cls.confidence;
     patch.intent_manual = false;
     patch.ai_summary = cls.summary;
+    patch.interest_score = cls.interestScore;
+    patch.interest_level = cls.interestLevel;
     await supabaseAdmin.from("inbox_threads").update(patch).eq("id", prior.id).eq("org_id", input.orgId);
     threadId = prior.id;
   } else {
@@ -159,6 +162,8 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
         intent: cls.intent,
         intent_confidence: cls.confidence,
         ai_summary: cls.summary,
+        interest_score: cls.interestScore,
+        interest_level: cls.interestLevel,
         last_inbound_at: now,
         reply_count: 1,
         unread: true,
@@ -182,5 +187,5 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
     autoActions.push("notified_team");
   }
 
-  return { threadId, intent: cls.intent, confidence: cls.confidence, autoActions };
+  return { threadId, intent: cls.intent, confidence: cls.confidence, interestLevel: cls.interestLevel, autoActions };
 }
