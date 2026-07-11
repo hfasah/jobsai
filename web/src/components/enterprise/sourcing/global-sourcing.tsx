@@ -48,6 +48,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
   const [importIds, setImportIds] = useState<string[] | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
+  const [degraded, setDegraded] = useState(false);
   const estimateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const parse = async () => {
@@ -63,10 +64,15 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query }),
       });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Could not interpret the query.");
+      // Never assume the body is JSON — a proxy/edge error can return HTML or an
+      // empty body, which is what produced "Unexpected end of JSON input".
+      const json = await res.json().catch(() => null);
+      if (!res.ok || !json?.data) {
+        throw new Error(json?.error ?? "Couldn't interpret that search — try rephrasing it.");
+      }
       setFilters(json.data.filters);
       setDropped(json.data.dropped_criteria ?? []);
+      setDegraded(!!json.data.degraded);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -289,6 +295,11 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
       {/* Interpreted filters + estimate + execute */}
       {filters && (
         <div className="mb-6 space-y-3">
+          {degraded && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400">
+              AI interpretation is briefly unavailable — we used quick keyword matching. Review and refine the criteria below before searching.
+            </div>
+          )}
           <InterpretedFilters
             filters={filters}
             onChange={setFilters}

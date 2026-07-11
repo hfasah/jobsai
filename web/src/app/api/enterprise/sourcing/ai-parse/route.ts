@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { getMyOrg } from "@/lib/enterprise";
-import { parseQueryToFilters } from "@/lib/sourcing/nl-parse";
+import { parseQueryToFilters, heuristicParse } from "@/lib/sourcing/nl-parse";
 import { hasSearchableCriteria } from "@/lib/sourcing/filters";
 
 export const maxDuration = 30;
@@ -22,12 +22,24 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "query is required." }, { status: 400 });
   }
 
-  const parsed = await parseQueryToFilters(query.trim(), { orgId: org.id, userId });
-  return NextResponse.json({
-    data: {
-      filters: parsed.filters,
-      dropped_criteria: parsed.dropped_criteria,
-      searchable: hasSearchableCriteria(parsed.filters),
-    },
-  });
+  // parseQueryToFilters already degrades to a heuristic on LLM failure, but
+  // guard the whole thing so this endpoint ALWAYS returns JSON (a bare 500 with
+  // an empty body is what caused the "Unexpected end of JSON input" crash).
+  try {
+    const parsed = await parseQueryToFilters(query.trim(), { orgId: org.id, userId });
+    return NextResponse.json({
+      data: {
+        filters: parsed.filters,
+        dropped_criteria: parsed.dropped_criteria,
+        searchable: hasSearchableCriteria(parsed.filters),
+        degraded: parsed.degraded ?? false,
+      },
+    });
+  } catch (e) {
+    console.error("[sourcing/ai-parse] unexpected error", e);
+    const filters = heuristicParse(query.trim());
+    return NextResponse.json({
+      data: { filters, dropped_criteria: [], searchable: hasSearchableCriteria(filters), degraded: true },
+    });
+  }
 }

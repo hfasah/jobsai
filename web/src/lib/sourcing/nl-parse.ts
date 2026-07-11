@@ -1,6 +1,8 @@
-// Natural language -> SourcingFilters. One fast-tier call, json_object output,
-// then a hard pass through sanitizeFilters so nothing the model invents (or a
-// user smuggles) reaches a provider. SERVER-ONLY.
+// Natural language -> SourcingFilters. Primary path is one fast-tier LLM call;
+// if the provider is unavailable/misconfigured/slow, we fall back to a
+// deterministic heuristic parse so search ALWAYS works (and stays reasonably
+// smart) instead of erroring. Output is always run through sanitizeFilters.
+// SERVER-ONLY.
 import { getAIClient } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { recordUsage } from "@/lib/llm-usage";
@@ -44,39 +46,138 @@ Rules:
 export interface ParsedQuery {
   filters: SourcingFilters;
   dropped_criteria: string[];
+  degraded?: boolean; // true when the LLM was unavailable and we used the heuristic
+}
+
+// ── Heuristic fallback dictionaries ──────────────────────────────────────────
+const COUNTRIES = [
+  "united states", "usa", "u.s.", "us", "united kingdom", "u.k.", "uk", "canada",
+  "germany", "france", "spain", "italy", "netherlands", "ireland", "portugal",
+  "poland", "sweden", "norway", "denmark", "switzerland", "belgium", "austria",
+  "cameroon", "nigeria", "kenya", "ghana", "south africa", "egypt", "morocco",
+  "india", "pakistan", "bangladesh", "singapore", "philippines", "indonesia",
+  "australia", "new zealand", "japan", "china", "brazil", "mexico", "argentina",
+  "colombia", "chile", "uae", "united arab emirates", "saudi arabia", "israel", "turkey",
+];
+const SKILLS = [
+  "kubernetes", "k8s", "terraform", "aws", "gcp", "azure", "docker", "helm", "argocd",
+  "ansible", "jenkins", "ci/cd", "cicd", "linux", "networking", "react", "next.js",
+  "nextjs", "node", "node.js", "nodejs", "typescript", "javascript", "python", "django",
+  "flask", "go", "golang", "rust", "java", "spring", "kotlin", "swift", "c++", "c#",
+  ".net", "php", "laravel", "ruby", "rails", "graphql", "grpc", "postgres", "postgresql",
+  "mysql", "mongodb", "redis", "kafka", "rabbitmq", "spark", "airflow", "snowflake", "dbt",
+  "tableau", "power bi", "pytorch", "tensorflow", "mlops", "sagemaker", "salesforce", "hubspot",
+];
+const SENIORITY_MIN: Record<string, number> = { senior: 5, sr: 5, lead: 7, staff: 7, principal: 8, head: 8, director: 10, vp: 12, chief: 12 };
+const STOP_AFTER = /\b(in|with|who|that|based|located|from|at|for|,)\b/i;
+
+function extractLocations(lower: string): { country: string }[] {
+  const found: { country: string }[] = [];
+  for (const c of COUNTRIES) {
+    const re = new RegExp(`(^|[^a-z])${c.replace(/[.+*?^${}()|[\]\\]/g, "\\$&")}([^a-z]|$)`, "i");
+    if (re.test(lower)) found.push({ country: c });
+  }
+  // Dedup by first token so "us"/"usa"/"united states" don't triple up.
+  const seen = new Set<string>();
+  return found.filter((l) => {
+    const key = l.country.split(" ")[0];
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 5);
+}
+
+function extractSkills(lower: string): string[] {
+  const out: string[] = [];
+  for (const s of SKILLS) {
+    const re = new RegExp(`(^|[^a-z0-9])${s.replace(/[.+*?^${}()|[\]\\]/g, "\\$&")}([^a-z0-9]|$)`, "i");
+    if (re.test(lower)) out.push(s);
+  }
+  return [...new Set(out)].slice(0, 15);
+}
+
+// Deterministic parse used when the LLM is unavailable. Handles the dominant
+// "<role> in <place> with <skills>" shape well enough to return real results.
+export function heuristicParse(query: string): SourcingFilters {
+  const lower = query.toLowerCase().trim();
+  const locations = extractLocations(lower);
+  const skills = extractSkills(lower);
+
+  // Role phrase = text up to the first structural keyword ("in", "with", …).
+  const cut = lower.search(STOP_AFTER);
+  let rolePhrase = (cut > 0 ? lower.slice(0, cut) : lower).trim();
+  // strip a leading count like "5 " and trailing plural
+  rolePhrase = rolePhrase.replace(/^\d+\s+/, "").replace(/s\b/g, (m, i, str) => (i === str.length - 1 ? "" : m));
+  const titles = rolePhrase && rolePhrase.length >= 2 ? [rolePhrase] : [];
+
+  // Min years of experience from "5+ years" / "at least 5 years" / seniority word.
+  let min: number | null = null;
+  const yr = lower.match(/(\d{1,2})\s*\+?\s*(?:years?|yrs?)/);
+  if (yr) min = Math.min(40, parseInt(yr[1], 10));
+  if (min === null) {
+    for (const [word, years] of Object.entries(SENIORITY_MIN)) {
+      if (new RegExp(`(^|[^a-z])${word}([^a-z]|$)`, "i").test(lower)) { min = years; break; }
+    }
+  }
+
+  return sanitizeFilters({
+    titles,
+    skills_any: skills,
+    locations,
+    experience_years_min: min,
+    // Keep the raw query as keywords so the provider still has signal even if
+    // title/skill extraction was thin.
+    keywords: titles.length || skills.length ? [] : lower.split(/\s+/).filter((w) => w.length > 2).slice(0, 8),
+  });
 }
 
 export async function parseQueryToFilters(
   query: string,
   ctx: { orgId: string; userId: string },
 ): Promise<ParsedQuery> {
-  const client = getAIClient(AI_TIERS.fast.provider);
-  const completion = await client.chat.completions.create({
-    model: AI_TIERS.fast.model,
-    response_format: { type: "json_object" },
-    temperature: 0.1,
-    max_tokens: 700,
-    messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: query.slice(0, 1000) },
-    ],
-  });
-  recordUsage({
-    orgId: ctx.orgId,
-    userId: ctx.userId,
-    feature: "sourcing_ai_parse",
-    model: AI_TIERS.fast.model,
-    usage: completion.usage,
-  });
-
-  let raw: Record<string, unknown> = {};
+  // Everything from acquiring the client through the API call can throw
+  // (missing/invalid key, provider 4xx/5xx, timeout). Any failure degrades to
+  // the heuristic parse rather than erroring the whole request.
   try {
-    raw = JSON.parse(completion.choices[0]?.message?.content ?? "{}");
-  } catch {
-    raw = {};
+    const client = getAIClient(AI_TIERS.fast.provider);
+    const completion = await client.chat.completions.create(
+      {
+        model: AI_TIERS.fast.model,
+        response_format: { type: "json_object" },
+        temperature: 0.1,
+        max_tokens: 700,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: query.slice(0, 1000) },
+        ],
+      },
+      // Fall back to the heuristic well before the platform function timeout,
+      // so a slow/hung provider never returns an empty 504 body to the client.
+      { timeout: 12000, maxRetries: 1 },
+    );
+    recordUsage({
+      orgId: ctx.orgId,
+      userId: ctx.userId,
+      feature: "sourcing_ai_parse",
+      model: AI_TIERS.fast.model,
+      usage: completion.usage,
+    });
+
+    const raw = JSON.parse(completion.choices[0]?.message?.content ?? "{}") as Record<string, unknown>;
+    const dropped = Array.isArray(raw.dropped_criteria)
+      ? raw.dropped_criteria.filter((d): d is string => typeof d === "string").slice(0, 10)
+      : [];
+    const filters = sanitizeFilters(raw);
+    // If the model returned nothing usable, fall back so the search isn't empty.
+    const hasCriteria =
+      filters.titles.length || filters.skills_any.length || filters.locations.length ||
+      filters.industries.length || filters.keywords.length;
+    if (!hasCriteria) {
+      return { filters: heuristicParse(query), dropped_criteria: dropped, degraded: true };
+    }
+    return { filters, dropped_criteria: dropped };
+  } catch (e) {
+    console.error("[sourcing] ai-parse LLM failed, using heuristic", e);
+    return { filters: heuristicParse(query), dropped_criteria: [], degraded: true };
   }
-  const dropped = Array.isArray(raw.dropped_criteria)
-    ? raw.dropped_criteria.filter((d): d is string => typeof d === "string").slice(0, 10)
-    : [];
-  return { filters: sanitizeFilters(raw), dropped_criteria: dropped };
 }
