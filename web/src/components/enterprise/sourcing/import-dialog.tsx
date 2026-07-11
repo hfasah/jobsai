@@ -4,14 +4,15 @@
 // Single import surfaces the dedup matches (skip / import anyway / merge);
 // bulk import applies the chosen duplicate policy across the selection.
 import { useEffect, useState } from "react";
-import { Briefcase, Check, Database, Inbox, Loader2, TriangleAlert, Users, X } from "lucide-react";
+import { Briefcase, Check, Contact, Database, Inbox, Loader2, Send, TriangleAlert, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DedupMatch } from "@/lib/sourcing/types";
 
-type Target = "talent_pool" | "job" | "intake";
+type Target = "talent_pool" | "job" | "intake" | "crm_contact" | "campaign";
 
 interface JobOption { id: string; title: string }
 interface GroupOption { id: string; name: string }
+interface CampaignOption { id: string; name: string; status: string }
 
 export default function ImportDialog({
   resultIds,
@@ -28,8 +29,10 @@ export default function ImportDialog({
   const [target, setTarget] = useState<Target>("talent_pool");
   const [jobs, setJobs] = useState<JobOption[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [jobId, setJobId] = useState("");
   const [groupId, setGroupId] = useState("");
+  const [campaignId, setCampaignId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dupMatches, setDupMatches] = useState<DedupMatch[] | null>(null);
@@ -49,6 +52,13 @@ export default function ImportDialog({
         setGroups(list.map((x) => ({ id: x.id, name: x.name })));
       })
       .catch(() => {});
+    fetch("/api/enterprise/campaigns")
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data ?? j.campaigns ?? []) as { id: string; name: string; status: string }[];
+        setCampaigns(list.map((x) => ({ id: x.id, name: x.name, status: x.status })));
+      })
+      .catch(() => {});
   }, []);
 
   const submit = async (onDuplicate: "skip" | "import_anyway" | "merge") => {
@@ -59,7 +69,7 @@ export default function ImportDialog({
         const res = await fetch(`/api/enterprise/sourcing/results/${resultIds[0]}/import`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ target, jobId: jobId || undefined, groupId: groupId || undefined, onDuplicate }),
+          body: JSON.stringify({ target, jobId: jobId || undefined, groupId: groupId || undefined, campaignId: campaignId || undefined, onDuplicate }),
         });
         const json = await res.json();
         if (res.status === 409 && json.needs_email) {
@@ -71,12 +81,20 @@ export default function ImportDialog({
           setDupMatches(json.data.verdict?.matches ?? []);
           return;
         }
-        onDone(json.data.status === "merged" ? "Merged with an existing record." : "Candidate imported.");
+        onDone(
+          json.data.status === "merged"
+            ? "Merged with an existing record."
+            : target === "campaign"
+              ? "Added to campaign — first email is queued."
+              : target === "crm_contact"
+                ? "Added to CRM contacts."
+                : "Candidate imported.",
+        );
       } else {
         const res = await fetch("/api/enterprise/sourcing/bulk-import", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ resultIds, target, jobId: jobId || undefined, groupId: groupId || undefined, onDuplicate }),
+          body: JSON.stringify({ resultIds, target, jobId: jobId || undefined, groupId: groupId || undefined, campaignId: campaignId || undefined, onDuplicate }),
         });
         const json = await res.json();
         if (!res.ok) { setError(json.error ?? "Import failed."); return; }
@@ -101,6 +119,8 @@ export default function ImportDialog({
     { key: "talent_pool", label: "Talent pool", icon: Users, desc: "Save for nurturing and future roles" },
     { key: "job", label: "A specific job", icon: Briefcase, desc: "Add to a job's pipeline as an applicant" },
     { key: "intake", label: "Intake pool", icon: Inbox, desc: "General Applications catch-all" },
+    { key: "crm_contact", label: "CRM contact", icon: Contact, desc: "Add as a contact for relationship tracking" },
+    { key: "campaign", label: "Cold-email campaign", icon: Send, desc: "Enroll in an outreach sequence" },
   ];
 
   return (
@@ -197,6 +217,29 @@ export default function ImportDialog({
               </label>
             )}
 
+            {target === "campaign" && (
+              <label className="mb-4 block text-xs">
+                <span className="mb-1 block font-semibold uppercase tracking-wide text-muted-foreground">Campaign</span>
+                <select
+                  value={campaignId}
+                  onChange={(e) => setCampaignId(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select a campaign…</option>
+                  {campaigns.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}{c.status && c.status !== "active" ? ` (${c.status})` : ""}
+                    </option>
+                  ))}
+                </select>
+                {campaigns.length === 0 && (
+                  <span className="mt-1 block text-[10px] text-muted-foreground">
+                    No campaigns yet — create one under Outreach first.
+                  </span>
+                )}
+              </label>
+            )}
+
             {error && (
               <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
                 <TriangleAlert className="h-3.5 w-3.5 shrink-0" /> {error}
@@ -205,11 +248,15 @@ export default function ImportDialog({
 
             <button
               onClick={() => submit("skip")}
-              disabled={busy || (target === "job" && !jobId)}
+              disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId)}
               className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
-              {busy ? "Importing…" : single ? "Import candidate" : `Import ${resultIds.length} candidates`}
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : target === "campaign" ? <Send className="h-4 w-4" /> : <Database className="h-4 w-4" />}
+              {busy
+                ? target === "campaign" ? "Enrolling…" : "Importing…"
+                : target === "campaign"
+                  ? single ? "Add to campaign" : `Enroll ${resultIds.length} in campaign`
+                  : single ? "Import candidate" : `Import ${resultIds.length} candidates`}
             </button>
             <p className="mt-2 text-[10px] text-muted-foreground">
               Imports need a revealed email. Duplicates are detected first — you&apos;ll be asked before anything is overwritten.

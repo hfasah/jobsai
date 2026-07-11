@@ -27,11 +27,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));
-  const target: ImportTarget = ["talent_pool", "job", "intake"].includes(body.target) ? body.target : "talent_pool";
+  const target: ImportTarget = ["talent_pool", "job", "intake", "crm_contact", "campaign"].includes(body.target) ? body.target : "talent_pool";
   const onDuplicate: OnDuplicate = ["skip", "import_anyway", "merge"].includes(body.onDuplicate) ? body.onDuplicate : "skip";
 
-  // Applications count toward the plan's candidate limit.
-  if (target !== "talent_pool") {
+  // Only ATS pipeline imports (job/intake create applications) count toward the
+  // candidate limit; talent pool / CRM / campaign don't.
+  if (target === "job" || target === "intake") {
     const limited = await enforceLimit(userId, "candidates", 1);
     if (limited) return limited;
   }
@@ -62,6 +63,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     target,
     jobId: typeof body.jobId === "string" ? body.jobId : null,
     groupId: typeof body.groupId === "string" ? body.groupId : null,
+    campaignId: typeof body.campaignId === "string" ? body.campaignId : null,
     onDuplicate,
   });
 
