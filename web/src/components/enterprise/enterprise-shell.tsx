@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { UserButton, useClerk } from "@clerk/nextjs";
 import {
   LayoutGrid, Briefcase, Users, BarChart3, Settings, Inbox, FileSpreadsheet, UsersRound, Globe, CalendarDays,
-  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug, Megaphone, BookOpen, ExternalLink, Handshake,
+  Menu, X, Building2, ChevronRight, Sparkles, LogOut, FileText, Zap, Bot, ClipboardCheck, Shield, CreditCard, Package, Plug, Megaphone, BookOpen, ExternalLink, Handshake, MessageSquare, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
@@ -26,6 +26,8 @@ const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: str
   { href: "/enterprise/crm",       icon: Handshake,        label: "CRM", feature: "crm" },
   { href: "/enterprise/sourcing",  icon: Sparkles,         label: "Global Sourcing", feature: "ai_sourcing" },
   { href: "/enterprise/campaigns", icon: Megaphone,        label: "Campaigns", feature: "outreach_campaigns" },
+  { href: "/enterprise/outreach/inbox", icon: MessageSquare, label: "Reply Inbox", feature: "outreach_campaigns" },
+  { href: "/enterprise/outreach/sending", icon: Send,        label: "Sending", feature: "outreach_campaigns" },
   { href: "/enterprise/schedule",  icon: CalendarDays,     label: "Schedule" },
   { href: "/enterprise/offers",    icon: FileText,         label: "Offers" },
   { href: "/enterprise/copilot",   icon: Bot,              label: "AI Copilot" },
