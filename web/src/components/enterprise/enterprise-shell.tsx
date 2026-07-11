@@ -24,7 +24,7 @@ const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: str
   { href: "/enterprise/boards",    icon: Globe,            label: "Job Boards" },
   { href: "/enterprise/candidates",icon: Users,            label: "Candidates" },
   { href: "/enterprise/crm",       icon: Handshake,        label: "CRM", feature: "crm" },
-  { href: "/enterprise/sourcing",  icon: Sparkles,         label: "Sourcing", feature: "ai_sourcing" },
+  { href: "/enterprise/sourcing",  icon: Sparkles,         label: "Global Sourcing", feature: "ai_sourcing" },
   { href: "/enterprise/campaigns", icon: Megaphone,        label: "Campaigns", feature: "outreach_campaigns" },
   { href: "/enterprise/schedule",  icon: CalendarDays,     label: "Schedule" },
   { href: "/enterprise/offers",    icon: FileText,         label: "Offers" },
