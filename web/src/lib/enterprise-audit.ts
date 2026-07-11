@@ -12,7 +12,8 @@ export type AuditAction =
   | "sourcing.candidate_imported" | "sourcing.results_exported" | "sourcing.candidate_suppressed"
   | "sourcing.provider_updated" | "sourcing.credits_adjusted"
   | "outreach.domain_added" | "outreach.domain_verified" | "outreach.domain_removed"
-  | "outreach.mailbox_added" | "outreach.mailbox_paused" | "outreach.mailbox_resumed";
+  | "outreach.mailbox_added" | "outreach.mailbox_paused" | "outreach.mailbox_resumed"
+  | "workspace.created" | "workspace.switched";
 
 interface AuditEntry {
   org_id: string;

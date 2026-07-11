@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { EnterpriseOrg } from "@/types/enterprise";
 import { AskAI } from "@/components/enterprise/ask-ai";
+import { WorkspaceSwitcher } from "@/components/enterprise/workspace-switcher";
 import { NudgeBanner } from "@/components/enterprise/nudge-banner";
 import { AppearanceMenu } from "@/components/enterprise/appearance-menu";
 import { TranslationProvider, LanguageSwitcher } from "@/components/enterprise/translation-provider";
@@ -67,12 +68,17 @@ function Sidebar({ org, ent, onNavigate }: { org: EnterpriseOrg | null; ent: Ent
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-brand">
           <Building2 className="h-4 w-4 text-white" />
         </div>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-bold text-foreground">
             {org?.name ?? "Enterprise"}
           </p>
           <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Recruiting</p>
         </div>
+      </div>
+
+      {/* Agency workspace switcher (renders only for agency orgs) */}
+      <div className="px-3 pt-2">
+        <WorkspaceSwitcher agencyEnabled={!!features?.includes("agency_workspaces")} />
       </div>
 
       {/* Nav */}
