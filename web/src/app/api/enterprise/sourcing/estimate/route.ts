@@ -4,7 +4,7 @@ import { requireFeature } from "@/lib/enterprise-entitlements";
 import { getMyOrg } from "@/lib/enterprise";
 import { sanitizeFilters, hasSearchableCriteria } from "@/lib/sourcing/filters";
 import { getProvidersForOrg } from "@/lib/sourcing/registry";
-import { getCreditCosts, getCreditState } from "@/lib/sourcing/credits";
+import { ensureMonthlyGrant, getCreditCosts, getCreditState } from "@/lib/sourcing/credits";
 
 export const maxDuration = 30;
 
@@ -25,6 +25,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ data: { total: 0, searchable: false } });
   }
 
+  // Apply this month's plan credits (idempotent) so the balance shown here
+  // matches what the search will actually spend against.
+  await ensureMonthlyGrant(org.id);
   const [providers, costs, state] = await Promise.all([
     getProvidersForOrg(org.id),
     getCreditCosts(org.id),
