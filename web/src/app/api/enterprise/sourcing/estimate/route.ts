@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
       search_cost: costs.search,
       costs,
       balance: state.balance,
-      providers: providers.map((p) => p.provider.key),
+      // Whether any provider can serve the search — never expose which one.
+      has_provider: providers.length > 0,
     },
   });
 }

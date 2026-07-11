@@ -25,7 +25,7 @@ interface Estimate {
   search_cost: number;
   costs?: { reveal_email: number; reveal_phone: number; enrich: number };
   balance: number;
-  providers: string[];
+  has_provider?: boolean;
 }
 
 export default function GlobalSourcing({ mode }: { mode: "external" | "combined" }) {
@@ -49,6 +49,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
   const [importNotice, setImportNotice] = useState<string | null>(null);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
   const estimateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const parse = async () => {
@@ -120,6 +121,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
     if (!filters) return;
     setSearching(true);
     setError(null);
+    setLimitReached(false);
     setSelected(new Set());
     try {
       const res = await fetch("/api/enterprise/sourcing/global-search", {
@@ -140,9 +142,10 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
       });
       setRunId(json.data.run_id);
       await loadPage(json.data.run_id, 0, false);
-      if (json.data.provider_errors?.length) {
-        setError(`Some providers had issues: ${json.data.provider_errors.join("; ")}`);
-      }
+      // Provider quota exhausted → a clean top-up prompt (never expose the
+      // provider or raw error to the customer).
+      setLimitReached(!!json.data.limit_reached);
+      if (!json.data.limit_reached && json.data.notice) setError(json.data.notice);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Something went wrong.");
     } finally {
@@ -286,7 +289,17 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
         </div>
       )}
 
-      {error && (
+      {limitReached && (
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+          <Coins className="h-4 w-4 shrink-0" />
+          <span>You&apos;ve reached your sourcing search limit. Top up your credits to keep searching external sources.</span>
+          <a href="/enterprise/sourcing/credits" className="ml-auto rounded-lg bg-amber-500/20 px-3 py-1 text-xs font-semibold text-amber-200 hover:bg-amber-500/30">
+            Top up credits
+          </a>
+        </div>
+      )}
+
+      {error && !limitReached && (
         <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <TriangleAlert className="h-4 w-4 shrink-0" /> {error}
         </div>
