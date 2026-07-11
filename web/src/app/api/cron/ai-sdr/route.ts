@@ -1,0 +1,148 @@
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { enterpriseSenderEmail } from "@/lib/enterprise";
+import { resend } from "@/lib/resend";
+import { wrapEmail, emailFromName } from "@/lib/email-utils";
+import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
+import { intakeAddress } from "@/lib/enterprise-intake-inbox";
+import { logMessage } from "@/lib/enterprise-messages";
+import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
+
+export const maxDuration = 60;
+
+const BATCH = 40;
+
+// Sends AI SDR auto-replies whose scheduled_at is due. Draft-mode replies never
+// reach here (they sit as 'needs_review' for a human); only 'queued' rows do.
+// Re-validates each row at send time — an unsubscribe, a disabled campaign, or a
+// newer inbound reply supersedes a stale draft.
+export async function GET(req: NextRequest) {
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const nowIso = new Date().toISOString();
+  const { data: due } = await supabaseAdmin
+    .from("ai_sdr_replies")
+    .select("id, org_id, thread_id, campaign_id, candidate_email, draft_subject, draft_body, created_at")
+    .eq("status", "queued")
+    .lte("scheduled_at", nowIso)
+    .order("scheduled_at", { ascending: true })
+    .limit(BATCH);
+
+  const rows = (due ?? []) as {
+    id: string; org_id: string; thread_id: string; campaign_id: string | null;
+    candidate_email: string; draft_subject: string | null; draft_body: string; created_at: string;
+  }[];
+
+  const summary = { sent: 0, suppressed: 0, deferred: 0, failed: 0 };
+
+  for (const r of rows) {
+    try {
+      const [{ data: thread }, { data: campaign }, { data: org }] = await Promise.all([
+        supabaseAdmin.from("inbox_threads")
+          .select("id, candidate_email, candidate_name, application_id, intent, last_inbound_at")
+          .eq("id", r.thread_id).eq("org_id", r.org_id).maybeSingle(),
+        r.campaign_id
+          ? supabaseAdmin.from("enterprise_campaigns")
+              .select("id, status, created_by, ai_sdr_enabled, send_window_start, send_window_end, send_timezone, business_days_only")
+              .eq("id", r.campaign_id).eq("org_id", r.org_id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabaseAdmin.from("enterprise_orgs")
+          .select("name, white_label_email_from, slug, intake_email_handle")
+          .eq("id", r.org_id).maybeSingle(),
+      ]);
+
+      const t = thread as { candidate_email: string; candidate_name: string | null; application_id: string | null; intent: string | null; last_inbound_at: string | null } | null;
+      const c = campaign as { id: string; status: string; created_by: string; ai_sdr_enabled: boolean; send_window_start: number | null; send_window_end: number | null; send_timezone: string | null; business_days_only: boolean } | null;
+
+      const suppress = async (reason: string) => {
+        summary.suppressed++;
+        await supabaseAdmin.from("ai_sdr_replies")
+          .update({ status: "suppressed", suppressed_reason: reason, updated_at: new Date().toISOString() })
+          .eq("id", r.id).eq("org_id", r.org_id);
+      };
+
+      if (!t) { await suppress("Thread gone."); continue; }
+      if (t.intent === "unsubscribe") { await suppress("Contact unsubscribed."); continue; }
+      if (!c || !c.ai_sdr_enabled || c.status !== "active") { await suppress("Campaign disabled or inactive."); continue; }
+      // A newer inbound arrived after this draft was made → a fresher draft
+      // exists; this one is stale.
+      if (t.last_inbound_at && new Date(t.last_inbound_at).getTime() > new Date(r.created_at).getTime()) {
+        await suppress("Superseded by a newer reply."); continue;
+      }
+
+      // Respect the send window — defer rather than send off-hours.
+      const window: SendWindow = {
+        send_window_start: c.send_window_start, send_window_end: c.send_window_end,
+        send_timezone: c.send_timezone, business_days_only: c.business_days_only,
+      };
+      if (!isWithinSendWindow(window)) {
+        summary.deferred++;
+        await supabaseAdmin.from("ai_sdr_replies")
+          .update({ scheduled_at: nextWindowOpen(window).toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", r.id).eq("org_id", r.org_id);
+        continue;
+      }
+
+      // White-label identity (jobsai.work sender + org intake reply-to), same as
+      // the manual inbox reply — replying to a warm lead, not cold-blasting.
+      const orgName = (org?.name as string) ?? "Recruiting";
+      const fromName = emailFromName(orgName, (org?.white_label_email_from as string | null) ?? null);
+      const recruiter = await getRecruiterIdentity(c.created_by);
+      const intake = org?.slug ? intakeAddress({ slug: org.slug as string, intake_email_handle: (org.intake_email_handle as string | null) }) : null;
+      const replyTo = intake ? `${orgName} <${intake}>` : (recruiter.email ?? undefined);
+      const senderEmail = enterpriseSenderEmail(intake);
+
+      // Subject: prefer the drafted subject, else thread the last inbound subject.
+      let subjectLine = r.draft_subject?.trim() || "";
+      if (!subjectLine) {
+        const { data: last } = await supabaseAdmin
+          .from("enterprise_messages")
+          .select("subject")
+          .eq("org_id", r.org_id)
+          .or(`from_email.ilike.${r.candidate_email},to_email.ilike.${r.candidate_email}`)
+          .not("subject", "is", null)
+          .order("created_at", { ascending: false }).limit(1).maybeSingle();
+        const prev = (last?.subject as string | null) ?? null;
+        subjectLine = prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`;
+      }
+
+      const html = wrapEmail(renderOutreachBody(r.draft_body, recruiter.name, orgName), false);
+      const { error } = await resend.emails.send({
+        from: `${fromName} <${senderEmail}>`,
+        to: t.candidate_email,
+        subject: subjectLine,
+        html,
+        ...(replyTo ? { replyTo } : {}),
+      });
+      if (error) {
+        summary.failed++;
+        await supabaseAdmin.from("ai_sdr_replies")
+          .update({ status: "failed", suppressed_reason: error.message, updated_at: new Date().toISOString() })
+          .eq("id", r.id).eq("org_id", r.org_id);
+        continue;
+      }
+
+      await logMessage({
+        orgId: r.org_id, applicationId: t.application_id, direction: "outbound",
+        fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: r.draft_body,
+      });
+      await Promise.all([
+        supabaseAdmin.from("ai_sdr_replies")
+          .update({ status: "sent", sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", r.id).eq("org_id", r.org_id),
+        supabaseAdmin.from("inbox_threads")
+          .update({ last_outbound_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .eq("id", r.thread_id).eq("org_id", r.org_id),
+      ]);
+      summary.sent++;
+    } catch (e) {
+      summary.failed++;
+      console.error("[cron/ai-sdr] send failed", r.id, e);
+    }
+  }
+
+  return NextResponse.json({ ok: true, processed: rows.length, ...summary });
+}

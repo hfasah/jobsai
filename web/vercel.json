@@ -13,6 +13,10 @@
       "schedule": "0 14 * * *"
     },
     {
+      "path": "/api/cron/ai-sdr",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/enterprise-digest",
       "schedule": "0 8 * * 1-5"
     },

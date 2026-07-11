@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { emailFromName } from "@/lib/email-utils";
 import { classifyIntent, isPositiveIntent, type Intent, type InterestLevel } from "./intent";
+import { maybeEnqueueAiSdrReply } from "./ai-sdr";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
@@ -186,6 +187,19 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
     });
     autoActions.push("notified_team");
   }
+
+  // AI SDR: draft (and maybe queue) a grounded auto-reply for the candidate's
+  // campaign. Best-effort — never blocks the reply pipeline.
+  await maybeEnqueueAiSdrReply({
+    orgId: input.orgId,
+    threadId,
+    candidateEmail: email,
+    candidateName: input.candidateName ?? null,
+    applicationId: input.applicationId ?? null,
+    intent: cls.intent,
+    confidence: cls.confidence,
+    interestLevel: cls.interestLevel,
+  });
 
   return { threadId, intent: cls.intent, confidence: cls.confidence, interestLevel: cls.interestLevel, autoActions };
 }

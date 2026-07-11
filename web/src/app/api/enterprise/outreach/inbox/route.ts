@@ -52,7 +52,21 @@ export async function GET(req: NextRequest) {
   }
   const { data } = await q.range(from, from + PAGE_SIZE - 1);
 
-  const rows = data ?? [];
+  const rows = (data ?? []) as Record<string, unknown>[];
+
+  // Flag threads with a pending AI SDR draft awaiting review (single query over
+  // the page's thread ids).
+  if (rows.length) {
+    const ids = rows.map((r) => r.id as string);
+    const { data: drafts } = await supabaseAdmin
+      .from("ai_sdr_replies")
+      .select("thread_id")
+      .eq("org_id", org.id)
+      .eq("status", "needs_review")
+      .in("thread_id", ids);
+    const withDraft = new Set(((drafts ?? []) as { thread_id: string }[]).map((d) => d.thread_id));
+    for (const r of rows) r.has_ai_draft = withDraft.has(r.id as string);
+  }
 
   // Lightweight counts for the filter rail (open + unread).
   const [{ count: openCount }, { count: unreadCount }] = await Promise.all([

@@ -7,6 +7,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getAIClient } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { recordUsage } from "@/lib/llm-usage";
+import { getRecruiterIdentity } from "@/lib/sourcing-email";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "./send-window";
 import type { Intent, InterestLevel } from "./intent";
 
@@ -15,6 +16,7 @@ export interface AiSdrCampaign {
   id: string;
   name: string;
   status: string;
+  created_by: string;
   ai_sdr_enabled: boolean;
   ai_sdr_mode: "draft" | "auto";
   ai_sdr_persona: string | null;
@@ -29,7 +31,7 @@ export interface AiSdrCampaign {
 }
 
 const CAMPAIGN_COLS =
-  "id, name, status, ai_sdr_enabled, ai_sdr_mode, ai_sdr_persona, ai_sdr_guardrails, " +
+  "id, name, status, created_by, ai_sdr_enabled, ai_sdr_mode, ai_sdr_persona, ai_sdr_guardrails, " +
   "ai_sdr_min_confidence, ai_sdr_max_replies, ai_sdr_tier, " +
   "send_window_start, send_window_end, send_timezone, business_days_only";
 
@@ -258,4 +260,118 @@ export function scheduleAutoReply(campaign: AiSdrCampaign, now: Date, jitter: nu
   };
   if (!isWithinSendWindow(window, when)) when = nextWindowOpen(window, when);
   return when;
+}
+
+// ── Orchestration: called from processReply after an inbound reply lands ─────
+// Best-effort — resolves the campaign, runs guardrails, drafts a grounded
+// reply, and inserts an ai_sdr_replies row (status 'queued' for auto-send,
+// 'needs_review' for a human). Never throws (the caller is fire-and-forget).
+export async function maybeEnqueueAiSdrReply(args: {
+  orgId: string;
+  threadId: string;
+  candidateEmail: string;
+  candidateName: string | null;
+  applicationId: string | null;
+  intent: Intent;
+  confidence: number;
+  interestLevel: InterestLevel;
+}): Promise<void> {
+  try {
+    const email = args.candidateEmail.toLowerCase();
+    const match = await getCampaignForReply(args.orgId, email);
+    if (!match) return;
+    const campaign = match.campaign;
+
+    // Thread context for the guardrails: prior AI sends + recency of our last
+    // outbound (loop guard).
+    const { data: thread } = await supabaseAdmin
+      .from("inbox_threads")
+      .select("last_outbound_at, intent")
+      .eq("id", args.threadId)
+      .eq("org_id", args.orgId)
+      .maybeSingle();
+    const { count: priorAiReplies } = await supabaseAdmin
+      .from("ai_sdr_replies")
+      .select("id", { count: "exact", head: true })
+      .eq("org_id", args.orgId)
+      .eq("thread_id", args.threadId)
+      .eq("status", "sent");
+    const lastOut = (thread as { last_outbound_at: string | null } | null)?.last_outbound_at ?? null;
+    const minutesSinceLastOutbound = lastOut ? (Date.now() - new Date(lastOut).getTime()) / 60_000 : null;
+
+    const gate = evaluateAutoReply({
+      campaign,
+      intent: args.intent,
+      confidence: args.confidence,
+      interestLevel: args.interestLevel,
+      priorAiReplies: priorAiReplies ?? 0,
+      minutesSinceLastOutbound,
+    });
+    if (!gate.ok) return;
+
+    // Grounding + who we're speaking as (the campaign's creator).
+    const [knowledge, recruiter, orgRow] = await Promise.all([
+      buildKnowledgeContext(args.orgId, campaign.id),
+      getRecruiterIdentity(campaign.created_by),
+      supabaseAdmin.from("enterprise_orgs").select("name").eq("id", args.orgId).maybeSingle(),
+    ]);
+    const orgName = ((orgRow.data as { name?: string } | null)?.name) ?? "our team";
+
+    // Recent transcript for context.
+    let msgs;
+    if (args.applicationId) {
+      const { data } = await supabaseAdmin
+        .from("enterprise_messages")
+        .select("direction, body, created_at")
+        .eq("org_id", args.orgId).eq("application_id", args.applicationId)
+        .order("created_at", { ascending: true }).limit(12);
+      msgs = data;
+    } else {
+      const { data } = await supabaseAdmin
+        .from("enterprise_messages")
+        .select("direction, body, created_at")
+        .eq("org_id", args.orgId)
+        .or(`from_email.ilike.${email},to_email.ilike.${email}`)
+        .order("created_at", { ascending: true }).limit(12);
+      msgs = data;
+    }
+    const transcript: TranscriptMessage[] = ((msgs ?? []) as { direction: string; body: string | null }[])
+      .map((m): TranscriptMessage => ({ direction: m.direction === "outbound" ? "outbound" : "inbound", body: m.body ?? "" }))
+      .filter((m) => m.body.trim().length > 0);
+
+    const draft = await draftAutoReply({
+      orgId: args.orgId,
+      campaign,
+      knowledge,
+      transcript,
+      candidateName: args.candidateName ?? match.candidateName,
+      orgName,
+      recruiterName: recruiter.name,
+    });
+    if (!draft.body.trim()) return;
+
+    // The model flagging needs_human forces review even in auto mode.
+    const autoSend = gate.autoSend && !draft.needsHuman;
+    const status = autoSend ? "queued" : "needs_review";
+    const scheduledAt = autoSend ? scheduleAutoReply(campaign, new Date(), Math.random()).toISOString() : null;
+
+    await supabaseAdmin.from("ai_sdr_replies").insert({
+      org_id: args.orgId,
+      thread_id: args.threadId,
+      campaign_id: campaign.id,
+      enrollment_id: match.enrollmentId,
+      candidate_email: email,
+      draft_subject: draft.subject || null,
+      draft_body: draft.body,
+      status,
+      intent: args.intent,
+      confidence: args.confidence,
+      model: draft.model,
+      input_tokens: draft.inputTokens,
+      output_tokens: draft.outputTokens,
+      scheduled_at: scheduledAt,
+    });
+  } catch (e) {
+    console.error("[ai-sdr] enqueue failed", e);
+  }
 }
