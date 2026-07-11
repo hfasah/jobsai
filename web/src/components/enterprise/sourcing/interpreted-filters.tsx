@@ -3,11 +3,14 @@
 // Editable "here's what I understood" filter panel shown between NL parse and
 // search execution. Chips are add/removable; the search only runs after the
 // recruiter confirms.
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, X, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoreWeights, SourcingFilters, SourcingLocation } from "@/lib/sourcing/types";
 import { DEFAULT_WEIGHTS, COMPANY_SIZES } from "@/lib/sourcing/types";
+import {
+  TITLE_SUGGESTIONS, SKILL_SUGGESTIONS, INDUSTRY_SUGGESTIONS, COUNTRY_SUGGESTIONS, suggestFor,
+} from "@/lib/sourcing/suggestions";
 
 function ChipEditor({
   label,
@@ -15,20 +18,55 @@ function ChipEditor({
   onChange,
   placeholder,
   tone = "default",
+  suggestionList,
 }: {
   label: string;
   values: string[];
   onChange: (next: string[]) => void;
   placeholder?: string;
   tone?: "default" | "exclude";
+  suggestionList?: string[]; // typeahead source; also drives the "browse" dropdown
 }) {
   const [draft, setDraft] = useState("");
-  const add = () => {
-    const v = draft.trim();
-    if (!v || values.some((x) => x.toLowerCase() === v.toLowerCase())) return setDraft("");
+  const [open, setOpen] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  const addValue = (raw: string) => {
+    const v = raw.trim();
+    if (!v || values.some((x) => x.toLowerCase() === v.toLowerCase())) { setDraft(""); return; }
     onChange([...values, v]);
     setDraft("");
+    setHighlight(0);
   };
+
+  // Suggestions: filtered when typing, else a short "browse" list on focus.
+  const suggestions = suggestionList
+    ? draft.trim()
+      ? suggestFor(suggestionList, draft, values)
+      : suggestionList.filter((s) => !values.some((v) => v.toLowerCase() === s.toLowerCase())).slice(0, 8)
+    : [];
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (open && suggestions[highlight]) addValue(suggestions[highlight]);
+      else addValue(draft);
+    } else if (e.key === "ArrowDown" && suggestions.length) {
+      e.preventDefault(); setOpen(true); setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp" && suggestions.length) {
+      e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0));
+    } else if (e.key === "Escape") {
+      setOpen(false);
+    }
+  };
+
   return (
     <div>
       <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -49,18 +87,39 @@ function ChipEditor({
             </button>
           </span>
         ))}
-        <span className="inline-flex items-center gap-1">
+        <span ref={boxRef} className="relative inline-flex items-center gap-1">
           <input
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && add()}
+            onChange={(e) => { setDraft(e.target.value); setOpen(true); setHighlight(0); }}
+            onFocus={() => setOpen(true)}
+            onKeyDown={onKeyDown}
             placeholder={placeholder ?? "Add…"}
-            className="w-28 rounded-full border border-dashed border-border bg-transparent px-2.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            className="w-32 rounded-full border border-dashed border-border bg-transparent px-2.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           />
-          {draft.trim() && (
-            <button onClick={add} className="rounded-full p-0.5 text-muted-foreground hover:text-foreground">
-              <Plus className="h-3.5 w-3.5" />
-            </button>
+          <button
+            onClick={() => (draft.trim() ? addValue(draft) : setOpen((o) => !o))}
+            className="rounded-full p-0.5 text-muted-foreground hover:text-foreground"
+            aria-label="Add or browse"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+
+          {open && suggestions.length > 0 && (
+            <div className="absolute left-0 top-7 z-40 max-h-52 w-52 overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-2xl">
+              {suggestions.map((s, i) => (
+                <button
+                  key={s}
+                  onMouseEnter={() => setHighlight(i)}
+                  onClick={() => addValue(s)}
+                  className={cn(
+                    "block w-full truncate rounded-lg px-2 py-1 text-left text-xs",
+                    i === highlight ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50",
+                  )}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           )}
         </span>
       </div>
@@ -165,17 +224,18 @@ export default function InterpretedFilters({
       {showWeights && <WeightsEditor weights={weights} onChange={onWeightsChange} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <ChipEditor label="Job titles" values={filters.titles} onChange={(v) => set("titles", v)} placeholder="Add title…" />
-        <ChipEditor label="Exclude titles" tone="exclude" values={filters.titles_exclude} onChange={(v) => set("titles_exclude", v)} />
-        <ChipEditor label="Skills (any)" values={filters.skills_any} onChange={(v) => set("skills_any", v)} placeholder="Add skill…" />
-        <ChipEditor label="Skills (required)" values={filters.skills_all} onChange={(v) => set("skills_all", v)} />
+        <ChipEditor label="Job titles" values={filters.titles} onChange={(v) => set("titles", v)} placeholder="Add title…" suggestionList={TITLE_SUGGESTIONS} />
+        <ChipEditor label="Exclude titles" tone="exclude" values={filters.titles_exclude} onChange={(v) => set("titles_exclude", v)} suggestionList={TITLE_SUGGESTIONS} />
+        <ChipEditor label="Skills (any)" values={filters.skills_any} onChange={(v) => set("skills_any", v)} placeholder="Add skill…" suggestionList={SKILL_SUGGESTIONS} />
+        <ChipEditor label="Skills (required)" values={filters.skills_all} onChange={(v) => set("skills_all", v)} suggestionList={SKILL_SUGGESTIONS} />
         <ChipEditor
           label="Locations"
           values={locationsToStrings(filters.locations)}
           onChange={(v) => set("locations", stringsToLocations(v))}
           placeholder="City, Country"
+          suggestionList={COUNTRY_SUGGESTIONS}
         />
-        <ChipEditor label="Industries" values={filters.industries} onChange={(v) => set("industries", v)} />
+        <ChipEditor label="Industries" values={filters.industries} onChange={(v) => set("industries", v)} suggestionList={INDUSTRY_SUGGESTIONS} />
         <ChipEditor label="Companies (include)" values={filters.companies_include} onChange={(v) => set("companies_include", v)} />
         <ChipEditor label="Companies (exclude)" tone="exclude" values={filters.companies_exclude} onChange={(v) => set("companies_exclude", v)} />
       </div>
