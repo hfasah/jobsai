@@ -208,15 +208,25 @@ export async function POST(req: NextRequest) {
     loadSuppressions(org.id),
   ]);
 
+  // Raw provider errors are kept for server logs + the run row ONLY — never
+  // returned to the client (they leak the provider name and read as broken).
   const providerErrors: string[] = [];
+  let limitReached = false; // provider is out of quota → surface as a top-up prompt
+  const isLimitError = (m: string) =>
+    /maximum|max .*search|matches used|limit|exceeded|quota|too many|insufficient|payment|billing|out of (credit|search)|402|429/i.test(m);
   let rawExternal: ExternalCandidate[] = [];
   for (let i = 0; i < externalSettled.length; i++) {
     const settled = externalSettled[i];
     if (settled.status === "fulfilled") {
       rawExternal.push(...settled.value.candidates);
-      if (settled.value.error) providerErrors.push(`${providers[i].provider.key}: ${settled.value.error}`);
+      if (settled.value.error) {
+        providerErrors.push(`${providers[i].provider.key}: ${settled.value.error}`);
+        if (isLimitError(settled.value.error)) limitReached = true;
+      }
     } else {
-      providerErrors.push(`${providers[i].provider.key}: ${String(settled.reason).slice(0, 200)}`);
+      const msg = String(settled.reason).slice(0, 200);
+      providerErrors.push(`${providers[i].provider.key}: ${msg}`);
+      if (isLimitError(msg)) limitReached = true;
       console.error("[sourcing] provider failed", providers[i].provider.key, settled.reason);
     }
   }
@@ -389,7 +399,13 @@ export async function POST(req: NextRequest) {
       external_count: externalCount,
       internal_count: internalCount,
       credits_charged: creditsCharged,
-      provider_errors: providerErrors,
+      // Client-safe: never expose provider names or raw provider errors.
+      limit_reached: limitReached,
+      // A generic notice only when something failed AND it wasn't a quota limit
+      // (quota is handled by limit_reached). Never includes provider details.
+      notice: !limitReached && providerErrors.length > 0 && externalCount === 0
+        ? "External sourcing is temporarily unavailable. Please try again shortly."
+        : null,
     },
   });
   } catch (e) {
