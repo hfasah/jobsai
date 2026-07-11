@@ -9,6 +9,7 @@ import type { ScoreWeights, SourcingFilters } from "@/lib/sourcing/types";
 import { DEFAULT_WEIGHTS } from "@/lib/sourcing/types";
 import InterpretedFilters from "./interpreted-filters";
 import ResultsView, { type RunResultRow } from "./results-view";
+import RevealButton, { type RevealOutcome } from "./reveal-button";
 
 const EXAMPLE_PROMPTS = [
   "Senior DevOps engineers in Toronto with Kubernetes, Terraform and AWS",
@@ -20,6 +21,7 @@ const EXAMPLE_PROMPTS = [
 interface Estimate {
   total: number | null;
   search_cost: number;
+  costs?: { reveal_email: number; reveal_phone: number; enrich: number };
   balance: number;
   providers: string[];
 }
@@ -144,6 +146,51 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
       return next;
     });
 
+  // Fold a successful reveal back into the loaded results so the value shows
+  // immediately without a refetch.
+  const onRevealed = (o: RevealOutcome) => {
+    setResults((prev) =>
+      prev.map((row) => {
+        if (row.id !== o.resultId || !row.external) return row;
+        const ext = { ...row.external, profile_unlocked: true };
+        if (o.type === "email" && o.value) {
+          ext.emails = [{ value: o.value, verification_status: o.verification_status ?? undefined }];
+        }
+        if (o.type === "phone" && o.value) {
+          ext.phones = [{ value: o.value }];
+        }
+        return { ...row, external: ext };
+      }),
+    );
+  };
+
+  const renderActions = (row: RunResultRow) => {
+    if (row.origin !== "external" || !row.external) return null;
+    const ext = row.external;
+    return (
+      <span className="flex items-center gap-1">
+        {ext.emails.length === 0 && (
+          <RevealButton
+            resultId={row.id}
+            type="email"
+            available={ext.has_email}
+            cost={estimate?.costs?.reveal_email ?? 2}
+            onRevealed={onRevealed}
+          />
+        )}
+        {ext.phones.length === 0 && (
+          <RevealButton
+            resultId={row.id}
+            type="phone"
+            available={ext.has_phone}
+            cost={estimate?.costs?.reveal_phone ?? 5}
+            onRevealed={onRevealed}
+          />
+        )}
+      </span>
+    );
+  };
+
   return (
     <div>
       {/* NL search box */}
@@ -254,6 +301,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
             await loadPage(runId, page + 1, true);
             setLoadingMore(false);
           }}
+          renderActions={renderActions}
           externalCount={counts.external}
           internalCount={counts.internal}
         />
