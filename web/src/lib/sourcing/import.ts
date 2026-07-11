@@ -204,7 +204,7 @@ export async function importExternalCandidate(args: {
   // the company, then a contact keyed by email. Dedup by (org, email).
   if (target === "crm_contact") {
     const first = candidate.first_name ?? (candidate.full_name ?? name).split(" ")[0];
-    const last = candidate.last_name ?? (candidate.full_name ?? "").split(" ").slice(1).join(" ") || null;
+    const last = candidate.last_name ?? ((candidate.full_name ?? "").split(" ").slice(1).join(" ") || null);
 
     let companyId: string | null = null;
     if (candidate.company) {
