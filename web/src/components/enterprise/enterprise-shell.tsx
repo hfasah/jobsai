@@ -38,6 +38,7 @@ const NAV: { href: string; icon: typeof LayoutGrid; label: string; feature?: str
   { href: "/enterprise/reports",   icon: FileSpreadsheet,  label: "Reports", feature: "client_reporting" },
   { href: "/enterprise/compliance", icon: Shield,           label: "Compliance", feature: "compliance_gdpr" },
   { href: "/enterprise/ats",       icon: Plug,             label: "ATS Integration", feature: "ats_integration" },
+  { href: "/enterprise/workspaces", icon: Building2,        label: "Agency", feature: "agency_workspaces" },
   { href: "/enterprise/team",      icon: UsersRound,       label: "Team & Access" },
   { href: "/enterprise/addons",    icon: Package,          label: "Add-ons" },
   { href: "/enterprise/billing",   icon: CreditCard,       label: "Billing" },
