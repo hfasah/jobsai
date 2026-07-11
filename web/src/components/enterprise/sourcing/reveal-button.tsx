@@ -42,7 +42,7 @@ export default function RevealButton({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => ({}));
       if (res.status === 402) {
         setNotice(json.daily_cap ? "Daily credit cap reached — try again tomorrow." : `Not enough credits (balance ${json.balance}).`);
         return;

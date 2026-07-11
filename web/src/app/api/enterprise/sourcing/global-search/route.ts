@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
+  try {
   const body = await req.json().catch(() => ({}));
   const mode: SourcingMode = ["external", "internal", "combined"].includes(body.mode) ? body.mode : "combined";
   const query: string = typeof body.query === "string" ? body.query.slice(0, 1000) : "";
@@ -391,4 +392,12 @@ export async function POST(req: NextRequest) {
       provider_errors: providerErrors,
     },
   });
+  } catch (e) {
+    // Never let the search handler return a bare 500 with an empty body (that
+    // crashed the client with "Unexpected end of JSON input"). Surface the real
+    // error so we can see what failed.
+    const msg = e instanceof Error ? e.message : "unknown error";
+    console.error("[sourcing/global-search] unhandled error", e);
+    return NextResponse.json({ error: `Search failed: ${msg}` }, { status: 500 });
+  }
 }
