@@ -134,8 +134,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const spend = await spendCredits({ orgId: org.id, userId, action: CREDIT_ACTION[type], refType: "reveal", refId: revealId });
   if (!spend.ok) {
-    await supabaseAdmin.from("sourcing_reveals").update({ status: "failed", result: { error: "insufficient_credits" } }).eq("id", revealId).eq("org_id", org.id);
-    return NextResponse.json({ error: "Not enough sourcing credits.", credits: true, balance: spend.balance, cost: spend.cost }, { status: 402 });
+    await supabaseAdmin.from("sourcing_reveals").update({ status: "failed", result: { error: spend.dailyCap ? "daily_cap" : "insufficient_credits" } }).eq("id", revealId).eq("org_id", org.id);
+    return NextResponse.json(
+      {
+        error: spend.dailyCap ? "Daily sourcing-credit cap reached." : "Not enough sourcing credits.",
+        credits: true,
+        balance: spend.balance,
+        cost: spend.cost,
+        daily_cap: spend.dailyCap ?? false,
+      },
+      { status: 402 },
+    );
   }
 
   const fail = async (status: "failed" | "no_data", error?: string) => {

@@ -4,14 +4,16 @@
 // sourcing managers), spend ledger, and data-provider configuration.
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Coins, Database, Loader2, Pencil, Plug, RefreshCw, Save } from "lucide-react";
+import { ArrowLeft, Check, Coins, Database, Loader2, Pencil, Plug, RefreshCw, Save, ShoppingCart } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CREDIT_PACKS } from "@/lib/sourcing/packs";
 
 interface CreditData {
   balance: number;
   monthlyAllowance: number;
   usedThisMonth: number;
   costs: Record<string, number>;
+  daily_credit_limit?: number | null;
 }
 
 interface LedgerEntry {
@@ -62,6 +64,31 @@ export default function SourcingCreditsPage() {
   const [costDraft, setCostDraft] = useState<Record<string, number>>({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [buyingPack, setBuyingPack] = useState<string | null>(null);
+  const [purchased, setPurchased] = useState(false);
+  const [capDraft, setCapDraft] = useState<string>("");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("purchased") === "1") {
+      setPurchased(true);
+    }
+  }, []);
+
+  const buyPack = async (key: string) => {
+    setBuyingPack(key);
+    try {
+      const res = await fetch("/api/enterprise/sourcing/credits/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ pack: key }),
+      });
+      const json = await res.json();
+      if (res.ok && json.data?.url) window.location.href = json.data.url;
+      else setBuyingPack(null);
+    } catch {
+      setBuyingPack(null);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,7 +97,11 @@ export default function SourcingCreditsPage() {
       fetch("/api/enterprise/sourcing/credits/usage").then((r) => r.json()).catch(() => null),
       fetch("/api/enterprise/sourcing/providers").then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
-    if (c?.data) { setCredit(c.data); setCostDraft(c.data.costs); }
+    if (c?.data) {
+      setCredit(c.data);
+      setCostDraft(c.data.costs);
+      setCapDraft(c.data.daily_credit_limit ? String(c.data.daily_credit_limit) : "");
+    }
     if (u?.data) { setLedger(u.data.entries ?? []); setHasMore(u.data.has_more ?? false); setLedgerPage(0); }
     if (p?.data) {
       setProviders(p.data.providers ?? []);
@@ -96,14 +127,18 @@ export default function SourcingCreditsPage() {
   const saveCosts = async () => {
     setSaving(true);
     try {
+      const cap = parseInt(capDraft, 10);
       const res = await fetch("/api/enterprise/sourcing/credits", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ costs: costDraft }),
+        body: JSON.stringify({
+          costs: costDraft,
+          daily_credit_limit: Number.isFinite(cap) && cap > 0 ? cap : null,
+        }),
       });
       const json = await res.json();
       if (res.ok && credit) {
-        setCredit({ ...credit, costs: json.data.costs });
+        setCredit({ ...credit, costs: json.data.costs, daily_credit_limit: Number.isFinite(cap) && cap > 0 ? cap : null });
         setEditingCosts(false);
       }
     } finally {
@@ -141,6 +176,12 @@ export default function SourcingCreditsPage() {
           Credits pay for external searches, contact reveals and enrichment. Failed or empty actions are refunded automatically.
         </p>
 
+        {purchased && (
+          <div className="mt-4 flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+            <Check className="h-4 w-4 shrink-0" /> Payment received — credits are added as soon as Stripe confirms (usually seconds). Refresh to see the new balance.
+          </div>
+        )}
+
         {/* Balance cards */}
         <div className="mt-6 grid grid-cols-3 gap-3">
           {[
@@ -154,6 +195,36 @@ export default function SourcingCreditsPage() {
             </div>
           ))}
         </div>
+
+        {/* Top-up packs */}
+        {canManage && (
+          <div className="mt-6 rounded-2xl border border-border bg-card p-4">
+            <h2 className="mb-3 flex items-center gap-1.5 text-sm font-semibold">
+              <ShoppingCart className="h-4 w-4 text-primary" /> Top up credits
+            </h2>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {CREDIT_PACKS.map((p) => (
+                <button
+                  key={p.key}
+                  onClick={() => buyPack(p.key)}
+                  disabled={buyingPack !== null}
+                  className={cn(
+                    "rounded-xl border border-border p-3 text-center transition-colors hover:border-primary/50 disabled:opacity-60",
+                  )}
+                >
+                  <p className="text-sm font-bold">{p.label}</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">${(p.amount_cents / 100).toFixed(2)}</p>
+                  <span className="btn-cta mt-2 inline-flex w-full items-center justify-center gap-1 rounded-lg py-1 text-[11px] font-semibold">
+                    {buyingPack === p.key ? <Loader2 className="h-3 w-3 animate-spin" /> : "Purchase"}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              One-time purchase via Stripe. Credits never expire; monthly plan credits are granted separately.
+            </p>
+          </div>
+        )}
 
         {/* Costs */}
         <div className="mt-6 rounded-2xl border border-border bg-card p-4">
@@ -187,6 +258,24 @@ export default function SourcingCreditsPage() {
                 )}
               </div>
             ))}
+          </div>
+          <div className="mt-3 flex items-center gap-2 border-t border-border/60 pt-3">
+            <p className="text-xs text-muted-foreground">Daily spend cap</p>
+            {editingCosts ? (
+              <input
+                type="number"
+                min={0}
+                value={capDraft}
+                onChange={(e) => setCapDraft(e.target.value)}
+                placeholder="No cap"
+                className="w-24 rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            ) : (
+              <p className="text-xs font-semibold">
+                {credit?.daily_credit_limit ? `${credit.daily_credit_limit} credits/day` : "No cap"}
+              </p>
+            )}
+            <p className="ml-auto text-[10px] text-muted-foreground">Blocks spends beyond this many credits per day (cost control).</p>
           </div>
         </div>
 

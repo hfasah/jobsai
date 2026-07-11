@@ -80,16 +80,41 @@ export async function ensureMonthlyGrant(orgId: string): Promise<void> {
   }
 }
 
+// Today's spend (UTC) vs. the org's optional daily cap. Advisory cost
+// control — checked before the atomic spend, so treat it as a soft limit.
+async function dailyCapExceeded(orgId: string, adding: number): Promise<boolean> {
+  const { data: settings } = await supabaseAdmin
+    .from("sourcing_org_settings")
+    .select("daily_credit_limit")
+    .eq("org_id", orgId)
+    .maybeSingle();
+  const cap = (settings as { daily_credit_limit?: number | null } | null)?.daily_credit_limit;
+  if (!cap || cap <= 0) return false;
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: spent } = await supabaseAdmin
+    .from("sourcing_credit_ledger")
+    .select("amount")
+    .eq("org_id", orgId)
+    .lt("amount", 0)
+    .gte("created_at", `${today}T00:00:00Z`);
+  const used = ((spent ?? []) as { amount: number }[]).reduce((sum, r) => sum - r.amount, 0);
+  return used + adding > cap;
+}
+
 export async function spendCredits(args: {
   orgId: string;
   userId: string;
   action: CreditAction;
   refType: "run" | "reveal";
   refId: string;
-}): Promise<{ ok: boolean; balance: number; ledgerEntryId: string | null; cost: number }> {
+}): Promise<{ ok: boolean; balance: number; ledgerEntryId: string | null; cost: number; dailyCap?: boolean }> {
   const costs = await getCreditCosts(args.orgId);
   const cost = costs[args.action];
   if (cost === 0) return { ok: true, balance: -1, ledgerEntryId: null, cost: 0 };
+
+  if (await dailyCapExceeded(args.orgId, cost)) {
+    return { ok: false, balance: 0, ledgerEntryId: null, cost, dailyCap: true };
+  }
 
   const { data, error } = await supabaseAdmin.rpc("sourcing_spend_credits", {
     p_org: args.orgId,

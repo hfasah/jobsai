@@ -44,7 +44,7 @@ export default function RevealButton({
       });
       const json = await res.json();
       if (res.status === 402) {
-        setNotice(`Not enough credits (balance ${json.balance}).`);
+        setNotice(json.daily_cap ? "Daily credit cap reached — try again tomorrow." : `Not enough credits (balance ${json.balance}).`);
         return;
       }
       if (res.status === 404 && json.no_data) {

@@ -20,8 +20,13 @@ export async function GET() {
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
   await ensureMonthlyGrant(org.id);
-  const [state, costs] = await Promise.all([getCreditState(org.id), getCreditCosts(org.id)]);
-  return NextResponse.json({ data: { ...state, costs } });
+  const [state, costs, settingsRes] = await Promise.all([
+    getCreditState(org.id),
+    getCreditCosts(org.id),
+    supabaseAdmin.from("sourcing_org_settings").select("daily_credit_limit").eq("org_id", org.id).maybeSingle(),
+  ]);
+  const dailyLimit = (settingsRes.data as { daily_credit_limit?: number | null } | null)?.daily_credit_limit ?? null;
+  return NextResponse.json({ data: { ...state, costs, daily_credit_limit: dailyLimit } });
 }
 
 // PATCH — org-level cost overrides: { costs: { reveal_email: 3, ... } }.
@@ -46,8 +51,20 @@ export async function PATCH(req: NextRequest) {
       .upsert({ org_id: org.id, action, cost: v }, { onConflict: "org_id,action" });
     applied[action] = v;
   }
-  if (Object.keys(applied).length === 0) {
-    return NextResponse.json({ error: "No valid cost values supplied." }, { status: 400 });
+
+  // Optional daily spend cap (null/0 clears it).
+  let capApplied = false;
+  if ("daily_credit_limit" in body) {
+    const cap = body.daily_credit_limit;
+    const value = typeof cap === "number" && Number.isInteger(cap) && cap > 0 ? cap : null;
+    await supabaseAdmin
+      .from("sourcing_org_settings")
+      .upsert({ org_id: org.id, daily_credit_limit: value, updated_at: new Date().toISOString() }, { onConflict: "org_id" });
+    capApplied = true;
+  }
+
+  if (Object.keys(applied).length === 0 && !capApplied) {
+    return NextResponse.json({ error: "No valid values supplied." }, { status: 400 });
   }
 
   after(() => {
