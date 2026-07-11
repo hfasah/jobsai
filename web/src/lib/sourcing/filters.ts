@@ -3,6 +3,7 @@
 // (including any sensitive-trait criterion an LLM or client might smuggle in)
 // is silently dropped before a provider ever sees it.
 import { dedupeStrings } from "./normalize";
+import { COMPANY_SIZE_VALUES } from "./types";
 import type { FilterOperator, SourcingFilters, SourcingLocation } from "./types";
 
 const OPERATORS: FilterOperator[] = ["is_any_of", "is_all_of", "is_not_any_of", "contains"];
@@ -54,6 +55,7 @@ export function emptyFilters(): SourcingFilters {
     industries_exclude: [],
     companies_include: [],
     companies_exclude: [],
+    company_sizes: [],
     education_levels: [],
     schools: [],
     languages: [],
@@ -92,6 +94,8 @@ export function sanitizeFilters(input: unknown): SourcingFilters {
   f.industries_exclude = strList(raw.industries_exclude);
   f.companies_include = strList(raw.companies_include);
   f.companies_exclude = strList(raw.companies_exclude);
+  // Only accept known headcount buckets (drops anything an LLM/client invents).
+  f.company_sizes = strList(raw.company_sizes).filter((s) => COMPANY_SIZE_VALUES.includes(s));
   f.education_levels = strList(raw.education_levels);
   f.schools = strList(raw.schools);
   f.languages = strList(raw.languages);

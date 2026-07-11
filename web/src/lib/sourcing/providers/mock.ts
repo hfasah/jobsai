@@ -6,6 +6,7 @@
 import { normToken } from "../normalize";
 import type { CandidateRef, ProviderCallOpts, SourcingProvider } from "../provider";
 import type { ExternalCandidate, ProviderSearchResult, RevealResult, SourcingFilters } from "../types";
+import { COMPANY_SIZE_VALUES } from "../types";
 
 // Mulberry32 — tiny seeded PRNG, deterministic across runs.
 function mulberry32(seed: number) {
@@ -74,6 +75,7 @@ function buildPool(): ExternalCandidate[] {
     const role = ROLES[Math.floor(rand() * ROLES.length)];
     const loc = LOCATIONS[Math.floor(rand() * LOCATIONS.length)];
     const company = COMPANIES[Math.floor(rand() * COMPANIES.length)];
+    const companySize = COMPANY_SIZE_VALUES[Math.floor(rand() * COMPANY_SIZE_VALUES.length)];
     const years = Math.floor(rand() * 18) + 1;
     const handle = `${first}-${last}-${i}`.toLowerCase();
     // drop a random skill sometimes so partial matches exist
@@ -89,6 +91,7 @@ function buildPool(): ExternalCandidate[] {
       last_name: last,
       job_title: years >= 8 && !role.title.startsWith("Senior") && rand() > 0.5 ? `Senior ${role.title}` : role.title,
       company,
+      company_size: companySize,
       location_country: loc.country,
       location_locality: loc.locality,
       skills,
@@ -153,6 +156,7 @@ function matchesFilters(c: ExternalCandidate, f: SourcingFilters): boolean {
   }
   if (f.companies_exclude.length && f.companies_exclude.some((co) => (c.company ?? "").toLowerCase().includes(co.toLowerCase()))) return false;
   if (f.companies_include.length && !f.companies_include.some((co) => (c.company ?? "").toLowerCase().includes(co.toLowerCase()))) return false;
+  if (f.company_sizes.length && !(c.company_size && f.company_sizes.includes(c.company_size))) return false;
 
   if (f.contact_required.email && !c.has_email) return false;
   if (f.contact_required.phone && !c.has_phone) return false;

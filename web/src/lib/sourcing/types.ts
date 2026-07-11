@@ -28,6 +28,7 @@ export interface SourcingFilters {
   industries_exclude: string[];
   companies_include: string[];
   companies_exclude: string[];
+  company_sizes: string[]; // headcount buckets (PDL job_company_size values)
   education_levels: string[];
   schools: string[];
   languages: string[];
@@ -49,6 +50,7 @@ export interface ExternalCandidate {
   last_name: string | null;
   job_title: string | null;
   company: string | null;
+  company_size?: string | null; // headcount bucket, when the provider reports it
   location_country: string | null;
   location_locality: string | null;
   skills: string[];
@@ -135,6 +137,19 @@ export interface DedupVerdict {
   status: DedupStatus;
   matches: DedupMatch[];
 }
+
+// Company headcount buckets — canonical values match PDL's job_company_size.
+export const COMPANY_SIZES: { value: string; label: string }[] = [
+  { value: "1-10", label: "1–10" },
+  { value: "11-50", label: "11–50" },
+  { value: "51-200", label: "51–200" },
+  { value: "201-500", label: "201–500" },
+  { value: "501-1000", label: "501–1,000" },
+  { value: "1001-5000", label: "1,001–5,000" },
+  { value: "5001-10000", label: "5,001–10,000" },
+  { value: "10001+", label: "10,001+" },
+];
+export const COMPANY_SIZE_VALUES = COMPANY_SIZES.map((s) => s.value);
 
 // Credits
 export type CreditAction = "search" | "unlock_profile" | "reveal_email" | "reveal_phone" | "enrich";
