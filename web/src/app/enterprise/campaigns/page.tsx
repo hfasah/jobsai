@@ -152,21 +152,37 @@ export default function CampaignsPage() {
 
 function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
+  const [blocked, setBlocked] = useState<string | null>(null);
   const live = campaign.status === "active";
   const toggle = async () => {
     setBusy(true);
-    await fetch(`/api/enterprise/campaigns/${campaign.id}`, {
+    setBlocked(null);
+    const res = await fetch(`/api/enterprise/campaigns/${campaign.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: live ? "paused" : "active" }),
     });
     setBusy(false);
+    if (res.status === 422) {
+      const j = await res.json().catch(() => ({}));
+      const fails = (j.preflight?.checks ?? []).filter((c: { status: string }) => c.status === "fail").map((c: { detail: string }) => c.detail);
+      setBlocked(fails[0] ?? "Fix the launch checklist in the editor.");
+      setTimeout(() => setBlocked(null), 6000);
+      return;
+    }
     onChanged();
   };
   return (
-    <button onClick={toggle} disabled={busy} title={live ? "Pause" : "Activate"} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
-      {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : live ? <Pause className="h-4 w-4 text-amber-400" /> : <Play className="h-4 w-4 text-green-400" />}
-    </button>
+    <span className="relative">
+      <button onClick={toggle} disabled={busy} title={live ? "Pause" : "Activate"} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : live ? <Pause className="h-4 w-4 text-amber-400" /> : <Play className="h-4 w-4 text-green-400" />}
+      </button>
+      {blocked && (
+        <span className="absolute right-0 top-9 z-30 w-60 rounded-lg border border-red-500/30 bg-card px-2.5 py-1.5 text-[11px] text-red-400 shadow-xl">
+          Can&apos;t launch: {blocked}
+        </span>
+      )}
+    </span>
   );
 }
 
@@ -193,6 +209,7 @@ function BuilderView({ campaignId, presets, onDone, onCancel }: { campaignId: st
   const [draft, setDraft] = useState<CampaignDraft | null>(campaignId ? null : emptyDraft());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preflight, setPreflight] = useState<{ ok: boolean; checks: { key: string; label: string; status: "pass" | "warn" | "fail"; detail: string }[] } | null>(null);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -205,17 +222,32 @@ function BuilderView({ campaignId, presets, onDone, onCancel }: { campaignId: st
   const save = async (activate: boolean) => {
     if (!draft) return;
     setError(null);
+    setPreflight(null);
     setSaving(true);
+    const w = draft.sendWindow;
     const payload = {
       name: draft.name,
       description: draft.description,
       status: activate ? "active" : "draft",
-      steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt }) => ({ delay_days, subject, body, ai_personalize, ai_prompt })),
+      steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body }) => ({
+        delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body,
+      })),
+      send_window: w.enabled
+        ? { start: w.start, end: w.end, timezone: w.timezone, business_days_only: w.business_days_only }
+        : { start: null, end: null, timezone: null, business_days_only: false },
     };
     const res = campaignId
       ? await fetch(`/api/enterprise/campaigns/${campaignId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
       : await fetch(`/api/enterprise/campaigns`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
     setSaving(false);
+    if (res.status === 422) {
+      // Hard launch gate: content was saved as a draft, but activation was
+      // blocked. Show the failing checks; the draft is safe.
+      const j = await res.json().catch(() => ({}));
+      setPreflight(j.preflight ?? null);
+      setError(j.error ?? "Launch blocked — fix the checks below.");
+      return;
+    }
     if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Could not save."); return; }
     onDone();
   };
@@ -229,6 +261,28 @@ function BuilderView({ campaignId, presets, onDone, onCancel }: { campaignId: st
       </div>
       {error && (
         <div className="mx-auto mb-3 max-w-3xl rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>
+      )}
+      {preflight && (
+        <div className="mx-auto mb-3 max-w-3xl rounded-xl border border-border bg-card p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Launch checklist</p>
+          <ul className="space-y-1.5">
+            {preflight.checks.map((c) => (
+              <li key={c.key} className="flex items-start gap-2 text-sm">
+                <span className={cn(
+                  "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
+                  c.status === "pass" ? "bg-green-500/15 text-green-400" : c.status === "warn" ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400",
+                )}>
+                  {c.status === "pass" ? "✓" : c.status === "warn" ? "!" : "✕"}
+                </span>
+                <span>
+                  <span className="font-medium">{c.label}</span>
+                  <span className="text-muted-foreground"> — {c.detail}</span>
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-[11px] text-muted-foreground">Your changes are saved as a draft. Fix the ✕ items, then activate again. Warnings (!) don&apos;t block launch.</p>
+        </div>
       )}
       {draft ? (
         <CampaignBuilder draft={draft} setDraft={setDraft} onSave={save} onCancel={onCancel} saving={saving} presets={presets} />

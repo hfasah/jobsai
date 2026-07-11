@@ -91,6 +91,8 @@ export async function POST(req: NextRequest) {
     body: s.body.trim(),
     ai_personalize: !!s.ai_personalize,
     ai_prompt: s.ai_prompt?.trim() || null,
+    ab_subject: s.ab_subject?.trim() || null,
+    ab_body: s.ab_body?.trim() || null,
   }));
   const { error: stepErr2 } = await supabaseAdmin.from("enterprise_campaign_steps").insert(stepRows);
   if (stepErr2) {
