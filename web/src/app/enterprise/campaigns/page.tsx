@@ -3,13 +3,14 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Megaphone, Plus, Loader2, Sparkles, Users, MailCheck, Play, Pause,
-  Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X,
+  Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   CampaignBuilder, emptyDraft, draftFromCampaign,
   type CampaignDraft,
 } from "@/components/enterprise/campaign-builder";
+import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
 import type { CampaignPreset } from "@/lib/campaigns";
 
 type CampaignStatus = "draft" | "active" | "paused" | "archived";
@@ -54,6 +55,7 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<CampaignListItem[]>([]);
   const [presets, setPresets] = useState<CampaignPreset[]>([]);
+  const [aiSdr, setAiSdr] = useState<{ id: string; name: string } | null>(null);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -136,6 +138,7 @@ export default function CampaignsPage() {
                   </button>
                   <div className="flex shrink-0 items-center gap-1">
                     <StatusToggle campaign={c} onChanged={loadList} />
+                    <button onClick={() => setAiSdr({ id: c.id, name: c.name })} title="AI SDR auto-reply" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Bot className="h-4 w-4" /></button>
                     <button onClick={() => setView({ kind: "detail", campaignId: c.id })} title="Analytics" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><BarChart3 className="h-4 w-4" /></button>
                     <button onClick={() => setView({ kind: "builder", campaignId: c.id })} title="Edit" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><Pencil className="h-4 w-4" /></button>
                     <DeleteButton id={c.id} onDeleted={loadList} />
@@ -146,6 +149,8 @@ export default function CampaignsPage() {
           </div>
         )}
       </div>
+
+      {aiSdr && <AiSdrPanel campaignId={aiSdr.id} campaignName={aiSdr.name} onClose={() => setAiSdr(null)} />}
     </div>
   );
 }
