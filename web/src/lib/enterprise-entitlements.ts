@@ -16,10 +16,22 @@ export interface OrgEntitlements {
 // Resolve everything an org's plan unlocks: plan features, active add-ons, and
 // per-org overrides (which can grant OR explicitly deny a feature).
 export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements> {
+  // Agency client workspaces (parent_org_id set) don't hold their own plan —
+  // billing and entitlements roll up to the parent org. Resolve against the
+  // parent so a client workspace inherits the agency's plan features/limits.
+  // No-op for standalone orgs (parent_org_id null).
+  const { data: parentRow } = await supabaseAdmin
+    .from("enterprise_orgs")
+    .select("parent_org_id")
+    .eq("id", orgId)
+    .maybeSingle();
+  const parentId = (parentRow as { parent_org_id?: string | null } | null)?.parent_org_id ?? null;
+  const billingOrgId = parentId ?? orgId;
+
   const { data: orgRow } = await supabaseAdmin
     .from("enterprise_orgs")
     .select("plan_id, access_status, trial_ends_at, stripe_customer_id")
-    .eq("id", orgId)
+    .eq("id", billingOrgId)
     .maybeSingle();
   const org = orgRow as { plan_id?: string | null; access_status?: string | null; trial_ends_at?: string | null; stripe_customer_id?: string | null } | null;
   const planId = org?.plan_id ?? null;
@@ -71,7 +83,7 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements
   const { data: ad } = await supabaseAdmin
     .from("org_addons")
     .select("addon_key, quantity, status, removal_at")
-    .eq("org_id", orgId)
+    .eq("org_id", billingOrgId)
     .in("status", ["active", "scheduled_removal"]);
   const now = Date.now();
   for (const row of (ad ?? []) as { addon_key: string; quantity?: number; status: string; removal_at?: string | null }[]) {
@@ -89,7 +101,7 @@ export async function getOrgEntitlements(orgId: string): Promise<OrgEntitlements
   const { data: ov } = await supabaseAdmin
     .from("org_feature_overrides")
     .select("feature_key,enabled")
-    .eq("org_id", orgId);
+    .eq("org_id", billingOrgId);
   for (const row of (ov ?? []) as { feature_key: string; enabled: boolean }[]) {
     if (row.enabled) features.add(row.feature_key);
     else features.delete(row.feature_key);
