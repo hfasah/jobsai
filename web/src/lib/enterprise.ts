@@ -2,7 +2,7 @@ import { randomBytes } from "crypto";
 import { cookies } from "next/headers";
 import { supabaseAdmin } from "@/lib/supabase";
 import { emailFromName } from "@/lib/email-utils";
-import type { EnterpriseOrg, EnterpriseMember } from "@/types/enterprise";
+import type { EnterpriseOrg, EnterpriseMember, MemberRole } from "@/types/enterprise";
 
 const INTAKE_DOMAIN = process.env.ENTERPRISE_INTAKE_DOMAIN || "talent.jobsai.work";
 
@@ -263,7 +263,7 @@ export async function getMyMembership(userId: string): Promise<EnterpriseMember 
   // Synthetic membership when access is impersonated or inherited from a parent
   // org (agency admin operating in a client workspace they have no row in).
   if (resolved.synthetic) {
-    return { id: "synthetic", org_id: resolved.orgId, user_id: userId, role: resolved.role, created_at: new Date().toISOString() };
+    return { id: "synthetic", org_id: resolved.orgId, user_id: userId, role: resolved.role as MemberRole, created_at: new Date().toISOString() };
   }
   const { data } = await supabaseAdmin
     .from("enterprise_members")
