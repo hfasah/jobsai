@@ -90,8 +90,10 @@ async function accessibleOrgs(userId: string): Promise<Map<string, { role: strin
 
   const { data: memberships } = await supabaseAdmin
     .from("enterprise_members")
-    .select("org_id, role")
-    .eq("user_id", userId);
+    .select("org_id, role, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .order("org_id", { ascending: true });
   const rows = (memberships ?? []) as { org_id: string; role: string }[];
   for (const m of rows) map.set(m.org_id, { role: m.role, direct: true });
 
@@ -120,10 +122,17 @@ export async function resolveActiveOrg(userId: string): Promise<ResolvedOrg | nu
   const impersonated = await impersonatedOrgId(userId);
   if (impersonated) return { orgId: impersonated, role: "owner", synthetic: true };
 
+  // ORDER BY created_at is REQUIRED: without a stable order a multi-membership
+  // user resolves to a DIFFERENT org on each request (Postgres returns rows in
+  // arbitrary order), which silently switches their whole workspace between
+  // page loads — the "estimate shows 2500, search sees 0" bug. Oldest
+  // membership = the user's primary org, and it's stable.
   const { data: memberships } = await supabaseAdmin
     .from("enterprise_members")
-    .select("org_id, role")
-    .eq("user_id", userId);
+    .select("org_id, role, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: true })
+    .order("org_id", { ascending: true }); // tiebreak when created_at ties
   const rows = (memberships ?? []) as { org_id: string; role: string }[];
   const cookieId = await activeWorkspaceCookie();
 
@@ -142,8 +151,10 @@ export async function resolveActiveOrg(userId: string): Promise<ResolvedOrg | nu
     return { orgId: cookieId, role: a.role, synthetic: !a.direct };
   }
 
-  // Default: prefer a top-level org the user directly belongs to (the agency
-  // parent / their own org), else the first direct membership, else anything.
+  // Default (no valid cookie): prefer the user's OLDEST top-level direct
+  // membership (their primary org / agency parent), else their oldest direct
+  // membership. `rows` is already ordered oldest-first, so the first match is
+  // deterministic across requests.
   const directIds = rows.map((r) => r.org_id);
   if (directIds.length > 0) {
     const { data: tops } = await supabaseAdmin
@@ -151,7 +162,8 @@ export async function resolveActiveOrg(userId: string): Promise<ResolvedOrg | nu
       .select("id")
       .in("id", directIds)
       .is("parent_org_id", null);
-    const topId = (tops as { id: string }[] | null)?.[0]?.id ?? directIds[0];
+    const topSet = new Set(((tops as { id: string }[] | null) ?? []).map((t) => t.id));
+    const topId = directIds.find((id) => topSet.has(id)) ?? directIds[0];
     const a = accessible.get(topId)!;
     return { orgId: topId, role: a.role, synthetic: !a.direct };
   }
