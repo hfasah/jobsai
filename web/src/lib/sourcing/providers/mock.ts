@@ -33,6 +33,13 @@ const ROLES: { title: string; skills: string[]; industry: string }[] = [
   { title: "Recruiter", skills: ["Sourcing", "ATS", "Boolean Search", "Interviewing", "LinkedIn Recruiter"], industry: "Staffing & Recruiting" },
   { title: "Product Manager", skills: ["Roadmapping", "Agile", "SQL", "User Research", "Jira"], industry: "Technology" },
   { title: "Cloud Architect", skills: ["AWS", "Azure", "Terraform", "Networking", "Security"], industry: "Software" },
+  // Leadership / founder roles for company + decision-maker lead searches.
+  { title: "CEO", skills: ["Leadership", "Fundraising", "Strategy", "P&L"], industry: "Technology" },
+  { title: "Founder", skills: ["Entrepreneurship", "Product", "Fundraising", "Go-to-Market"], industry: "Technology" },
+  { title: "Co-Founder & CEO", skills: ["Leadership", "Strategy", "Operations", "Sales"], industry: "Technology" },
+  { title: "CTO & Co-Founder", skills: ["Architecture", "Engineering Leadership", "Cloud", "Hiring"], industry: "Software" },
+  { title: "Managing Director", skills: ["Operations", "P&L", "Business Development"], industry: "Consulting" },
+  { title: "Head of Talent", skills: ["Recruiting", "Employer Branding", "ATS", "Hiring Strategy"], industry: "Staffing & Recruiting" },
 ];
 const LOCATIONS: { country: string; locality: string }[] = [
   { country: "canada", locality: "toronto" },
@@ -44,13 +51,19 @@ const LOCATIONS: { country: string; locality: string }[] = [
   { country: "france", locality: "paris" },
   { country: "cameroon", locality: "douala" },
   { country: "cameroon", locality: "yaoundé" },
+  { country: "cameroon", locality: "bamenda" },
+  { country: "cameroon", locality: "buea" },
+  { country: "cameroon", locality: "bafoussam" },
   { country: "nigeria", locality: "lagos" },
   { country: "india", locality: "bangalore" },
   { country: "australia", locality: "sydney" },
 ];
 const COMPANIES = ["Northwind Labs", "Acme Cloud", "Stellar Health", "FinEdge", "Yarabyte", "Deltaworks", "Nimbus AI", "CarePoint Group", "TalentBridge Agency", "Vertex Pharma", "BlueRiver Tech", "Obsec Technology Services"];
 
-const POOL_SIZE = 200;
+// Larger pool → any reasonable filter combo (e.g. "DevOps in Cameroon")
+// returns a believable list in demos, instead of 2–3 records. Still
+// deterministic (seeded), still free — real breadth comes from PDL.
+const POOL_SIZE = 700;
 
 function buildPool(): ExternalCandidate[] {
   const rand = mulberry32(424242);

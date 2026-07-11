@@ -21,7 +21,15 @@ import type { ExternalCandidate, ScoreWeights, SourcingMode } from "@/lib/sourci
 export const maxDuration = 60;
 
 const PROVIDER_TIMEOUT_MS = 20000;
-const PER_PROVIDER_LIMIT = 30; // PDL bills per record — keep tight, never paginate here
+// Default records fetched per provider per search. Higher = more leads shown
+// (competitive with other tools) but PDL bills per record, so it's an
+// acquisition cost while search stays free. Admin-tunable per org via the
+// provider's settings.search_limit (clamped 10–100).
+const DEFAULT_PER_PROVIDER_LIMIT = 50;
+function clampLimit(n: unknown): number {
+  const v = typeof n === "number" ? Math.floor(n) : NaN;
+  return Number.isFinite(v) ? Math.max(10, Math.min(100, v)) : DEFAULT_PER_PROVIDER_LIMIT;
+}
 
 interface SuppressionKeys {
   emails: Set<string>;
@@ -185,7 +193,7 @@ export async function POST(req: NextRequest) {
     p.provider.searchCandidates(filters, {
       apiKey: p.apiKey,
       timeoutMs: PROVIDER_TIMEOUT_MS,
-      limit: PER_PROVIDER_LIMIT,
+      limit: clampLimit((p.settings as { search_limit?: number } | undefined)?.search_limit),
     }),
   );
   const internalPromise: Promise<InternalSearchResult> | null =
