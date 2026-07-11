@@ -71,13 +71,13 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
     if (f.title_operator === "is_all_of") {
       for (const t of f.titles) must.push({ match: { job_title: t } });
     } else {
-      must.push({ bool: { should: f.titles.map((t) => ({ match: { job_title: t } })), minimum_should_match: 1 } });
+      must.push({ bool: { should: f.titles.map((t) => ({ match: { job_title: t } })) } });
     }
   }
   for (const t of f.titles_exclude) must_not.push({ match: { job_title: t } });
 
   if (f.skills_any.length) {
-    must.push({ bool: { should: f.skills_any.map((s) => ({ term: { skills: s.toLowerCase() } })), minimum_should_match: 1 } });
+    must.push({ bool: { should: f.skills_any.map((s) => ({ term: { skills: s.toLowerCase() } })) } });
   }
   for (const s of f.skills_all) must.push({ term: { skills: s.toLowerCase() } });
   for (const s of f.skills_exclude) must_not.push({ term: { skills: s.toLowerCase() } });
@@ -90,7 +90,6 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
             ? { bool: { must: [{ term: { location_country: l.country.toLowerCase() } }, { term: { location_locality: l.locality.toLowerCase() } }] } }
             : { term: { location_country: l.country.toLowerCase() } },
         ),
-        minimum_should_match: 1,
       },
     });
   }
@@ -111,7 +110,6 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
       must.push({
         bool: {
           should: [rangeClause, { bool: { must_not: [{ exists: { field: "inferred_years_experience" } }] } }],
-          minimum_should_match: 1,
         },
       });
     } else {
@@ -120,24 +118,24 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
   }
 
   if (f.industries.length) {
-    must.push({ bool: { should: f.industries.map((i) => ({ term: { industry: i.toLowerCase() } })), minimum_should_match: 1 } });
+    must.push({ bool: { should: f.industries.map((i) => ({ term: { industry: i.toLowerCase() } })) } });
   }
   for (const i of f.industries_exclude) must_not.push({ term: { industry: i.toLowerCase() } });
 
   if (f.companies_include.length) {
-    must.push({ bool: { should: f.companies_include.map((c) => ({ match: { job_company_name: c } })), minimum_should_match: 1 } });
+    must.push({ bool: { should: f.companies_include.map((c) => ({ match: { job_company_name: c } })) } });
   }
   for (const c of f.companies_exclude) must_not.push({ match: { job_company_name: c } });
 
   if (f.schools.length) {
-    must.push({ bool: { should: f.schools.map((s) => ({ match: { "education.school.name": s } })), minimum_should_match: 1 } });
+    must.push({ bool: { should: f.schools.map((s) => ({ match: { "education.school.name": s } })) } });
   }
   if (f.languages.length) {
-    must.push({ bool: { should: f.languages.map((l) => ({ term: { "languages.name": l.toLowerCase() } })), minimum_should_match: 1 } });
+    must.push({ bool: { should: f.languages.map((l) => ({ term: { "languages.name": l.toLowerCase() } })) } });
   }
   if (f.keywords.length && !f.titles.length && !f.skills_any.length) {
     // free-text fallback when the structured criteria are empty
-    must.push({ bool: { should: f.keywords.map((k) => ({ match: { job_title: k } })), minimum_should_match: 1 } });
+    must.push({ bool: { should: f.keywords.map((k) => ({ match: { job_title: k } })) } });
   }
 
   if (f.contact_required.email) must.push({ exists: { field: "emails" } });
