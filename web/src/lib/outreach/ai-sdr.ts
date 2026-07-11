@@ -336,7 +336,7 @@ export async function maybeEnqueueAiSdrReply(args: {
       msgs = data;
     }
     const transcript: TranscriptMessage[] = ((msgs ?? []) as { direction: string; body: string | null }[])
-      .map((m) => ({ direction: m.direction === "outbound" ? "outbound" : "inbound", body: m.body ?? "" }))
+      .map((m): TranscriptMessage => ({ direction: m.direction === "outbound" ? "outbound" : "inbound", body: m.body ?? "" }))
       .filter((m) => m.body.trim().length > 0);
 
     const draft = await draftAutoReply({
