@@ -3,12 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { getMyOrg } from "@/lib/enterprise";
-import { INTENTS } from "@/lib/outreach/intent";
+import { INTENTS, deriveInterest, type Intent } from "@/lib/outreach/intent";
 
 async function loadThread(orgId: string, id: string) {
   const { data } = await supabaseAdmin
     .from("inbox_threads")
-    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, ai_summary, status, assignee_user_id, last_inbound_at, last_outbound_at, reply_count, unread")
+    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, interest_score, interest_level, ai_summary, status, assignee_user_id, last_inbound_at, last_outbound_at, reply_count, unread")
     .eq("id", id)
     .eq("org_id", orgId)
     .maybeSingle();
@@ -80,10 +80,17 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   const body = await req.json().catch(() => ({}));
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
-  if (typeof body.intent === "string" && INTENTS.includes(body.intent)) {
+  if (typeof body.intent === "string" && INTENTS.includes(body.intent as Intent)) {
     patch.intent = body.intent;
     patch.intent_manual = true;
     patch.intent_confidence = 1;
+    // Keep the warmth signal consistent with the human's label: re-derive the
+    // interest bucket from the chosen intent (floors/caps applied), seeding from
+    // the existing score so a manual "interested" doesn't drop below its floor.
+    const seed = typeof thread.interest_score === "number" ? thread.interest_score : 50;
+    const { interestScore, interestLevel } = deriveInterest(body.intent as Intent, seed);
+    patch.interest_score = interestScore;
+    patch.interest_level = interestLevel;
   }
   if (typeof body.status === "string" && ["open", "snoozed", "done"].includes(body.status)) {
     patch.status = body.status;

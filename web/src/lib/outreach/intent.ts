@@ -20,10 +20,66 @@ export const INTENTS: Intent[] = [
   "unsubscribe", "meeting_requested", "neutral",
 ];
 
+// How warm the reply is, independent of the categorical intent. Lets positive
+// replies be ranked by conversion likelihood (Instantly-style interest labels).
+export type InterestLevel = "none" | "low" | "medium" | "high" | "very_high";
+
+export const INTEREST_LEVELS: InterestLevel[] = ["none", "low", "medium", "high", "very_high"];
+
+export const INTEREST_LABEL: Record<InterestLevel, string> = {
+  none: "No interest",
+  low: "Low interest",
+  medium: "Medium interest",
+  high: "High interest",
+  very_high: "Very high interest",
+};
+
 export interface IntentResult {
   intent: Intent;
   confidence: number; // 0..1
   summary: string;
+  interestScore: number;      // 0..100
+  interestLevel: InterestLevel;
+}
+
+// Bucket a 0-100 score into a level. Thresholds chosen so "high" and above are
+// the replies worth surfacing at the top of the inbox.
+export function interestLevelFromScore(score: number): InterestLevel {
+  if (score >= 80) return "very_high";
+  if (score >= 60) return "high";
+  if (score >= 40) return "medium";
+  if (score >= 20) return "low";
+  return "none";
+}
+
+// Reconcile the LLM's raw warmth score with the categorical intent, applying
+// deterministic floors/caps so the two signals never contradict (a reply that
+// explicitly asks for a meeting can't read as "low interest"; a decline can't
+// read as "warm"). Returns the final score + its bucket.
+export function deriveInterest(intent: Intent, rawScore: number): { interestScore: number; interestLevel: InterestLevel } {
+  let score = Math.max(0, Math.min(100, Math.round(rawScore)));
+  switch (intent) {
+    case "unsubscribe":
+    case "not_interested":
+      score = 0;
+      break;
+    case "out_of_office":
+      score = Math.min(score, 20); // an auto-reply carries no real signal
+      break;
+    case "meeting_requested":
+      score = Math.max(score, 80); // explicitly wants to talk → very high
+      break;
+    case "interested":
+      score = Math.max(score, 60); // positive → at least high
+      break;
+    case "referral":
+      score = Math.min(Math.max(score, 40), 59); // warm handoff, but not them → medium
+      break;
+    case "neutral":
+      score = Math.min(score, 59); // unclear can't be "high"
+      break;
+  }
+  return { interestScore: score, interestLevel: interestLevelFromScore(score) };
 }
 
 // Cheap deterministic pre-check: an explicit unsubscribe/stop should never
@@ -32,7 +88,7 @@ const UNSUB_RE = /\b(unsubscribe|opt[\s-]?out|stop\s+(emailing|contacting)|remov
 const OOO_RE = /\b(out of office|on (vacation|holiday|leave|pto)|away until|automatic reply|auto[\s-]?reply)\b/i;
 
 const SYSTEM_PROMPT = `You classify a candidate's reply to a recruiter's outreach email. Return ONLY JSON:
-{"intent": "...", "confidence": 0.0-1.0, "summary": "one short sentence"}
+{"intent": "...", "confidence": 0.0-1.0, "interest": 0-100, "summary": "one short sentence"}
 
 intent must be exactly one of:
 - interested: positive, wants to learn more / open to the role
@@ -43,7 +99,14 @@ intent must be exactly one of:
 - unsubscribe: asks to stop being contacted / opt out
 - neutral: unclear, a question, or none of the above
 
-confidence is your certainty (0-1). summary is a neutral one-line paraphrase — never invent facts.`;
+interest is how warm/likely-to-convert the reply is, 0-100:
+- 80-100: eager — proposes a time, "yes let's talk", strong enthusiasm
+- 60-79: clearly positive, wants to learn more
+- 40-59: mild or conditional interest, asks a qualifying question, "maybe later"
+- 20-39: lukewarm / mostly deflecting
+- 0-19: no interest, a decline, or an automated reply
+
+confidence is your certainty about the intent (0-1). summary is a neutral one-line paraphrase — never invent facts.`;
 
 export async function classifyIntent(
   args: { subject: string; body: string; orgId: string },
@@ -51,8 +114,10 @@ export async function classifyIntent(
   const text = `${args.subject}\n\n${args.body}`.trim();
 
   // Deterministic overrides first.
-  if (UNSUB_RE.test(text)) return { intent: "unsubscribe", confidence: 0.98, summary: "Asked to stop being contacted." };
-  if (OOO_RE.test(text) && text.length < 600) return { intent: "out_of_office", confidence: 0.9, summary: "Automated out-of-office reply." };
+  if (UNSUB_RE.test(text))
+    return { intent: "unsubscribe", confidence: 0.98, summary: "Asked to stop being contacted.", ...deriveInterest("unsubscribe", 0) };
+  if (OOO_RE.test(text) && text.length < 600)
+    return { intent: "out_of_office", confidence: 0.9, summary: "Automated out-of-office reply.", ...deriveInterest("out_of_office", 0) };
 
   try {
     const completion = await getAIClient(AI_TIERS.fast.provider).chat.completions.create({
@@ -70,9 +135,10 @@ export async function classifyIntent(
     const intent: Intent = INTENTS.includes(parsed.intent) ? parsed.intent : "neutral";
     const confidence = typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5;
     const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 240) : "";
-    return { intent, confidence, summary };
+    const rawInterest = typeof parsed.interest === "number" ? parsed.interest : 30;
+    return { intent, confidence, summary, ...deriveInterest(intent, rawInterest) };
   } catch {
-    return { intent: "neutral", confidence: 0, summary: "" };
+    return { intent: "neutral", confidence: 0, summary: "", ...deriveInterest("neutral", 0) };
   }
 }
 

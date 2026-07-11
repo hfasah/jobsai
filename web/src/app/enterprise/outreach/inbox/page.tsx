@@ -8,13 +8,24 @@ import { Suspense, useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   Inbox, Loader2, Send, Star, CalendarClock, UserX, MailX, Share2, Moon,
-  Check, CircleDot, Search, RefreshCw, ChevronDown,
+  Check, CircleDot, Search, RefreshCw, ChevronDown, Flame,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Intent =
   | "interested" | "not_interested" | "out_of_office" | "referral"
   | "unsubscribe" | "meeting_requested" | "neutral";
+
+type InterestLevel = "none" | "low" | "medium" | "high" | "very_high";
+
+// Only medium+ is worth a chip — low/none would just be noise on cold replies.
+const INTEREST_META: Record<InterestLevel, { label: string; cls: string } | null> = {
+  none: null,
+  low: null,
+  medium:    { label: "Medium interest",    cls: "border-amber-500/30 bg-amber-500/10 text-amber-400" },
+  high:      { label: "High interest",       cls: "border-orange-500/40 bg-orange-500/10 text-orange-400" },
+  very_high: { label: "Very high interest",  cls: "border-red-500/40 bg-red-500/15 text-red-400" },
+};
 
 const INTENT_META: Record<Intent, { label: string; cls: string; icon: typeof Star }> = {
   interested:        { label: "Interested",     cls: "border-green-500/30 bg-green-500/10 text-green-400",   icon: Star },
@@ -30,6 +41,7 @@ const INTENT_ORDER: Intent[] = ["interested", "meeting_requested", "referral", "
 interface ThreadRow {
   id: string; candidate_email: string; candidate_name: string | null; application_id: string | null;
   intent: Intent | null; intent_confidence: number | null; intent_manual: boolean;
+  interest_score: number | null; interest_level: InterestLevel | null;
   ai_summary: string | null; status: "open" | "snoozed" | "done"; assignee_user_id: string | null;
   last_inbound_at: string | null; reply_count: number; unread: boolean;
 }
@@ -43,6 +55,16 @@ function IntentBadge({ intent, confidence, manual }: { intent: Intent | null; co
       <Icon className="h-3 w-3" /> {meta.label}
       {!manual && confidence != null && confidence < 0.6 && <span className="opacity-60">?</span>}
       {manual && <span className="opacity-60">•</span>}
+    </span>
+  );
+}
+
+function InterestBadge({ level }: { level: InterestLevel | null }) {
+  const meta = level ? INTEREST_META[level] : null;
+  if (!meta) return null;
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", meta.cls)}>
+      <Flame className="h-3 w-3" /> {meta.label}
     </span>
   );
 }
@@ -62,6 +84,7 @@ function InboxInner() {
   const [filterStatus, setFilterStatus] = useState<"open" | "done" | "all">("open");
   const [filterIntent, setFilterIntent] = useState<Intent | "">("");
   const [filterAssignee, setFilterAssignee] = useState<"" | "me" | "unassigned">("");
+  const [sort, setSort] = useState<"recent" | "interest">("recent");
   const [query, setQuery] = useState("");
 
   const loadList = useCallback(async () => {
@@ -70,6 +93,7 @@ function InboxInner() {
     if (filterStatus !== "all") qs.set("status", filterStatus);
     if (filterIntent) qs.set("intent", filterIntent);
     if (filterAssignee) qs.set("assignee", filterAssignee);
+    if (sort === "interest") qs.set("sort", "interest");
     if (query.trim()) qs.set("q", query.trim());
     const res = await fetch(`/api/enterprise/outreach/inbox?${qs}`);
     const json = await res.json();
@@ -79,7 +103,7 @@ function InboxInner() {
       setMe(json.data.me ?? "");
     }
     setLoading(false);
-  }, [filterStatus, filterIntent, filterAssignee, query]);
+  }, [filterStatus, filterIntent, filterAssignee, sort, query]);
 
   useEffect(() => { loadList(); }, [loadList]);
 
@@ -163,6 +187,11 @@ function InboxInner() {
                 {a === "" ? "Everyone" : a === "me" ? "Mine" : "Unassigned"}
               </button>
             ))}
+            <span className="mx-1 text-border">|</span>
+            <button onClick={() => setSort((s) => (s === "interest" ? "recent" : "interest"))}
+              className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium", sort === "interest" ? "bg-orange-500/15 text-orange-400" : "text-muted-foreground hover:text-foreground")}>
+              <Flame className="h-3 w-3" /> Hottest
+            </button>
           </div>
           <div className="mt-1.5 flex flex-wrap gap-1">
             <button onClick={() => setFilterIntent("")}
@@ -206,8 +235,9 @@ function InboxInner() {
                     {t.last_inbound_at ? new Date(t.last_inbound_at).toLocaleDateString() : ""}
                   </span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <IntentBadge intent={t.intent} confidence={t.intent_confidence} manual={t.intent_manual} />
+                  <InterestBadge level={t.interest_level} />
                   {t.assignee_user_id && <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">{t.assignee_user_id === me ? "you" : "assigned"}</span>}
                   {t.reply_count > 1 && <span className="text-[10px] text-muted-foreground">{t.reply_count} replies</span>}
                 </div>
@@ -230,7 +260,10 @@ function InboxInner() {
             <div className="border-b border-border p-4">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
-                  <h2 className="truncate text-base font-semibold">{detail.thread.candidate_name || detail.thread.candidate_email}</h2>
+                  <div className="flex items-center gap-2">
+                    <h2 className="truncate text-base font-semibold">{detail.thread.candidate_name || detail.thread.candidate_email}</h2>
+                    <InterestBadge level={detail.thread.interest_level} />
+                  </div>
                   <p className="truncate text-xs text-muted-foreground">{detail.thread.candidate_email}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
