@@ -62,6 +62,103 @@ async function impersonatedOrgId(userId: string): Promise<string | null> {
   }
 }
 
+// Agency workspaces: the user's currently-selected client workspace. A member
+// of multiple orgs (an agency parent + its client workspaces) picks which one
+// they're operating in; the cookie names it.
+export const ACTIVE_WORKSPACE_COOKIE = "active_workspace_id";
+
+async function activeWorkspaceCookie(): Promise<string | null> {
+  try {
+    return (await cookies()).get(ACTIVE_WORKSPACE_COOKIE)?.value || null;
+  } catch {
+    return null; // cron / no request scope
+  }
+}
+
+export interface ResolvedOrg {
+  orgId: string;
+  role: string;       // effective role in that org (direct, or inherited from parent)
+  synthetic: boolean; // true when membership is inherited (parent admin) or impersonated
+}
+
+// Every org the user can operate in, with their effective role:
+//   - direct memberships (their enterprise_members rows), plus
+//   - client workspaces (child orgs) of any parent where they are owner/admin —
+//     an agency admin reaches all their clients without a row in each.
+async function accessibleOrgs(userId: string): Promise<Map<string, { role: string; direct: boolean }>> {
+  const map = new Map<string, { role: string; direct: boolean }>();
+
+  const { data: memberships } = await supabaseAdmin
+    .from("enterprise_members")
+    .select("org_id, role")
+    .eq("user_id", userId);
+  const rows = (memberships ?? []) as { org_id: string; role: string }[];
+  for (const m of rows) map.set(m.org_id, { role: m.role, direct: true });
+
+  // Inherit into child workspaces of any parent org the user administers.
+  const adminParents = rows.filter((m) => m.role === "owner" || m.role === "admin").map((m) => m.org_id);
+  if (adminParents.length > 0) {
+    const { data: children } = await supabaseAdmin
+      .from("enterprise_orgs")
+      .select("id, parent_org_id")
+      .in("parent_org_id", adminParents);
+    for (const c of (children ?? []) as { id: string; parent_org_id: string }[]) {
+      if (map.has(c.id)) continue; // a direct membership wins over inherited
+      const parentRole = map.get(c.parent_org_id)?.role ?? "admin";
+      map.set(c.id, { role: parentRole, direct: false });
+    }
+  }
+  return map;
+}
+
+// Resolve which org the request operates in. Order: super-admin impersonation →
+// active-workspace selection (when the user belongs to several) → the single
+// membership. The single-membership path is kept identical to the pre-O4
+// behavior (one query, no children lookup) so nothing regresses for the ~all
+// standalone orgs.
+export async function resolveActiveOrg(userId: string): Promise<ResolvedOrg | null> {
+  const impersonated = await impersonatedOrgId(userId);
+  if (impersonated) return { orgId: impersonated, role: "owner", synthetic: true };
+
+  const { data: memberships } = await supabaseAdmin
+    .from("enterprise_members")
+    .select("org_id, role")
+    .eq("user_id", userId);
+  const rows = (memberships ?? []) as { org_id: string; role: string }[];
+  const cookieId = await activeWorkspaceCookie();
+
+  // Hot path: exactly one membership and no workspace selection → as before.
+  if (rows.length <= 1 && !cookieId) {
+    const m = rows[0];
+    return m ? { orgId: m.org_id, role: m.role, synthetic: false } : null;
+  }
+
+  // Multi-workspace (or an explicit selection): compute the full accessible set.
+  const accessible = await accessibleOrgs(userId);
+  if (accessible.size === 0) return null;
+
+  if (cookieId && accessible.has(cookieId)) {
+    const a = accessible.get(cookieId)!;
+    return { orgId: cookieId, role: a.role, synthetic: !a.direct };
+  }
+
+  // Default: prefer a top-level org the user directly belongs to (the agency
+  // parent / their own org), else the first direct membership, else anything.
+  const directIds = rows.map((r) => r.org_id);
+  if (directIds.length > 0) {
+    const { data: tops } = await supabaseAdmin
+      .from("enterprise_orgs")
+      .select("id")
+      .in("id", directIds)
+      .is("parent_org_id", null);
+    const topId = (tops as { id: string }[] | null)?.[0]?.id ?? directIds[0];
+    const a = accessible.get(topId)!;
+    return { orgId: topId, role: a.role, synthetic: !a.direct };
+  }
+  const [firstId, first] = [...accessible.entries()][0];
+  return { orgId: firstId, role: first.role, synthetic: !first.direct };
+}
+
 // Company-friendly invite token: "<org-slug>-<short secure suffix>" so the link
 // reads as the company name while staying unguessable.
 export function inviteToken(slug: string): string {
@@ -109,35 +206,69 @@ export async function claimPendingInvites(userId: string, emails: string[]): Pro
   return joined;
 }
 
+export interface WorkspaceSummary {
+  id: string;
+  name: string;
+  slug: string | null;
+  parent_org_id: string | null;
+  role: string;
+  is_agency_parent: boolean;  // top-level org that has client workspaces
+  is_current: boolean;
+}
+
+// All workspaces the user can switch between (direct + inherited client
+// workspaces), for the workspace switcher. Only meaningful for agency users;
+// a standalone org returns a single entry.
+export async function getMyWorkspaces(userId: string): Promise<WorkspaceSummary[]> {
+  const accessible = await accessibleOrgs(userId);
+  if (accessible.size === 0) return [];
+  const ids = [...accessible.keys()];
+  const { data: orgs } = await supabaseAdmin
+    .from("enterprise_orgs")
+    .select("id, name, slug, parent_org_id")
+    .in("id", ids);
+  const rows = (orgs ?? []) as { id: string; name: string; slug: string | null; parent_org_id: string | null }[];
+  const parentIds = new Set(rows.map((r) => r.parent_org_id).filter(Boolean) as string[]);
+  const active = await resolveActiveOrg(userId);
+  return rows
+    .map((o) => ({
+      id: o.id,
+      name: o.name,
+      slug: o.slug,
+      parent_org_id: o.parent_org_id,
+      role: accessible.get(o.id)?.role ?? "viewer",
+      is_agency_parent: o.parent_org_id === null && parentIds.has(o.id),
+      is_current: active?.orgId === o.id,
+    }))
+    // parent first, then client workspaces by name
+    .sort((a, b) => (a.parent_org_id === null ? -1 : 1) - (b.parent_org_id === null ? -1 : 1) || a.name.localeCompare(b.name));
+}
+
 export async function getMyOrg(userId: string): Promise<EnterpriseOrg | null> {
-  let orgId = await impersonatedOrgId(userId);
-  if (!orgId) {
-    const { data } = await supabaseAdmin
-      .from("enterprise_members")
-      .select("org_id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    orgId = data?.org_id ?? null;
-  }
-  if (!orgId) return null;
+  const resolved = await resolveActiveOrg(userId);
+  if (!resolved) return null;
 
   const { data: org } = await supabaseAdmin
     .from("enterprise_orgs")
     .select("*")
-    .eq("id", orgId)
+    .eq("id", resolved.orgId)
     .maybeSingle();
   return org ?? null;
 }
 
 export async function getMyMembership(userId: string): Promise<EnterpriseMember | null> {
-  const demoOrgId = await impersonatedOrgId(userId);
-  if (demoOrgId) {
-    // Synthetic owner membership — admin acts as owner of the impersonated org.
-    return { id: "demo-impersonation", org_id: demoOrgId, user_id: userId, role: "owner", created_at: new Date().toISOString() };
+  const resolved = await resolveActiveOrg(userId);
+  if (!resolved) return null;
+
+  // Synthetic membership when access is impersonated or inherited from a parent
+  // org (agency admin operating in a client workspace they have no row in).
+  if (resolved.synthetic) {
+    return { id: "synthetic", org_id: resolved.orgId, user_id: userId, role: resolved.role, created_at: new Date().toISOString() };
   }
   const { data } = await supabaseAdmin
     .from("enterprise_members")
     .select("*")
+    .eq("org_id", resolved.orgId)
     .eq("user_id", userId)
     .maybeSingle();
   return data ?? null;
