@@ -37,9 +37,14 @@ export default function SourcingPage() {
       <div className="mx-auto max-w-4xl">
         {/* Hero */}
         <div className="mb-6">
-          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            <Sparkles className="h-6 w-6 text-primary" /> Find talent anywhere with AI
-          </h1>
+          <div className="flex items-center justify-between">
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+              <Sparkles className="h-6 w-6 text-primary" /> Find talent anywhere with AI
+            </h1>
+            <Link href="/enterprise/sourcing/credits" className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
+              Credits & providers
+            </Link>
+          </div>
           <p className="mt-1 text-sm text-muted-foreground">
             Describe the candidate you need in plain English. Search the world&apos;s talent data, your own
             CRM, or both — review the AI&apos;s interpretation before anything runs.

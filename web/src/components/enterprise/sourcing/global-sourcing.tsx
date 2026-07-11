@@ -11,6 +11,7 @@ import InterpretedFilters from "./interpreted-filters";
 import ResultsView, { type RunResultRow } from "./results-view";
 import RevealButton, { type RevealOutcome } from "./reveal-button";
 import ImportDialog from "./import-dialog";
+import SavedSearches, { type SavedSearch } from "./saved-searches";
 
 const EXAMPLE_PROMPTS = [
   "Senior DevOps engineers in Toronto with Kubernetes, Terraform and AWS",
@@ -46,6 +47,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importIds, setImportIds] = useState<string[] | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const estimateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const parse = async () => {
@@ -54,6 +56,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
     setError(null);
     setResults([]);
     setRunId(null);
+    setSavedId(null);
     try {
       const res = await fetch("/api/enterprise/sourcing/ai-parse", {
         method: "POST",
@@ -116,7 +119,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
       const res = await fetch("/api/enterprise/sourcing/global-search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mode, query, filters, weights }),
+        body: JSON.stringify({ mode, query, filters, weights, search_id: savedId ?? undefined }),
       });
       const json = await res.json();
       if (res.status === 402) {
@@ -218,8 +221,23 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
     );
   };
 
+  const loadSaved = (s: SavedSearch) => {
+    setQuery(s.query_text ?? "");
+    setFilters(s.filters);
+    setDropped([]);
+    if (s.weights) setWeights({ ...DEFAULT_WEIGHTS, ...s.weights });
+    setResults([]);
+    setRunId(null);
+    setSavedId(s.id);
+  };
+
   return (
     <div>
+      <SavedSearches
+        current={filters ? { query, filters, mode, weights } : null}
+        onLoad={loadSaved}
+      />
+
       {/* NL search box */}
       <div className="mb-4 rounded-2xl border border-border bg-card p-4">
         <div className="flex gap-2">
@@ -327,6 +345,18 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
           >
             Import selected
           </button>
+        </div>
+      )}
+
+      {/* Export */}
+      {runId && results.length > 0 && selected.size === 0 && (
+        <div className="mb-3 text-right">
+          <a
+            href={`/api/enterprise/sourcing/export?runId=${runId}`}
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            Export CSV
+          </a>
         </div>
       )}
 
