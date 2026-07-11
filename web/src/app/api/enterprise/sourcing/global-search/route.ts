@@ -391,6 +391,13 @@ export async function POST(req: NextRequest) {
     });
   });
 
+  // Search is FREE — a failure is NEVER the client's credit problem, so we
+  // never tell them to "top up". A provider quota/outage is OUR issue: show a
+  // neutral "temporarily unavailable" and alert the operator via logs (the raw
+  // provider error + limitReached stay server-side only).
+  if (providerErrors.length > 0 && externalCount === 0) {
+    console.error(`[sourcing] search unavailable (org ${org.id}) limit=${limitReached}:`, providerErrors.join(" | "));
+  }
   return NextResponse.json({
     data: {
       run_id: runId,
@@ -399,12 +406,10 @@ export async function POST(req: NextRequest) {
       external_count: externalCount,
       internal_count: internalCount,
       credits_charged: creditsCharged,
-      // Client-safe: never expose provider names or raw provider errors.
-      limit_reached: limitReached,
-      // A generic notice only when something failed AND it wasn't a quota limit
-      // (quota is handled by limit_reached). Never includes provider details.
-      notice: !limitReached && providerErrors.length > 0 && externalCount === 0
-        ? "External sourcing is temporarily unavailable. Please try again shortly."
+      // Client-safe: never expose provider names, raw errors, or a misleading
+      // top-up prompt for a search the client didn't pay for.
+      notice: providerErrors.length > 0 && externalCount === 0
+        ? "External sourcing is temporarily unavailable. Please try again shortly — our team has been notified."
         : null,
     },
   });
