@@ -27,6 +27,7 @@ Return ONLY a JSON object with these keys (omit none; use [] / null / false when
   "industries_exclude": [],
   "companies_include": ["current/previous employers to require"],
   "companies_exclude": [],
+  "company_sizes": ["headcount buckets; use ONLY these exact values: 1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5001-10000, 10001+"],
   "education_levels": [],
   "schools": [],
   "languages": [],
@@ -120,10 +121,17 @@ export function heuristicParse(query: string): SourcingFilters {
     }
   }
 
+  // Company size from common phrasing.
+  const company_sizes: string[] = [];
+  if (/\bstart[\s-]?ups?\b|\bearly[\s-]?stage\b/i.test(lower)) company_sizes.push("1-10", "11-50");
+  if (/\b(enterprise|large compan|big compan|fortune|multinational)\b/i.test(lower)) company_sizes.push("1001-5000", "5001-10000", "10001+");
+  if (/\b(smb|small business|small compan)\b/i.test(lower)) company_sizes.push("1-10", "11-50", "51-200");
+
   return sanitizeFilters({
     titles,
     skills_any: skills,
     locations,
+    company_sizes,
     experience_years_min: min,
     // Keep the raw query as keywords so the provider still has signal even if
     // title/skill extraction was thin.

@@ -7,7 +7,7 @@ import { useState } from "react";
 import { Plus, X, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoreWeights, SourcingFilters, SourcingLocation } from "@/lib/sourcing/types";
-import { DEFAULT_WEIGHTS } from "@/lib/sourcing/types";
+import { DEFAULT_WEIGHTS, COMPANY_SIZES } from "@/lib/sourcing/types";
 
 function ChipEditor({
   label,
@@ -178,6 +178,30 @@ export default function InterpretedFilters({
         <ChipEditor label="Industries" values={filters.industries} onChange={(v) => set("industries", v)} />
         <ChipEditor label="Companies (include)" values={filters.companies_include} onChange={(v) => set("companies_include", v)} />
         <ChipEditor label="Companies (exclude)" tone="exclude" values={filters.companies_exclude} onChange={(v) => set("companies_exclude", v)} />
+      </div>
+
+      {/* Company size (headcount) — multi-select buckets */}
+      <div>
+        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Company size (employees)</p>
+        <div className="flex flex-wrap gap-1.5">
+          {COMPANY_SIZES.map((s) => {
+            const active = filters.company_sizes.includes(s.value);
+            return (
+              <button
+                key={s.value}
+                onClick={() =>
+                  set("company_sizes", active ? filters.company_sizes.filter((v) => v !== s.value) : [...filters.company_sizes, s.value])
+                }
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                  active ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="flex flex-wrap items-end gap-4">

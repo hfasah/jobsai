@@ -19,6 +19,7 @@ interface PdlPerson {
   last_name?: string | null;
   job_title?: string | null;
   job_company_name?: string | null;
+  job_company_size?: string | null;
   location_country?: string | null;
   location_locality?: string | null;
   skills?: string[] | null;
@@ -127,6 +128,10 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
   }
   for (const c of f.companies_exclude) must_not.push({ match: { job_company_name: c } });
 
+  if (f.company_sizes.length) {
+    must.push({ terms: { job_company_size: f.company_sizes } });
+  }
+
   if (f.schools.length) {
     must.push({ bool: { should: f.schools.map((s) => ({ match: { "education.school.name": s } })) } });
   }
@@ -178,6 +183,7 @@ function normalizePerson(p: PdlPerson, likelihood?: number | null): ExternalCand
     last_name: p.last_name ?? null,
     job_title: p.job_title ?? null,
     company: p.job_company_name ?? null,
+    company_size: p.job_company_size ?? null,
     location_country: p.location_country ?? null,
     location_locality: p.location_locality ?? null,
     skills: dedupeStrings(p.skills ?? []),
