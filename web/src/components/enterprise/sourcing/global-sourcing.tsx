@@ -91,8 +91,8 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ filters: f }),
         });
-        const json = await res.json();
-        if (res.ok && json.data?.searchable) setEstimate(json.data);
+        const json = await res.json().catch(() => null);
+        if (res.ok && json?.data?.searchable) setEstimate(json.data);
         else setEstimate(null);
       } catch {
         setEstimate(null);
@@ -108,8 +108,8 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
 
   const loadPage = async (id: string, pageNum: number, append: boolean) => {
     const res = await fetch(`/api/enterprise/sourcing/runs/${id}?page=${pageNum}`);
-    const json = await res.json();
-    if (!res.ok) return;
+    const json = await res.json().catch(() => null);
+    if (!res.ok || !json) return;
     const rows = (json.data?.results ?? []) as RunResultRow[];
     setResults((prev) => (append ? [...prev, ...rows] : rows));
     setHasMore(json.data?.has_more ?? false);
@@ -127,12 +127,12 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, query, filters, weights, search_id: savedId ?? undefined }),
       });
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
       if (res.status === 402) {
-        setError(`Not enough sourcing credits (balance: ${json.balance}). Top up or upgrade your plan.`);
+        setError(`Not enough sourcing credits (balance: ${json?.balance ?? 0}). Top up or upgrade your plan.`);
         return;
       }
-      if (!res.ok) throw new Error(json.error ?? "Search failed.");
+      if (!res.ok || !json?.data) throw new Error(json?.error ?? `Search failed (${res.status}). Please try again.`);
       setCounts({
         external: json.data.external_count,
         internal: json.data.internal_count,
