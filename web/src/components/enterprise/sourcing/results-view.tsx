@@ -5,7 +5,7 @@
 // PRs; this view already reserves their slots.
 import { useState } from "react";
 import {
-  Check, ExternalLink, Github, LayoutGrid, List, Loader2, MapPin, Briefcase,
+  Check, ExternalLink, Code2, LayoutGrid, List, Loader2, MapPin, Briefcase,
   Building2, Mail, Phone, Info,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -342,7 +342,7 @@ export default function ResultsView({
                     {ext?.github_url && (
                       <a href={ext.github_url} target="_blank" rel="noopener noreferrer"
                         className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Open GitHub">
-                        <Github className="h-3.5 w-3.5" />
+                        <Code2 className="h-3.5 w-3.5" />
                       </a>
                     )}
                     {renderActions?.(row)}
