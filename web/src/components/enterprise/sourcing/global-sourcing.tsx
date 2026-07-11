@@ -320,9 +320,15 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
                     {estimate.total !== null ? estimate.total.toLocaleString() : "—"}
                   </span>
                   <span className="text-muted-foreground">candidates match</span>
-                  <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
-                    <Coins className="h-3 w-3" /> {estimate.search_cost} credit · balance {estimate.balance}
-                  </span>
+                  {estimate.search_cost === 0 ? (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2 py-0.5 text-xs text-green-400">
+                      Free to search — you only spend credits to reveal a contact
+                    </span>
+                  ) : (
+                    <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-xs text-amber-400">
+                      <Coins className="h-3 w-3" /> {estimate.search_cost} credit · balance {estimate.balance}
+                    </span>
+                  )}
                 </>
               ) : (
                 <span className="text-xs text-muted-foreground">Add at least one criterion to search.</span>

@@ -6,7 +6,7 @@ import { requirePermission } from "@/lib/enterprise-permissions";
 import { getMyOrg } from "@/lib/enterprise";
 import { audit } from "@/lib/enterprise-audit";
 import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
-import { spendCredits, refundCredits } from "@/lib/sourcing/credits";
+import { spendCredits, refundCredits, ensureMonthlyGrant } from "@/lib/sourcing/credits";
 import { loadInternalIndex, dedupeVerdict } from "@/lib/sourcing/dedupe";
 import { normEmail } from "@/lib/sourcing/normalize";
 import type { CreditAction, EmailVerificationStatus, ExternalCandidate, RevealResult } from "@/lib/sourcing/types";
@@ -76,6 +76,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (denied) return denied;
   const org = await getMyOrg(userId);
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
+  await ensureMonthlyGrant(org.id); // free trial + monthly credits (idempotent)
 
   const { id } = await ctx.params;
   const body = await req.json().catch(() => ({}));
