@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import crypto from "crypto";
 import { extractText } from "@/lib/resume-extractor";
 import { parseResumeText } from "@/lib/resume-parser";
@@ -8,6 +8,7 @@ import {
 } from "@/lib/enterprise-intake-inbox";
 import { parseJobFromText, createDraftJobFromParsed, classifyIntakeEmail } from "@/lib/job-intake";
 import { logMessage, findApplicationIdByEmail, markOutreachReplied } from "@/lib/enterprise-messages";
+import { processReply } from "@/lib/outreach/reply-processor";
 
 // True when the email was sent to a job-intake sub-address (<handle>+jobs@…),
 // i.e. a hiring-manager job request rather than a candidate resume.
@@ -236,6 +237,19 @@ export async function POST(req: NextRequest) {
         subject, body: bodyText || null,
       });
       await markOutreachReplied(org.id, sender.email);
+      // AI SDR: classify intent, roll up the inbox thread, and fire
+      // auto-actions (pause campaigns/sequences, unsubscribe, notify on a
+      // warm reply). Deferred so the webhook responds fast.
+      after(() =>
+        processReply({
+          orgId: org.id,
+          candidateEmail: sender.email,
+          candidateName: sender.name ?? null,
+          applicationId: existingAppId,
+          subject: subject ?? "",
+          body: bodyText ?? "",
+        }).catch((e) => console.error("[inbound] processReply failed", e)),
+      );
       return NextResponse.json({ ok: true, threaded: existingAppId });
     }
   }
