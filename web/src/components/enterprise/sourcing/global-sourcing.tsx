@@ -10,6 +10,7 @@ import { DEFAULT_WEIGHTS } from "@/lib/sourcing/types";
 import InterpretedFilters from "./interpreted-filters";
 import ResultsView, { type RunResultRow } from "./results-view";
 import RevealButton, { type RevealOutcome } from "./reveal-button";
+import ImportDialog from "./import-dialog";
 
 const EXAMPLE_PROMPTS = [
   "Senior DevOps engineers in Toronto with Kubernetes, Terraform and AWS",
@@ -43,6 +44,8 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
   const [loadingMore, setLoadingMore] = useState(false);
   const [counts, setCounts] = useState({ external: 0, internal: 0, credits: 0 });
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [importIds, setImportIds] = useState<string[] | null>(null);
+  const [importNotice, setImportNotice] = useState<string | null>(null);
   const estimateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const parse = async () => {
@@ -164,6 +167,15 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
     );
   };
 
+  const flag = async (resultId: string, action: "not_relevant" | "suppress") => {
+    setResults((prev) => prev.filter((r) => r.id !== resultId));
+    await fetch(`/api/enterprise/sourcing/results/${resultId}/flag`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action }),
+    }).catch(() => {});
+  };
+
   const renderActions = (row: RunResultRow) => {
     if (row.origin !== "external" || !row.external) return null;
     const ext = row.external;
@@ -187,6 +199,21 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
             onRevealed={onRevealed}
           />
         )}
+        {row.dedup_status !== "imported" && (
+          <button
+            onClick={() => setImportIds([row.id])}
+            className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+          >
+            Import
+          </button>
+        )}
+        <button
+          onClick={() => flag(row.id, "not_relevant")}
+          title="Not relevant"
+          className="rounded-lg px-1.5 py-1 text-[11px] text-muted-foreground/60 hover:text-foreground"
+        >
+          ✕
+        </button>
       </span>
     );
   };
@@ -284,6 +311,25 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
         </div>
       )}
 
+      {importNotice && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
+          {importNotice}
+        </div>
+      )}
+
+      {/* Bulk toolbar */}
+      {selected.size > 0 && (
+        <div className="mb-3 flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-4 py-2">
+          <p className="text-xs font-medium">{selected.size} selected</p>
+          <button
+            onClick={() => setImportIds([...selected])}
+            className="btn-cta rounded-lg px-3 py-1.5 text-xs font-semibold"
+          >
+            Import selected
+          </button>
+        </div>
+      )}
+
       {/* Results */}
       {(runId || searching) && (
         <ResultsView
@@ -311,6 +357,25 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
         <p className="mt-3 text-center text-[11px] text-muted-foreground">
           This search used {counts.credits} sourcing credit{counts.credits !== 1 ? "s" : ""}.
         </p>
+      )}
+
+      {importIds && (
+        <ImportDialog
+          resultIds={importIds}
+          candidateName={
+            importIds.length === 1
+              ? results.find((r) => r.id === importIds[0])?.external?.full_name ?? null
+              : null
+          }
+          onClose={() => setImportIds(null)}
+          onDone={(summary) => {
+            setImportIds(null);
+            setImportNotice(summary);
+            setSelected(new Set());
+            // refresh badges for imported rows
+            if (runId) loadPage(runId, 0, false);
+          }}
+        />
       )}
     </div>
   );

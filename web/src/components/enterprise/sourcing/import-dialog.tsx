@@ -1,0 +1,222 @@
+"use client";
+
+// Import target picker + duplicate-confirm flow for external results.
+// Single import surfaces the dedup matches (skip / import anyway / merge);
+// bulk import applies the chosen duplicate policy across the selection.
+import { useEffect, useState } from "react";
+import { Briefcase, Check, Database, Inbox, Loader2, TriangleAlert, Users, X } from "lucide-react";
+import { cn } from "@/lib/utils";
+import type { DedupMatch } from "@/lib/sourcing/types";
+
+type Target = "talent_pool" | "job" | "intake";
+
+interface JobOption { id: string; title: string }
+interface GroupOption { id: string; name: string }
+
+export default function ImportDialog({
+  resultIds,
+  candidateName,
+  onClose,
+  onDone,
+}: {
+  resultIds: string[];
+  candidateName?: string | null;
+  onClose: () => void;
+  onDone: (summary: string) => void;
+}) {
+  const single = resultIds.length === 1;
+  const [target, setTarget] = useState<Target>("talent_pool");
+  const [jobs, setJobs] = useState<JobOption[]>([]);
+  const [groups, setGroups] = useState<GroupOption[]>([]);
+  const [jobId, setJobId] = useState("");
+  const [groupId, setGroupId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dupMatches, setDupMatches] = useState<DedupMatch[] | null>(null);
+
+  useEffect(() => {
+    fetch("/api/enterprise/jobs")
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data ?? j.jobs ?? []) as { id: string; title: string }[];
+        setJobs(list.map((x) => ({ id: x.id, title: x.title })));
+      })
+      .catch(() => {});
+    fetch("/api/enterprise/talent-pool/groups")
+      .then((r) => r.json())
+      .then((j) => {
+        const list = (j.data ?? j.groups ?? []) as { id: string; name: string }[];
+        setGroups(list.map((x) => ({ id: x.id, name: x.name })));
+      })
+      .catch(() => {});
+  }, []);
+
+  const submit = async (onDuplicate: "skip" | "import_anyway" | "merge") => {
+    setBusy(true);
+    setError(null);
+    try {
+      if (single) {
+        const res = await fetch(`/api/enterprise/sourcing/results/${resultIds[0]}/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ target, jobId: jobId || undefined, groupId: groupId || undefined, onDuplicate }),
+        });
+        const json = await res.json();
+        if (res.status === 409 && json.needs_email) {
+          setError("Reveal this candidate's email first — imports need a contact email.");
+          return;
+        }
+        if (!res.ok) { setError(json.error ?? "Import failed."); return; }
+        if (json.data.status === "duplicate_confirm") {
+          setDupMatches(json.data.verdict?.matches ?? []);
+          return;
+        }
+        onDone(json.data.status === "merged" ? "Merged with an existing record." : "Candidate imported.");
+      } else {
+        const res = await fetch("/api/enterprise/sourcing/bulk-import", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultIds, target, jobId: jobId || undefined, groupId: groupId || undefined, onDuplicate }),
+        });
+        const json = await res.json();
+        if (!res.ok) { setError(json.error ?? "Import failed."); return; }
+        const s = json.data;
+        const parts = [
+          s.imported ? `${s.imported} imported` : null,
+          s.merged ? `${s.merged} merged` : null,
+          s.duplicates ? `${s.duplicates} duplicates skipped` : null,
+          s.needs_email ? `${s.needs_email} need a revealed email` : null,
+          s.errors ? `${s.errors} failed` : null,
+        ].filter(Boolean);
+        onDone(parts.join(", ") || "Nothing to import.");
+      }
+    } catch {
+      setError("Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const TARGETS: { key: Target; label: string; icon: typeof Users; desc: string }[] = [
+    { key: "talent_pool", label: "Talent pool", icon: Users, desc: "Save for nurturing and future roles" },
+    { key: "job", label: "A specific job", icon: Briefcase, desc: "Add to a job's pipeline as an applicant" },
+    { key: "intake", label: "Intake pool", icon: Inbox, desc: "General Applications catch-all" },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 font-semibold">
+            <Database className="h-4 w-4 text-primary" />
+            Import {single ? (candidateName ?? "candidate") : `${resultIds.length} candidates`}
+          </h2>
+          <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
+        </div>
+
+        {dupMatches ? (
+          <div>
+            <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-xs text-amber-400">
+              <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+              <div>
+                <p className="font-medium">This candidate may already be in your system:</p>
+                <ul className="mt-1 list-disc pl-4">
+                  {dupMatches.slice(0, 4).map((m, i) => (
+                    <li key={i}>
+                      {m.label ?? "Record"} — {m.type.replace("_", " ")} (matched on {m.matched_on.replace("_", " + ")})
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <button onClick={onClose} disabled={busy}
+                className="rounded-xl border border-border py-2 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-60">
+                Skip
+              </button>
+              <button onClick={() => submit("merge")} disabled={busy}
+                className="rounded-xl border border-primary/40 py-2 text-xs font-medium text-primary disabled:opacity-60">
+                Merge (fill blanks)
+              </button>
+              <button onClick={() => submit("import_anyway")} disabled={busy}
+                className="btn-cta rounded-xl py-2 text-xs font-semibold disabled:opacity-60">
+                Import anyway
+              </button>
+            </div>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Merge never overwrites recruiter notes or application history — it only fills empty fields.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="mb-4 space-y-2">
+              {TARGETS.map((t) => (
+                <button
+                  key={t.key}
+                  onClick={() => setTarget(t.key)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition-colors",
+                    target === t.key ? "border-primary/60 bg-primary/5" : "border-border hover:border-border/80",
+                  )}
+                >
+                  <t.icon className={cn("h-4 w-4", target === t.key ? "text-primary" : "text-muted-foreground")} />
+                  <span className="flex-1">
+                    <span className="block text-sm font-medium">{t.label}</span>
+                    <span className="block text-[11px] text-muted-foreground">{t.desc}</span>
+                  </span>
+                  {target === t.key && <Check className="h-4 w-4 text-primary" />}
+                </button>
+              ))}
+            </div>
+
+            {target === "job" && (
+              <label className="mb-4 block text-xs">
+                <span className="mb-1 block font-semibold uppercase tracking-wide text-muted-foreground">Job</span>
+                <select
+                  value={jobId}
+                  onChange={(e) => setJobId(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select a job…</option>
+                  {jobs.map((j) => <option key={j.id} value={j.id}>{j.title}</option>)}
+                </select>
+              </label>
+            )}
+
+            {target === "talent_pool" && groups.length > 0 && (
+              <label className="mb-4 block text-xs">
+                <span className="mb-1 block font-semibold uppercase tracking-wide text-muted-foreground">Pool group (optional)</span>
+                <select
+                  value={groupId}
+                  onChange={(e) => setGroupId(e.target.value)}
+                  className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">No group</option>
+                  {groups.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </label>
+            )}
+
+            {error && (
+              <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                <TriangleAlert className="h-3.5 w-3.5 shrink-0" /> {error}
+              </div>
+            )}
+
+            <button
+              onClick={() => submit("skip")}
+              disabled={busy || (target === "job" && !jobId)}
+              className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+              {busy ? "Importing…" : single ? "Import candidate" : `Import ${resultIds.length} candidates`}
+            </button>
+            <p className="mt-2 text-[10px] text-muted-foreground">
+              Imports need a revealed email. Duplicates are detected first — you&apos;ll be asked before anything is overwritten.
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
