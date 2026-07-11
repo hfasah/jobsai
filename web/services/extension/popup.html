@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JobsAI</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="header">
+    <div class="header-logo">J</div>
+    <span class="header-name">JobsAI</span>
+    <span class="header-tag" id="plan-tag"></span>
+  </div>
+
+  <!-- Setup screen (shown when no API key) -->
+  <div id="screen-setup" class="content" style="display:none">
+    <p class="setup-title">Connect to your JobsAI account</p>
+    <p class="setup-body">
+      Get your API key from
+      <a href="https://jobsai-web.vercel.app/dashboard/billing" target="_blank">
+        Dashboard → Billing
+      </a>
+      and paste it below.
+    </p>
+    <label for="api-key-input">API Key</label>
+    <input
+      type="password"
+      id="api-key-input"
+      placeholder="jsk_••••••••••••••••"
+      autocomplete="off"
+      spellcheck="false"
+    />
+    <button class="btn btn-primary" id="btn-save-key">Save &amp; connect</button>
+  </div>
+
+  <!-- Main screen (shown when connected) -->
+  <div id="screen-main" class="content" style="display:none">
+    <div class="job-card">
+      <span class="job-badge" id="page-badge">Detecting…</span>
+      <div class="job-url" id="page-url"></div>
+    </div>
+
+    <button class="btn btn-primary" id="btn-import">
+      Import this job
+    </button>
+
+    <div id="status-area"></div>
+  </div>
+
+  <div class="footer">
+    <a
+      class="footer-link"
+      href="https://jobsai-web.vercel.app/dashboard"
+      target="_blank"
+    >Open dashboard ↗</a>
+    <button class="btn btn-danger" id="btn-disconnect" style="display:none">
+      Disconnect
+    </button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
