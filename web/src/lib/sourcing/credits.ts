@@ -13,13 +13,20 @@ const SPEND_REASON: Record<CreditAction, string> = {
   enrich: "spend_enrich",
 };
 
+// Free search + preview; pay only to reveal a verified contact (matches the
+// live cost rows seeded in migration 138). These are the fallback if the DB
+// rows are ever missing.
 const FALLBACK_COSTS: Record<CreditAction, number> = {
-  search: 1,
-  unlock_profile: 1,
+  search: 0,
+  unlock_profile: 0,
   reveal_email: 2,
   reveal_phone: 5,
   enrich: 3,
 };
+
+// One-time free credits so a new org can reveal a few real contacts before
+// paying — you can't sell what people haven't seen work.
+export const TRIAL_CREDITS = 100;
 
 // Platform defaults (org_id null) overlaid by per-org overrides.
 export async function getCreditCosts(orgId: string): Promise<Record<CreditAction, number>> {
@@ -60,7 +67,30 @@ export async function getCreditState(orgId: string): Promise<{
 
 // Lazily apply this month's plan allowance. Idempotent per (org, period) via
 // the partial unique index — cheap to call at the top of any credit route.
+// One-time free-trial grant. Idempotent via the partial unique index on
+// (org_id) where reason='trial_grant' — a repeat call raises unique_violation
+// inside sourcing_grant_credits and rolls back.
+export async function ensureTrialGrant(orgId: string): Promise<void> {
+  try {
+    await supabaseAdmin.rpc("sourcing_grant_credits", {
+      p_org: orgId,
+      p_amount: TRIAL_CREDITS,
+      p_reason: "trial_grant",
+      p_period: "trial",
+      p_ref_type: null,
+      p_ref_id: null,
+      p_user: null,
+    });
+  } catch (e) {
+    console.error("[sourcing] trial grant failed", e);
+  }
+}
+
+// Apply free trial + this month's plan allowance. Both are idempotent, so this
+// is safe to call at the top of any credit-touching route. Trial first, so
+// even a $0-included plan org can reveal a few contacts.
 export async function ensureMonthlyGrant(orgId: string): Promise<void> {
+  await ensureTrialGrant(orgId);
   try {
     const ent = await getOrgEntitlements(orgId);
     const allowance = ent.limits.sourcing_credits_monthly ?? 0;
