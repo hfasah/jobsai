@@ -1,0 +1,102 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { requireFeature } from "@/lib/enterprise-entitlements";
+import { getMyOrg } from "@/lib/enterprise";
+import { INTENTS } from "@/lib/outreach/intent";
+
+async function loadThread(orgId: string, id: string) {
+  const { data } = await supabaseAdmin
+    .from("inbox_threads")
+    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, ai_summary, status, assignee_user_id, last_inbound_at, last_outbound_at, reply_count, unread")
+    .eq("id", id)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  return data as Record<string, unknown> | null;
+}
+
+// GET — thread + its full message history (from enterprise_messages, joined by
+// application_id when known, else by candidate email). Marks the thread read.
+export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "outreach_campaigns");
+  if (gate) return gate;
+  const org = await getMyOrg(userId);
+  if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
+
+  const { id } = await ctx.params;
+  const thread = await loadThread(org.id, id);
+  if (!thread) return NextResponse.json({ error: "Thread not found." }, { status: 404 });
+
+  // Messages: prefer application thread; fall back to email-matched rows.
+  let messages;
+  if (thread.application_id) {
+    const { data } = await supabaseAdmin
+      .from("enterprise_messages")
+      .select("id, direction, from_email, to_email, subject, body, created_at")
+      .eq("org_id", org.id)
+      .eq("application_id", thread.application_id)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    messages = data;
+  } else {
+    const email = thread.candidate_email as string;
+    const { data } = await supabaseAdmin
+      .from("enterprise_messages")
+      .select("id, direction, from_email, to_email, subject, body, created_at")
+      .eq("org_id", org.id)
+      .or(`from_email.ilike.${email},to_email.ilike.${email}`)
+      .order("created_at", { ascending: true })
+      .limit(200);
+    messages = data;
+  }
+
+  if (thread.unread) {
+    await supabaseAdmin.from("inbox_threads").update({ unread: false }).eq("id", id).eq("org_id", org.id);
+    thread.unread = false;
+  }
+
+  return NextResponse.json({ data: { thread, messages: messages ?? [] } });
+}
+
+// PATCH — operator actions on a thread:
+//   { intent }                       manual intent override (sets intent_manual)
+//   { status: open|snoozed|done }
+//   { assignee_user_id | "me" | null }
+//   { unread: boolean }
+export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
+  const { userId } = await auth();
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const gate = await requireFeature(userId, "outreach_campaigns");
+  if (gate) return gate;
+  const org = await getMyOrg(userId);
+  if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
+
+  const { id } = await ctx.params;
+  const thread = await loadThread(org.id, id);
+  if (!thread) return NextResponse.json({ error: "Thread not found." }, { status: 404 });
+
+  const body = await req.json().catch(() => ({}));
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() };
+
+  if (typeof body.intent === "string" && INTENTS.includes(body.intent)) {
+    patch.intent = body.intent;
+    patch.intent_manual = true;
+    patch.intent_confidence = 1;
+  }
+  if (typeof body.status === "string" && ["open", "snoozed", "done"].includes(body.status)) {
+    patch.status = body.status;
+  }
+  if ("assignee_user_id" in body) {
+    patch.assignee_user_id = body.assignee_user_id === "me" ? userId : (body.assignee_user_id || null);
+  }
+  if (typeof body.unread === "boolean") patch.unread = body.unread;
+
+  if (Object.keys(patch).length === 1) {
+    return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
+  }
+
+  await supabaseAdmin.from("inbox_threads").update(patch).eq("id", id).eq("org_id", org.id);
+  return NextResponse.json({ data: { updated: true } });
+}

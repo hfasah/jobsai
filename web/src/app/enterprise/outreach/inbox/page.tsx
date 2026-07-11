@@ -1,0 +1,341 @@
+"use client";
+
+// Master inbox / AI SDR — unified reply threads across campaigns and sourcing
+// outreach, with AI intent labels, filters, assignment, manual override, and a
+// reply composer. Positive intents surface at the top; deliverability/auto
+// actions already ran server-side (this is where humans act on them).
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import {
+  Inbox, Loader2, Send, Star, CalendarClock, UserX, MailX, Share2, Moon,
+  Check, CircleDot, Search, RefreshCw, ChevronDown,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+
+type Intent =
+  | "interested" | "not_interested" | "out_of_office" | "referral"
+  | "unsubscribe" | "meeting_requested" | "neutral";
+
+const INTENT_META: Record<Intent, { label: string; cls: string; icon: typeof Star }> = {
+  interested:        { label: "Interested",     cls: "border-green-500/30 bg-green-500/10 text-green-400",   icon: Star },
+  meeting_requested: { label: "Meeting",        cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", icon: CalendarClock },
+  referral:          { label: "Referral",       cls: "border-sky-500/30 bg-sky-500/10 text-sky-400",        icon: Share2 },
+  neutral:           { label: "Neutral",        cls: "border-border bg-muted/30 text-muted-foreground",     icon: CircleDot },
+  out_of_office:     { label: "Out of office",  cls: "border-amber-500/30 bg-amber-500/10 text-amber-400",  icon: Moon },
+  not_interested:    { label: "Not interested", cls: "border-slate-500/30 bg-slate-500/10 text-slate-400",  icon: UserX },
+  unsubscribe:       { label: "Unsubscribed",   cls: "border-red-500/30 bg-red-500/10 text-red-400",        icon: MailX },
+};
+const INTENT_ORDER: Intent[] = ["interested", "meeting_requested", "referral", "neutral", "out_of_office", "not_interested", "unsubscribe"];
+
+interface ThreadRow {
+  id: string; candidate_email: string; candidate_name: string | null; application_id: string | null;
+  intent: Intent | null; intent_confidence: number | null; intent_manual: boolean;
+  ai_summary: string | null; status: "open" | "snoozed" | "done"; assignee_user_id: string | null;
+  last_inbound_at: string | null; reply_count: number; unread: boolean;
+}
+interface Message { id: string; direction: "inbound" | "outbound"; from_email: string | null; subject: string | null; body: string | null; created_at: string }
+
+function IntentBadge({ intent, confidence, manual }: { intent: Intent | null; confidence: number | null; manual: boolean }) {
+  const meta = INTENT_META[intent ?? "neutral"];
+  const Icon = meta.icon;
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-medium", meta.cls)}>
+      <Icon className="h-3 w-3" /> {meta.label}
+      {!manual && confidence != null && confidence < 0.6 && <span className="opacity-60">?</span>}
+      {manual && <span className="opacity-60">•</span>}
+    </span>
+  );
+}
+
+function InboxInner() {
+  const params = useSearchParams();
+  const [threads, setThreads] = useState<ThreadRow[]>([]);
+  const [counts, setCounts] = useState({ open: 0, unread: 0 });
+  const [me, setMe] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [selectedId, setSelectedId] = useState<string | null>(params.get("thread"));
+  const [detail, setDetail] = useState<{ thread: ThreadRow; messages: Message[] } | null>(null);
+  const [reply, setReply] = useState("");
+  const [sending, setSending] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+
+  const [filterStatus, setFilterStatus] = useState<"open" | "done" | "all">("open");
+  const [filterIntent, setFilterIntent] = useState<Intent | "">("");
+  const [filterAssignee, setFilterAssignee] = useState<"" | "me" | "unassigned">("");
+  const [query, setQuery] = useState("");
+
+  const loadList = useCallback(async () => {
+    setLoading(true);
+    const qs = new URLSearchParams();
+    if (filterStatus !== "all") qs.set("status", filterStatus);
+    if (filterIntent) qs.set("intent", filterIntent);
+    if (filterAssignee) qs.set("assignee", filterAssignee);
+    if (query.trim()) qs.set("q", query.trim());
+    const res = await fetch(`/api/enterprise/outreach/inbox?${qs}`);
+    const json = await res.json();
+    if (res.ok) {
+      setThreads(json.data.threads ?? []);
+      setCounts(json.data.counts ?? { open: 0, unread: 0 });
+      setMe(json.data.me ?? "");
+    }
+    setLoading(false);
+  }, [filterStatus, filterIntent, filterAssignee, query]);
+
+  useEffect(() => { loadList(); }, [loadList]);
+
+  const openThread = useCallback(async (id: string) => {
+    setSelectedId(id);
+    setDetail(null);
+    setReply("");
+    setReplyError(null);
+    const res = await fetch(`/api/enterprise/outreach/inbox/${id}`);
+    const json = await res.json();
+    if (res.ok) {
+      setDetail(json.data);
+      // reflect read state in the list without a refetch
+      setThreads((prev) => prev.map((t) => (t.id === id ? { ...t, unread: false } : t)));
+    }
+  }, []);
+
+  useEffect(() => {
+    const initial = params.get("thread");
+    if (initial) openThread(initial);
+  }, [params, openThread]);
+
+  const patchThread = async (id: string, patch: Record<string, unknown>) => {
+    await fetch(`/api/enterprise/outreach/inbox/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    loadList();
+    if (detail?.thread.id === id) openThread(id);
+  };
+
+  const sendReply = async () => {
+    if (!selectedId || !reply.trim()) return;
+    setSending(true);
+    setReplyError(null);
+    const res = await fetch(`/api/enterprise/outreach/inbox/${selectedId}/reply`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ body: reply }),
+    });
+    const json = await res.json().catch(() => ({}));
+    setSending(false);
+    if (!res.ok) { setReplyError(json.error ?? "Could not send."); return; }
+    setReply("");
+    openThread(selectedId);
+  };
+
+  return (
+    <main className="flex h-full flex-1 overflow-hidden">
+      {/* List column */}
+      <div className="flex w-full max-w-sm shrink-0 flex-col border-r border-border">
+        <div className="border-b border-border p-3">
+          <h1 className="mb-2 flex items-center gap-2 text-lg font-bold">
+            <Inbox className="h-5 w-5 text-primary" /> Inbox
+            {counts.unread > 0 && (
+              <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold text-primary">{counts.unread} new</span>
+            )}
+            <button onClick={loadList} className="ml-auto text-muted-foreground hover:text-foreground" aria-label="Refresh"><RefreshCw className="h-3.5 w-3.5" /></button>
+          </h1>
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search name or email"
+              className="w-full rounded-lg border border-border bg-background py-1.5 pl-8 pr-2 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(["open", "done", "all"] as const).map((s) => (
+              <button key={s} onClick={() => setFilterStatus(s)}
+                className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium capitalize", filterStatus === s ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
+                {s}
+              </button>
+            ))}
+            <span className="mx-1 text-border">|</span>
+            {(["", "me", "unassigned"] as const).map((a) => (
+              <button key={a} onClick={() => setFilterAssignee(a)}
+                className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", filterAssignee === a ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground")}>
+                {a === "" ? "Everyone" : a === "me" ? "Mine" : "Unassigned"}
+              </button>
+            ))}
+          </div>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            <button onClick={() => setFilterIntent("")}
+              className={cn("rounded-full border px-1.5 py-0.5 text-[10px]", filterIntent === "" ? "border-primary/40 text-primary" : "border-border text-muted-foreground")}>
+              All intents
+            </button>
+            {INTENT_ORDER.map((i) => (
+              <button key={i} onClick={() => setFilterIntent(filterIntent === i ? "" : i)}
+                className={cn("rounded-full border px-1.5 py-0.5 text-[10px]", filterIntent === i ? INTENT_META[i].cls : "border-border text-muted-foreground hover:text-foreground")}>
+                {INTENT_META[i].label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {loading && threads.length === 0 ? (
+            <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+          ) : threads.length === 0 ? (
+            <div className="px-4 py-12 text-center">
+              <Inbox className="mx-auto mb-2 h-8 w-8 text-muted-foreground/30" />
+              <p className="text-sm text-muted-foreground">No replies yet.</p>
+              <p className="mt-1 text-xs text-muted-foreground">When candidates reply to your outreach, they land here — auto-classified and de-duplicated.</p>
+            </div>
+          ) : (
+            threads.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => openThread(t.id)}
+                className={cn(
+                  "flex w-full flex-col gap-1 border-b border-border/60 px-3 py-2.5 text-left transition-colors",
+                  selectedId === t.id ? "bg-primary/5" : "hover:bg-muted/30",
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  {t.unread && <span className="h-2 w-2 shrink-0 rounded-full bg-primary" />}
+                  <span className={cn("truncate text-sm", t.unread ? "font-semibold" : "font-medium")}>
+                    {t.candidate_name || t.candidate_email}
+                  </span>
+                  <span className="ml-auto shrink-0 text-[10px] text-muted-foreground">
+                    {t.last_inbound_at ? new Date(t.last_inbound_at).toLocaleDateString() : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <IntentBadge intent={t.intent} confidence={t.intent_confidence} manual={t.intent_manual} />
+                  {t.assignee_user_id && <span className="rounded bg-muted px-1 py-0.5 text-[9px] text-muted-foreground">{t.assignee_user_id === me ? "you" : "assigned"}</span>}
+                  {t.reply_count > 1 && <span className="text-[10px] text-muted-foreground">{t.reply_count} replies</span>}
+                </div>
+                {t.ai_summary && <p className="truncate text-xs text-muted-foreground">{t.ai_summary}</p>}
+              </button>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* Detail column */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {!detail ? (
+          <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
+            {selectedId ? <Loader2 className="h-5 w-5 animate-spin" /> : "Select a conversation"}
+          </div>
+        ) : (
+          <>
+            {/* Thread header + actions */}
+            <div className="border-b border-border p-4">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <h2 className="truncate text-base font-semibold">{detail.thread.candidate_name || detail.thread.candidate_email}</h2>
+                  <p className="truncate text-xs text-muted-foreground">{detail.thread.candidate_email}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <IntentSelect current={detail.thread.intent} onPick={(intent) => patchThread(detail.thread.id, { intent })} />
+                  <button
+                    onClick={() => patchThread(detail.thread.id, { assignee_user_id: detail.thread.assignee_user_id === me ? null : "me" })}
+                    className={cn("rounded-lg border px-2 py-1 text-[11px] font-medium", detail.thread.assignee_user_id === me ? "border-primary/40 text-primary" : "border-border text-muted-foreground hover:text-foreground")}
+                  >
+                    {detail.thread.assignee_user_id === me ? "Assigned to you" : "Assign to me"}
+                  </button>
+                  <button
+                    onClick={() => patchThread(detail.thread.id, { status: detail.thread.status === "done" ? "open" : "done" })}
+                    className={cn("rounded-lg border px-2 py-1 text-[11px] font-medium", detail.thread.status === "done" ? "border-green-500/40 text-green-400" : "border-border text-muted-foreground hover:text-foreground")}
+                  >
+                    <Check className="mr-1 inline h-3 w-3" />{detail.thread.status === "done" ? "Done" : "Mark done"}
+                  </button>
+                </div>
+              </div>
+              {detail.thread.ai_summary && (
+                <p className="mt-2 rounded-lg bg-muted/40 px-2.5 py-1.5 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">AI:</span> {detail.thread.ai_summary}
+                </p>
+              )}
+            </div>
+
+            {/* Messages */}
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {detail.messages.length === 0 && <p className="text-center text-xs text-muted-foreground">No message history captured.</p>}
+              {detail.messages.map((m) => (
+                <div key={m.id} className={cn("flex", m.direction === "outbound" ? "justify-end" : "justify-start")}>
+                  <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", m.direction === "outbound" ? "bg-primary/10 text-foreground" : "bg-muted/50")}>
+                    {m.subject && <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{m.subject}</p>}
+                    <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                    <p className="mt-1 text-[10px] text-muted-foreground/60">{new Date(m.created_at).toLocaleString()}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Composer */}
+            <div className="border-t border-border p-3">
+              {detail.thread.intent === "unsubscribe" ? (
+                <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">
+                  This contact unsubscribed — replying is disabled.
+                </p>
+              ) : (
+                <>
+                  {replyError && <p className="mb-1.5 text-xs text-red-400">{replyError}</p>}
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendReply(); }}
+                      rows={2}
+                      placeholder="Write a reply…  (⌘/Ctrl+Enter to send)"
+                      className="flex-1 resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      onClick={sendReply}
+                      disabled={sending || !reply.trim()}
+                      className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                    >
+                      {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function IntentSelect({ current, onPick }: { current: Intent | null; onPick: (i: Intent) => void }) {
+  const [open, setOpen] = useState(false);
+  const meta = INTENT_META[current ?? "neutral"];
+  return (
+    <span className="relative">
+      <button onClick={() => setOpen((o) => !o)} className={cn("inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium", meta.cls)}>
+        <meta.icon className="h-3 w-3" /> {meta.label} <ChevronDown className="h-3 w-3 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-30 w-40 rounded-xl border border-border bg-card p-1 shadow-2xl" onMouseLeave={() => setOpen(false)}>
+          {INTENT_ORDER.map((i) => (
+            <button key={i} onClick={() => { onPick(i); setOpen(false); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-muted/50">
+              <span className={cn("inline-flex h-4 w-4 items-center justify-center rounded-full", INTENT_META[i].cls)}>
+                {(() => { const I = INTENT_META[i].icon; return <I className="h-2.5 w-2.5" />; })()}
+              </span>
+              {INTENT_META[i].label}
+            </button>
+          ))}
+          <p className="px-2 pb-1 pt-1.5 text-[9px] text-muted-foreground">Overriding sets the label manually.</p>
+        </div>
+      )}
+    </span>
+  );
+}
+
+export default function OutreachInboxPage() {
+  return (
+    <Suspense fallback={<div className="flex flex-1 items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>}>
+      <InboxInner />
+    </Suspense>
+  );
+}
