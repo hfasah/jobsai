@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
       total,
       searchable: true,
       search_cost: costs.search,
+      costs,
       balance: state.balance,
       providers: providers.map((p) => p.provider.key),
     },
