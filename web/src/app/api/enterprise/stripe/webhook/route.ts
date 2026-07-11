@@ -77,6 +77,22 @@ export async function POST(req: NextRequest) {
             await syncSubscriptionToOrg(sub);
           }
         }
+        // Sourcing credit-pack top-up (one-time payment). Idempotent per
+        // session id via the sourcing_purchase_once partial unique index —
+        // a webhook retry rolls back inside sourcing_grant_credits.
+        const credits = parseInt(session.metadata?.sourcing_credits ?? "", 10);
+        if (orgId && Number.isFinite(credits) && credits > 0 && session.payment_status === "paid") {
+          const { supabaseAdmin } = await import("@/lib/supabase");
+          await supabaseAdmin.rpc("sourcing_grant_credits", {
+            p_org: orgId,
+            p_amount: credits,
+            p_reason: "purchase",
+            p_period: session.id,
+            p_ref_type: "purchase",
+            p_ref_id: null,
+            p_user: null,
+          });
+        }
         break;
       }
     }

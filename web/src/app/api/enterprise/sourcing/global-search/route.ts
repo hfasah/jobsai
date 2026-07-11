@@ -165,9 +165,15 @@ export async function POST(req: NextRequest) {
   if (mode !== "internal") {
     const spend = await spendCredits({ orgId: org.id, userId, action: "search", refType: "run", refId: runId });
     if (!spend.ok) {
-      await supabaseAdmin.from("sourcing_search_runs").update({ status: "failed", error: "insufficient_credits" }).eq("id", runId).eq("org_id", org.id);
+      await supabaseAdmin.from("sourcing_search_runs").update({ status: "failed", error: spend.dailyCap ? "daily_cap" : "insufficient_credits" }).eq("id", runId).eq("org_id", org.id);
       return NextResponse.json(
-        { error: "Not enough sourcing credits.", credits: true, balance: spend.balance, cost: spend.cost },
+        {
+          error: spend.dailyCap ? "Daily sourcing-credit cap reached." : "Not enough sourcing credits.",
+          credits: true,
+          balance: spend.balance,
+          cost: spend.cost,
+          daily_cap: spend.dailyCap ?? false,
+        },
         { status: 402 },
       );
     }
