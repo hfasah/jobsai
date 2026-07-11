@@ -7,7 +7,10 @@ export type AuditAction =
   | "member.invited" | "member.role_changed" | "member.removed"
   | "integration.connected" | "integration.synced" | "integration.disconnected"
   | "ats.connected" | "ats.synced" | "ats.disconnected"
-  | "data.exported" | "data.deleted";
+  | "data.exported" | "data.deleted"
+  | "sourcing.search_executed" | "sourcing.contact_revealed" | "sourcing.profile_enriched"
+  | "sourcing.candidate_imported" | "sourcing.results_exported" | "sourcing.candidate_suppressed"
+  | "sourcing.provider_updated" | "sourcing.credits_adjusted";
 
 interface AuditEntry {
   org_id: string;
