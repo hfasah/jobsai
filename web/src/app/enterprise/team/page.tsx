@@ -48,6 +48,11 @@ const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   can_view_reports:        "View reports & analytics",
   can_add_notes:           "Add notes to applications",
   can_schedule_interviews: "Schedule interviews",
+  can_source_external:     "Search external talent",
+  can_reveal_contacts:     "Reveal & verify contacts",
+  can_import_sourced:      "Import sourced candidates",
+  can_export_sourced:      "Export sourcing results",
+  can_manage_sourcing:     "Manage sourcing providers & credits",
 };
 
 export default function TeamPage() {

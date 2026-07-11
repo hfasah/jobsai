@@ -10,7 +10,13 @@ export type Permission =
   | "can_manage_settings"
   | "can_view_reports"
   | "can_add_notes"
-  | "can_schedule_interviews";
+  | "can_schedule_interviews"
+  // TalentSource (Global Sourcing)
+  | "can_source_external"
+  | "can_reveal_contacts"
+  | "can_import_sourced"
+  | "can_export_sourced"
+  | "can_manage_sourcing";
 
 type PermissionSet = Record<Permission, boolean>;
 
@@ -27,6 +33,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        true,
     can_add_notes:           true,
     can_schedule_interviews: true,
+    can_source_external:     true,
+    can_reveal_contacts:     true,
+    can_import_sourced:      true,
+    can_export_sourced:      true,
+    can_manage_sourcing:     true,
   },
   admin: {
     can_view_applications:   true,
@@ -39,6 +50,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        true,
     can_add_notes:           true,
     can_schedule_interviews: true,
+    can_source_external:     true,
+    can_reveal_contacts:     true,
+    can_import_sourced:      true,
+    can_export_sourced:      true,
+    can_manage_sourcing:     true,
   },
   recruiter: {
     can_view_applications:   true,
@@ -51,6 +67,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        true,
     can_add_notes:           true,
     can_schedule_interviews: true,
+    can_source_external:     true,
+    can_reveal_contacts:     true,
+    can_import_sourced:      true,
+    can_export_sourced:      true,
+    can_manage_sourcing:     false,
   },
   hiring_manager: {
     can_view_applications:   true,
@@ -63,6 +84,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        true,
     can_add_notes:           true,
     can_schedule_interviews: true,
+    can_source_external:     true,   // search + shortlist, no reveal/import
+    can_reveal_contacts:     false,
+    can_import_sourced:      false,
+    can_export_sourced:      false,
+    can_manage_sourcing:     false,
   },
   interviewer: {
     can_view_applications:   true,
@@ -75,6 +101,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        false,
     can_add_notes:           true,
     can_schedule_interviews: false,
+    can_source_external:     false,
+    can_reveal_contacts:     false,
+    can_import_sourced:      false,
+    can_export_sourced:      false,
+    can_manage_sourcing:     false,
   },
   department_head: {
     can_view_applications:   true,
@@ -87,6 +118,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        true,
     can_add_notes:           true,
     can_schedule_interviews: true,
+    can_source_external:     true,   // search + shortlist, no reveal/import
+    can_reveal_contacts:     false,
+    can_import_sourced:      false,
+    can_export_sourced:      false,
+    can_manage_sourcing:     false,
   },
   viewer: {
     can_view_applications:   true,
@@ -99,6 +135,11 @@ export const ROLE_PERMISSIONS: Record<MemberRole, PermissionSet> = {
     can_view_reports:        true,
     can_add_notes:           false,
     can_schedule_interviews: false,
+    can_source_external:     false,
+    can_reveal_contacts:     false,
+    can_import_sourced:      false,
+    can_export_sourced:      false,
+    can_manage_sourcing:     false,
   },
 };
 
