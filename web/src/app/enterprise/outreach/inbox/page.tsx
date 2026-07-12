@@ -9,12 +9,13 @@ import { useSearchParams } from "next/navigation";
 import {
   Inbox, Loader2, Send, Star, CalendarClock, UserX, MailX, Share2, Moon,
   Check, CircleDot, Search, RefreshCw, ChevronDown, Flame, Bot, Pencil,
+  HelpCircle, UserRoundX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Intent =
   | "interested" | "not_interested" | "out_of_office" | "referral"
-  | "unsubscribe" | "meeting_requested" | "neutral";
+  | "unsubscribe" | "meeting_requested" | "question" | "wrong_person" | "neutral";
 
 type InterestLevel = "none" | "low" | "medium" | "high" | "very_high";
 
@@ -31,12 +32,14 @@ const INTENT_META: Record<Intent, { label: string; cls: string; icon: typeof Sta
   interested:        { label: "Interested",     cls: "border-green-500/30 bg-green-500/10 text-green-400",   icon: Star },
   meeting_requested: { label: "Meeting",        cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-400", icon: CalendarClock },
   referral:          { label: "Referral",       cls: "border-sky-500/30 bg-sky-500/10 text-sky-400",        icon: Share2 },
+  question:          { label: "Question",       cls: "border-violet-500/30 bg-violet-500/10 text-violet-400", icon: HelpCircle },
   neutral:           { label: "Neutral",        cls: "border-border bg-muted/30 text-muted-foreground",     icon: CircleDot },
   out_of_office:     { label: "Out of office",  cls: "border-amber-500/30 bg-amber-500/10 text-amber-400",  icon: Moon },
   not_interested:    { label: "Not interested", cls: "border-slate-500/30 bg-slate-500/10 text-slate-400",  icon: UserX },
+  wrong_person:      { label: "Wrong person",   cls: "border-slate-500/30 bg-slate-500/10 text-slate-400",  icon: UserRoundX },
   unsubscribe:       { label: "Unsubscribed",   cls: "border-red-500/30 bg-red-500/10 text-red-400",        icon: MailX },
 };
-const INTENT_ORDER: Intent[] = ["interested", "meeting_requested", "referral", "neutral", "out_of_office", "not_interested", "unsubscribe"];
+const INTENT_ORDER: Intent[] = ["interested", "meeting_requested", "question", "referral", "neutral", "out_of_office", "not_interested", "wrong_person", "unsubscribe"];
 
 interface ThreadRow {
   id: string; candidate_email: string; candidate_name: string | null; application_id: string | null;

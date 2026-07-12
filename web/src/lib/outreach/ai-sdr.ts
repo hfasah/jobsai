@@ -116,7 +116,7 @@ export async function buildKnowledgeContext(orgId: string, campaignId: string): 
 // ── Guardrails ──────────────────────────────────────────────────────────────
 // Intents that a bot may reply to at all. Everything else (declines, opt-outs,
 // auto-replies) is handled by humans / suppression — never auto-answered.
-const REPLYABLE_INTENTS: Intent[] = ["interested", "meeting_requested", "referral", "neutral"];
+const REPLYABLE_INTENTS: Intent[] = ["interested", "meeting_requested", "referral", "question", "neutral"];
 
 export interface AutoReplyGate {
   ok: boolean;                       // may we generate + queue a reply at all?

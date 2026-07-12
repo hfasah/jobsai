@@ -33,6 +33,21 @@ async function pauseSequences(orgId: string, email: string, intent: Intent): Pro
   const actions: string[] = [];
   const now = new Date().toISOString();
 
+  // Out-of-office is an automated bounce-back, not a real reply — don't stop the
+  // sequence. Defer the next send a few days so it resumes after they're back.
+  if (intent === "out_of_office") {
+    const resumeAt = new Date(Date.now() + 3 * 86_400_000).toISOString();
+    const { data: def } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .update({ next_send_at: resumeAt })
+      .eq("org_id", orgId)
+      .ilike("candidate_email", email)
+      .eq("status", "active")
+      .select("id");
+    if ((def ?? []).length) actions.push("deferred_out_of_office");
+    return actions;
+  }
+
   // Sourcing outreach follow-ups.
   const { data: so } = await supabaseAdmin
     .from("enterprise_sourcing_outreach")
