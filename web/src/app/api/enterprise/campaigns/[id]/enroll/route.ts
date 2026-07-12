@@ -36,11 +36,18 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const { data: campaign } = await supabaseAdmin
     .from("enterprise_campaigns")
-    .select("id, status")
+    .select("id, status, dedup_days, allow_unverified")
     .eq("id", id)
     .eq("org_id", org.id)
     .maybeSingle();
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
+  const opts = campaign as { dedup_days: number | null; allow_unverified: boolean };
+
+  // Manually-added leads have no verified email. If the campaign requires
+  // verified addresses, they can't be added this way.
+  if (opts.allow_unverified === false) {
+    return NextResponse.json({ error: "This campaign only accepts verified emails — add leads via Search (with reveal), or allow unverified in Options." }, { status: 400 });
+  }
 
   const { data: steps } = await supabaseAdmin
     .from("enterprise_campaign_steps")
@@ -64,6 +71,25 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     .eq("campaign_id", id)
     .in("candidate_email", emails);
   const already = new Set((existing ?? []).map((e) => e.candidate_email.toLowerCase()));
+
+  // Cross-campaign: don't add anyone already active in another campaign.
+  const { data: elsewhere } = await supabaseAdmin
+    .from("enterprise_campaign_enrollments")
+    .select("candidate_email")
+    .eq("org_id", org.id).neq("campaign_id", id).eq("status", "active")
+    .in("candidate_email", emails);
+  for (const e of elsewhere ?? []) already.add(e.candidate_email.toLowerCase());
+
+  // Recency guard from the campaign's dedup window.
+  if (opts.dedup_days && opts.dedup_days > 0) {
+    const cutoff = new Date(Date.now() - opts.dedup_days * 86_400_000).toISOString();
+    const { data: recent } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .select("candidate_email")
+      .eq("org_id", org.id).gte("last_sent_at", cutoff)
+      .in("candidate_email", emails);
+    for (const e of recent ?? []) already.add(e.candidate_email.toLowerCase());
+  }
 
   const rows = (candidates as EnrollCandidate[])
     .filter((c) => c.email?.trim() && c.name?.trim() && !already.has(c.email.trim().toLowerCase()))

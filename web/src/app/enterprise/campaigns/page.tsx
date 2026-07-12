@@ -655,9 +655,24 @@ function EnrollModal({ campaignId, onClose, onEnrolled }: { campaignId: string; 
           <h3 className="flex items-center gap-2 font-semibold"><UserPlus className="h-4 w-4 text-primary" /> Enroll candidates</h3>
           <button onClick={onClose} className="rounded p-1 text-muted-foreground hover:bg-muted"><X className="h-4 w-4" /></button>
         </div>
-        <p className="mb-2 text-xs text-muted-foreground">
-          One candidate per line — <span className="font-mono">Name &lt;email@co.com&gt;</span> or just an email. They&apos;ll start at step 1 on schedule.
-        </p>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className="text-xs text-muted-foreground">
+            One per line — <span className="font-mono">Name &lt;email&gt;</span>, <span className="font-mono">Name, email</span>, or just an email.
+          </p>
+          <label className="inline-flex shrink-0 cursor-pointer items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-[11px] font-medium hover:bg-muted">
+            <UserPlus className="h-3.5 w-3.5" /> Upload CSV
+            <input
+              type="file" accept=".csv,text/csv,text/plain" className="hidden"
+              onChange={async (e) => {
+                const file = e.target.files?.[0];
+                if (!file) return;
+                const content = await file.text();
+                setText((t) => (t.trim() ? t + "\n" : "") + content.trim());
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
