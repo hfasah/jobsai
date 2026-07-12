@@ -27,6 +27,15 @@ export async function POST(req: NextRequest) {
   }
 
   const now = new Date();
+
+  // Activate any scheduled campaigns whose time has come, so their enrollments
+  // start sending on this run.
+  await supabaseAdmin
+    .from("enterprise_campaigns")
+    .update({ status: "active", updated_at: now.toISOString() })
+    .eq("status", "scheduled")
+    .lte("scheduled_at", now.toISOString());
+
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
     .select("*, campaign:enterprise_campaigns(status, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")

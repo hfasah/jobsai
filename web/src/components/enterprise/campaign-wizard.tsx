@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Loader2, Check, Bot, X, Wand2,
-  Users, Search, CircleCheck, CircleAlert, CircleDot, Rocket, Mail,
+  Users, Search, CircleCheck, CircleAlert, CircleDot, Rocket, Mail, Clock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -81,6 +81,7 @@ export default function CampaignWizard({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audience, setAudience] = useState<AudienceData | null>(null);
   const [pilot, setPilot] = useState<{ on: boolean; size: number }>({ on: false, size: 25 });
+  const [schedule, setSchedule] = useState<{ on: boolean; at: string }>({ on: false, at: "" });
 
   const buildPayload = (activate: boolean) => {
     if (!draft) return null;
@@ -237,6 +238,27 @@ export default function CampaignWizard({
   const launch = async () => {
     const id = await persist(true);
     if (id) onDone();
+  };
+  const scheduleCampaign = async () => {
+    if (!schedule.at) { setError("Pick a date and time to schedule."); return; }
+    const id = campaignId ?? (await ensureCampaign());
+    if (!id) return;
+    const base = buildPayload(false);
+    if (!base) return;
+    setSaving(true); setError(null); setPreflight(null);
+    const res = await fetch(`/api/enterprise/campaigns/${id}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...base, status: "scheduled", scheduled_at: new Date(schedule.at).toISOString(), ...(pilot.on ? { pilot_size: pilot.size } : {}) }),
+    });
+    setSaving(false);
+    if (res.status === 422) {
+      const j = await res.json().catch(() => ({}));
+      setPreflight(j.preflight?.checks ?? null);
+      setError(j.error ?? "Fix the checks below before scheduling.");
+      return;
+    }
+    if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Could not schedule."); return; }
+    onDone();
   };
   const saveDraft = async () => {
     const id = await persist(false);
@@ -516,6 +538,23 @@ export default function CampaignWizard({
                       </span>
                     </label>
                   )}
+
+                  {/* Schedule for later */}
+                  <label className="mt-3 flex items-start gap-2.5 border-t border-border pt-3">
+                    <input type="checkbox" checked={schedule.on} onChange={(e) => setSchedule((s) => ({ ...s, on: e.target.checked }))} className="mt-0.5" />
+                    <span className="flex-1">
+                      <span className="block text-sm font-medium">Schedule for later</span>
+                      <span className="block text-[11px] text-muted-foreground">Go live at a set time instead of now.</span>
+                      {schedule.on && (
+                        <input
+                          type="datetime-local"
+                          value={schedule.at}
+                          onChange={(e) => setSchedule((s) => ({ ...s, at: e.target.value }))}
+                          className="mt-1.5 rounded-lg border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                        />
+                      )}
+                    </span>
+                  </label>
                 </div>
               );
             })()}
@@ -600,8 +639,9 @@ export default function CampaignWizard({
               <button onClick={saveDraft} disabled={saving} className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
                 Save as draft
               </button>
-              <button onClick={launch} disabled={saving} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />} {pilot.on ? `Launch pilot (${pilot.size})` : "Launch"}
+              <button onClick={schedule.on ? scheduleCampaign : launch} disabled={saving} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : schedule.on ? <Clock className="h-4 w-4" /> : <Rocket className="h-4 w-4" />}
+                {schedule.on ? "Schedule" : pilot.on ? `Launch pilot (${pilot.size})` : "Launch"}
               </button>
             </div>
           )}

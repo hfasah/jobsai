@@ -56,11 +56,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!campaign) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps, send_window, objective, pilot_size } = body as {
+  const { name, description, status, steps, send_window, objective, pilot_size, scheduled_at } = body as {
     name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
     send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
     objective?: string;
     pilot_size?: number | null;
+    scheduled_at?: string | null;
   };
   const pilotSize = typeof pilot_size === "number" && pilot_size > 0 ? Math.floor(pilot_size) : null;
 
@@ -73,7 +74,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (typeof objective === "string") {
     update.objective = ["source", "re_engage", "promote", "pipeline"].includes(objective) ? objective : null;
   }
-  if (typeof status === "string" && !["draft", "active", "paused", "stopped", "completed", "archived"].includes(status)) {
+  if (typeof status === "string" && !["draft", "scheduled", "active", "paused", "stopped", "completed", "archived"].includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
   if (send_window && typeof send_window === "object") {
@@ -115,7 +116,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   // exact state that would go live). Failures return 422 with the full check
   // list so the UI shows exactly what to fix; warns don't block.
   if (typeof status === "string") {
-    if (status === "active") {
+    // Both an immediate launch and a scheduled one must pass the preflight now —
+    // don't let a broken campaign go live later.
+    if (status === "active" || status === "scheduled") {
       const preflight = await preflightCampaign(a.org.id, id);
       if (!preflight.ok) {
         return NextResponse.json(
@@ -124,9 +127,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
         );
       }
     }
+    const statusPatch: Record<string, unknown> = { status, updated_at: new Date().toISOString() };
+    if (status === "scheduled") statusPatch.scheduled_at = scheduled_at ?? null;
+    if (status === "active") statusPatch.scheduled_at = null; // launched — clear any schedule
     await supabaseAdmin
       .from("enterprise_campaigns")
-      .update({ status, updated_at: new Date().toISOString() })
+      .update(statusPatch)
       .eq("id", id)
       .eq("org_id", a.org.id);
 
