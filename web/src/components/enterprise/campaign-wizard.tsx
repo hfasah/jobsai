@@ -429,7 +429,7 @@ export default function CampaignWizard({
               <h2 className="text-lg font-semibold">Build the sequence</h2>
               <p className="text-sm text-muted-foreground">The emails and timing. Use <code className="rounded bg-muted px-1 text-xs">{"{{first_name}}"}</code> and other tokens — they resolve per candidate.</p>
             </div>
-            <CampaignBuilder draft={draft} setDraft={setDraft} onSave={() => {}} onCancel={onCancel} saving={saving} presets={presets} embedded />
+            <CampaignBuilder draft={draft} setDraft={setDraft} onSave={() => {}} onCancel={onCancel} saving={saving} presets={presets} embedded campaignId={campaignId} />
           </div>
         )}
 

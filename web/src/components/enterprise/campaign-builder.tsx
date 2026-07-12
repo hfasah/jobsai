@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Sparkles, Clock, Mail,
-  Loader2, X, Wand2, FlaskConical, CalendarClock,
+  Loader2, X, Wand2, FlaskConical, CalendarClock, Send,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_VARS, type CampaignStepInput, type CampaignPreset } from "@/lib/campaigns";
@@ -87,7 +87,7 @@ export function draftFromCampaign(c: {
 }
 
 export function CampaignBuilder({
-  draft, setDraft, onSave, onCancel, saving, presets, embedded = false,
+  draft, setDraft, onSave, onCancel, saving, presets, embedded = false, campaignId = null,
 }: {
   draft: CampaignDraft;
   setDraft: (d: CampaignDraft) => void;
@@ -98,9 +98,29 @@ export function CampaignBuilder({
   // When embedded in the guided wizard, the wizard owns navigation — hide the
   // builder's own Save/Cancel footer.
   embedded?: boolean;
+  // Enables the per-step "Send test" (needs a saved campaign for context).
+  campaignId?: string | null;
 }) {
   const [showPresets, setShowPresets] = useState(false);
   const [focusedField, setFocusedField] = useState<{ i: number; field: "subject" | "body" } | null>(null);
+  const [testing, setTesting] = useState<number | null>(null);
+  const [testMsg, setTestMsg] = useState<string | null>(null);
+
+  const sendTest = async (i: number) => {
+    if (!campaignId) return;
+    const step = draft.steps[i];
+    if (!step.subject.trim() || !step.body.trim()) { setTestMsg("Fill in the subject and body first."); return; }
+    setTesting(i);
+    setTestMsg(null);
+    const res = await fetch(`/api/enterprise/campaigns/${campaignId}/send-test`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subject: step.subject, body: step.body }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setTesting(null);
+    setTestMsg(res.ok ? `Test sent to ${j.data?.sent_to}.` : (j.error ?? "Could not send test."));
+    setTimeout(() => setTestMsg(null), 4000);
+  };
 
   const patchStep = (i: number, patch: Partial<BuilderStep>) => {
     const steps = draft.steps.map((s, idx) => (idx === i ? { ...s, ...patch } : s));
@@ -134,6 +154,9 @@ export function CampaignBuilder({
 
   return (
     <div className="mx-auto max-w-3xl">
+      {testMsg && (
+        <div className="mb-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">{testMsg}</div>
+      )}
       {/* Campaign meta */}
       <div className="mb-5 rounded-2xl border border-border bg-card p-4">
         <div className="flex items-center justify-between gap-2">
@@ -208,6 +231,11 @@ export function CampaignBuilder({
                   <span className="text-[11px] text-muted-foreground">Day {cum}</span>
                 </div>
                 <div className="flex items-center gap-1">
+                  {campaignId && (
+                    <button onClick={() => sendTest(i)} disabled={testing === i} title="Send a test to yourself" className="inline-flex items-center gap-1 rounded p-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-primary disabled:opacity-50">
+                      {testing === i ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Test
+                    </button>
+                  )}
                   <button onClick={() => move(i, -1)} disabled={i === 0} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronUp className="h-4 w-4" /></button>
                   <button onClick={() => move(i, 1)} disabled={i === draft.steps.length - 1} className="rounded p-1 text-muted-foreground hover:bg-muted disabled:opacity-30"><ChevronDown className="h-4 w-4" /></button>
                   <button onClick={() => removeStep(i)} disabled={draft.steps.length === 1} className="rounded p-1 text-muted-foreground hover:bg-red-500/10 hover:text-red-400 disabled:opacity-30"><Trash2 className="h-4 w-4" /></button>
