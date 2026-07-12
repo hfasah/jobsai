@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { SlidersHorizontal, Loader2, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Options { track_opens: boolean; dedup_days: number | null; allow_unverified: boolean }
+interface Options { track_opens: boolean; dedup_days: number | null; allow_unverified: boolean; mailbox_strategy: string; mailbox_id: string | null }
+interface Mailbox { id: string; address: string; status: string }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   return (
@@ -19,11 +20,13 @@ export default function OptionsPanel({ campaignId, campaignName, onClose, embedd
   const base = `/api/enterprise/campaigns/${campaignId}/options`;
   const [loading, setLoading] = useState(true);
   const [opt, setOpt] = useState<Options | null>(null);
+  const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    fetch(base).then((r) => r.json()).then((j) => setOpt(j.data ?? { track_opens: true, dedup_days: null, allow_unverified: true })).catch(() => {}).finally(() => setLoading(false));
+    fetch(base).then((r) => r.json()).then((j) => setOpt(j.data ?? { track_opens: true, dedup_days: null, allow_unverified: true, mailbox_strategy: "auto", mailbox_id: null })).catch(() => {}).finally(() => setLoading(false));
+    fetch("/api/enterprise/outreach/mailboxes").then((r) => r.json()).then((j) => setMailboxes((j.data ?? []).filter((m: Mailbox) => m.status === "active").map((m: Mailbox) => ({ id: m.id, address: m.address, status: m.status })))).catch(() => {});
   }, [base]);
 
   const patch = (p: Partial<Options>) => setOpt((o) => (o ? { ...o, ...p } : o));
@@ -79,6 +82,32 @@ export default function OptionsPanel({ campaignId, campaignName, onClose, embedd
                 />
                 <span className="text-sm text-muted-foreground">days</span>
               </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">Sending mailbox</p>
+              <p className="mb-1.5 text-[11px] text-muted-foreground">Spread across your healthy mailboxes, or pin this campaign to one.</p>
+              <select
+                value={opt.mailbox_strategy}
+                onChange={(e) => patch({ mailbox_strategy: e.target.value })}
+                className="w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="auto">Auto — spread across mailboxes (lowest usage)</option>
+                <option value="fixed">Fixed — a specific mailbox</option>
+              </select>
+              {opt.mailbox_strategy === "fixed" && (
+                <select
+                  value={opt.mailbox_id ?? ""}
+                  onChange={(e) => patch({ mailbox_id: e.target.value || null })}
+                  className="mt-1.5 w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                >
+                  <option value="">Select a mailbox…</option>
+                  {mailboxes.map((m) => <option key={m.id} value={m.id}>{m.address}</option>)}
+                </select>
+              )}
+              {opt.mailbox_strategy === "fixed" && mailboxes.length === 0 && (
+                <p className="mt-1 text-[10px] text-muted-foreground">No active domain mailboxes — it&apos;ll fall back to the default sender.</p>
+              )}
             </div>
           </div>
         )}

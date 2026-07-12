@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, track_opens, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
+    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -165,7 +165,9 @@ export async function POST(req: NextRequest) {
     let fromEmail = "support@jobsai.work";
     let mailboxId: string | null = null;
     if (pool.mailboxes.length > 0) {
-      const claimed = await claimFromPool(pool);
+      const camp = campaign as { mailbox_strategy?: string; mailbox_id?: string | null };
+      const preferredMailbox = camp.mailbox_strategy === "fixed" ? camp.mailbox_id ?? null : null;
+      const claimed = await claimFromPool(pool, preferredMailbox);
       if (!claimed) {
         await supabaseAdmin
           .from("enterprise_campaign_enrollments")
