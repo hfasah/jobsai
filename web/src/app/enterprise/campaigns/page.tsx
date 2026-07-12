@@ -299,6 +299,11 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
     if (res.ok) setDiag(j.data);
   };
 
+  const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
+  const [activity, setActivity] = useState<{ at: string; type: string; text: string }[] | null>(null);
+  const [showActivity, setShowActivity] = useState(false);
+  const [bulkBusy, setBulkBusy] = useState(false);
+
   const load = useCallback(async () => {
     setLoading(true);
     const [a, c] = await Promise.all([
@@ -307,6 +312,7 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
     ]);
     setData(a.data ?? null);
     setName(c.data?.name ?? "Campaign");
+    setSelectedLeads(new Set());
     setLoading(false);
   }, [campaignId]);
 
@@ -318,6 +324,27 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
     });
     load();
   };
+
+  const bulkLeadAction = async (action: string) => {
+    setBulkBusy(true);
+    await Promise.all([...selectedLeads].map((eid) =>
+      fetch(`/api/enterprise/campaigns/${campaignId}/enrollments/${eid}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }),
+      }).catch(() => {}),
+    ));
+    setBulkBusy(false);
+    load();
+  };
+
+  const loadActivity = async () => {
+    setShowActivity(true);
+    const res = await fetch(`/api/enterprise/campaigns/${campaignId}/activity`);
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) setActivity(j.data?.events ?? []);
+  };
+  const toggleLead = (eid: string) => setSelectedLeads((prev) => {
+    const next = new Set(prev); next.has(eid) ? next.delete(eid) : next.add(eid); return next;
+  });
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
@@ -446,8 +473,23 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
               ))}
             </div>
 
-            {/* Enrollments */}
-            <h2 className="mb-2 text-sm font-semibold">Enrolled candidates ({data.enrollments.length})</h2>
+            {/* Enrollments / Leads */}
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-sm font-semibold">Leads ({data.enrollments.length})</h2>
+              <button onClick={loadActivity} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+                <Clock className="h-3.5 w-3.5" /> Activity log
+              </button>
+            </div>
+            {selectedLeads.size > 0 && (
+              <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2 text-xs">
+                <span className="font-medium">{selectedLeads.size} selected</span>
+                <button onClick={() => bulkLeadAction("pause")} disabled={bulkBusy} className="rounded-lg border border-border px-2 py-1 font-medium hover:bg-muted disabled:opacity-60">Pause</button>
+                <button onClick={() => bulkLeadAction("resume")} disabled={bulkBusy} className="rounded-lg border border-border px-2 py-1 font-medium hover:bg-muted disabled:opacity-60">Resume</button>
+                <button onClick={() => bulkLeadAction("move_to_pipeline")} disabled={bulkBusy} className="rounded-lg border border-border px-2 py-1 font-medium hover:bg-muted disabled:opacity-60">Move to pipeline</button>
+                <button onClick={() => bulkLeadAction("remove")} disabled={bulkBusy} className="rounded-lg border border-border px-2 py-1 font-medium text-red-400 hover:bg-red-500/10 disabled:opacity-60">Remove</button>
+                {bulkBusy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              </div>
+            )}
             {data.enrollments.length === 0 ? (
               <div className="rounded-2xl border border-dashed border-border py-10 text-center">
                 <Users className="mx-auto mb-2 h-7 w-7 text-muted-foreground/30" />
@@ -460,7 +502,8 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
               <div className="space-y-1.5">
                 {data.enrollments.map((e) => (
                   <div key={e.id} className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card px-3 py-2.5">
-                    <div className="min-w-0">
+                    <input type="checkbox" checked={selectedLeads.has(e.id)} onChange={() => toggleLead(e.id)} className="shrink-0" />
+                    <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="truncate text-sm font-medium">{e.candidate_name}</p>
                         <span className={cn("text-[11px] capitalize", ENROLL_STATUS_STYLES[e.status] ?? "text-muted-foreground")}>{e.status}</span>
@@ -487,6 +530,37 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
       </div>
 
       {enrollOpen && <EnrollModal campaignId={campaignId} onClose={() => setEnrollOpen(false)} onEnrolled={() => { setEnrollOpen(false); load(); }} />}
+
+      {showActivity && (
+        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowActivity(false)}>
+          <div onClick={(ev) => ev.stopPropagation()} className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center justify-between border-b border-border p-4">
+              <h2 className="flex items-center gap-2 font-semibold"><Clock className="h-4 w-4 text-primary" /> Activity log</h2>
+              <button onClick={() => setShowActivity(false)} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {activity === null ? (
+                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+              ) : activity.length === 0 ? (
+                <p className="py-6 text-center text-sm text-muted-foreground">No activity yet.</p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {activity.map((ev, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-sm">
+                      <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
+                        ev.type === "replied" ? "bg-green-500" : ev.type === "unsubscribed" ? "bg-red-500" : ev.type === "lead_added" ? "bg-sky-500" : "bg-muted-foreground/40")} />
+                      <span className="flex-1">
+                        <span>{ev.text}</span>
+                        <span className="block text-[10px] text-muted-foreground">{new Date(ev.at).toLocaleString()}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

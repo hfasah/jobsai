@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { CAMPAIGN_FEATURE_KEY } from "@/lib/campaigns";
+import { getOrCreateIntakePool } from "@/lib/enterprise-intake-inbox";
 
 type Ctx = { params: Promise<{ id: string; eid: string }> };
 
@@ -77,6 +78,49 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       .update({ status: "removed", next_send_at: null })
       .eq("id", eid);
     return NextResponse.json({ ok: true });
+  }
+
+  if (action === "pause") {
+    // Hold sending but keep the sequence position.
+    await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .update({ status: "paused", next_send_at: null })
+      .eq("id", eid).eq("status", "active");
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "resume") {
+    await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .update({ status: "active", next_send_at: now })
+      .eq("id", eid).eq("status", "paused");
+    return NextResponse.json({ ok: true });
+  }
+
+  if (action === "move_to_pipeline") {
+    // Create an application on the enrollment's job (or the intake pool),
+    // deduped by org + email. Also stops the sequence.
+    const enr = enrollment as { candidate_email: string; candidate_name: string | null; job_id: string | null };
+    const email = enr.candidate_email.toLowerCase();
+    const { data: existing } = await supabaseAdmin
+      .from("enterprise_applications").select("id").eq("org_id", org.id).ilike("candidate_email", email).limit(1).maybeSingle();
+    let appId = (existing as { id: string } | null)?.id ?? null;
+    if (!appId) {
+      let jobId = enr.job_id;
+      if (!jobId) jobId = await getOrCreateIntakePool(org.id, userId);
+      if (jobId) {
+        const { data: app } = await supabaseAdmin
+          .from("enterprise_applications")
+          .insert({ org_id: org.id, job_id: jobId, candidate_name: enr.candidate_name?.trim() || email.split("@")[0], candidate_email: email, source: "jobsai", stage: "applied" })
+          .select("id").single();
+        appId = (app as { id: string } | null)?.id ?? null;
+      }
+    }
+    await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .update({ status: "completed", next_send_at: null, completed_at: now })
+      .eq("id", eid);
+    return NextResponse.json({ ok: true, application_id: appId });
   }
 
   return NextResponse.json({ error: "Unknown action." }, { status: 400 });
