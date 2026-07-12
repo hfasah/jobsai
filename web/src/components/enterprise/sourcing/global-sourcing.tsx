@@ -57,6 +57,8 @@ export default function GlobalSourcing({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [importIds, setImportIds] = useState<string[] | null>(null);
   const [importNotice, setImportNotice] = useState<string | null>(null);
+  const [revealing, setRevealing] = useState(false);
+  const [revealConfirm, setRevealConfirm] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
@@ -249,6 +251,35 @@ export default function GlobalSourcing({
     setSavedId(s.id);
   };
 
+  // Selected rows that still need an email revealed before they can be enrolled.
+  const unrevealedSelected = [...selected].filter((id) => {
+    const r = results.find((x) => x.id === id);
+    return r?.external && r.external.emails.length === 0 && r.external.has_email !== false;
+  });
+
+  const bulkReveal = async () => {
+    if (!revealConfirm) { setRevealConfirm(true); return; }
+    setRevealConfirm(false);
+    setRevealing(true);
+    setImportNotice(null);
+    const res = await fetch("/api/enterprise/sourcing/bulk-reveal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resultIds: unrevealedSelected }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setRevealing(false);
+    if (!res.ok) { setImportNotice(j.error ?? "Reveal failed."); return; }
+    const d = j.data;
+    setImportNotice(
+      `Revealed ${d.revealed} contact${d.revealed !== 1 ? "s" : ""}` +
+      (d.no_data ? `, ${d.no_data} had no email` : "") +
+      (d.ran_out ? " — ran out of credits" : "") +
+      `. Review, then select who to add.`,
+    );
+    if (runId) loadPage(runId, 0, false); // refresh so revealed emails + verification show
+  };
+
   return (
     <div>
       <SavedSearches
@@ -372,14 +403,33 @@ export default function GlobalSourcing({
 
       {/* Bulk toolbar */}
       {selected.size > 0 && (
-        <div className="mb-3 flex items-center justify-between rounded-xl border border-primary/40 bg-primary/5 px-4 py-2">
-          <p className="text-xs font-medium">{selected.size} selected</p>
-          <button
-            onClick={() => setImportIds([...selected])}
-            className="btn-cta rounded-lg px-3 py-1.5 text-xs font-semibold"
-          >
-            Import selected
-          </button>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-primary/40 bg-primary/5 px-4 py-2">
+          <p className="text-xs font-medium">
+            {selected.size} selected
+            {unrevealedSelected.length > 0 && <span className="text-muted-foreground"> · {unrevealedSelected.length} without a revealed email</span>}
+          </p>
+          <div className="flex items-center gap-2">
+            {unrevealedSelected.length > 0 && (
+              <button
+                onClick={bulkReveal}
+                onMouseLeave={() => setRevealConfirm(false)}
+                disabled={revealing}
+                className="rounded-lg border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:border-border/80 disabled:opacity-60"
+              >
+                {revealing
+                  ? "Revealing…"
+                  : revealConfirm
+                    ? `Confirm — reveal ${unrevealedSelected.length} · ~${unrevealedSelected.length * 2} credits`
+                    : `Reveal ${unrevealedSelected.length} email${unrevealedSelected.length !== 1 ? "s" : ""}`}
+              </button>
+            )}
+            <button
+              onClick={() => setImportIds([...selected])}
+              className="btn-cta rounded-lg px-3 py-1.5 text-xs font-semibold"
+            >
+              {campaignContext ? "Add selected to campaign" : "Import selected"}
+            </button>
+          </div>
         </div>
       )}
 
