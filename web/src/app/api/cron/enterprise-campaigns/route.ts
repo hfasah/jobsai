@@ -8,6 +8,7 @@ import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { recordUsage } from "@/lib/llm-usage";
 import { renderTemplate, firstName, type CampaignVars } from "@/lib/campaigns";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
+import { runSubsequences } from "@/lib/outreach/subsequences";
 import { loadRotationPool, claimFromPool, type RotationPool } from "@/lib/outreach/rotation";
 
 export const maxDuration = 60;
@@ -233,6 +234,11 @@ export async function POST(req: NextRequest) {
         .from("enterprise_campaign_enrollments")
         .update({ status: "completed", next_send_at: null, last_sent_at: now.toISOString(), completed_at: now.toISOString() })
         .eq("id", e.id as string);
+      // Sequence finished with no reply → fire any 'sequence_completed' rules.
+      await runSubsequences({
+        orgId: e.org_id as string, campaignId: e.campaign_id as string, trigger: "sequence_completed",
+        candidateEmail: e.candidate_email as string, candidateName: (e.candidate_name as string) ?? null,
+      }).catch(() => {});
     }
 
     sent++;
