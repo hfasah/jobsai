@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
+    .select("*, campaign:enterprise_campaigns(status, track_opens, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -202,7 +202,9 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     if (!send) return; // this step was already sent by another run
 
-    const pixel = `<img src="${BASE_URL}/api/enterprise/campaigns/track?s=${send.id}" width="1" height="1" alt="" style="display:none"/>`;
+    // Open-tracking pixel — omitted when the campaign turns it off (better deliverability).
+    const trackOpens = (campaign as { track_opens?: boolean }).track_opens !== false;
+    const pixel = trackOpens ? `<img src="${BASE_URL}/api/enterprise/campaigns/track?s=${send.id}" width="1" height="1" alt="" style="display:none"/>` : "";
     const html = wrapEmail(`<p>${bodyText.replace(/\n/g, "<br>")}</p>${pixel}`, showPoweredBy);
 
     try {

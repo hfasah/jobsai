@@ -267,11 +267,32 @@ export async function importExternalCandidate(args: {
     if (!args.campaignId) return { status: "error", error: "A campaign is required." };
     const { data: campaign } = await supabaseAdmin
       .from("enterprise_campaigns")
-      .select("id")
+      .select("id, dedup_days, allow_unverified")
       .eq("id", args.campaignId)
       .eq("org_id", orgId)
       .maybeSingle();
     if (!campaign) return { status: "error", error: "Campaign not found." };
+    const opts = campaign as { dedup_days: number | null; allow_unverified: boolean };
+
+    // Options: block unverified emails when the campaign requires verified ones.
+    const emailStatus = candidate.emails.find((e) => e.value === email)?.verification_status ?? candidate.emails[0]?.verification_status ?? null;
+    if (opts.allow_unverified === false && emailStatus !== "valid" && emailStatus !== "risky") {
+      return { status: "skipped", verdict, reason: "Email isn't verified — this campaign only accepts verified addresses." };
+    }
+
+    // Options: recency guard — skip if contacted (any campaign) within N days.
+    if (opts.dedup_days && opts.dedup_days > 0) {
+      const cutoff = new Date(Date.now() - opts.dedup_days * 86_400_000).toISOString();
+      const { data: recent } = await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .select("id")
+        .eq("org_id", orgId)
+        .ilike("candidate_email", email)
+        .gte("last_sent_at", cutoff)
+        .limit(1)
+        .maybeSingle();
+      if (recent) return { status: "skipped", verdict, reason: `Contacted within the last ${opts.dedup_days} days — skipped.` };
+    }
 
     const { data: steps } = await supabaseAdmin
       .from("enterprise_campaign_steps")
