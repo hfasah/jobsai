@@ -80,6 +80,7 @@ export default function CampaignWizard({
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audience, setAudience] = useState<AudienceData | null>(null);
+  const [pilot, setPilot] = useState<{ on: boolean; size: number }>({ on: false, size: 25 });
 
   const buildPayload = (activate: boolean) => {
     if (!draft) return null;
@@ -89,6 +90,7 @@ export default function CampaignWizard({
       description: draft.description,
       objective: objective || undefined,
       status: activate ? "active" : "draft",
+      ...(activate && pilot.on ? { pilot_size: pilot.size } : {}),
       steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body }) => ({
         delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body,
       })),
@@ -496,6 +498,24 @@ export default function CampaignWizard({
                   {total === 0 && (
                     <p className="mt-3 text-[11px] text-muted-foreground">No audience yet — go back to the Audience step to add candidates before launching.</p>
                   )}
+
+                  {/* Pilot launch */}
+                  {total > (pilot.size) && (
+                    <label className="mt-3 flex items-start gap-2.5 border-t border-border pt-3">
+                      <input type="checkbox" checked={pilot.on} onChange={(e) => setPilot((p) => ({ ...p, on: e.target.checked }))} className="mt-0.5" />
+                      <span className="flex-1">
+                        <span className="block text-sm font-medium">Pilot launch</span>
+                        <span className="block text-[11px] text-muted-foreground">Send to the first{" "}
+                          <input
+                            type="number" min={1} max={total} value={pilot.size}
+                            onClick={(e) => e.preventDefault()}
+                            onChange={(e) => setPilot((p) => ({ ...p, size: Math.max(1, Math.min(total, Number(e.target.value) || 1)) }))}
+                            className="mx-0.5 w-14 rounded border border-border bg-background px-1 py-0.5 text-center text-xs"
+                          />{" "}
+                          candidates, review, then release the rest with one click.</span>
+                      </span>
+                    </label>
+                  )}
                 </div>
               );
             })()}
@@ -581,7 +601,7 @@ export default function CampaignWizard({
                 Save as draft
               </button>
               <button onClick={launch} disabled={saving} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
-                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />} Launch
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Rocket className="h-4 w-4" />} {pilot.on ? `Launch pilot (${pilot.size})` : "Launch"}
               </button>
             </div>
           )}
