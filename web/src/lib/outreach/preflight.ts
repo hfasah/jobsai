@@ -43,7 +43,7 @@ export async function preflightCampaign(orgId: string, campaignId: string): Prom
       .order("step_order", { ascending: true }),
     supabaseAdmin
       .from("enterprise_campaign_enrollments")
-      .select("id", { count: "exact", head: false })
+      .select("id, email_status")
       .eq("campaign_id", campaignId)
       .eq("org_id", orgId)
       .in("status", ["active", "pending"])
@@ -90,12 +90,25 @@ export async function preflightCampaign(orgId: string, campaignId: string): Prom
   }
 
   // 4. Non-empty audience
-  const enrolled = (enrollments ?? []).length;
+  const enrollRows = (enrollments ?? []) as { id: string; email_status: string | null }[];
+  const enrolled = enrollRows.length;
   checks.push(
     enrolled === 0
       ? { key: "audience", label: "Audience", status: "fail", detail: "No candidates are enrolled." }
       : { key: "audience", label: "Audience", status: "pass", detail: `${enrolled} candidate${enrolled !== 1 ? "s" : ""} enrolled.` },
   );
+
+  // 4b. Deliverability — warn (not block) when enrolled candidates lack a
+  // verified/likely-valid email. valid/risky are safe to send; the rest risk
+  // bouncing and hurt sender reputation.
+  if (enrolled > 0) {
+    const unverified = enrollRows.filter((e) => e.email_status !== "valid" && e.email_status !== "risky").length;
+    checks.push(
+      unverified > 0
+        ? { key: "deliverability", label: "Email deliverability", status: "warn", detail: `${unverified} of ${enrolled} enrolled ${unverified === 1 ? "email is" : "emails are"} unverified — verify them to avoid bounces.` }
+        : { key: "deliverability", label: "Email deliverability", status: "pass", detail: "All enrolled emails are verified or likely valid." },
+    );
+  }
 
   // 5. Sending identity: a usable org domain mailbox, or a connected personal
   //    mailbox. Cold volume from the shared platform domain is a warn — allowed
