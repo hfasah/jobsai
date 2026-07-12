@@ -18,7 +18,7 @@ export interface AiSdrCampaign {
   status: string;
   created_by: string;
   ai_sdr_enabled: boolean;
-  ai_sdr_mode: "draft" | "auto";
+  ai_sdr_mode: "manual" | "draft" | "auto";
   ai_sdr_persona: string | null;
   ai_sdr_guardrails: string | null;
   ai_sdr_min_confidence: number;
@@ -135,6 +135,7 @@ export function evaluateAutoReply(args: {
   const { campaign, intent, confidence, priorAiReplies, minutesSinceLastOutbound } = args;
 
   if (!campaign.ai_sdr_enabled) return { ok: false, autoSend: false, reason: "AI SDR disabled." };
+  if (campaign.ai_sdr_mode === "manual") return { ok: false, autoSend: false, reason: "Manual mode — a recruiter writes every reply." };
   if (!REPLYABLE_INTENTS.includes(intent)) return { ok: false, autoSend: false, reason: `Intent "${intent}" is handled by a human.` };
   if (priorAiReplies >= campaign.ai_sdr_max_replies) {
     return { ok: false, autoSend: false, reason: `Reached ${campaign.ai_sdr_max_replies} AI replies on this thread — handing off.` };
