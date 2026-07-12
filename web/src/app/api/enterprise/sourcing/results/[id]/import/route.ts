@@ -76,6 +76,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (outcome.status === "error") {
     return NextResponse.json({ error: outcome.error ?? "Import failed." }, { status: 400 });
   }
+  if (outcome.status === "skipped") {
+    return NextResponse.json({ data: outcome });
+  }
 
   // Reflect the import on the run result row.
   await supabaseAdmin

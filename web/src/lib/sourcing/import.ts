@@ -39,6 +39,7 @@ export interface ImportOutcome {
   crm_contact_id?: string;
   enrollment_id?: string;
   error?: string;
+  reason?: string; // human-readable note for a skip (e.g. already in a campaign)
 }
 
 function toExternalShape(c: StoredCandidateRow): ExternalCandidate {
@@ -280,7 +281,7 @@ export async function importExternalCandidate(args: {
       .limit(1);
     if (!steps || steps.length === 0) return { status: "error", error: "Add a step to the campaign before enrolling." };
 
-    // Already enrolled → don't double-message.
+    // Already enrolled in THIS campaign → don't double-message.
     const { data: existingEnroll } = await supabaseAdmin
       .from("enterprise_campaign_enrollments")
       .select("id")
@@ -290,6 +291,21 @@ export async function importExternalCandidate(args: {
     if (existingEnroll) {
       await recordImport({ orgId, userId, candidateId: candidate.id, target, campaignId: args.campaignId, enrollmentId: (existingEnroll as { id: string }).id, dedupStatus: verdict.status, decision: "merged" });
       return { status: "merged", verdict, enrollment_id: (existingEnroll as { id: string }).id };
+    }
+
+    // Already in an ACTIVE campaign elsewhere in the org → don't let two
+    // campaigns (or two recruiters) contact the same person at once.
+    const { data: activeElsewhere } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .select("id")
+      .eq("org_id", orgId)
+      .ilike("candidate_email", email)
+      .eq("status", "active")
+      .neq("campaign_id", args.campaignId)
+      .limit(1)
+      .maybeSingle();
+    if (activeElsewhere) {
+      return { status: "skipped", verdict, reason: "Already in another active campaign — skipped to avoid overlapping outreach." };
     }
 
     const nextSendAt = new Date(Date.now() + Math.max(0, steps[0].delay_days || 0) * 86_400_000).toISOString();
