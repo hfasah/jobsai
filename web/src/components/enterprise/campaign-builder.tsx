@@ -87,7 +87,7 @@ export function draftFromCampaign(c: {
 }
 
 export function CampaignBuilder({
-  draft, setDraft, onSave, onCancel, saving, presets,
+  draft, setDraft, onSave, onCancel, saving, presets, embedded = false,
 }: {
   draft: CampaignDraft;
   setDraft: (d: CampaignDraft) => void;
@@ -95,6 +95,9 @@ export function CampaignBuilder({
   onCancel: () => void;
   saving: boolean;
   presets: CampaignPreset[];
+  // When embedded in the guided wizard, the wizard owns navigation — hide the
+  // builder's own Save/Cancel footer.
+  embedded?: boolean;
 }) {
   const [showPresets, setShowPresets] = useState(false);
   const [focusedField, setFocusedField] = useState<{ i: number; field: "subject" | "body" } | null>(null);
@@ -384,29 +387,31 @@ export function CampaignBuilder({
         )}
       </div>
 
-      {/* Footer actions */}
-      <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-2 border-t border-border bg-background/95 py-3 backdrop-blur">
-        <button onClick={onCancel} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
-          <X className="h-4 w-4" /> Cancel
-        </button>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => onSave(false)}
-            disabled={saving}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
-          >
-            Save draft
+      {/* Footer actions — hidden when the wizard drives navigation. */}
+      {!embedded && (
+        <div className="sticky bottom-0 mt-5 flex items-center justify-between gap-2 border-t border-border bg-background/95 py-3 backdrop-blur">
+          <button onClick={onCancel} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm text-muted-foreground hover:text-foreground">
+            <X className="h-4 w-4" /> Cancel
           </button>
-          <button
-            onClick={() => onSave(true)}
-            disabled={saving}
-            className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
-          >
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            Save & activate
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => onSave(false)}
+              disabled={saving}
+              className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60"
+            >
+              Save draft
+            </button>
+            <button
+              onClick={() => onSave(true)}
+              disabled={saving}
+              className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              Save & activate
+            </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

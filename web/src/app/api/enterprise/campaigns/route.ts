@@ -60,14 +60,17 @@ export async function POST(req: NextRequest) {
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps } = body as {
+  const { name, description, status, steps, objective, send_window } = body as {
     name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
+    objective?: string;
+    send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
   };
 
   if (!name?.trim()) return NextResponse.json({ error: "Campaign name is required." }, { status: 400 });
   const stepErr = validateSteps(steps ?? []);
   if (stepErr) return NextResponse.json({ error: stepErr }, { status: 400 });
 
+  const sw = send_window ?? null;
   const { data: campaign, error } = await supabaseAdmin
     .from("enterprise_campaigns")
     .insert({
@@ -75,7 +78,16 @@ export async function POST(req: NextRequest) {
       name: name.trim(),
       description: description?.trim() || null,
       status: status === "active" ? "active" : "draft",
+      objective: ["source", "re_engage", "promote", "pipeline"].includes(objective ?? "") ? objective : null,
       created_by: userId,
+      ...(sw
+        ? {
+            send_window_start: typeof sw.start === "number" && sw.start >= 0 && sw.start <= 23 ? Math.floor(sw.start) : null,
+            send_window_end: typeof sw.end === "number" && sw.end >= 1 && sw.end <= 24 ? Math.floor(sw.end) : null,
+            send_timezone: typeof sw.timezone === "string" && sw.timezone.trim() ? sw.timezone.trim() : null,
+            business_days_only: sw.business_days_only === true,
+          }
+        : {}),
     })
     .select("id")
     .single();

@@ -56,9 +56,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!campaign) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps, send_window } = body as {
+  const { name, description, status, steps, send_window, objective } = body as {
     name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
     send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
+    objective?: string;
   };
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
@@ -67,6 +68,9 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     update.name = name.trim();
   }
   if (typeof description === "string") update.description = description.trim() || null;
+  if (typeof objective === "string") {
+    update.objective = ["source", "re_engage", "promote", "pipeline"].includes(objective) ? objective : null;
+  }
   if (typeof status === "string" && !["draft", "active", "paused", "archived"].includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
