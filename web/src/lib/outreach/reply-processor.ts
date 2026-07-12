@@ -8,6 +8,7 @@ import { emailFromName } from "@/lib/email-utils";
 import { classifyIntent, isPositiveIntent, type Intent, type InterestLevel } from "./intent";
 import { maybeEnqueueAiSdrReply } from "./ai-sdr";
 import { getOrCreateIntakePool } from "@/lib/enterprise-intake-inbox";
+import { runSubsequences } from "./subsequences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
@@ -299,6 +300,29 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
     } catch (e) {
       console.error("[reply-processor] createReferralLead failed", e);
     }
+  }
+
+  // Subsequences — run any configured reply-category rules for the campaign this
+  // candidate belongs to (best-effort, additive to the built-in actions above).
+  try {
+    const { data: enr } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .select("campaign_id")
+      .eq("org_id", input.orgId)
+      .ilike("candidate_email", email)
+      .order("enrolled_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    const campaignId = (enr as { campaign_id: string } | null)?.campaign_id;
+    if (campaignId) {
+      const performed = await runSubsequences({
+        orgId: input.orgId, campaignId, trigger: "reply_category", category: cls.intent,
+        candidateEmail: email, candidateName: input.candidateName ?? null,
+      });
+      autoActions.push(...performed);
+    }
+  } catch (e) {
+    console.error("[reply-processor] subsequences failed", e);
   }
 
   // AI SDR: draft (and maybe queue) a grounded auto-reply for the candidate's

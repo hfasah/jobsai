@@ -4,11 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Megaphone, Plus, Loader2, Sparkles, Users, MailCheck, Play, Pause,
   Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
-  Square, Archive, MoreHorizontal, Copy, Stethoscope,
+  Square, Archive, MoreHorizontal, Copy, Stethoscope, Workflow,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampaignWizard from "@/components/enterprise/campaign-wizard";
 import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
+import SubsequencesPanel from "@/components/enterprise/subsequences-panel";
 import type { CampaignPreset } from "@/lib/campaigns";
 
 type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "stopped" | "completed" | "archived";
@@ -62,6 +63,7 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<CampaignListItem[]>([]);
   const [presets, setPresets] = useState<CampaignPreset[]>([]);
   const [aiSdr, setAiSdr] = useState<{ id: string; name: string } | null>(null);
+  const [subs, setSubs] = useState<{ id: string; name: string } | null>(null);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -148,6 +150,7 @@ export default function CampaignsPage() {
                     )}
                     <StatusToggle campaign={c} onChanged={loadList} />
                     <button onClick={() => setAiSdr({ id: c.id, name: c.name })} title="AI SDR auto-reply" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Bot className="h-4 w-4" /></button>
+                    <button onClick={() => setSubs({ id: c.id, name: c.name })} title="Subsequences" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Workflow className="h-4 w-4" /></button>
                     <button onClick={() => setView({ kind: "detail", campaignId: c.id })} title="Analytics" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><BarChart3 className="h-4 w-4" /></button>
                     <button onClick={() => setView({ kind: "builder", campaignId: c.id })} title="Edit" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><Pencil className="h-4 w-4" /></button>
                     <DeleteButton id={c.id} onDeleted={loadList} />
@@ -160,6 +163,7 @@ export default function CampaignsPage() {
       </div>
 
       {aiSdr && <AiSdrPanel campaignId={aiSdr.id} campaignName={aiSdr.name} onClose={() => setAiSdr(null)} />}
+      {subs && <SubsequencesPanel campaignId={subs.id} campaignName={subs.name} onClose={() => setSubs(null)} />}
     </div>
   );
 }
