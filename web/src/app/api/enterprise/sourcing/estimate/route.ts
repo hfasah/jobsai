@@ -34,10 +34,9 @@ export async function POST(req: NextRequest) {
     getCreditState(org.id),
   ]);
 
+  const counting = providers.filter((p) => p.provider.capabilities.countCandidates);
   const counts = await Promise.allSettled(
-    providers
-      .filter((p) => p.provider.capabilities.countCandidates)
-      .map((p) => p.provider.countCandidates!(filters, { apiKey: p.apiKey, timeoutMs: 10000 })),
+    counting.map((p) => p.provider.countCandidates!(filters, { apiKey: p.apiKey, timeoutMs: 10000 })),
   );
   let total: number | null = null;
   for (const c of counts) {
@@ -45,6 +44,14 @@ export async function POST(req: NextRequest) {
       total = (total ?? 0) + c.value;
     }
   }
+
+  // Diagnostic: which provider(s) answered and what each returned — makes a
+  // "0 candidates" estimate traceable (mock vs PDL vs a failing count call).
+  console.info("[sourcing/estimate] summary", {
+    providers: providers.map((p) => p.provider.key),
+    counts: counts.map((c) => (c.status === "fulfilled" ? c.value : `err:${String(c.reason).slice(0, 80)}`)),
+    total,
+  });
 
   return NextResponse.json({
     data: {
