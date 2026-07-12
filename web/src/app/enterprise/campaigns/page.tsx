@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Megaphone, Plus, Loader2, Sparkles, Users, MailCheck, Play, Pause,
   Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
-  Square, Archive, MoreHorizontal,
+  Square, Archive, MoreHorizontal, Copy,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampaignWizard from "@/components/enterprise/campaign-wizard";
@@ -215,6 +215,16 @@ function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onC
               <Play className="h-3.5 w-3.5 text-green-400" /> Reactivate
             </button>
           )}
+          <button
+            onClick={async () => {
+              setMenu(false); setBusy(true);
+              await fetch(`/api/enterprise/campaigns/${campaign.id}/duplicate`, { method: "POST" }).catch(() => {});
+              setBusy(false); onChanged();
+            }}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/50"
+          >
+            <Copy className="h-3.5 w-3.5" /> Duplicate
+          </button>
           {s !== "archived" && (
             <button onClick={() => setStatus("archived")} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/50">
               <Archive className="h-3.5 w-3.5" /> Archive
