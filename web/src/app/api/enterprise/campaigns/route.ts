@@ -16,7 +16,7 @@ export async function GET() {
 
   const { data: campaigns } = await supabaseAdmin
     .from("enterprise_campaigns")
-    .select("id, name, description, status, created_at, updated_at")
+    .select("id, name, description, status, created_at, updated_at, pilot_size, pilot_released")
     .eq("org_id", org.id)
     .order("created_at", { ascending: false });
 

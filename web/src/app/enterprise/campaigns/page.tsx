@@ -16,6 +16,7 @@ type CampaignStatus = "draft" | "active" | "paused" | "stopped" | "completed" | 
 type CampaignListItem = {
   id: string; name: string; description: string | null; status: CampaignStatus;
   created_at: string;
+  pilot_size?: number | null; pilot_released?: boolean;
   stats?: { enrolled: number; replied: number; active: number; steps: number };
 };
 
@@ -141,6 +142,9 @@ export default function CampaignsPage() {
                     </div>
                   </button>
                   <div className="flex shrink-0 items-center gap-1">
+                    {c.status === "active" && c.pilot_size && !c.pilot_released && (
+                      <ReleaseButton id={c.id} onReleased={loadList} />
+                    )}
                     <StatusToggle campaign={c} onChanged={loadList} />
                     <button onClick={() => setAiSdr({ id: c.id, name: c.name })} title="AI SDR auto-reply" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Bot className="h-4 w-4" /></button>
                     <button onClick={() => setView({ kind: "detail", campaignId: c.id })} title="Analytics" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><BarChart3 className="h-4 w-4" /></button>
@@ -231,6 +235,22 @@ function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onC
         </span>
       )}
     </span>
+  );
+}
+
+function ReleaseButton({ id, onReleased }: { id: string; onReleased: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const release = async () => {
+    setBusy(true);
+    await fetch(`/api/enterprise/campaigns/${id}/release`, { method: "POST" }).catch(() => {});
+    setBusy(false);
+    onReleased();
+  };
+  return (
+    <button onClick={release} disabled={busy} title="Release the rest of the pilot"
+      className="inline-flex items-center gap-1 rounded-lg border border-primary/40 px-2 py-1 text-[11px] font-semibold text-primary hover:bg-primary/5 disabled:opacity-60">
+      {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Send className="h-3 w-3" />} Release rest
+    </button>
   );
 }
 

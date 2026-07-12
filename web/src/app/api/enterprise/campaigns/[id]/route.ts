@@ -56,11 +56,13 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (!campaign) return NextResponse.json({ error: "Not found." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps, send_window, objective } = body as {
+  const { name, description, status, steps, send_window, objective, pilot_size } = body as {
     name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
     send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
     objective?: string;
+    pilot_size?: number | null;
   };
+  const pilotSize = typeof pilot_size === "number" && pilot_size > 0 ? Math.floor(pilot_size) : null;
 
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (typeof name === "string") {
@@ -127,6 +129,31 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       .update({ status, updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("org_id", a.org.id);
+
+    // Pilot launch: hold everyone past the first N so only the pilot batch sends.
+    // The held enrollments stay active with next_send_at cleared; "Release the
+    // rest" (below) re-schedules them.
+    if (status === "active" && pilotSize) {
+      const { data: enr } = await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .select("id")
+        .eq("campaign_id", id)
+        .eq("org_id", a.org.id)
+        .eq("status", "active")
+        .order("enrolled_at", { ascending: true });
+      const heldIds = ((enr ?? []) as { id: string }[]).slice(pilotSize).map((r) => r.id);
+      for (let i = 0; i < heldIds.length; i += 100) {
+        await supabaseAdmin
+          .from("enterprise_campaign_enrollments")
+          .update({ next_send_at: null })
+          .in("id", heldIds.slice(i, i + 100));
+      }
+      await supabaseAdmin
+        .from("enterprise_campaigns")
+        .update({ pilot_size: pilotSize, pilot_released: false })
+        .eq("id", id)
+        .eq("org_id", a.org.id);
+    }
   }
 
   return NextResponse.json({ ok: true });
