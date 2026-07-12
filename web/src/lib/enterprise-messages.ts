@@ -14,6 +14,7 @@ export interface LogMessageInput {
   subject?: string | null;
   body?: string | null;
   channel?: string;
+  sentVia?: string | null;   // 'ai_sdr' when an AI SDR reply; null otherwise
 }
 
 export async function logMessage(m: LogMessageInput): Promise<void> {
@@ -27,6 +28,7 @@ export async function logMessage(m: LogMessageInput): Promise<void> {
     subject: m.subject ?? null,
     body: m.body ?? null,
     channel: m.channel ?? "email",
+    sent_via: m.sentVia ?? null,
   });
 }
 

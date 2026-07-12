@@ -13,7 +13,8 @@ export type AuditAction =
   | "sourcing.provider_updated" | "sourcing.credits_adjusted"
   | "outreach.domain_added" | "outreach.domain_verified" | "outreach.domain_removed"
   | "outreach.mailbox_added" | "outreach.mailbox_paused" | "outreach.mailbox_resumed"
-  | "workspace.created" | "workspace.switched";
+  | "workspace.created" | "workspace.switched"
+  | "ai_sdr.reply_sent" | "ai_sdr.reply_dismissed" | "ai_sdr.config_updated" | "ai_sdr.workspace_paused";
 
 interface AuditEntry {
   org_id: string;

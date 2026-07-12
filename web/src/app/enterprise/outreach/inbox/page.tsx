@@ -46,7 +46,7 @@ interface ThreadRow {
   last_inbound_at: string | null; reply_count: number; unread: boolean; has_ai_draft?: boolean;
 }
 interface AiDraft { id: string; draft_subject: string | null; draft_body: string; model: string | null }
-interface Message { id: string; direction: "inbound" | "outbound"; from_email: string | null; subject: string | null; body: string | null; created_at: string }
+interface Message { id: string; direction: "inbound" | "outbound"; from_email: string | null; subject: string | null; body: string | null; created_at: string; sent_via: string | null }
 
 function IntentBadge({ intent, confidence, manual }: { intent: Intent | null; confidence: number | null; manual: boolean }) {
   const meta = INTENT_META[intent ?? "neutral"];
@@ -326,7 +326,10 @@ function InboxInner() {
                   <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", m.direction === "outbound" ? "bg-primary/10 text-foreground" : "bg-muted/50")}>
                     {m.subject && <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{m.subject}</p>}
                     <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
-                    <p className="mt-1 text-[10px] text-muted-foreground/60">{new Date(m.created_at).toLocaleString()}</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                      {new Date(m.created_at).toLocaleString()}
+                      {m.sent_via === "ai_sdr" && <span className="inline-flex items-center gap-0.5 text-primary/70"><Bot className="h-2.5 w-2.5" /> AI SDR</span>}
+                    </p>
                   </div>
                 </div>
               ))}

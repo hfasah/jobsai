@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { guardCampaign } from "@/lib/outreach/ai-sdr-guard";
+import { audit } from "@/lib/enterprise-audit";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -54,5 +55,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (Object.keys(update).length === 1) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
 
   await supabaseAdmin.from("enterprise_campaigns").update(update).eq("id", id).eq("org_id", g.org.id);
+  audit({
+    org_id: g.org.id, user_id: g.userId, action: "ai_sdr.config_updated",
+    resource_type: "campaign", resource_id: id,
+    metadata: { enabled: update.ai_sdr_enabled, mode: update.ai_sdr_mode },
+  });
   return NextResponse.json({ ok: true });
 }
