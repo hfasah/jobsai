@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 
 interface Config {
   ai_sdr_enabled: boolean;
-  ai_sdr_mode: "draft" | "auto";
+  ai_sdr_mode: "manual" | "draft" | "auto";
   ai_sdr_persona: string | null;
   ai_sdr_guardrails: string | null;
   ai_sdr_min_confidence: number;
@@ -126,17 +126,19 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose }: { camp
               </label>
 
               {cfg.ai_sdr_enabled && (
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  {(["draft", "auto"] as const).map((m) => (
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  {([
+                    { key: "manual", title: "Manual", desc: "No AI draft — a recruiter writes every reply." },
+                    { key: "draft", title: "Draft for review", desc: "Suggests a reply; a human approves & sends." },
+                    { key: "auto", title: "Auto-send", desc: "Sends automatically when confident." },
+                  ] as const).map((m) => (
                     <button
-                      key={m}
-                      onClick={() => patch({ ai_sdr_mode: m })}
-                      className={cn("rounded-xl border p-2.5 text-left text-xs transition-colors", cfg.ai_sdr_mode === m ? "border-primary/60 bg-primary/5" : "border-border hover:border-border/80")}
+                      key={m.key}
+                      onClick={() => patch({ ai_sdr_mode: m.key })}
+                      className={cn("rounded-xl border p-2.5 text-left text-xs transition-colors", cfg.ai_sdr_mode === m.key ? "border-primary/60 bg-primary/5" : "border-border hover:border-border/80")}
                     >
-                      <span className="block text-sm font-medium capitalize">{m === "draft" ? "Draft for review" : "Auto-send"}</span>
-                      <span className="block text-[11px] text-muted-foreground">
-                        {m === "draft" ? "Suggests a reply; a human approves & sends." : "Sends automatically when confident."}
-                      </span>
+                      <span className="block text-sm font-medium">{m.title}</span>
+                      <span className="block text-[11px] text-muted-foreground">{m.desc}</span>
                     </button>
                   ))}
                 </div>

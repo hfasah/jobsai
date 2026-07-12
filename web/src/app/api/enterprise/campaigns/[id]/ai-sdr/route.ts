@@ -41,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
   if (typeof body.ai_sdr_enabled === "boolean") update.ai_sdr_enabled = body.ai_sdr_enabled;
-  if (body.ai_sdr_mode === "draft" || body.ai_sdr_mode === "auto") update.ai_sdr_mode = body.ai_sdr_mode;
+  if (["manual", "draft", "auto"].includes(body.ai_sdr_mode)) update.ai_sdr_mode = body.ai_sdr_mode;
   if (typeof body.ai_sdr_persona === "string") update.ai_sdr_persona = body.ai_sdr_persona.trim().slice(0, 4000) || null;
   if (typeof body.ai_sdr_guardrails === "string") update.ai_sdr_guardrails = body.ai_sdr_guardrails.trim().slice(0, 4000) || null;
   if (typeof body.ai_sdr_min_confidence === "number") {
