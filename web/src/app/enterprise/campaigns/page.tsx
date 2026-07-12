@@ -29,6 +29,7 @@ type Analytics = {
     positive_reply_rate: number; meeting_rate: number; pipeline_rate: number;
   };
   breakdown: Record<string, number>;
+  timeline?: { date: string; sent: number; replied: number }[];
   per_step: { step_order: number; subject: string; sent: number; opened: number; replied: number; open_rate: number; reply_rate: number }[];
   enrollments: { id: string; candidate_name: string; candidate_email: string; status: string; current_step_order: number; next_send_at: string | null; replied_at: string | null; enrolled_at: string }[];
 };
@@ -455,6 +456,36 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
                 </div>
               </>
             )}
+
+            {/* 30-day timeline */}
+            {data.timeline && data.timeline.some((d) => d.sent > 0) && (() => {
+              const max = Math.max(1, ...data.timeline.map((d) => d.sent));
+              const tl = data.timeline;
+              return (
+                <div className="mb-6">
+                  <div className="mb-2 flex items-center justify-between">
+                    <h2 className="text-sm font-semibold">Last 30 days</h2>
+                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-primary/60" /> sent</span>
+                      <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-green-500" /> replied</span>
+                    </div>
+                  </div>
+                  <div className="flex h-20 items-end gap-[2px] rounded-xl border border-border bg-card p-2">
+                    {tl.map((d) => (
+                      <div key={d.date} className="group relative flex flex-1 flex-col justify-end" title={`${d.date}: ${d.sent} sent, ${d.replied} replied`}>
+                        <div className="w-full rounded-t-sm bg-primary/50" style={{ height: `${(d.sent / max) * 100}%` }}>
+                          {d.replied > 0 && <div className="w-full rounded-t-sm bg-green-500" style={{ height: `${(d.replied / Math.max(1, d.sent)) * 100}%` }} />}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+                    <span>{new Date(tl[0].date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                    <span>{new Date(tl[tl.length - 1].date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</span>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Per-step funnel */}
             <h2 className="mb-2 text-sm font-semibold">Per-step performance</h2>

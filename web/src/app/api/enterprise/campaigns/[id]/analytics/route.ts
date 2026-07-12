@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
       .order("step_order", { ascending: true }),
     supabaseAdmin
       .from("enterprise_campaign_sends")
-      .select("step_order, opened_at, replied_at")
+      .select("step_order, opened_at, replied_at, sent_at")
       .eq("campaign_id", id),
     supabaseAdmin
       .from("enterprise_campaign_enrollments")
@@ -77,6 +77,22 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const eligibleSteps = contactable * stepCount;
   const progress = eligibleSteps > 0 ? Math.min(100, Math.round((totalSent / eligibleSteps) * 100)) : 0;
 
+  // Daily timeline for the last 30 days — sent + replied per day.
+  const dayKeys: string[] = [];
+  const base = new Date();
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(base.getTime() - i * 86_400_000);
+    dayKeys.push(d.toISOString().slice(0, 10));
+  }
+  const dayIndex = new Map(dayKeys.map((k, i) => [k, i]));
+  const tlSent = new Array(30).fill(0);
+  const tlReplied = new Array(30).fill(0);
+  for (const s of (sends ?? []) as { sent_at: string | null; replied_at: string | null }[]) {
+    if (s.sent_at) { const i = dayIndex.get(s.sent_at.slice(0, 10)); if (i !== undefined) tlSent[i]++; }
+    if (s.replied_at) { const i = dayIndex.get(s.replied_at.slice(0, 10)); if (i !== undefined) tlReplied[i]++; }
+  }
+  const timeline = dayKeys.map((date, i) => ({ date, sent: tlSent[i], replied: tlReplied[i] }));
+
   // Outcome funnel — the signal that actually matters (opens are unreliable).
   // Cross-reference the audience's emails with the inbox (interest) and the ATS.
   const emails = [...new Set((enrollments ?? []).map((e) => e.candidate_email.toLowerCase()))];
@@ -115,6 +131,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         pipeline_rate: enrolled ? Math.round((pipeline / enrolled) * 100) : 0,
       },
       breakdown,
+      timeline,
       per_step: perStep,
       enrollments: enrollments ?? [],
     },
