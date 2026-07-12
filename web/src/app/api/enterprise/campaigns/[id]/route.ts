@@ -49,11 +49,12 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
 
   const { data: campaign } = await supabaseAdmin
     .from("enterprise_campaigns")
-    .select("id")
+    .select("id, status")
     .eq("id", id)
     .eq("org_id", a.org.id)
     .maybeSingle();
   if (!campaign) return NextResponse.json({ error: "Not found." }, { status: 404 });
+  const currentStatus = (campaign as { status: string }).status;
 
   const body = await req.json().catch(() => ({}));
   const { name, description, status, steps, send_window, objective, pilot_size, scheduled_at } = body as {
@@ -74,8 +75,18 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (typeof objective === "string") {
     update.objective = ["source", "re_engage", "promote", "pipeline"].includes(objective) ? objective : null;
   }
-  if (typeof status === "string" && !["draft", "scheduled", "active", "paused", "stopped", "completed", "archived"].includes(status)) {
+  if (typeof status === "string" && !["draft", "scheduled", "active", "paused", "stopped", "completed", "archived", "error"].includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
+  }
+  // Guard the irreversible transitions: a stopped or completed campaign can't be
+  // resumed (only archived). Everything else is allowed.
+  if (typeof status === "string" && status !== currentStatus) {
+    if (currentStatus === "stopped" && status !== "archived") {
+      return NextResponse.json({ error: "A stopped campaign can't be resumed — duplicate it to run again." }, { status: 400 });
+    }
+    if (currentStatus === "completed" && !["archived", "active"].includes(status)) {
+      return NextResponse.json({ error: "A completed campaign can only be archived." }, { status: 400 });
+    }
   }
   if (send_window && typeof send_window === "object") {
     const start = send_window.start;

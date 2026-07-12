@@ -13,7 +13,7 @@ import SubsequencesPanel from "@/components/enterprise/subsequences-panel";
 import OptionsPanel from "@/components/enterprise/options-panel";
 import type { CampaignPreset } from "@/lib/campaigns";
 
-type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "stopped" | "completed" | "archived";
+type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "stopped" | "completed" | "archived" | "error";
 
 type CampaignListItem = {
   id: string; name: string; description: string | null; status: CampaignStatus;
@@ -42,6 +42,7 @@ const STATUS_STYLES: Record<CampaignStatus, string> = {
   stopped:   "border-red-500/30 bg-red-500/10 text-red-400",
   completed: "border-sky-500/30 bg-sky-500/10 text-sky-400",
   archived:  "border-border bg-muted text-muted-foreground",
+  error:     "border-red-500/40 bg-red-500/15 text-red-500",
 };
 
 const ENROLL_STATUS_STYLES: Record<string, string> = {
@@ -169,7 +170,7 @@ function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onC
   const [menu, setMenu] = useState(false);
   const s = campaign.status;
   const live = s === "active";
-  const terminal = s === "stopped" || s === "completed" || s === "archived";
+  const terminal = s === "stopped" || s === "completed" || s === "archived" || s === "error";
 
   const setStatus = async (status: string) => {
     setBusy(true);
@@ -209,9 +210,9 @@ function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onC
               <Square className="h-3.5 w-3.5" /> Stop (permanent)
             </button>
           )}
-          {s === "stopped" && (
+          {s === "error" && (
             <button onClick={() => setStatus("active")} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-muted/50">
-              <Play className="h-3.5 w-3.5 text-green-400" /> Reactivate
+              <Play className="h-3.5 w-3.5 text-green-400" /> Fix &amp; resume
             </button>
           )}
           <button
