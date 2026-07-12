@@ -20,7 +20,7 @@ interface Config {
 interface KbDoc { id: string; title: string; content: string; pinned: boolean; updated_at: string }
 interface MemoryNote { id: string; kind: string; content: string; created_at: string }
 
-export default function AiSdrPanel({ campaignId, campaignName, onClose }: { campaignId: string; campaignName: string; onClose: () => void }) {
+export default function AiSdrPanel({ campaignId, campaignName, onClose, embedded = false }: { campaignId: string; campaignName: string; onClose: () => void; embedded?: boolean }) {
   const base = `/api/enterprise/campaigns/${campaignId}/ai-sdr`;
   const [loading, setLoading] = useState(true);
   const [cfg, setCfg] = useState<Config | null>(null);
@@ -74,13 +74,16 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose }: { camp
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+    <div
+      className={embedded ? "overflow-hidden rounded-2xl border border-border bg-card" : "fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"}
+      onClick={embedded ? undefined : onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()} className={embedded ? "flex w-full flex-col" : "flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"}>
         <div className="flex items-center justify-between border-b border-border p-4">
           <h2 className="flex items-center gap-2 font-semibold">
-            <Bot className="h-4 w-4 text-primary" /> AI SDR — <span className="text-muted-foreground">{campaignName}</span>
+            <Bot className="h-4 w-4 text-primary" /> AI SDR{!embedded && <> — <span className="text-muted-foreground">{campaignName}</span></>}
           </h2>
-          <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
+          {!embedded && <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
 
         {loading ? (
