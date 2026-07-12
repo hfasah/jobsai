@@ -6,10 +6,7 @@ import {
   Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import {
-  CampaignBuilder, emptyDraft, draftFromCampaign,
-  type CampaignDraft,
-} from "@/components/enterprise/campaign-builder";
+import CampaignWizard from "@/components/enterprise/campaign-wizard";
 import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
 import type { CampaignPreset } from "@/lib/campaigns";
 
@@ -74,7 +71,7 @@ export default function CampaignsPage() {
   if (locked) return <UpsellGate />;
 
   if (view.kind === "builder") {
-    return <BuilderView campaignId={view.campaignId} presets={presets} onDone={() => { setView({ kind: "list" }); loadList(); }} onCancel={() => setView({ kind: "list" })} />;
+    return <CampaignWizard campaignId={view.campaignId} presets={presets} onDone={() => { setView({ kind: "list" }); loadList(); }} onCancel={() => setView({ kind: "list" })} />;
   }
   if (view.kind === "detail") {
     return <DetailView campaignId={view.campaignId} onBack={() => { setView({ kind: "list" }); loadList(); }} onEdit={() => setView({ kind: "builder", campaignId: view.campaignId })} />;
@@ -207,94 +204,6 @@ function DeleteButton({ id, onDeleted }: { id: string; onDeleted: () => void }) 
     <button onClick={del} disabled={busy} className="rounded-lg px-2 py-1 text-[11px] font-medium text-red-400 hover:bg-red-500/10">
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Confirm?"}
     </button>
-  );
-}
-
-function BuilderView({ campaignId, presets, onDone, onCancel }: { campaignId: string | null; presets: CampaignPreset[]; onDone: () => void; onCancel: () => void }) {
-  const [draft, setDraft] = useState<CampaignDraft | null>(campaignId ? null : emptyDraft());
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [preflight, setPreflight] = useState<{ ok: boolean; checks: { key: string; label: string; status: "pass" | "warn" | "fail"; detail: string }[] } | null>(null);
-
-  useEffect(() => {
-    if (!campaignId) return;
-    fetch(`/api/enterprise/campaigns/${campaignId}`)
-      .then((r) => r.json())
-      .then((j) => { if (j.data) setDraft(draftFromCampaign(j.data)); })
-      .catch(() => {});
-  }, [campaignId]);
-
-  const save = async (activate: boolean) => {
-    if (!draft) return;
-    setError(null);
-    setPreflight(null);
-    setSaving(true);
-    const w = draft.sendWindow;
-    const payload = {
-      name: draft.name,
-      description: draft.description,
-      status: activate ? "active" : "draft",
-      steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body }) => ({
-        delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body,
-      })),
-      send_window: w.enabled
-        ? { start: w.start, end: w.end, timezone: w.timezone, business_days_only: w.business_days_only }
-        : { start: null, end: null, timezone: null, business_days_only: false },
-    };
-    const res = campaignId
-      ? await fetch(`/api/enterprise/campaigns/${campaignId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
-      : await fetch(`/api/enterprise/campaigns`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-    setSaving(false);
-    if (res.status === 422) {
-      // Hard launch gate: content was saved as a draft, but activation was
-      // blocked. Show the failing checks; the draft is safe.
-      const j = await res.json().catch(() => ({}));
-      setPreflight(j.preflight ?? null);
-      setError(j.error ?? "Launch blocked — fix the checks below.");
-      return;
-    }
-    if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Could not save."); return; }
-    onDone();
-  };
-
-  return (
-    <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-      <div className="mx-auto mb-4 max-w-3xl">
-        <button onClick={onCancel} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="h-4 w-4" /> Back to campaigns
-        </button>
-      </div>
-      {error && (
-        <div className="mx-auto mb-3 max-w-3xl rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">{error}</div>
-      )}
-      {preflight && (
-        <div className="mx-auto mb-3 max-w-3xl rounded-xl border border-border bg-card p-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Launch checklist</p>
-          <ul className="space-y-1.5">
-            {preflight.checks.map((c) => (
-              <li key={c.key} className="flex items-start gap-2 text-sm">
-                <span className={cn(
-                  "mt-0.5 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                  c.status === "pass" ? "bg-green-500/15 text-green-400" : c.status === "warn" ? "bg-amber-500/15 text-amber-400" : "bg-red-500/15 text-red-400",
-                )}>
-                  {c.status === "pass" ? "✓" : c.status === "warn" ? "!" : "✕"}
-                </span>
-                <span>
-                  <span className="font-medium">{c.label}</span>
-                  <span className="text-muted-foreground"> — {c.detail}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          <p className="mt-2 text-[11px] text-muted-foreground">Your changes are saved as a draft. Fix the ✕ items, then activate again. Warnings (!) don&apos;t block launch.</p>
-        </div>
-      )}
-      {draft ? (
-        <CampaignBuilder draft={draft} setDraft={setDraft} onSave={save} onCancel={onCancel} saving={saving} presets={presets} />
-      ) : (
-        <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
-      )}
-    </div>
   );
 }
 
