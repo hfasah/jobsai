@@ -10,7 +10,7 @@ import { importExternalCandidate, type ImportTarget, type OnDuplicate, type Stor
 
 export const maxDuration = 60;
 
-const MAX_BULK = 50;
+const MAX_BULK = 100;
 const CANDIDATE_COLS =
   "id, provider_key, provider_record_id, full_name, first_name, last_name, job_title, company, location_country, location_locality, skills, experience_years, linkedin_url, portfolio_url, emails, phones, suppressed";
 
