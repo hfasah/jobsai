@@ -24,20 +24,31 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   const { data } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("id, candidate_name, candidate_email, status, candidate_source, enrolled_at")
+    .select("id, candidate_name, candidate_email, status, candidate_source, email_status, enrolled_at")
     .eq("campaign_id", id).eq("org_id", org.id)
+    .neq("status", "removed")
     .order("enrolled_at", { ascending: false })
     .limit(500);
 
   const rows = (data ?? []) as {
     id: string; candidate_name: string; candidate_email: string; status: string;
-    candidate_source: string; enrolled_at: string;
+    candidate_source: string; email_status: string | null; enrolled_at: string;
   }[];
+
+  // Deliverability breakdown across the audience. valid/risky = safe to send
+  // ("verified" / "likely valid"); invalid/unknown/none need review.
+  const byStatus = { valid: 0, risky: 0, invalid: 0, unknown: 0, none: 0 };
+  for (const r of rows) {
+    const s = (r.email_status ?? "none") as keyof typeof byStatus;
+    if (s in byStatus) byStatus[s]++; else byStatus.none++;
+  }
 
   return NextResponse.json({
     data: {
       total: rows.length,
       active: rows.filter((r) => r.status === "active").length,
+      sendable: byStatus.valid + byStatus.risky, // verified + likely-valid
+      by_status: byStatus,
       enrollments: rows,
     },
   });

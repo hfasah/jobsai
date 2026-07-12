@@ -305,6 +305,7 @@ export async function importExternalCandidate(args: {
         current_step_order: 0,
         next_send_at: nextSendAt,
         enrolled_by: userId,
+        email_status: candidate.emails.find((e) => e.value === email)?.verification_status ?? candidate.emails[0]?.verification_status ?? null,
       })
       .select("id")
       .single();

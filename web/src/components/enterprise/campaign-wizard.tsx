@@ -41,6 +41,25 @@ function monthYear(): string {
   return `${d.toLocaleString("en-US", { month: "short" })} ${d.getFullYear()}`;
 }
 
+interface Enrollee { id: string; candidate_name: string; candidate_email: string; email_status: string | null; status: string }
+interface AudienceData {
+  total: number; active: number; sendable: number;
+  by_status: { valid: number; risky: number; invalid: number; unknown: number; none: number };
+  enrollments: Enrollee[];
+}
+
+const VERIF: Record<string, { label: string; cls: string }> = {
+  valid: { label: "Verified", cls: "border-green-500/30 bg-green-500/10 text-green-500" },
+  risky: { label: "Likely valid", cls: "border-amber-500/30 bg-amber-500/10 text-amber-500" },
+  invalid: { label: "Invalid", cls: "border-red-500/30 bg-red-500/10 text-red-500" },
+  unknown: { label: "Unverified", cls: "border-border bg-muted/40 text-muted-foreground" },
+  none: { label: "Unverified", cls: "border-border bg-muted/40 text-muted-foreground" },
+};
+function VerifChip({ status }: { status: string | null }) {
+  const m = VERIF[status ?? "none"] ?? VERIF.none;
+  return <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-medium", m.cls)}>{m.label}</span>;
+}
+
 export default function CampaignWizard({
   campaignId: initialId, presets, onDone, onCancel,
 }: {
@@ -60,7 +79,7 @@ export default function CampaignWizard({
   const [showAi, setShowAi] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
-  const [audience, setAudience] = useState<{ total: number; active: number } | null>(null);
+  const [audience, setAudience] = useState<AudienceData | null>(null);
 
   const buildPayload = (activate: boolean) => {
     if (!draft) return null;
@@ -133,8 +152,17 @@ export default function CampaignWizard({
   const loadAudience = useCallback(async (id: string) => {
     const res = await fetch(`/api/enterprise/campaigns/${id}/audience`);
     const j = await res.json().catch(() => ({}));
-    if (res.ok) setAudience({ total: j.data?.total ?? 0, active: j.data?.active ?? 0 });
+    if (res.ok && j.data) setAudience(j.data as AudienceData);
   }, []);
+
+  const removeEnrollee = async (enrollmentId: string) => {
+    if (!campaignId) return;
+    setAudience((a) => (a ? { ...a, enrollments: a.enrollments.filter((e) => e.id !== enrollmentId) } : a));
+    await fetch(`/api/enterprise/campaigns/${campaignId}/enrollments/${enrollmentId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "remove" }),
+    }).catch(() => {});
+    loadAudience(campaignId);
+  };
 
   // Load an existing campaign for edit.
   useEffect(() => {
@@ -193,12 +221,13 @@ export default function CampaignWizard({
       return;
     }
     if (step === 3) {
-      // AI replies → Review (load preview + readiness).
+      // AI replies → Review (load preview + readiness + fresh audience).
       const id = campaignId ?? (await persist(false));
       if (!id) return;
       setStep(4);
       loadPreview(id);
       loadPreflight(id);
+      loadAudience(id);
       return;
     }
   };
@@ -347,6 +376,24 @@ export default function CampaignWizard({
                 onEnrolled={() => loadAudience(campaignId)}
               />
             </div>
+
+            {audience && audience.enrollments.length > 0 && (
+              <div className="rounded-2xl border border-border bg-card p-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">In this campaign ({audience.total})</p>
+                <div className="max-h-64 space-y-1 overflow-y-auto">
+                  {audience.enrollments.map((e) => (
+                    <div key={e.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-muted/40">
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium">{e.candidate_name || e.candidate_email}</p>
+                        <p className="truncate text-[11px] text-muted-foreground">{e.candidate_email}</p>
+                      </div>
+                      <VerifChip status={e.email_status} />
+                      <button onClick={() => removeEnrollee(e.id)} className="text-muted-foreground hover:text-red-400" aria-label="Remove"><X className="h-3.5 w-3.5" /></button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <p className="text-[11px] text-muted-foreground">You can skip this and add candidates later — the campaign won&apos;t send to anyone until it has an audience.</p>
           </div>
         )}
@@ -411,6 +458,47 @@ export default function CampaignWizard({
                 </ul>
               )}
             </div>
+
+            {/* Estimate + deliverability */}
+            {(() => {
+              const active = audience?.active ?? 0;
+              const total = audience?.total ?? 0;
+              const sendable = audience?.sendable ?? 0;
+              const unverified = Math.max(0, total - sendable);
+              const stepCount = draft.steps.length;
+              const emails = active * stepCount;
+              const seqDays = draft.steps.reduce((sum, s) => sum + Math.max(0, s.delay_days || 0), 0);
+              const bs = audience?.by_status;
+              return (
+                <div className="rounded-2xl border border-border bg-card p-4">
+                  <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Before you launch</p>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                    <div><p className="text-lg font-semibold tabular-nums">{total}</p><p className="text-[11px] text-muted-foreground">Candidates</p></div>
+                    <div><p className="text-lg font-semibold tabular-nums text-green-500">{sendable}</p><p className="text-[11px] text-muted-foreground">Deliverable</p></div>
+                    <div><p className="text-lg font-semibold tabular-nums">{emails}</p><p className="text-[11px] text-muted-foreground">Emails ({stepCount} step{stepCount !== 1 ? "s" : ""})</p></div>
+                    <div><p className="text-lg font-semibold tabular-nums">{seqDays}d</p><p className="text-[11px] text-muted-foreground">Sequence length</p></div>
+                  </div>
+                  {bs && (total > 0) && (
+                    <div className="mt-3 flex flex-wrap gap-1.5 border-t border-border pt-3">
+                      {bs.valid > 0 && <VerifChip status="valid" />}
+                      {bs.valid > 0 && <span className="text-[11px] text-muted-foreground">{bs.valid}</span>}
+                      {bs.risky > 0 && <><VerifChip status="risky" /><span className="text-[11px] text-muted-foreground">{bs.risky}</span></>}
+                      {bs.invalid > 0 && <><VerifChip status="invalid" /><span className="text-[11px] text-muted-foreground">{bs.invalid}</span></>}
+                      {(bs.unknown + bs.none) > 0 && <><VerifChip status="unknown" /><span className="text-[11px] text-muted-foreground">{bs.unknown + bs.none}</span></>}
+                    </div>
+                  )}
+                  {unverified > 0 && (
+                    <div className="mt-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-[11px] text-amber-500">
+                      <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                      {unverified} candidate{unverified !== 1 ? "s" : ""} don&apos;t have a verified email. Reveal &amp; verify them first — auto-send only goes to verified or likely-valid addresses, and the rest risk bouncing.
+                    </div>
+                  )}
+                  {total === 0 && (
+                    <p className="mt-3 text-[11px] text-muted-foreground">No audience yet — go back to the Audience step to add candidates before launching.</p>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Per-candidate preview */}
             <div className="rounded-2xl border border-border bg-card p-4">
