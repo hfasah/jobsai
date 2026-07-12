@@ -67,14 +67,43 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
   const totalSent = (sends ?? []).length;
   const totalReplied = (sends ?? []).filter((r) => r.replied_at).length;
+  const enrolled = (enrollments ?? []).length;
+
+  // Outcome funnel — the signal that actually matters (opens are unreliable).
+  // Cross-reference the audience's emails with the inbox (interest) and the ATS.
+  const emails = [...new Set((enrollments ?? []).map((e) => e.candidate_email.toLowerCase()))];
+  let interested = 0, meetings = 0, positiveReplies = 0, pipeline = 0;
+  if (emails.length) {
+    const [{ data: threads }, { count: appCount }] = await Promise.all([
+      supabaseAdmin.from("inbox_threads").select("intent, interest_level").eq("org_id", org.id).in("candidate_email", emails),
+      supabaseAdmin.from("enterprise_applications").select("id", { count: "exact", head: true }).eq("org_id", org.id).in("candidate_email", emails),
+    ]);
+    for (const t of (threads ?? []) as { intent: string | null; interest_level: string | null }[]) {
+      if (t.intent === "interested") interested++;
+      if (t.intent === "meeting_requested") meetings++;
+      const positive = t.intent === "interested" || t.intent === "meeting_requested"
+        || t.interest_level === "high" || t.interest_level === "very_high";
+      if (positive) positiveReplies++;
+    }
+    pipeline = appCount ?? 0;
+  }
 
   return NextResponse.json({
     data: {
       totals: {
-        enrolled: (enrollments ?? []).length,
+        enrolled,
         sent: totalSent,
         replied: totalReplied,
         reply_rate: totalSent ? Math.round((totalReplied / totalSent) * 100) : 0,
+      },
+      outcomes: {
+        positive_replies: positiveReplies,
+        interested,
+        meetings,
+        pipeline,
+        positive_reply_rate: totalReplied ? Math.round((positiveReplies / totalReplied) * 100) : 0,
+        meeting_rate: enrolled ? Math.round((meetings / enrolled) * 100) : 0,
+        pipeline_rate: enrolled ? Math.round((pipeline / enrolled) * 100) : 0,
       },
       breakdown,
       per_step: perStep,
