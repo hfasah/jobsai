@@ -237,8 +237,9 @@ export async function POST(req: NextRequest) {
   // Upsert into the org's external-candidate cache. Contact fields and
   // unlock state are never overwritten by a fresh search.
   const externalIds = new Map<string, string>(); // provider_record_id -> row id
+  let upsertErr: string | null = null;
   for (const c of rawExternal) {
-    const { data: upserted } = await supabaseAdmin
+    const { data: upserted, error: upErr } = await supabaseAdmin
       .from("sourcing_external_candidates")
       .upsert(
         {
@@ -271,10 +272,23 @@ export async function POST(req: NextRequest) {
       )
       .select("id, suppressed")
       .single();
+    if (upErr && !upsertErr) upsertErr = upErr.message;
     const row = upserted as { id: string; suppressed: boolean } | null;
     if (row && !row.suppressed) externalIds.set(c.provider_record_id, row.id);
   }
   const external = rawExternal.filter((c) => externalIds.has(c.provider_record_id));
+
+  // Diagnostic + fail-loud: a provider returned candidates but none survived
+  // persistence is a real (previously invisible) error — surface it on the run
+  // instead of reporting a clean "0 results".
+  if (rawExternal.length > 0 && external.length === 0) {
+    console.error("[sourcing] all candidates dropped after upsert", {
+      providers: providers.map((p) => p.provider.key),
+      raw: rawExternal.length,
+      upsertError: upsertErr,
+    });
+    providerErrors.push(`persistence: ${upsertErr ?? "no rows persisted"}`);
+  }
 
   // Dedup against the org's internal world.
   const index = await loadInternalIndex(
@@ -332,6 +346,17 @@ export async function POST(req: NextRequest) {
 
   // Refund + finalize when external yielded nothing (or everything failed).
   const externalCount = scored.length;
+
+  // Always log a one-line pipeline summary — makes "0 results" diagnosable
+  // (which provider ran, how many the provider returned, how many survived).
+  console.info("[sourcing] run summary", {
+    runId,
+    providers: providers.map((p) => p.provider.key),
+    providerErrors: providerErrors.length,
+    raw: rawExternal.length,
+    external: externalCount,
+    internal: internalCount,
+  });
   const allProvidersFailed = providers.length > 0 && providerErrors.length === providers.length && externalCount === 0;
   if (mode !== "internal" && creditsCharged > 0 && (externalCount === 0 || allProvidersFailed)) {
     await refundCredits({ orgId: org.id, userId, amount: creditsCharged, refType: "run", refId: runId, note: "empty_or_failed" });
