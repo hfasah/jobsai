@@ -21,7 +21,7 @@ type CampaignListItem = {
 };
 
 type Analytics = {
-  totals: { enrolled: number; sent: number; replied: number; reply_rate: number };
+  totals: { enrolled: number; sent: number; replied: number; reply_rate: number; progress: number };
   outcomes?: {
     positive_replies: number; interested: number; meetings: number; pipeline: number;
     positive_reply_rate: number; meeting_rate: number; pipeline_rate: number;
@@ -323,6 +323,17 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <>
+            {/* Campaign progress (work done, not time elapsed) */}
+            <div className="mb-4">
+              <div className="mb-1 flex items-center justify-between text-xs">
+                <span className="font-medium">Campaign progress</span>
+                <span className="tabular-nums text-muted-foreground">{data.totals.progress}%</span>
+              </div>
+              <div className="h-2 overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${data.totals.progress}%` }} />
+              </div>
+            </div>
+
             {/* Totals */}
             <div className="mb-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4">
               <Stat label="Enrolled" value={data.totals.enrolled} />
