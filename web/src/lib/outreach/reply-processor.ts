@@ -7,6 +7,7 @@ import { resend } from "@/lib/resend";
 import { emailFromName } from "@/lib/email-utils";
 import { classifyIntent, isPositiveIntent, type Intent, type InterestLevel } from "./intent";
 import { maybeEnqueueAiSdrReply } from "./ai-sdr";
+import { getOrCreateIntakePool } from "@/lib/enterprise-intake-inbox";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
@@ -70,6 +71,49 @@ async function pauseSequences(orgId: string, email: string, intent: Intent): Pro
   if ((enr ?? []).length) actions.push(intent === "unsubscribe" ? "unsubscribed_campaigns" : "paused_campaigns");
 
   return actions;
+}
+
+// A candidate who says they're interested belongs in the ATS pipeline, not just
+// the inbox. Create an application on the job they were sourced for (or the
+// intake pool when the campaign isn't tied to a job), deduped by job + email so
+// repeat replies don't pile up. Returns the application id, or null on no-op.
+async function moveToPipeline(orgId: string, email: string, name: string | null): Promise<string | null> {
+  // Already an applicant somewhere for this org? Don't create a duplicate.
+  const { data: existing } = await supabaseAdmin
+    .from("enterprise_applications")
+    .select("id")
+    .eq("org_id", orgId)
+    .ilike("candidate_email", email)
+    .limit(1)
+    .maybeSingle();
+  if (existing?.id) return (existing as { id: string }).id;
+
+  // Prefer the job tied to the candidate's most recent campaign enrollment.
+  const { data: enr } = await supabaseAdmin
+    .from("enterprise_campaign_enrollments")
+    .select("job_id")
+    .eq("org_id", orgId)
+    .ilike("candidate_email", email)
+    .order("enrolled_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  let jobId = (enr as { job_id: string | null } | null)?.job_id ?? null;
+  if (!jobId) jobId = await getOrCreateIntakePool(orgId, "reply-agent");
+  if (!jobId) return null;
+
+  const { data: app } = await supabaseAdmin
+    .from("enterprise_applications")
+    .insert({
+      org_id: orgId,
+      job_id: jobId,
+      candidate_name: name?.trim() || email.split("@")[0],
+      candidate_email: email.toLowerCase(),
+      source: "jobsai",
+      stage: "applied",
+    })
+    .select("id")
+    .single();
+  return (app as { id: string } | null)?.id ?? null;
 }
 
 async function notifyPositiveIntent(args: {
@@ -201,6 +245,17 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
       threadId,
     });
     autoActions.push("notified_team");
+    // Move an interested candidate into the ATS pipeline (best-effort).
+    try {
+      const appId = await moveToPipeline(input.orgId, email, input.candidateName ?? null);
+      if (appId) {
+        autoActions.push("moved_to_pipeline");
+        // Link the thread to the application so the inbox + ATS share context.
+        await supabaseAdmin.from("inbox_threads").update({ application_id: appId }).eq("id", threadId).eq("org_id", input.orgId);
+      }
+    } catch (e) {
+      console.error("[reply-processor] moveToPipeline failed", e);
+    }
   }
 
   // AI SDR: draft (and maybe queue) a grounded auto-reply for the candidate's
