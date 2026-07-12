@@ -224,5 +224,25 @@ export async function POST(req: NextRequest) {
 
   await Promise.allSettled(due.map((e) => processOne(e as Record<string, unknown>)));
 
+  // Auto-complete: an active campaign whose enrollments have all finished
+  // sending (none left active/pending) is done — flip it to 'completed' so its
+  // lifecycle is accurate and it drops out of the "active" view.
+  await Promise.allSettled(
+    campaignIds.map(async (cid) => {
+      const { count } = await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .select("id", { count: "exact", head: true })
+        .eq("campaign_id", cid)
+        .in("status", ["active", "pending"]);
+      if ((count ?? 0) === 0) {
+        await supabaseAdmin
+          .from("enterprise_campaigns")
+          .update({ status: "completed", updated_at: now.toISOString() })
+          .eq("id", cid)
+          .eq("status", "active");
+      }
+    }),
+  );
+
   return NextResponse.json({ ok: true, sent, processed: due.length });
 }

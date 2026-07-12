@@ -71,7 +71,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   if (typeof objective === "string") {
     update.objective = ["source", "re_engage", "promote", "pipeline"].includes(objective) ? objective : null;
   }
-  if (typeof status === "string" && !["draft", "active", "paused", "archived"].includes(status)) {
+  if (typeof status === "string" && !["draft", "active", "paused", "stopped", "completed", "archived"].includes(status)) {
     return NextResponse.json({ error: "Invalid status." }, { status: 400 });
   }
   if (send_window && typeof send_window === "object") {
