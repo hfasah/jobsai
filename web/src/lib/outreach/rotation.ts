@@ -40,8 +40,12 @@ export async function loadRotationPool(orgId: string): Promise<RotationPool> {
 // Claim a send slot from the pool. Tries mailboxes in remaining-capacity order;
 // decrements local bookkeeping on success so subsequent picks in the same cron
 // run stay balanced. Returns null when the whole pool is exhausted.
-export async function claimFromPool(pool: RotationPool): Promise<(MailboxRow & { display_name: string | null }) | null> {
-  const candidates = [...pool.mailboxes].sort((a, b) => b.remaining - a.remaining);
+export async function claimFromPool(pool: RotationPool, preferredId?: string | null): Promise<(MailboxRow & { display_name: string | null }) | null> {
+  // Fixed strategy: try the chosen mailbox first; fall through to the pool if
+  // it's unavailable or out of capacity.
+  const preferred = preferredId ? pool.mailboxes.filter((m) => m.id === preferredId) : [];
+  const rest = pool.mailboxes.filter((m) => m.id !== preferredId).sort((a, b) => b.remaining - a.remaining);
+  const candidates = [...preferred, ...rest];
   for (const mailbox of candidates) {
     if (mailbox.remaining <= 0) continue;
     const res = await reserveSend(mailbox);
