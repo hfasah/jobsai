@@ -62,21 +62,6 @@ export default function CampaignWizard({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audience, setAudience] = useState<{ total: number; active: number } | null>(null);
 
-  // Load an existing campaign for edit.
-  useEffect(() => {
-    if (!initialId) return;
-    fetch(`/api/enterprise/campaigns/${initialId}`)
-      .then((r) => r.json())
-      .then((j) => {
-        if (j.data) {
-          setDraft(draftFromCampaign(j.data));
-          setObjective(j.data.objective ?? "");
-        }
-      })
-      .catch(() => {});
-    loadAudience(initialId);
-  }, [initialId, loadAudience]);
-
   const buildPayload = (activate: boolean) => {
     if (!draft) return null;
     const w = draft.sendWindow;
@@ -150,6 +135,21 @@ export default function CampaignWizard({
     const j = await res.json().catch(() => ({}));
     if (res.ok) setAudience({ total: j.data?.total ?? 0, active: j.data?.active ?? 0 });
   }, []);
+
+  // Load an existing campaign for edit.
+  useEffect(() => {
+    if (!initialId) return;
+    fetch(`/api/enterprise/campaigns/${initialId}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (j.data) {
+          setDraft(draftFromCampaign(j.data));
+          setObjective(j.data.objective ?? "");
+        }
+      })
+      .catch(() => {});
+    loadAudience(initialId);
+  }, [initialId, loadAudience]);
 
   const loadPreview = useCallback(async (id: string, enrollmentId?: string) => {
     setPreviewLoading(true);
