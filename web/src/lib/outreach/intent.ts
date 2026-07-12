@@ -42,6 +42,8 @@ export interface IntentResult {
   summary: string;
   interestScore: number;      // 0..100
   interestLevel: InterestLevel;
+  // When intent is "referral", the person they pointed to (if named/emailed).
+  referral?: { name: string | null; email: string | null };
 }
 
 // Bucket a 0-100 score into a level. Thresholds chosen so "high" and above are
@@ -96,7 +98,9 @@ const UNSUB_RE = /\b(unsubscribe|opt[\s-]?out|stop\s+(emailing|contacting)|remov
 const OOO_RE = /\b(out of office|on (vacation|holiday|leave|pto)|away until|automatic reply|auto[\s-]?reply)\b/i;
 
 const SYSTEM_PROMPT = `You classify a candidate's reply to a recruiter's outreach email. Return ONLY JSON:
-{"intent": "...", "confidence": 0.0-1.0, "interest": 0-100, "summary": "one short sentence"}
+{"intent": "...", "confidence": 0.0-1.0, "interest": 0-100, "summary": "one short sentence", "referral": {"name": "...or null", "email": "...or null"}}
+
+referral: ONLY when intent is "referral" and they point to someone else — extract that person's name and email if stated, else null. Otherwise use null for both. Never invent an email.
 
 intent must be exactly one of:
 - interested: positive, wants to learn more / open to the role
@@ -146,7 +150,14 @@ export async function classifyIntent(
     const confidence = typeof parsed.confidence === "number" ? Math.max(0, Math.min(1, parsed.confidence)) : 0.5;
     const summary = typeof parsed.summary === "string" ? parsed.summary.slice(0, 240) : "";
     const rawInterest = typeof parsed.interest === "number" ? parsed.interest : 30;
-    return { intent, confidence, summary, ...deriveInterest(intent, rawInterest) };
+    const referral =
+      intent === "referral" && parsed.referral && typeof parsed.referral === "object"
+        ? {
+            name: typeof parsed.referral.name === "string" ? parsed.referral.name.slice(0, 120) : null,
+            email: typeof parsed.referral.email === "string" && /.+@.+\..+/.test(parsed.referral.email) ? parsed.referral.email.toLowerCase().slice(0, 200) : null,
+          }
+        : undefined;
+    return { intent, confidence, summary, referral, ...deriveInterest(intent, rawInterest) };
   } catch {
     return { intent: "neutral", confidence: 0, summary: "", ...deriveInterest("neutral", 0) };
   }

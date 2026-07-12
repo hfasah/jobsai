@@ -116,6 +116,39 @@ async function moveToPipeline(orgId: string, email: string, name: string | null)
   return (app as { id: string } | null)?.id ?? null;
 }
 
+// A referral points to someone else — capture that person as a CRM contact so
+// the lead isn't lost (only when we actually have an email; a bare name would
+// just create junk). Deduped by email. Returns the contact id or null.
+async function createReferralLead(orgId: string, referrerEmail: string, referral: { name: string | null; email: string | null }): Promise<string | null> {
+  if (!referral.email) return null;
+  const email = referral.email.toLowerCase();
+  const { data: existing } = await supabaseAdmin
+    .from("crm_contacts")
+    .select("id")
+    .eq("org_id", orgId)
+    .ilike("email", email)
+    .maybeSingle();
+  if (existing?.id) return (existing as { id: string }).id;
+
+  const name = (referral.name ?? "").trim();
+  const first = name.split(/\s+/)[0] || email.split("@")[0];
+  const last = name.split(/\s+/).slice(1).join(" ") || null;
+  const { data } = await supabaseAdmin
+    .from("crm_contacts")
+    .insert({
+      org_id: orgId,
+      first_name: first,
+      last_name: last,
+      email,
+      contact_type: "other",
+      notes: `Referred by ${referrerEmail} in a campaign reply.`,
+      created_by: "reply-agent",
+    })
+    .select("id")
+    .single();
+  return (data as { id: string } | null)?.id ?? null;
+}
+
 async function notifyPositiveIntent(args: {
   orgId: string;
   candidateName: string;
@@ -255,6 +288,16 @@ export async function processReply(input: ReplyInput): Promise<ReplyOutcome> {
       }
     } catch (e) {
       console.error("[reply-processor] moveToPipeline failed", e);
+    }
+  }
+
+  // Referral → capture the referred person as a CRM lead (when an email was given).
+  if (cls.intent === "referral" && cls.referral?.email) {
+    try {
+      const leadId = await createReferralLead(input.orgId, email, cls.referral);
+      if (leadId) autoActions.push("created_referral_lead");
+    } catch (e) {
+      console.error("[reply-processor] createReferralLead failed", e);
     }
   }
 
