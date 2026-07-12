@@ -25,7 +25,7 @@ const ACTIONS = [
 ];
 const TRIGGER_LABEL: Record<string, string> = { reply_category: "Reply", sequence_completed: "Sequence completed" };
 
-export default function SubsequencesPanel({ campaignId, campaignName, onClose }: { campaignId: string; campaignName: string; onClose: () => void }) {
+export default function SubsequencesPanel({ campaignId, campaignName, onClose, embedded = false }: { campaignId: string; campaignName: string; onClose: () => void; embedded?: boolean }) {
   const base = `/api/enterprise/campaigns/${campaignId}/subsequences`;
   const [loading, setLoading] = useState(true);
   const [rules, setRules] = useState<Rule[]>([]);
@@ -78,11 +78,14 @@ export default function SubsequencesPanel({ campaignId, campaignName, onClose }:
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+    <div
+      className={embedded ? "overflow-hidden rounded-2xl border border-border bg-card" : "fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"}
+      onClick={embedded ? undefined : onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()} className={embedded ? "flex w-full flex-col" : "flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"}>
         <div className="flex items-center justify-between border-b border-border p-4">
-          <h2 className="flex items-center gap-2 font-semibold"><Workflow className="h-4 w-4 text-primary" /> Subsequences — <span className="text-muted-foreground">{campaignName}</span></h2>
-          <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
+          <h2 className="flex items-center gap-2 font-semibold"><Workflow className="h-4 w-4 text-primary" /> Subsequences{!embedded && <> — <span className="text-muted-foreground">{campaignName}</span></>}</h2>
+          {!embedded && <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
 
         <div className="flex-1 space-y-3 overflow-y-auto p-4">

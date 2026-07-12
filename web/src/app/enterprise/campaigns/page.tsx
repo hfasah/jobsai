@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Megaphone, Plus, Loader2, Sparkles, Users, MailCheck, Play, Pause,
-  Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
-  Square, Archive, MoreHorizontal, Copy, Stethoscope, Workflow, SlidersHorizontal,
+  Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X,
+  Square, Archive, MoreHorizontal, Copy, Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampaignWizard from "@/components/enterprise/campaign-wizard";
@@ -64,9 +64,6 @@ export default function CampaignsPage() {
   const [loading, setLoading] = useState(true);
   const [campaigns, setCampaigns] = useState<CampaignListItem[]>([]);
   const [presets, setPresets] = useState<CampaignPreset[]>([]);
-  const [aiSdr, setAiSdr] = useState<{ id: string; name: string } | null>(null);
-  const [subs, setSubs] = useState<{ id: string; name: string } | null>(null);
-  const [opts, setOpts] = useState<{ id: string; name: string } | null>(null);
 
   const loadList = useCallback(async () => {
     setLoading(true);
@@ -152,10 +149,7 @@ export default function CampaignsPage() {
                       <ReleaseButton id={c.id} onReleased={loadList} />
                     )}
                     <StatusToggle campaign={c} onChanged={loadList} />
-                    <button onClick={() => setAiSdr({ id: c.id, name: c.name })} title="AI SDR auto-reply" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Bot className="h-4 w-4" /></button>
-                    <button onClick={() => setSubs({ id: c.id, name: c.name })} title="Subsequences" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><Workflow className="h-4 w-4" /></button>
-                    <button onClick={() => setOpts({ id: c.id, name: c.name })} title="Options" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-primary"><SlidersHorizontal className="h-4 w-4" /></button>
-                    <button onClick={() => setView({ kind: "detail", campaignId: c.id })} title="Analytics" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><BarChart3 className="h-4 w-4" /></button>
+                    <button onClick={() => setView({ kind: "detail", campaignId: c.id })} title="Open" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><BarChart3 className="h-4 w-4" /></button>
                     <button onClick={() => setView({ kind: "builder", campaignId: c.id })} title="Edit" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted"><Pencil className="h-4 w-4" /></button>
                     <DeleteButton id={c.id} onDeleted={loadList} />
                   </div>
@@ -165,10 +159,6 @@ export default function CampaignsPage() {
           </div>
         )}
       </div>
-
-      {aiSdr && <AiSdrPanel campaignId={aiSdr.id} campaignName={aiSdr.name} onClose={() => setAiSdr(null)} />}
-      {subs && <SubsequencesPanel campaignId={subs.id} campaignName={subs.name} onClose={() => setSubs(null)} />}
-      {opts && <OptionsPanel campaignId={opts.id} campaignName={opts.name} onClose={() => setOpts(null)} />}
     </div>
   );
 }
@@ -310,8 +300,8 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
 
   const [selectedLeads, setSelectedLeads] = useState<Set<string>>(new Set());
   const [activity, setActivity] = useState<{ at: string; type: string; text: string }[] | null>(null);
-  const [showActivity, setShowActivity] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  const [tab, setTab] = useState<"analytics" | "leads" | "sequence" | "ai" | "subsequences" | "options" | "activity">("analytics");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -346,11 +336,12 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
   };
 
   const loadActivity = async () => {
-    setShowActivity(true);
+    setActivity(null);
     const res = await fetch(`/api/enterprise/campaigns/${campaignId}/activity`);
     const j = await res.json().catch(() => ({}));
     if (res.ok) setActivity(j.data?.events ?? []);
   };
+  useEffect(() => { if (tab === "activity") loadActivity(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [tab]);
   const toggleLead = (eid: string) => setSelectedLeads((prev) => {
     const next = new Set(prev); next.has(eid) ? next.delete(eid) : next.add(eid); return next;
   });
@@ -404,10 +395,49 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
           </div>
         )}
 
-        {loading || !data ? (
+        {/* Tab bar */}
+        <div className="mb-5 flex flex-wrap gap-1 border-b border-border">
+          {([
+            ["analytics", "Analytics"], ["leads", "Leads"], ["sequence", "Sequence"],
+            ["ai", "AI Replies"], ["subsequences", "Subsequences"], ["options", "Options"], ["activity", "Activity"],
+          ] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setTab(k)}
+              className={cn("relative px-3 py-2 text-sm font-medium transition-colors", tab === k ? "text-primary" : "text-muted-foreground hover:text-foreground")}
+            >
+              {label}
+              {tab === k && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-primary" />}
+            </button>
+          ))}
+        </div>
+
+        {/* AI Replies / Subsequences / Options render their own panels (embedded). */}
+        {tab === "ai" && <AiSdrPanel campaignId={campaignId} campaignName={name} onClose={() => {}} embedded />}
+        {tab === "subsequences" && <SubsequencesPanel campaignId={campaignId} campaignName={name} onClose={() => {}} embedded />}
+        {tab === "options" && <OptionsPanel campaignId={campaignId} campaignName={name} onClose={() => {}} embedded />}
+
+        {(tab === "analytics" || tab === "leads" || tab === "sequence") && (loading || !data ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <>
+            {tab === "sequence" && (
+              <div className="space-y-2">
+                <div className="mb-1 flex items-center justify-between">
+                  <h2 className="text-sm font-semibold">Sequence ({data.per_step.length} step{data.per_step.length !== 1 ? "s" : ""})</h2>
+                  <button onClick={onEdit} className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium hover:bg-muted"><Pencil className="h-3.5 w-3.5" /> Edit sequence</button>
+                </div>
+                {data.per_step.map((s) => (
+                  <div key={s.step_order} className="rounded-xl border border-border bg-card p-3">
+                    <p className="flex items-center gap-2 text-sm"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">{s.step_order + 1}</span><span className="truncate">{s.subject}</span></p>
+                    <p className="mt-1 pl-7 text-[11px] text-muted-foreground">{s.sent} sent · {s.replied} replied ({s.reply_rate}%)</p>
+                  </div>
+                ))}
+                {data.per_step.length === 0 && <p className="text-sm text-muted-foreground">No steps yet. <button onClick={onEdit} className="text-primary hover:underline">Add some</button>.</p>}
+              </div>
+            )}
+
+            {tab === "analytics" && <>
             {/* Campaign progress (work done, not time elapsed) */}
             <div className="mb-4">
               <div className="mb-1 flex items-center justify-between text-xs">
@@ -511,14 +541,10 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
                 </div>
               ))}
             </div>
+            </>}
 
-            {/* Enrollments / Leads */}
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Leads ({data.enrollments.length})</h2>
-              <button onClick={loadActivity} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-                <Clock className="h-3.5 w-3.5" /> Activity log
-              </button>
-            </div>
+            {tab === "leads" && (<>
+            <h2 className="mb-2 text-sm font-semibold">Leads ({data.enrollments.length})</h2>
             {selectedLeads.size > 0 && (
               <div className="mb-2 flex flex-wrap items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2 text-xs">
                 <span className="font-medium">{selectedLeads.size} selected</span>
@@ -564,42 +590,29 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
                 ))}
               </div>
             )}
+            </>)}
           </>
+        ))}
+
+        {tab === "activity" && (
+          <div className="space-y-2.5">
+            {activity === null ? (
+              <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
+            ) : activity.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted-foreground">No activity yet.</p>
+            ) : (
+              activity.map((ev, i) => (
+                <div key={i} className="flex items-start gap-2.5 text-sm">
+                  <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full", ev.type === "replied" ? "bg-green-500" : ev.type === "unsubscribed" ? "bg-red-500" : ev.type === "lead_added" ? "bg-sky-500" : "bg-muted-foreground/40")} />
+                  <span className="flex-1"><span>{ev.text}</span><span className="block text-[10px] text-muted-foreground">{new Date(ev.at).toLocaleString()}</span></span>
+                </div>
+              ))
+            )}
+          </div>
         )}
       </div>
 
       {enrollOpen && <EnrollModal campaignId={campaignId} onClose={() => setEnrollOpen(false)} onEnrolled={() => { setEnrollOpen(false); load(); }} />}
-
-      {showActivity && (
-        <div className="fixed inset-0 z-[75] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={() => setShowActivity(false)}>
-          <div onClick={(ev) => ev.stopPropagation()} className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
-            <div className="flex items-center justify-between border-b border-border p-4">
-              <h2 className="flex items-center gap-2 font-semibold"><Clock className="h-4 w-4 text-primary" /> Activity log</h2>
-              <button onClick={() => setShowActivity(false)} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              {activity === null ? (
-                <div className="flex justify-center py-8"><Loader2 className="h-5 w-5 animate-spin text-muted-foreground" /></div>
-              ) : activity.length === 0 ? (
-                <p className="py-6 text-center text-sm text-muted-foreground">No activity yet.</p>
-              ) : (
-                <ul className="space-y-2.5">
-                  {activity.map((ev, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-sm">
-                      <span className={cn("mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full",
-                        ev.type === "replied" ? "bg-green-500" : ev.type === "unsubscribed" ? "bg-red-500" : ev.type === "lead_added" ? "bg-sky-500" : "bg-muted-foreground/40")} />
-                      <span className="flex-1">
-                        <span>{ev.text}</span>
-                        <span className="block text-[10px] text-muted-foreground">{new Date(ev.at).toLocaleString()}</span>
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

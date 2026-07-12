@@ -15,7 +15,7 @@ function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
   );
 }
 
-export default function OptionsPanel({ campaignId, campaignName, onClose }: { campaignId: string; campaignName: string; onClose: () => void }) {
+export default function OptionsPanel({ campaignId, campaignName, onClose, embedded = false }: { campaignId: string; campaignName: string; onClose: () => void; embedded?: boolean }) {
   const base = `/api/enterprise/campaigns/${campaignId}/options`;
   const [loading, setLoading] = useState(true);
   const [opt, setOpt] = useState<Options | null>(null);
@@ -36,11 +36,14 @@ export default function OptionsPanel({ campaignId, campaignName, onClose }: { ca
   };
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+    <div
+      className={embedded ? "overflow-hidden rounded-2xl border border-border bg-card" : "fixed inset-0 z-[80] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"}
+      onClick={embedded ? undefined : onClose}
+    >
+      <div onClick={(e) => e.stopPropagation()} className={embedded ? "flex w-full flex-col" : "flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"}>
         <div className="flex items-center justify-between border-b border-border p-4">
-          <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Options — <span className="text-muted-foreground">{campaignName}</span></h2>
-          <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
+          <h2 className="flex items-center gap-2 font-semibold"><SlidersHorizontal className="h-4 w-4 text-primary" /> Options{!embedded && <> — <span className="text-muted-foreground">{campaignName}</span></>}</h2>
+          {!embedded && <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>}
         </div>
 
         {loading || !opt ? (
