@@ -28,7 +28,17 @@ interface Estimate {
   has_provider?: boolean;
 }
 
-export default function GlobalSourcing({ mode }: { mode: "external" | "combined" }) {
+export default function GlobalSourcing({
+  mode,
+  campaignContext = null,
+  onEnrolled,
+}: {
+  mode: "external" | "combined";
+  // When embedded in the campaign wizard's Audience step, imports enroll
+  // straight into this campaign (skipping the target picker).
+  campaignContext?: { id: string; name: string } | null;
+  onEnrolled?: () => void;
+}) {
   const [query, setQuery] = useState("");
   const [parsing, setParsing] = useState(false);
   const [filters, setFilters] = useState<SourcingFilters | null>(null);
@@ -417,6 +427,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
       {importIds && (
         <ImportDialog
           resultIds={importIds}
+          lockedCampaign={campaignContext}
           candidateName={
             importIds.length === 1
               ? results.find((r) => r.id === importIds[0])?.external?.full_name ?? null
@@ -429,6 +440,7 @@ export default function GlobalSourcing({ mode }: { mode: "external" | "combined"
             setSelected(new Set());
             // refresh badges for imported rows
             if (runId) loadPage(runId, 0, false);
+            onEnrolled?.();
           }}
         />
       )}

@@ -13,9 +13,10 @@ import {
   CampaignBuilder, emptyDraft, draftFromCampaign, type CampaignDraft,
 } from "@/components/enterprise/campaign-builder";
 import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
+import GlobalSourcing from "@/components/enterprise/sourcing/global-sourcing";
 import { validateSteps, type CampaignPreset } from "@/lib/campaigns";
 
-const STEPS = ["Setup", "Sequence", "AI replies", "Review"] as const;
+const STEPS = ["Setup", "Audience", "Sequence", "AI replies", "Review"] as const;
 
 const OBJECTIVES: { key: string; label: string; desc: string }[] = [
   { key: "source", label: "Source candidates", desc: "Find and reach new talent" },
@@ -59,6 +60,7 @@ export default function CampaignWizard({
   const [showAi, setShowAi] = useState(false);
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [audience, setAudience] = useState<{ total: number; active: number } | null>(null);
 
   // Load an existing campaign for edit.
   useEffect(() => {
@@ -72,7 +74,8 @@ export default function CampaignWizard({
         }
       })
       .catch(() => {});
-  }, [initialId]);
+    loadAudience(initialId);
+  }, [initialId, loadAudience]);
 
   const buildPayload = (activate: boolean) => {
     if (!draft) return null;
@@ -116,6 +119,38 @@ export default function CampaignWizard({
     return id;
   };
 
+  // Create a bare draft (name + objective, no steps yet) so the Audience and
+  // AI-replies steps have a campaign id to work against. Steps are written by
+  // the Sequence step later.
+  const ensureCampaign = async (): Promise<string | null> => {
+    if (campaignId) {
+      // Already created — persist any Setup edits (name / objective).
+      await fetch(`/api/enterprise/campaigns/${campaignId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: draft?.name, description: draft?.description, objective: objective || undefined }),
+      }).catch(() => {});
+      return campaignId;
+    }
+    setSaving(true);
+    setError(null);
+    const res = await fetch(`/api/enterprise/campaigns`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: draft?.name, description: draft?.description, objective: objective || undefined, status: "draft" }),
+    });
+    setSaving(false);
+    if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Could not save."); return null; }
+    const j = await res.json().catch(() => ({}));
+    const id = j.data?.id ?? null;
+    if (id) setCampaignId(id);
+    return id;
+  };
+
+  const loadAudience = useCallback(async (id: string) => {
+    const res = await fetch(`/api/enterprise/campaigns/${id}/audience`);
+    const j = await res.json().catch(() => ({}));
+    if (res.ok) setAudience({ total: j.data?.total ?? 0, active: j.data?.active ?? 0 });
+  }, []);
+
   const loadPreview = useCallback(async (id: string, enrollmentId?: string) => {
     setPreviewLoading(true);
     const qs = enrollmentId ? `?enrollmentId=${enrollmentId}` : "";
@@ -134,22 +169,34 @@ export default function CampaignWizard({
   const goNext = async () => {
     setError(null);
     if (step === 0) {
+      // Setup → create the draft, then Audience.
       if (!draft?.name.trim()) { setError("Give the campaign a name."); return; }
+      const id = await ensureCampaign();
+      if (!id) return;
+      loadAudience(id);
       setStep(1);
       return;
     }
     if (step === 1) {
-      const stepErr = validateSteps((draft?.steps ?? []).map((s) => ({ delay_days: s.delay_days, subject: s.subject, body: s.body })));
-      if (stepErr) { setError(stepErr); return; }
-      const id = await persist(false);
-      if (!id) return;
+      // Audience → Sequence (no gate; a campaign can be built before it has an
+      // audience, and candidates can be added later).
       setStep(2);
       return;
     }
     if (step === 2) {
-      const id = campaignId ?? (await persist(false));
+      // Sequence → validate + save steps, then AI replies.
+      const stepErr = validateSteps((draft?.steps ?? []).map((s) => ({ delay_days: s.delay_days, subject: s.subject, body: s.body })));
+      if (stepErr) { setError(stepErr); return; }
+      const id = await persist(false);
       if (!id) return;
       setStep(3);
+      return;
+    }
+    if (step === 3) {
+      // AI replies → Review (load preview + readiness).
+      const id = campaignId ?? (await persist(false));
+      if (!id) return;
+      setStep(4);
       loadPreview(id);
       loadPreflight(id);
       return;
@@ -179,7 +226,7 @@ export default function CampaignWizard({
 
   return (
     <div className="flex-1 overflow-y-auto px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-3xl">
+      <div className={cn("mx-auto", step === 1 ? "max-w-5xl" : "max-w-3xl")}>
         {/* Header + cancel */}
         <div className="mb-4 flex items-center justify-between">
           <button onClick={onCancel} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
@@ -280,8 +327,32 @@ export default function CampaignWizard({
           </div>
         )}
 
-        {/* ── Step 2: Sequence ── */}
-        {step === 1 && (
+        {/* ── Step 2: Audience ── */}
+        {step === 1 && campaignId && (
+          <div className="space-y-4">
+            <div className="flex items-end justify-between gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Add your audience</h2>
+                <p className="text-sm text-muted-foreground">Search for candidates and add them straight into this campaign.</p>
+              </div>
+              <span className="shrink-0 rounded-full border border-border bg-card px-3 py-1 text-xs font-medium">
+                <Users className="mr-1 inline h-3.5 w-3.5 text-primary" />
+                {audience?.total ?? 0} in campaign
+              </span>
+            </div>
+            <div className="rounded-2xl border border-border">
+              <GlobalSourcing
+                mode="external"
+                campaignContext={{ id: campaignId, name: draft.name || "this campaign" }}
+                onEnrolled={() => loadAudience(campaignId)}
+              />
+            </div>
+            <p className="text-[11px] text-muted-foreground">You can skip this and add candidates later — the campaign won&apos;t send to anyone until it has an audience.</p>
+          </div>
+        )}
+
+        {/* ── Step 3: Sequence ── */}
+        {step === 2 && (
           <div>
             <div className="mb-3">
               <h2 className="text-lg font-semibold">Build the sequence</h2>
@@ -291,8 +362,8 @@ export default function CampaignWizard({
           </div>
         )}
 
-        {/* ── Step 3: AI replies ── */}
-        {step === 2 && (
+        {/* ── Step 4: AI replies ── */}
+        {step === 3 && (
           <div className="space-y-4">
             <div>
               <h2 className="text-lg font-semibold">AI reply handling</h2>
@@ -314,8 +385,8 @@ export default function CampaignWizard({
           </div>
         )}
 
-        {/* ── Step 4: Review ── */}
-        {step === 3 && (
+        {/* ── Step 5: Review ── */}
+        {step === 4 && (
           <div className="space-y-5">
             <div>
               <h2 className="text-lg font-semibold">Review &amp; launch</h2>
@@ -411,9 +482,10 @@ export default function CampaignWizard({
             <ArrowLeft className="h-4 w-4" /> {step === 0 ? "Cancel" : "Back"}
           </button>
 
-          {step < 3 ? (
+          {step < 4 ? (
             <button onClick={goNext} disabled={saving} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60">
-              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />} Continue
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
+              {step === 1 ? "Continue to sequence" : "Continue"}
             </button>
           ) : (
             <div className="flex items-center gap-2">

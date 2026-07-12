@@ -67,8 +67,13 @@ export async function POST(req: NextRequest) {
   };
 
   if (!name?.trim()) return NextResponse.json({ error: "Campaign name is required." }, { status: 400 });
-  const stepErr = validateSteps(steps ?? []);
-  if (stepErr) return NextResponse.json({ error: stepErr }, { status: 400 });
+  // A draft may be created with no steps yet (the guided wizard saves the
+  // campaign before the sequence is written). Only validate when steps are
+  // provided; activation is gated by the preflight either way.
+  if (Array.isArray(steps) && steps.length > 0) {
+    const stepErr = validateSteps(steps);
+    if (stepErr) return NextResponse.json({ error: stepErr }, { status: 400 });
+  }
 
   const sw = send_window ?? null;
   const { data: campaign, error } = await supabaseAdmin

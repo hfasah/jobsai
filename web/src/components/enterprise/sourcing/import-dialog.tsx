@@ -17,22 +17,26 @@ interface CampaignOption { id: string; name: string; status: string }
 export default function ImportDialog({
   resultIds,
   candidateName,
+  lockedCampaign,
   onClose,
   onDone,
 }: {
   resultIds: string[];
   candidateName?: string | null;
+  // When set (from the campaign wizard's Audience step), the dialog skips the
+  // target picker and enrolls straight into this campaign.
+  lockedCampaign?: { id: string; name: string } | null;
   onClose: () => void;
   onDone: (summary: string) => void;
 }) {
   const single = resultIds.length === 1;
-  const [target, setTarget] = useState<Target>("talent_pool");
+  const [target, setTarget] = useState<Target>(lockedCampaign ? "campaign" : "talent_pool");
   const [jobs, setJobs] = useState<JobOption[]>([]);
   const [groups, setGroups] = useState<GroupOption[]>([]);
   const [campaigns, setCampaigns] = useState<CampaignOption[]>([]);
   const [jobId, setJobId] = useState("");
   const [groupId, setGroupId] = useState("");
-  const [campaignId, setCampaignId] = useState("");
+  const [campaignId, setCampaignId] = useState(lockedCampaign?.id ?? "");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dupMatches, setDupMatches] = useState<DedupMatch[] | null>(null);
@@ -128,8 +132,10 @@ export default function ImportDialog({
       <div onClick={(e) => e.stopPropagation()} className="w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="flex items-center gap-2 font-semibold">
-            <Database className="h-4 w-4 text-primary" />
-            Import {single ? (candidateName ?? "candidate") : `${resultIds.length} candidates`}
+            {lockedCampaign ? <Send className="h-4 w-4 text-primary" /> : <Database className="h-4 w-4 text-primary" />}
+            {lockedCampaign
+              ? <>Add {single ? (candidateName ?? "candidate") : `${resultIds.length} candidates`} to campaign</>
+              : <>Import {single ? (candidateName ?? "candidate") : `${resultIds.length} candidates`}</>}
           </h2>
           <button onClick={onClose} aria-label="Close"><X className="h-4 w-4 text-muted-foreground" /></button>
         </div>
@@ -169,6 +175,13 @@ export default function ImportDialog({
           </div>
         ) : (
           <>
+            {lockedCampaign && (
+              <div className="mb-4 flex items-center gap-2 rounded-xl border border-primary/40 bg-primary/5 px-3 py-2.5 text-sm">
+                <Send className="h-4 w-4 shrink-0 text-primary" />
+                <span>Enrolling into <span className="font-medium">{lockedCampaign.name}</span></span>
+              </div>
+            )}
+            {!lockedCampaign && (
             <div className="mb-4 space-y-2">
               {TARGETS.map((t) => (
                 <button
@@ -188,6 +201,7 @@ export default function ImportDialog({
                 </button>
               ))}
             </div>
+            )}
 
             {target === "job" && (
               <label className="mb-4 block text-xs">
@@ -217,7 +231,7 @@ export default function ImportDialog({
               </label>
             )}
 
-            {target === "campaign" && (
+            {target === "campaign" && !lockedCampaign && (
               <label className="mb-4 block text-xs">
                 <span className="mb-1 block font-semibold uppercase tracking-wide text-muted-foreground">Campaign</span>
                 <select
