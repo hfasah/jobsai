@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Megaphone, Plus, Loader2, Sparkles, Users, MailCheck, Play, Pause,
   Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
-  Square, Archive, MoreHorizontal, Copy,
+  Square, Archive, MoreHorizontal, Copy, Stethoscope,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampaignWizard from "@/components/enterprise/campaign-wizard";
@@ -289,6 +289,15 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(true);
   const [enrollOpen, setEnrollOpen] = useState(false);
+  const [diag, setDiag] = useState<{ score: number; issues: { level: string; label: string; detail: string; recommendation?: string }[] } | null>(null);
+  const [diagBusy, setDiagBusy] = useState(false);
+  const runDiagnose = async () => {
+    setDiagBusy(true);
+    const res = await fetch(`/api/enterprise/campaigns/${campaignId}/diagnose`);
+    const j = await res.json().catch(() => ({}));
+    setDiagBusy(false);
+    if (res.ok) setDiag(j.data);
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -321,6 +330,9 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
             <button onClick={() => setEnrollOpen(true)} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold">
               <UserPlus className="h-4 w-4" /> Enroll candidates
             </button>
+            <button onClick={runDiagnose} disabled={diagBusy} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-60">
+              {diagBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Stethoscope className="h-4 w-4" />} Diagnose
+            </button>
             <button onClick={onEdit} className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium hover:bg-muted">
               <Pencil className="h-4 w-4" /> Edit
             </button>
@@ -328,6 +340,33 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
         </div>
 
         <h1 className="mb-4 text-lg font-semibold">{name}</h1>
+
+        {diag && (
+          <div className="mb-4 rounded-2xl border border-border bg-card p-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Stethoscope className="h-4 w-4 text-primary" /> Campaign health
+                <span className={cn("tabular-nums", diag.score >= 80 ? "text-green-400" : diag.score >= 50 ? "text-amber-400" : "text-red-400")}>{diag.score}/100</span>
+              </p>
+              <button onClick={() => setDiag(null)} aria-label="Dismiss"><X className="h-4 w-4 text-muted-foreground" /></button>
+            </div>
+            {diag.issues.length === 0 ? (
+              <p className="text-sm text-green-400">No issues found — good to go.</p>
+            ) : (
+              <ul className="space-y-1.5">
+                {diag.issues.map((it, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sm">
+                    <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", it.level === "critical" ? "bg-red-500" : it.level === "warning" ? "bg-amber-500" : "bg-green-500")} />
+                    <span>
+                      <span className="font-medium">{it.label}</span> <span className="text-muted-foreground">— {it.detail}</span>
+                      {it.recommendation && <span className="block text-[11px] text-primary/80">→ {it.recommendation}</span>}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
 
         {loading || !data ? (
           <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground" /></div>
