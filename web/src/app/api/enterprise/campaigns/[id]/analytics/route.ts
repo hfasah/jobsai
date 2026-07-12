@@ -69,6 +69,14 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const totalReplied = (sends ?? []).filter((r) => r.replied_at).length;
   const enrolled = (enrollments ?? []).length;
 
+  // Campaign progress = completed lead-steps / total eligible lead-steps.
+  // Eligible = contactable leads (not removed) × sequence length; completed =
+  // emails actually sent. Based on work done, not time elapsed.
+  const stepCount = (steps ?? []).length;
+  const contactable = (enrollments ?? []).filter((e) => e.status !== "removed").length;
+  const eligibleSteps = contactable * stepCount;
+  const progress = eligibleSteps > 0 ? Math.min(100, Math.round((totalSent / eligibleSteps) * 100)) : 0;
+
   // Outcome funnel — the signal that actually matters (opens are unreliable).
   // Cross-reference the audience's emails with the inbox (interest) and the ATS.
   const emails = [...new Set((enrollments ?? []).map((e) => e.candidate_email.toLowerCase()))];
@@ -95,6 +103,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
         sent: totalSent,
         replied: totalReplied,
         reply_rate: totalSent ? Math.round((totalReplied / totalSent) * 100) : 0,
+        progress,
       },
       outcomes: {
         positive_replies: positiveReplies,
