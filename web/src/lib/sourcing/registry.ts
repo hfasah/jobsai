@@ -29,7 +29,8 @@ export interface ResolvedProvider {
 // default to PDL when a platform key exists, otherwise the mock provider.
 // SOURCING_MOCK=1 forces mock everywhere (dev/preview harness).
 export async function getProvidersForOrg(orgId: string): Promise<ResolvedProvider[]> {
-  if (process.env.SOURCING_MOCK === "1") {
+  const mockForced = process.env.SOURCING_MOCK === "1";
+  if (mockForced) {
     return [{ provider: mockProvider, apiKey: "mock", settings: {} }];
   }
 
@@ -42,17 +43,36 @@ export async function getProvidersForOrg(orgId: string): Promise<ResolvedProvide
   const resolved: ResolvedProvider[] = [];
   for (const row of rows) {
     if (!row.enabled) continue;
+    // A stale `mock` row must NEVER take over real sourcing in production — mock
+    // is only ever used when SOURCING_MOCK=1 (handled above). This was silently
+    // routing an org's searches to synthetic fixtures → "0 results".
+    if (row.provider_key === "mock") continue;
     const provider = PROVIDERS[row.provider_key];
     if (!provider) continue;
-    const apiKey = row.api_key ?? envKeyFor(row.provider_key);
+    // Treat an empty/whitespace key as "unset" so a misconfigured row falls back
+    // to the platform env key instead of failing the provider call.
+    const rowKey = row.api_key && row.api_key.trim() ? row.api_key.trim() : null;
+    const apiKey = rowKey ?? envKeyFor(row.provider_key);
     if (!apiKey) continue;
     resolved.push({ provider, apiKey, settings: row.settings ?? {} });
   }
-  if (resolved.length > 0) return resolved;
 
   const pdlKey = envKeyFor("pdl");
-  if (pdlKey) return [{ provider: pdlProvider, apiKey: pdlKey, settings: {} }];
-  return [{ provider: mockProvider, apiKey: "mock", settings: {} }];
+  const result: ResolvedProvider[] =
+    resolved.length > 0
+      ? resolved
+      : pdlKey
+        ? [{ provider: pdlProvider, apiKey: pdlKey, settings: {} }]
+        : [{ provider: mockProvider, apiKey: "mock", settings: {} }];
+
+  // One-line resolution trace so a wrong provider is diagnosable without DB access.
+  console.info("[sourcing/registry] resolved", {
+    orgId,
+    pdlEnv: !!pdlKey,
+    rows: rows.map((r) => ({ key: r.provider_key, enabled: r.enabled, hasKey: !!(r.api_key && r.api_key.trim()) })),
+    resolved: result.map((r) => r.provider.key),
+  });
+  return result;
 }
 
 export function getEmailVerifier(): { verifier: EmailVerifier; apiKey: string } {
