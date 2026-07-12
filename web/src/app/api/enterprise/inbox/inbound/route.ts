@@ -16,6 +16,20 @@ function isJobIntake(toList: string[]): boolean {
   return toList.some((addr) => /\+jobs?\b/i.test(parseAddress(addr).email.split("@")[0]));
 }
 
+// A sender we've already been in an outreach conversation with — a campaign
+// enrollment or an existing inbox thread — even without an ATS application.
+// Their reply is a continuation, so it's threaded (and run through the AI SDR)
+// rather than misfiled as a fresh candidate.
+async function isKnownOutreachContact(orgId: string, email: string): Promise<boolean> {
+  const [enr, thread] = await Promise.all([
+    supabaseAdmin.from("enterprise_campaign_enrollments")
+      .select("id", { count: "exact", head: true }).eq("org_id", orgId).ilike("candidate_email", email),
+    supabaseAdmin.from("inbox_threads")
+      .select("id", { count: "exact", head: true }).eq("org_id", orgId).ilike("candidate_email", email),
+  ]);
+  return (enr.count ?? 0) > 0 || (thread.count ?? 0) > 0;
+}
+
 export const maxDuration = 60;
 
 // Verify the Svix-signed Resend webhook. Returns true if valid (or if no secret
@@ -230,7 +244,12 @@ export async function POST(req: NextRequest) {
   // classification so a candidate's "Re:" reply is never misrouted to a job.
   if (!resumeFromAttachment) {
     const existingAppId = await findApplicationIdByEmail(org.id, sender.email);
-    if (existingAppId) {
+    // A known contact also includes anyone we've emailed via a campaign or who
+    // already has an inbox thread — even without an ATS application (e.g. a
+    // sourced lead enrolled into outreach). Their reply is a continuation, not a
+    // new candidate, so it must NOT fall through to job/intake creation.
+    const knownContact = existingAppId ? true : await isKnownOutreachContact(org.id, sender.email);
+    if (existingAppId || knownContact) {
       await logMessage({
         orgId: org.id, applicationId: existingAppId, direction: "inbound",
         fromEmail: sender.email, toEmail: parseAddress(toList[0] ?? "").email || null,
@@ -250,7 +269,7 @@ export async function POST(req: NextRequest) {
           body: bodyText ?? "",
         }).catch((e) => console.error("[inbound] processReply failed", e)),
       );
-      return NextResponse.json({ ok: true, threaded: existingAppId });
+      return NextResponse.json({ ok: true, threaded: existingAppId ?? "outreach" });
     }
   }
 
