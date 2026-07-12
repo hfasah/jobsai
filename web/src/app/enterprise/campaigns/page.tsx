@@ -21,6 +21,10 @@ type CampaignListItem = {
 
 type Analytics = {
   totals: { enrolled: number; sent: number; replied: number; reply_rate: number };
+  outcomes?: {
+    positive_replies: number; interested: number; meetings: number; pipeline: number;
+    positive_reply_rate: number; meeting_rate: number; pipeline_rate: number;
+  };
   breakdown: Record<string, number>;
   per_step: { step_order: number; subject: string; sent: number; opened: number; replied: number; open_rate: number; reply_rate: number }[];
   enrollments: { id: string; candidate_name: string; candidate_email: string; status: string; current_step_order: number; next_send_at: string | null; replied_at: string | null; enrolled_at: string }[];
@@ -306,6 +310,36 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
               <Stat label="Reply rate" value={`${data.totals.reply_rate}%`} accent="text-primary" />
             </div>
 
+            {/* Outcome funnel — what actually matters (opens are unreliable, so
+                they're intentionally not the headline). */}
+            {data.outcomes && (
+              <>
+                <h2 className="mb-2 text-sm font-semibold">Outcomes</h2>
+                <div className="mb-6 overflow-x-auto">
+                  <div className="flex min-w-max items-stretch gap-1.5">
+                    {[
+                      { label: "Enrolled", value: data.totals.enrolled, sub: "", tone: "text-foreground" },
+                      { label: "Sent", value: data.totals.sent, sub: "", tone: "text-foreground" },
+                      { label: "Replied", value: data.totals.replied, sub: `${data.totals.reply_rate}%`, tone: "text-green-400" },
+                      { label: "Positive", value: data.outcomes.positive_replies, sub: `${data.outcomes.positive_reply_rate}% of replies`, tone: "text-orange-400" },
+                      { label: "Meetings", value: data.outcomes.meetings, sub: `${data.outcomes.meeting_rate}%`, tone: "text-emerald-400" },
+                      { label: "In pipeline", value: data.outcomes.pipeline, sub: `${data.outcomes.pipeline_rate}%`, tone: "text-sky-400" },
+                    ].map((f, i, arr) => (
+                      <div key={f.label} className="flex items-center gap-1.5">
+                        <div className="min-w-[92px] rounded-xl border border-border bg-card p-2.5">
+                          <p className={cn("text-lg font-semibold tabular-nums", f.tone)}>{f.value}</p>
+                          <p className="text-[11px] font-medium">{f.label}</p>
+                          {f.sub && <p className="text-[10px] text-muted-foreground">{f.sub}</p>}
+                        </div>
+                        {i < arr.length - 1 && <span className="text-muted-foreground/40">›</span>}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-muted-foreground">Open rate is intentionally excluded — pixel tracking is unreliable. Reply, positive-reply, and pipeline conversion are what count.</p>
+                </div>
+              </>
+            )}
+
             {/* Per-step funnel */}
             <h2 className="mb-2 text-sm font-semibold">Per-step performance</h2>
             <div className="mb-6 space-y-2">
@@ -320,12 +354,12 @@ function DetailView({ campaignId, onBack, onEdit }: { campaignId: string; onBack
                   </div>
                   <div className="mt-2 flex items-center gap-4 text-[11px] text-muted-foreground">
                     <span><span className="font-semibold text-foreground">{s.sent}</span> sent</span>
-                    <span><span className="font-semibold text-foreground">{s.opened}</span> opened ({s.open_rate}%)</span>
                     <span className="text-green-400/80"><span className="font-semibold">{s.replied}</span> replied ({s.reply_rate}%)</span>
+                    <span className="opacity-60">{s.opened} opened ({s.open_rate}%) · unreliable</span>
                   </div>
-                  {/* open-rate bar */}
+                  {/* reply-rate bar — the signal we lead with */}
                   <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary/60" style={{ width: `${s.open_rate}%` }} />
+                    <div className="h-full rounded-full bg-green-500/60" style={{ width: `${s.reply_rate}%` }} />
                   </div>
                 </div>
               ))}
