@@ -177,24 +177,31 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert the send row first so we have an id for the open-tracking pixel.
+    // Idempotency: one send row per (campaign, enrollment, step). If another
+    // cron run already claimed this step, the insert conflicts and returns no
+    // row — skip so we never double-send on a retry or overlapping run.
     const { data: send } = await supabaseAdmin
       .from("enterprise_campaign_sends")
-      .insert({
-        enrollment_id: e.id as string,
-        campaign_id: e.campaign_id as string,
-        step_id: step.id,
-        step_order: stepOrder,
-        org_id: e.org_id as string,
-        candidate_email: e.candidate_email as string,
-        subject,
-        variant,
-        mailbox_id: mailboxId,
-        from_email: fromEmail,
-      })
+      .upsert(
+        {
+          enrollment_id: e.id as string,
+          campaign_id: e.campaign_id as string,
+          step_id: step.id,
+          step_order: stepOrder,
+          org_id: e.org_id as string,
+          candidate_email: e.candidate_email as string,
+          subject,
+          variant,
+          mailbox_id: mailboxId,
+          from_email: fromEmail,
+        },
+        { onConflict: "campaign_id,enrollment_id,step_order", ignoreDuplicates: true },
+      )
       .select("id")
-      .single();
+      .maybeSingle();
+    if (!send) return; // this step was already sent by another run
 
-    const pixel = send ? `<img src="${BASE_URL}/api/enterprise/campaigns/track?s=${send.id}" width="1" height="1" alt="" style="display:none"/>` : "";
+    const pixel = `<img src="${BASE_URL}/api/enterprise/campaigns/track?s=${send.id}" width="1" height="1" alt="" style="display:none"/>`;
     const html = wrapEmail(`<p>${bodyText.replace(/\n/g, "<br>")}</p>${pixel}`, showPoweredBy);
 
     try {
