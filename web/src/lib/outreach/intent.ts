@@ -13,11 +13,13 @@ export type Intent =
   | "referral"
   | "unsubscribe"
   | "meeting_requested"
+  | "question"
+  | "wrong_person"
   | "neutral";
 
 export const INTENTS: Intent[] = [
   "interested", "not_interested", "out_of_office", "referral",
-  "unsubscribe", "meeting_requested", "neutral",
+  "unsubscribe", "meeting_requested", "question", "wrong_person", "neutral",
 ];
 
 // How warm the reply is, independent of the categorical intent. Lets positive
@@ -75,6 +77,12 @@ export function deriveInterest(intent: Intent, rawScore: number): { interestScor
     case "referral":
       score = Math.min(Math.max(score, 40), 59); // warm handoff, but not them → medium
       break;
+    case "wrong_person":
+      score = 0; // reached the wrong inbox — no signal about the candidate
+      break;
+    case "question":
+      score = Math.min(Math.max(score, 40), 69); // engaged, but not yet a yes → medium/high
+      break;
     case "neutral":
       score = Math.min(score, 59); // unclear can't be "high"
       break;
@@ -94,10 +102,12 @@ intent must be exactly one of:
 - interested: positive, wants to learn more / open to the role
 - meeting_requested: explicitly wants a call/meeting or proposes a time
 - referral: not for them but points to someone else
+- question: engaged and asking something (comp, location/remote, logistics, role details) rather than saying yes/no
+- wrong_person: says they're not who you're looking for / you have the wrong contact
 - not_interested: declines
 - out_of_office: automated away/OOO message
 - unsubscribe: asks to stop being contacted / opt out
-- neutral: unclear, a question, or none of the above
+- neutral: unclear, or none of the above
 
 interest is how warm/likely-to-convert the reply is, 0-100:
 - 80-100: eager — proposes a time, "yes let's talk", strong enthusiasm
