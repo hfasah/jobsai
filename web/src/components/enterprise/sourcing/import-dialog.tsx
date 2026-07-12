@@ -85,6 +85,10 @@ export default function ImportDialog({
           setDupMatches(json.data.verdict?.matches ?? []);
           return;
         }
+        if (json.data.status === "skipped") {
+          setError(json.data.reason ?? "Skipped — not added.");
+          return;
+        }
         onDone(
           json.data.status === "merged"
             ? "Merged with an existing record."
