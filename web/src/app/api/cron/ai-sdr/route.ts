@@ -6,6 +6,7 @@ import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage } from "@/lib/enterprise-messages";
+import { audit } from "@/lib/enterprise-audit";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 
 export const maxDuration = 60;
@@ -50,7 +51,7 @@ export async function GET(req: NextRequest) {
               .eq("id", r.campaign_id).eq("org_id", r.org_id).maybeSingle()
           : Promise.resolve({ data: null }),
         supabaseAdmin.from("enterprise_orgs")
-          .select("name, white_label_email_from, slug, intake_email_handle")
+          .select("name, white_label_email_from, slug, intake_email_handle, ai_sdr_paused")
           .eq("id", r.org_id).maybeSingle(),
       ]);
 
@@ -64,6 +65,7 @@ export async function GET(req: NextRequest) {
           .eq("id", r.id).eq("org_id", r.org_id);
       };
 
+      if ((org as { ai_sdr_paused?: boolean } | null)?.ai_sdr_paused) { await suppress("Workspace AI SDR paused."); continue; }
       if (!t) { await suppress("Thread gone."); continue; }
       if (t.intent === "unsubscribe") { await suppress("Contact unsubscribed."); continue; }
       if (!c || !c.ai_sdr_enabled || c.status !== "active") { await suppress("Campaign disabled or inactive."); continue; }
@@ -128,6 +130,7 @@ export async function GET(req: NextRequest) {
       await logMessage({
         orgId: r.org_id, applicationId: t.application_id, direction: "outbound",
         fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: r.draft_body,
+        sentVia: "ai_sdr",
       });
       await Promise.all([
         supabaseAdmin.from("ai_sdr_replies")
@@ -137,6 +140,13 @@ export async function GET(req: NextRequest) {
           .update({ last_outbound_at: new Date().toISOString(), updated_at: new Date().toISOString() })
           .eq("id", r.thread_id).eq("org_id", r.org_id),
       ]);
+      audit({
+        org_id: r.org_id,
+        action: "ai_sdr.reply_sent",
+        resource_type: "ai_sdr_reply",
+        resource_id: r.id,
+        metadata: { thread_id: r.thread_id, campaign_id: r.campaign_id, mode: "auto" },
+      });
       summary.sent++;
     } catch (e) {
       summary.failed++;

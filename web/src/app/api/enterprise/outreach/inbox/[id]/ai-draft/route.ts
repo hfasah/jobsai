@@ -9,6 +9,7 @@ import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage } from "@/lib/enterprise-messages";
+import { audit } from "@/lib/enterprise-audit";
 
 export const maxDuration = 30;
 type Ctx = { params: Promise<{ id: string }> };
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     await supabaseAdmin.from("ai_sdr_replies")
       .update({ status: "rejected", reviewed_by: a.userId, updated_at: now })
       .eq("id", d.id).eq("org_id", a.org.id);
+    audit({ org_id: a.org.id, user_id: a.userId, action: "ai_sdr.reply_dismissed", resource_type: "ai_sdr_reply", resource_id: d.id, metadata: { thread_id: id } });
     return NextResponse.json({ data: { dismissed: true } });
   }
 
@@ -111,9 +113,11 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+  const edited = bodyText !== d.draft_body;
   await logMessage({
     orgId: a.org.id, applicationId: t.application_id, direction: "outbound",
     fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: bodyText,
+    sentVia: "ai_sdr",
   });
   await Promise.all([
     supabaseAdmin.from("ai_sdr_replies")
@@ -123,6 +127,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       .update({ last_outbound_at: now, unread: false, updated_at: now })
       .eq("id", id).eq("org_id", a.org.id),
   ]);
+  audit({ org_id: a.org.id, user_id: a.userId, action: "ai_sdr.reply_sent", resource_type: "ai_sdr_reply", resource_id: d.id, metadata: { thread_id: id, mode: "reviewed", edited } });
 
   return NextResponse.json({ data: { sent: true } });
 }

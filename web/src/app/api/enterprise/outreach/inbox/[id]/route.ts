@@ -34,7 +34,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   if (thread.application_id) {
     const { data } = await supabaseAdmin
       .from("enterprise_messages")
-      .select("id, direction, from_email, to_email, subject, body, created_at")
+      .select("id, direction, from_email, to_email, subject, body, created_at, sent_via")
       .eq("org_id", org.id)
       .eq("application_id", thread.application_id)
       .order("created_at", { ascending: true })
@@ -44,7 +44,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     const email = thread.candidate_email as string;
     const { data } = await supabaseAdmin
       .from("enterprise_messages")
-      .select("id, direction, from_email, to_email, subject, body, created_at")
+      .select("id, direction, from_email, to_email, subject, body, created_at, sent_via")
       .eq("org_id", org.id)
       .or(`from_email.ilike.${email},to_email.ilike.${email}`)
       .order("created_at", { ascending: true })

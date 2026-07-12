@@ -5,7 +5,7 @@
 // Opened as a modal from the campaigns list. Gated server-side by the ai_sdr
 // feature + can_manage_ai_sdr.
 import { useEffect, useState } from "react";
-import { Bot, Loader2, X, Plus, Trash2, Pin, BookOpen, Brain, TriangleAlert, Check } from "lucide-react";
+import { Bot, Loader2, X, Plus, Trash2, Pin, BookOpen, Brain, TriangleAlert, Check, PauseCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Config {
@@ -29,6 +29,7 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose }: { camp
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [wsPaused, setWsPaused] = useState(false);
 
   useEffect(() => {
     fetch(base)
@@ -41,7 +42,21 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose }: { camp
       })
       .catch(() => setError("Could not load AI SDR settings."))
       .finally(() => setLoading(false));
+    fetch("/api/enterprise/ai-sdr/settings")
+      .then((r) => r.json())
+      .then((j) => setWsPaused(j.data?.paused ?? false))
+      .catch(() => {});
   }, [base]);
+
+  const toggleWorkspacePause = async () => {
+    const next = !wsPaused;
+    setWsPaused(next);
+    await fetch("/api/enterprise/ai-sdr/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paused: next }),
+    }).catch(() => setWsPaused(!next));
+  };
 
   const patch = (p: Partial<Config>) => setCfg((c) => (c ? { ...c, ...p } : c));
 
@@ -74,6 +89,26 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose }: { camp
           <div className="p-6 text-center text-sm text-red-400">{error ?? "Unavailable."}</div>
         ) : (
           <div className="flex-1 space-y-5 overflow-y-auto p-4">
+            {/* Workspace kill switch */}
+            <section className={cn("flex items-center justify-between gap-3 rounded-xl border p-3", wsPaused ? "border-red-500/40 bg-red-500/5" : "border-border")}>
+              <div className="flex items-start gap-2">
+                <PauseCircle className={cn("mt-0.5 h-4 w-4 shrink-0", wsPaused ? "text-red-400" : "text-muted-foreground")} />
+                <span>
+                  <span className="block text-sm font-medium">Workspace kill switch</span>
+                  <span className="block text-[11px] text-muted-foreground">
+                    {wsPaused ? "AI SDR is paused for every campaign in this workspace." : "Instantly pause all AI SDR drafting & sending across the workspace."}
+                  </span>
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={toggleWorkspacePause}
+                className={cn("shrink-0 rounded-lg border px-2.5 py-1 text-xs font-semibold", wsPaused ? "border-red-500/40 text-red-400" : "border-border text-muted-foreground hover:text-foreground")}
+              >
+                {wsPaused ? "Resume" : "Pause all"}
+              </button>
+            </section>
+
             {/* Enable + mode */}
             <section className="rounded-xl border border-border p-3">
               <label className="flex items-start gap-3">

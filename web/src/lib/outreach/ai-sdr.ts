@@ -278,6 +278,17 @@ export async function maybeEnqueueAiSdrReply(args: {
 }): Promise<void> {
   try {
     const email = args.candidateEmail.toLowerCase();
+
+    // Workspace kill switch — no drafting at all when the org paused AI SDR.
+    const { data: orgRow } = await supabaseAdmin
+      .from("enterprise_orgs")
+      .select("name, ai_sdr_paused")
+      .eq("id", args.orgId)
+      .maybeSingle();
+    const org = orgRow as { name?: string; ai_sdr_paused?: boolean } | null;
+    if (org?.ai_sdr_paused) return;
+    const orgName = org?.name ?? "our team";
+
     const match = await getCampaignForReply(args.orgId, email);
     if (!match) return;
     const campaign = match.campaign;
@@ -310,12 +321,10 @@ export async function maybeEnqueueAiSdrReply(args: {
     if (!gate.ok) return;
 
     // Grounding + who we're speaking as (the campaign's creator).
-    const [knowledge, recruiter, orgRow] = await Promise.all([
+    const [knowledge, recruiter] = await Promise.all([
       buildKnowledgeContext(args.orgId, campaign.id),
       getRecruiterIdentity(campaign.created_by),
-      supabaseAdmin.from("enterprise_orgs").select("name").eq("id", args.orgId).maybeSingle(),
     ]);
-    const orgName = ((orgRow.data as { name?: string } | null)?.name) ?? "our team";
 
     // Recent transcript for context.
     let msgs;
