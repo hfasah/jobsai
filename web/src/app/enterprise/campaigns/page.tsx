@@ -4,13 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Megaphone, Plus, Loader2, Sparkles, Users, MailCheck, Play, Pause,
   Pencil, Trash2, BarChart3, ArrowLeft, UserPlus, Lock, Send, Clock, X, Bot,
+  Square, Archive, MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import CampaignWizard from "@/components/enterprise/campaign-wizard";
 import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
 import type { CampaignPreset } from "@/lib/campaigns";
 
-type CampaignStatus = "draft" | "active" | "paused" | "archived";
+type CampaignStatus = "draft" | "active" | "paused" | "stopped" | "completed" | "archived";
 
 type CampaignListItem = {
   id: string; name: string; description: string | null; status: CampaignStatus;
@@ -26,10 +27,12 @@ type Analytics = {
 };
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
-  draft:    "border-slate-500/30 bg-slate-500/10 text-slate-400",
-  active:   "border-green-500/30 bg-green-500/10 text-green-400",
-  paused:   "border-amber-500/30 bg-amber-500/10 text-amber-400",
-  archived: "border-border bg-muted text-muted-foreground",
+  draft:     "border-slate-500/30 bg-slate-500/10 text-slate-400",
+  active:    "border-green-500/30 bg-green-500/10 text-green-400",
+  paused:    "border-amber-500/30 bg-amber-500/10 text-amber-400",
+  stopped:   "border-red-500/30 bg-red-500/10 text-red-400",
+  completed: "border-sky-500/30 bg-sky-500/10 text-sky-400",
+  archived:  "border-border bg-muted text-muted-foreground",
 };
 
 const ENROLL_STATUS_STYLES: Record<string, string> = {
@@ -155,14 +158,19 @@ export default function CampaignsPage() {
 function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onChanged: () => void }) {
   const [busy, setBusy] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
-  const live = campaign.status === "active";
-  const toggle = async () => {
+  const [menu, setMenu] = useState(false);
+  const s = campaign.status;
+  const live = s === "active";
+  const terminal = s === "stopped" || s === "completed" || s === "archived";
+
+  const setStatus = async (status: string) => {
     setBusy(true);
     setBlocked(null);
+    setMenu(false);
     const res = await fetch(`/api/enterprise/campaigns/${campaign.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: live ? "paused" : "active" }),
+      body: JSON.stringify({ status }),
     });
     setBusy(false);
     if (res.status === 422) {
@@ -174,11 +182,45 @@ function StatusToggle({ campaign, onChanged }: { campaign: CampaignListItem; onC
     }
     onChanged();
   };
+
   return (
-    <span className="relative">
-      <button onClick={toggle} disabled={busy} title={live ? "Pause" : "Activate"} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : live ? <Pause className="h-4 w-4 text-amber-400" /> : <Play className="h-4 w-4 text-green-400" />}
+    <span className="relative flex items-center gap-0.5">
+      {/* Primary play/pause — hidden for terminal states (stopped/completed/archived). */}
+      {!terminal && (
+        <button onClick={() => setStatus(live ? "paused" : "active")} disabled={busy} title={live ? "Pause" : "Activate"} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+          {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : live ? <Pause className="h-4 w-4 text-amber-400" /> : <Play className="h-4 w-4 text-green-400" />}
+        </button>
+      )}
+      <button onClick={() => setMenu((o) => !o)} title="More" className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted">
+        <MoreHorizontal className="h-4 w-4" />
       </button>
+      {menu && (
+        <div className="absolute right-0 top-9 z-30 w-44 rounded-xl border border-border bg-card p-1 shadow-2xl" onMouseLeave={() => setMenu(false)}>
+          {(s === "active" || s === "paused") && (
+            <button onClick={() => setStatus("stopped")} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-red-400 hover:bg-red-500/10">
+              <Square className="h-3.5 w-3.5" /> Stop (permanent)
+            </button>
+          )}
+          {s === "stopped" && (
+            <button onClick={() => setStatus("active")} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-muted/50">
+              <Play className="h-3.5 w-3.5 text-green-400" /> Reactivate
+            </button>
+          )}
+          {s !== "archived" && (
+            <button onClick={() => setStatus("archived")} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/50">
+              <Archive className="h-3.5 w-3.5" /> Archive
+            </button>
+          )}
+          {s === "archived" && (
+            <button onClick={() => setStatus("draft")} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-muted/50">
+              <ArrowLeft className="h-3.5 w-3.5" /> Unarchive
+            </button>
+          )}
+          <p className="px-2 pb-1 pt-1.5 text-[9px] leading-tight text-muted-foreground">
+            Pause is resumable · Stop ends it · Archive hides it but keeps reporting.
+          </p>
+        </div>
+      )}
       {blocked && (
         <span className="absolute right-0 top-9 z-30 w-60 rounded-lg border border-red-500/30 bg-card px-2.5 py-1.5 text-[11px] text-red-400 shadow-xl">
           Can&apos;t launch: {blocked}
