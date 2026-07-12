@@ -11,7 +11,7 @@ import CampaignWizard from "@/components/enterprise/campaign-wizard";
 import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
 import type { CampaignPreset } from "@/lib/campaigns";
 
-type CampaignStatus = "draft" | "active" | "paused" | "stopped" | "completed" | "archived";
+type CampaignStatus = "draft" | "scheduled" | "active" | "paused" | "stopped" | "completed" | "archived";
 
 type CampaignListItem = {
   id: string; name: string; description: string | null; status: CampaignStatus;
@@ -33,6 +33,7 @@ type Analytics = {
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
   draft:     "border-slate-500/30 bg-slate-500/10 text-slate-400",
+  scheduled: "border-indigo-500/30 bg-indigo-500/10 text-indigo-400",
   active:    "border-green-500/30 bg-green-500/10 text-green-400",
   paused:    "border-amber-500/30 bg-amber-500/10 text-amber-400",
   stopped:   "border-red-500/30 bg-red-500/10 text-red-400",
