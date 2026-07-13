@@ -11,6 +11,7 @@ const SPEND_REASON: Record<CreditAction, string> = {
   reveal_email: "spend_reveal_email",
   reveal_phone: "spend_reveal_phone",
   enrich: "spend_enrich",
+  full_contact_unlock: "spend_full_contact_unlock",
 };
 
 // Free search + preview; pay only to reveal a verified contact (matches the
@@ -22,6 +23,7 @@ const FALLBACK_COSTS: Record<CreditAction, number> = {
   reveal_email: 2,
   reveal_phone: 5,
   enrich: 3,
+  full_contact_unlock: 6,
 };
 
 // One-time free credits so a new org can reveal a few real contacts before
@@ -137,9 +139,12 @@ export async function spendCredits(args: {
   action: CreditAction;
   refType: "run" | "reveal";
   refId: string;
+  // Progressive pricing: charge this exact amount instead of the action's list
+  // price (e.g. a bundle unlock discounted by what the org already paid).
+  amountOverride?: number;
 }): Promise<{ ok: boolean; balance: number; ledgerEntryId: string | null; cost: number; dailyCap?: boolean }> {
   const costs = await getCreditCosts(args.orgId);
-  const cost = costs[args.action];
+  const cost = args.amountOverride != null ? Math.max(0, Math.round(args.amountOverride)) : costs[args.action];
   if (cost === 0) return { ok: true, balance: -1, ledgerEntryId: null, cost: 0 };
 
   if (await dailyCapExceeded(args.orgId, cost)) {

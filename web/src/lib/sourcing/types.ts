@@ -190,4 +190,4 @@ export const JOB_FUNCTIONS: { value: string; label: string }[] = [
 export const JOB_FUNCTION_VALUES = JOB_FUNCTIONS.map((f) => f.value);
 
 // Credits
-export type CreditAction = "search" | "unlock_profile" | "reveal_email" | "reveal_phone" | "enrich";
+export type CreditAction = "search" | "unlock_profile" | "reveal_email" | "reveal_phone" | "enrich" | "full_contact_unlock";

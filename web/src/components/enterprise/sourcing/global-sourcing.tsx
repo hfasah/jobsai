@@ -10,6 +10,7 @@ import { DEFAULT_WEIGHTS } from "@/lib/sourcing/types";
 import InterpretedFilters from "./interpreted-filters";
 import ResultsView, { type RunResultRow } from "./results-view";
 import RevealButton, { type RevealOutcome } from "./reveal-button";
+import UnlockContactButton, { type UnlockOutcome } from "./unlock-button";
 import ImportDialog from "./import-dialog";
 import SavedSearches, { type SavedSearch } from "./saved-searches";
 
@@ -23,7 +24,7 @@ const EXAMPLE_PROMPTS = [
 interface Estimate {
   total: number | null;
   search_cost: number;
-  costs?: { reveal_email: number; reveal_phone: number; enrich: number };
+  costs?: { reveal_email: number; reveal_phone: number; enrich: number; full_contact_unlock: number };
   balance: number;
   has_provider?: boolean;
 }
@@ -190,6 +191,19 @@ export default function GlobalSourcing({
     );
   };
 
+  const onUnlocked = (o: UnlockOutcome) => {
+    setResults((prev) =>
+      prev.map((row) => {
+        if (row.id !== o.resultId || !row.external) return row;
+        const ext = { ...row.external, profile_unlocked: true };
+        if (o.email) ext.emails = [{ value: o.email, verification_status: o.email_verification ?? undefined }];
+        if (o.phone) ext.phones = [{ value: o.phone }];
+        if (o.linkedin_url) ext.linkedin_url = o.linkedin_url;
+        return { ...row, external: ext };
+      }),
+    );
+  };
+
   const flag = async (resultId: string, action: "not_relevant" | "suppress") => {
     setResults((prev) => prev.filter((r) => r.id !== resultId));
     await fetch(`/api/enterprise/sourcing/results/${resultId}/flag`, {
@@ -220,6 +234,21 @@ export default function GlobalSourcing({
             available={ext.has_phone}
             cost={estimate?.costs?.reveal_phone ?? 5}
             onRevealed={onRevealed}
+          />
+        )}
+        {/* Bundle unlock — hidden once everything's already revealed. */}
+        {!(ext.emails.length > 0 && ext.phones.length > 0 && ext.profile_unlocked) && (ext.has_email || ext.has_phone) && (
+          <UnlockContactButton
+            resultId={row.id}
+            emailRevealed={ext.emails.length > 0}
+            phoneRevealed={ext.phones.length > 0}
+            hasPhone={ext.has_phone}
+            costs={{
+              reveal_email: estimate?.costs?.reveal_email ?? 2,
+              reveal_phone: estimate?.costs?.reveal_phone ?? 5,
+              full_contact_unlock: estimate?.costs?.full_contact_unlock ?? 6,
+            }}
+            onUnlocked={onUnlocked}
           />
         )}
         {row.dedup_status !== "imported" && (
