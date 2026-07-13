@@ -180,6 +180,18 @@ export async function POST(req: NextRequest) {
       return;
     }
 
+    // Deliverability backstop: never send to an address the verifier flagged
+    // INVALID — it will bounce and hurt sender reputation. Retire the enrolment
+    // (skip, don't error the run). Catches invalids enrolled before the import
+    // guard existed. valid/risky/unknown still send.
+    if ((e.email_status as string | null) === "invalid") {
+      await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update({ status: "bounced", next_send_at: null })
+        .eq("id", e.id as string);
+      return;
+    }
+
     const org = e.org as { name: string; show_powered_by: boolean; white_label_email_from: string | null } | null;
     const orgName = org?.name ?? "Recruiting";
     const fromName = emailFromName(orgName, org?.white_label_email_from ?? null);

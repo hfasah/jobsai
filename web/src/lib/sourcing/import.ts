@@ -282,8 +282,17 @@ export async function importExternalCandidate(args: {
     if (!campaign) return { status: "error", error: "Campaign not found." };
     const opts = campaign as { dedup_days: number | null; allow_unverified: boolean };
 
-    // Options: block unverified emails when the campaign requires verified ones.
     const emailStatus = candidate.emails.find((e) => e.value === email)?.verification_status ?? candidate.emails[0]?.verification_status ?? null;
+
+    // Deliverability guard: an address the verifier marked INVALID will bounce
+    // and hurt sender reputation. SKIP it (don't block the batch) — the rest of
+    // the selection still enrols. Unknown/risky are allowed through (risky =
+    // "likely valid"); only a hard "invalid" is dropped.
+    if (emailStatus === "invalid") {
+      return { status: "skipped", verdict, reason: "Email failed verification (invalid) — skipped to protect deliverability." };
+    }
+
+    // Options: block unverified emails when the campaign requires verified ones.
     if (opts.allow_unverified === false && emailStatus !== "valid" && emailStatus !== "risky") {
       return { status: "skipped", verdict, reason: "Email isn't verified — this campaign only accepts verified addresses." };
     }
