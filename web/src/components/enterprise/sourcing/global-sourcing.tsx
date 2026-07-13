@@ -63,7 +63,17 @@ export default function GlobalSourcing({
   const [savedId, setSavedId] = useState<string | null>(null);
   const [degraded, setDegraded] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
   const estimateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Keep a live credit balance for the always-visible Top-up chip.
+  const refreshBalance = useCallback(() => {
+    fetch("/api/enterprise/sourcing/credits")
+      .then((r) => r.json())
+      .then((j) => { if (typeof j?.data?.balance === "number") setBalance(j.data.balance); })
+      .catch(() => {});
+  }, []);
+  useEffect(() => { refreshBalance(); }, [refreshBalance]);
 
   const parse = async () => {
     if (!query.trim()) return;
@@ -176,6 +186,7 @@ export default function GlobalSourcing({
   // Fold a successful reveal back into the loaded results so the value shows
   // immediately without a refetch.
   const onRevealed = (o: RevealOutcome) => {
+    refreshBalance();
     setResults((prev) =>
       prev.map((row) => {
         if (row.id !== o.resultId || !row.external) return row;
@@ -192,6 +203,7 @@ export default function GlobalSourcing({
   };
 
   const onUnlocked = (o: UnlockOutcome) => {
+    refreshBalance();
     setResults((prev) =>
       prev.map((row) => {
         if (row.id !== o.resultId || !row.external) return row;
@@ -308,6 +320,7 @@ export default function GlobalSourcing({
     setRevealing(false);
     if (!res.ok) { setImportNotice(j.error ?? "Reveal failed."); return; }
     const d = j.data;
+    if (typeof d.balance === "number") setBalance(d.balance);
     setImportNotice(
       `Revealed ${d.revealed} contact${d.revealed !== 1 ? "s" : ""}` +
       (d.no_data ? `, ${d.no_data} had no email` : "") +
@@ -341,6 +354,7 @@ export default function GlobalSourcing({
     setUnlocking(false);
     if (!res.ok) { setImportNotice(j.error ?? "Unlock failed."); return; }
     const d = j.data;
+    if (typeof d.balance === "number") setBalance(d.balance);
     setImportNotice(
       `Unlocked ${d.unlocked} contact${d.unlocked !== 1 ? "s" : ""} for ${d.credits_charged} credit${d.credits_charged !== 1 ? "s" : ""}` +
       (d.discount ? ` (${d.discount})` : "") +
@@ -353,6 +367,24 @@ export default function GlobalSourcing({
 
   return (
     <div>
+      {/* Always-visible credit balance + one-click top up. */}
+      <div className="mb-3 flex items-center justify-end gap-2">
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium",
+            (balance ?? 99) < 10 ? "border-amber-500/40 bg-amber-500/10 text-amber-500" : "border-border bg-card text-muted-foreground",
+          )}
+        >
+          <Coins className="h-3.5 w-3.5" /> {balance ?? "…"} credits{(balance ?? 99) < 10 ? " · low" : ""}
+        </span>
+        <a
+          href="/enterprise/sourcing/credits"
+          className="inline-flex items-center gap-1 rounded-full border border-primary/40 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary hover:bg-primary/10"
+        >
+          <Coins className="h-3.5 w-3.5" /> Top up
+        </a>
+      </div>
+
       <SavedSearches
         current={filters ? { query, filters, mode, weights } : null}
         onLoad={loadSaved}
