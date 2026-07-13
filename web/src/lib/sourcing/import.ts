@@ -6,6 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getOrCreateIntakePool } from "@/lib/enterprise-intake-inbox";
 import { loadInternalIndex, dedupeVerdict } from "./dedupe";
 import { titleCase } from "./normalize";
+import { isEmailSuppressed } from "@/lib/outreach/suppression";
 import type { DedupVerdict, ExternalCandidate } from "./types";
 
 export type ImportTarget = "talent_pool" | "job" | "intake" | "crm_contact" | "campaign";
@@ -32,7 +33,7 @@ export interface StoredCandidateRow {
 }
 
 export interface ImportOutcome {
-  status: "imported" | "merged" | "skipped" | "needs_email" | "duplicate_confirm" | "error";
+  status: "imported" | "merged" | "skipped" | "needs_email" | "duplicate_confirm" | "do_not_contact" | "error";
   verdict?: DedupVerdict;
   application_id?: string;
   talent_pool_id?: string;
@@ -117,6 +118,12 @@ export async function importExternalCandidate(args: {
   if (candidate.suppressed) return { status: "error", error: "Candidate is suppressed." };
   const email = candidate.emails[0]?.value ?? null;
   if (!email) return { status: "needs_email" };
+
+  // Do-Not-Contact: never enrol a suppressed address into outreach (campaign) or
+  // nurture (talent pool). Job/intake targets are applicants, not outreach.
+  if ((target === "campaign" || target === "talent_pool") && await isEmailSuppressed(orgId, email)) {
+    return { status: "do_not_contact" };
+  }
 
   const name = titleCase(candidate.full_name) ?? email;
   const revealedEmails = candidate.emails.map((e) => e.value);

@@ -37,6 +37,7 @@ export interface RunResultRow {
     emails: { value: string; verification_status?: string }[];
     phones: { value: string }[];
     profile_unlocked: boolean;
+    suppressed?: boolean | null;
     collected_at?: string;
     permitted_use?: string | null;
   } | null;

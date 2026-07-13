@@ -9,6 +9,7 @@ import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
 import { spendCredits, refundCredits, ensureMonthlyGrant } from "@/lib/sourcing/credits";
 import { loadInternalIndex, dedupeVerdict } from "@/lib/sourcing/dedupe";
 import { normEmail } from "@/lib/sourcing/normalize";
+import { isEmailSuppressed } from "@/lib/outreach/suppression";
 import type { CreditAction, EmailVerificationStatus, ExternalCandidate, RevealResult } from "@/lib/sourcing/types";
 
 export const maxDuration = 30;
@@ -184,6 +185,15 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!reveal?.found || !reveal.value) {
     await fail("no_data");
     return NextResponse.json({ error: "No contact data found — credits refunded.", no_data: true }, { status: 404 });
+  }
+
+  // Do-Not-Contact: if the revealed email is on the org's suppression list, we
+  // must not monetize it — refund, flag the candidate suppressed, don't store.
+  if ((type === "email" || (type === "profile" && normEmail(reveal.value))) && await isEmailSuppressed(org.id, reveal.value)) {
+    await refundCredits({ orgId: org.id, userId, amount: spend.cost, refType: "reveal", refId: revealId });
+    await supabaseAdmin.from("sourcing_external_candidates").update({ suppressed: true, updated_at: new Date().toISOString() }).eq("id", candidate.id).eq("org_id", org.id);
+    await supabaseAdmin.from("sourcing_reveals").update({ status: "refunded", credits_spent: 0, ledger_entry_id: spend.ledgerEntryId, result: { do_not_contact: true } }).eq("id", revealId).eq("org_id", org.id);
+    return NextResponse.json({ error: "This person is on your Do-Not-Contact list — not revealed, no credits charged.", do_not_contact: true }, { status: 409 });
   }
 
   // Verify revealed emails before storing.

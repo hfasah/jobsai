@@ -51,6 +51,10 @@ export default function RevealButton({
         setNotice("No data found — credits refunded.");
         return;
       }
+      if (res.status === 409 && json.do_not_contact) {
+        setNotice("On your Do-Not-Contact list — not revealed, no charge.");
+        return;
+      }
       if (!res.ok) {
         setNotice(json.error ?? "Reveal failed.");
         return;

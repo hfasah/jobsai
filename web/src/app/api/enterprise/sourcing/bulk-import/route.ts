@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     .in("id", resultIds);
   const rows = (results ?? []) as { id: string; external_candidate_id: string | null }[];
 
-  const summary = { imported: 0, merged: 0, skipped: 0, needs_email: 0, duplicates: 0, errors: 0 };
+  const summary = { imported: 0, merged: 0, skipped: 0, needs_email: 0, duplicates: 0, do_not_contact: 0, errors: 0 };
   const importedResultIds: string[] = [];
 
   for (const row of rows) {
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
     else if (outcome.status === "merged") { summary.merged++; importedResultIds.push(row.id); }
     else if (outcome.status === "needs_email") summary.needs_email++;
     else if (outcome.status === "duplicate_confirm") summary.duplicates++;
+    else if (outcome.status === "do_not_contact") summary.do_not_contact++;
     else if (outcome.status === "skipped") summary.skipped++;
     else summary.errors++;
   }

@@ -216,6 +216,14 @@ export default function GlobalSourcing({
   const renderActions = (row: RunResultRow) => {
     if (row.origin !== "external" || !row.external) return null;
     const ext = row.external;
+    // Do-Not-Contact: a suppressed candidate can't be revealed or enrolled.
+    if (ext.suppressed) {
+      return (
+        <span className="inline-flex items-center gap-1 rounded-lg border border-red-500/30 bg-red-500/10 px-2 py-1 text-[11px] font-medium text-red-400">
+          Do Not Contact
+        </span>
+      );
+    }
     return (
       <span className="flex items-center gap-1">
         {ext.emails.length === 0 && (
