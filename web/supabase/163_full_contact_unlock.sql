@@ -4,7 +4,7 @@
 alter table sourcing_credit_ledger drop constraint if exists sourcing_credit_ledger_reason_check;
 alter table sourcing_credit_ledger add constraint sourcing_credit_ledger_reason_check
   check (reason in (
-    'monthly_grant','purchase','admin_adjustment','refund',
+    'monthly_grant','purchase','admin_adjustment','refund','trial_grant',
     'spend_search','spend_unlock_profile','spend_reveal_email','spend_reveal_phone',
     'spend_enrich','spend_full_contact_unlock'));
 
