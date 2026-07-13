@@ -106,6 +106,14 @@ export async function revealEmailForResult(args: {
   const update: Record<string, unknown> = { updated_at: now, profile_unlocked: true, enriched_at: now, emails, has_email: true };
   if (enriched) {
     update.raw = enriched.raw ?? candidate.raw;
+    // Un-mask the name: the search preview is obfuscated ("Daniela Fe***a"), the
+    // paid match returns the real name — persist it so enrolments and the owned
+    // lead show the actual person, not the masked preview.
+    if (enriched.full_name) update.full_name = enriched.full_name;
+    if (enriched.first_name) update.first_name = enriched.first_name;
+    if (enriched.last_name) update.last_name = enriched.last_name;
+    if (enriched.location_country) update.location_country = enriched.location_country;
+    if (enriched.location_locality) update.location_locality = enriched.location_locality;
     if (enriched.skills?.length) update.skills = enriched.skills;
     if (enriched.experience_years != null) update.experience_years = enriched.experience_years;
     if (enriched.job_title) update.job_title = enriched.job_title;
