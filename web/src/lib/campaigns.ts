@@ -16,6 +16,9 @@ export interface CampaignStepInput {
   // per-enrollment (sticky bucket across the whole sequence).
   ab_subject?: string | null;
   ab_body?: string | null;
+  // Condition: skip this step (advance without sending) if the candidate is
+  // already in the pipeline (has an application). Don't chase who's progressed.
+  skip_if_in_pipeline?: boolean;
 }
 
 export interface CampaignStep extends CampaignStepInput {

@@ -68,6 +68,24 @@ export async function POST(req: NextRequest) {
     stepsByCampaign.set(s.campaign_id, arr);
   }
 
+  // For steps flagged skip_if_in_pipeline: which of this batch's candidates are
+  // already in an org's pipeline? One batched lookup keyed by org|lower(email).
+  const inPipeline = new Set<string>();
+  const pipelineCandidates = due.filter((e) => {
+    const s = (stepsByCampaign.get(e.campaign_id) ?? []).find((x) => x!.step_order === (e.current_step_order as number));
+    return s?.skip_if_in_pipeline;
+  });
+  if (pipelineCandidates.length > 0) {
+    const emails = [...new Set(pipelineCandidates.map((e) => (e.candidate_email as string).toLowerCase()))];
+    for (let i = 0; i < emails.length; i += 100) {
+      const chunk = emails.slice(i, i + 100);
+      const { data: apps } = await supabaseAdmin
+        .from("enterprise_applications").select("org_id, candidate_email")
+        .in("org_id", orgIds).in("candidate_email", chunk);
+      for (const a of apps ?? []) inPipeline.add(`${a.org_id}|${(a.candidate_email as string).toLowerCase()}`);
+    }
+  }
+
   // Per-campaign sends already made today (for the daily-limit cap).
   const todayStart = now.toISOString().slice(0, 10) + "T00:00:00Z";
   const sentToday = new Map<string, number>();
@@ -125,6 +143,19 @@ export async function POST(req: NextRequest) {
       await supabaseAdmin
         .from("enterprise_campaign_enrollments")
         .update({ status: "completed", next_send_at: null, completed_at: now.toISOString() })
+        .eq("id", e.id as string);
+      return;
+    }
+
+    // Per-step condition: skip (advance without sending) if the candidate is
+    // already in the pipeline. Don't email someone who's already progressed.
+    if (step.skip_if_in_pipeline && inPipeline.has(`${e.org_id}|${(e.candidate_email as string).toLowerCase()}`)) {
+      const next = steps.find((s) => s.step_order === stepOrder + 1);
+      await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update(next
+          ? { current_step_order: stepOrder + 1, next_send_at: new Date(now.getTime() + Math.max(0, next.delay_days || 0) * 86_400_000).toISOString() }
+          : { status: "completed", next_send_at: null, completed_at: now.toISOString() })
         .eq("id", e.id as string);
       return;
     }

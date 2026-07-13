@@ -38,7 +38,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // Sequence steps.
   const { data: steps } = await supabaseAdmin
     .from("enterprise_campaign_steps")
-    .select("step_order, delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body")
+    .select("step_order, delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body, skip_if_in_pipeline")
     .eq("campaign_id", id).order("step_order", { ascending: true });
   if (steps && steps.length) {
     await supabaseAdmin.from("enterprise_campaign_steps").insert(steps.map((st) => ({ ...st, campaign_id: newId })));
