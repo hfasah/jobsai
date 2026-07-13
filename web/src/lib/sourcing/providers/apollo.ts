@@ -28,7 +28,8 @@ interface ApolloPerson {
   id?: string;
   first_name?: string | null;
   last_name?: string | null;
-  name?: string | null;
+  last_name_obfuscated?: string | null; // search preview: "Wi***s"
+  name?: string | null;                 // full name (match only)
   title?: string | null;
   headline?: string | null;
   linkedin_url?: string | null;
@@ -43,6 +44,13 @@ interface ApolloPerson {
   organization?: { name?: string | null; estimated_num_employees?: number | null; industry?: string | null } | null;
   employment_history?: unknown[] | null;
   functions?: string[] | null;
+  // Availability flags returned by the FREE api_search (values are unlocked via
+  // enrich). has_direct_phone / has_email come back as booleans or "Yes"/"No".
+  has_email?: boolean | string | null;
+  has_direct_phone?: boolean | string | null;
+  has_mobile_phone?: boolean | string | null;
+  has_city?: boolean | null;
+  has_country?: boolean | null;
 }
 
 interface ApolloSearchResponse {
@@ -103,8 +111,44 @@ function firstPhone(p: ApolloPerson): string | null {
   return typeof first === "string" ? first : first.sanitized_number ?? first.raw_number ?? null;
 }
 
-function normalize(p: ApolloPerson): ExternalCandidate {
-  const location = [p.city, p.state, p.country].filter(Boolean);
+function flag(v: boolean | string | null | undefined): boolean {
+  return v === true || v === "Yes" || v === "yes" || v === "true";
+}
+
+// FREE api_search preview: first name + OBFUSCATED last name (e.g. "Denise
+// Wi***s"), title, company, and availability flags. The real last name, email,
+// phone, location and LinkedIn are only unlocked by enrich (paid reveal).
+function normalizeSearchPerson(p: ApolloPerson): ExternalCandidate {
+  const previewName = [p.first_name, p.last_name_obfuscated].filter(Boolean).join(" ") || null;
+  return {
+    provider_key: "apollo",
+    provider_record_id: p.id ?? `apollo_${p.linkedin_url ?? p.first_name ?? "unknown"}`,
+    source_type: "provider_api",
+    permitted_use: "recruitment_outreach",
+    confidence: null,
+    full_name: previewName,
+    first_name: p.first_name ?? null,
+    last_name: p.last_name_obfuscated ?? null,
+    job_title: p.title ?? p.headline ?? null,
+    company: p.organization?.name ?? null,
+    company_size: p.organization?.estimated_num_employees != null ? String(p.organization.estimated_num_employees) : null,
+    location_country: null, // Apollo hides location values in search (has_country flag only)
+    location_locality: null,
+    skills: [],
+    experience_years: null,
+    industries: p.organization?.industry ? [p.organization.industry] : [],
+    education: [],
+    languages: [],
+    linkedin_url: null, // revealed on enrich
+    github_url: null,
+    portfolio_url: null,
+    has_email: flag(p.has_email) || !!p.email_status || null,
+    has_phone: (flag(p.has_direct_phone) || flag(p.has_mobile_phone)) || null,
+  };
+}
+
+// Full record from people/match (paid enrich) — real name, location, contacts.
+function normalizeMatchPerson(p: ApolloPerson): ExternalCandidate {
   return {
     provider_key: "apollo",
     provider_record_id: p.id ?? `apollo_${p.linkedin_url ?? p.name ?? "unknown"}`,
@@ -118,7 +162,7 @@ function normalize(p: ApolloPerson): ExternalCandidate {
     company: p.organization?.name ?? null,
     company_size: p.organization?.estimated_num_employees != null ? String(p.organization.estimated_num_employees) : null,
     location_country: p.country ?? null,
-    location_locality: p.city ?? (location[0] ?? null),
+    location_locality: p.city ?? null,
     skills: [],
     experience_years: null,
     industries: p.organization?.industry ? [p.organization.industry] : [],
@@ -127,10 +171,8 @@ function normalize(p: ApolloPerson): ExternalCandidate {
     linkedin_url: normalizeLinkedinUrl(p.linkedin_url),
     github_url: p.github_url ?? null,
     portfolio_url: null,
-    // Apollo search reports an email STATUS (verified/likely) without unlocking
-    // the address — so availability is known even though the value isn't.
-    has_email: p.email_status ? true : (p.email ? true : null),
-    has_phone: (p.phone_numbers?.length ?? 0) > 0 ? true : null,
+    has_email: p.email ? true : (flag(p.has_email) || null),
+    has_phone: (p.phone_numbers?.length ?? 0) > 0 ? true : (flag(p.has_direct_phone) || null),
   };
 }
 
@@ -160,7 +202,7 @@ export const apolloProvider: SourcingProvider = {
     const page = opts.offset ? Math.floor(opts.offset / perPage) + 1 : 1;
     const res = await apolloFetch<ApolloSearchResponse>("/mixed_people/api_search", buildSearchBody(filters, page, perPage), opts);
     return {
-      candidates: (res.people ?? []).map(normalize),
+      candidates: (res.people ?? []).map(normalizeSearchPerson),
       total: res.pagination?.total_entries ?? null,
     };
   },
@@ -179,7 +221,7 @@ export const apolloProvider: SourcingProvider = {
     try {
       const res = await apolloFetch<ApolloMatchResponse>("/people/match", matchBody(ref, { email: true }), opts);
       if (!res.person) return null;
-      const candidate = normalize(res.person);
+      const candidate = normalizeMatchPerson(res.person);
       candidate.raw = res.person as unknown as Record<string, unknown>;
       return candidate;
     } catch {
@@ -198,7 +240,7 @@ export const apolloProvider: SourcingProvider = {
     const res = await apolloFetch<ApolloMatchResponse>("/people/match", matchBody(ref, { email: true }), opts).catch(() => null);
     const p = res?.person;
     if (!p) return { found: false, value: null, error: "unresolvable reference" };
-    const enriched = normalize(p);
+    const enriched = normalizeMatchPerson(p);
     enriched.raw = p as unknown as Record<string, unknown>;
     const emails = dedupeStrings([p.email ?? null, ...(p.personal_emails ?? [])]);
     const value = emails[0] ?? null;
