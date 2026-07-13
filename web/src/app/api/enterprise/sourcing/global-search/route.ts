@@ -27,10 +27,13 @@ const PROVIDER_TIMEOUT_MS = 20000;
 // provider's settings.search_limit (clamped 10–100).
 // PDL bills per matched record RETURNED, so keep this modest — recruiters filter
 // down anyway, and 25 halves the provider cost of every search vs 50.
-const DEFAULT_PER_PROVIDER_LIMIT = 25;
-function clampLimit(n: unknown): number {
+// Per-record-billed providers (PDL) stay modest; free-search providers (Apollo)
+// pull a full page since it costs nothing.
+const PROVIDER_DEFAULT_LIMIT: Record<string, number> = { apollo: 100, pdl: 25, mock: 25 };
+function clampLimit(n: unknown, providerKey: string): number {
+  const fallback = PROVIDER_DEFAULT_LIMIT[providerKey] ?? 25;
   const v = typeof n === "number" ? Math.floor(n) : NaN;
-  return Number.isFinite(v) ? Math.max(10, Math.min(100, v)) : DEFAULT_PER_PROVIDER_LIMIT;
+  return Number.isFinite(v) ? Math.max(10, Math.min(100, v)) : fallback;
 }
 
 interface SuppressionKeys {
@@ -196,7 +199,7 @@ export async function POST(req: NextRequest) {
     p.provider.searchCandidates(filters, {
       apiKey: p.apiKey,
       timeoutMs: PROVIDER_TIMEOUT_MS,
-      limit: clampLimit((p.settings as { search_limit?: number } | undefined)?.search_limit),
+      limit: clampLimit((p.settings as { search_limit?: number } | undefined)?.search_limit, p.provider.key),
     }),
   );
   const internalPromise: Promise<InternalSearchResult> | null =
