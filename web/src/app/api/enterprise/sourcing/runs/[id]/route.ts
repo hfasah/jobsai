@@ -47,12 +47,22 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     .order("position", { ascending: true })
     .range(from, from + PAGE_SIZE - 1);
 
-  // Mask contact values on locked profiles.
+  // Field-level lockdown: a locked profile must not leak ANY reachable channel
+  // in the payload (not just the UI). Expose availability flags, blank the real
+  // values until the org unlocks the profile.
   const rows = ((results ?? []) as Record<string, unknown>[]).map((r) => {
     const ext = r.external as Record<string, unknown> | null;
-    if (ext && !ext.profile_unlocked) {
-      ext.emails = [];
-      ext.phones = [];
+    if (ext) {
+      ext.has_linkedin = !!ext.linkedin_url;
+      ext.has_github = !!ext.github_url;
+      ext.has_portfolio = !!ext.portfolio_url;
+      if (!ext.profile_unlocked) {
+        ext.emails = [];
+        ext.phones = [];
+        ext.linkedin_url = null;
+        ext.github_url = null;
+        ext.portfolio_url = null;
+      }
     }
     return r;
   });
