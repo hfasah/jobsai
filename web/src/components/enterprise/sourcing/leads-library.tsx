@@ -8,7 +8,7 @@
 // reveal spend).
 import { useCallback, useEffect, useState } from "react";
 import {
-  Users, Search, Loader2, Mail, Phone, Linkedin, MapPin, Building2, Download,
+  Users, Search, Loader2, Mail, Phone, ExternalLink, MapPin, Building2, Download,
   CheckCircle2, Send, RefreshCw, Coins,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -200,7 +200,7 @@ export default function LeadsLibrary() {
                   {l.phone && <span className="inline-flex items-center gap-1 text-muted-foreground"><Phone className="h-3 w-3 shrink-0" />{l.phone}</span>}
                   {l.linkedin_url && (
                     <a href={l.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-muted-foreground hover:text-primary">
-                      <Linkedin className="h-3 w-3 shrink-0" /> Profile
+                      <ExternalLink className="h-3 w-3 shrink-0" /> LinkedIn
                     </a>
                   )}
                 </div>
