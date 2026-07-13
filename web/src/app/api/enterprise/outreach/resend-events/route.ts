@@ -6,6 +6,7 @@ import { recordNegativeEvent, type MailboxRow } from "@/lib/outreach/deliverabil
 import { isUsableStatus } from "@/lib/outreach/resend-domains";
 import { normEmail } from "@/lib/sourcing/normalize";
 import { suppressEmail } from "@/lib/outreach/suppression";
+import { alreadyProcessed, isProdRuntime } from "@/lib/outreach/webhook-dedup";
 
 export const maxDuration = 30;
 
@@ -17,7 +18,11 @@ export const maxDuration = 30;
 function verifySignature(headers: Headers, rawBody: string): boolean {
   const secret = process.env.RESEND_EVENTS_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn("[outreach/resend-events] RESEND_EVENTS_WEBHOOK_SECRET not set — skipping verification");
+    if (isProdRuntime()) {
+      console.error("[outreach/resend-events] RESEND_EVENTS_WEBHOOK_SECRET not set in production — rejecting");
+      return false;
+    }
+    console.warn("[outreach/resend-events] RESEND_EVENTS_WEBHOOK_SECRET not set — skipping verification (non-prod)");
     return true;
   }
   const id = headers.get("svix-id");
@@ -80,6 +85,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
   const type = event.type ?? "";
+
+  // Idempotency: skip a redelivered event so we don't double-count bounces or
+  // re-suppress on a replay.
+  if (await alreadyProcessed("resend-events", req.headers.get("svix-id"))) {
+    return NextResponse.json({ received: true, deduped: true });
+  }
 
   try {
     if (type === "email.bounced" || type === "email.complained") {

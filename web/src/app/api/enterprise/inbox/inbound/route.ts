@@ -9,6 +9,7 @@ import {
 import { parseJobFromText, createDraftJobFromParsed, classifyIntakeEmail } from "@/lib/job-intake";
 import { logMessage, findApplicationIdByEmail, markOutreachReplied } from "@/lib/enterprise-messages";
 import { processReply } from "@/lib/outreach/reply-processor";
+import { alreadyProcessed, isProdRuntime } from "@/lib/outreach/webhook-dedup";
 
 // True when the email was sent to a job-intake sub-address (<handle>+jobs@…),
 // i.e. a hiring-manager job request rather than a candidate resume.
@@ -37,7 +38,13 @@ export const maxDuration = 60;
 function verifySignature(headers: Headers, rawBody: string): boolean {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
   if (!secret) {
-    console.warn("[enterprise/inbound] RESEND_WEBHOOK_SECRET not set — skipping verification");
+    // Fail CLOSED in production — an unsigned inbound webhook must not be trusted.
+    // Preview/dev without the secret stays permissive so the endpoint is testable.
+    if (isProdRuntime()) {
+      console.error("[enterprise/inbound] RESEND_WEBHOOK_SECRET not set in production — rejecting");
+      return false;
+    }
+    console.warn("[enterprise/inbound] RESEND_WEBHOOK_SECRET not set — skipping verification (non-prod)");
     return true;
   }
   const id = headers.get("svix-id");
@@ -174,6 +181,11 @@ export async function POST(req: NextRequest) {
   let event: { type?: string; data?: Record<string, unknown> };
   try { event = JSON.parse(raw); } catch { return NextResponse.json({ error: "Invalid JSON" }, { status: 400 }); }
   if (event.type !== "email.received") return NextResponse.json({ ok: true, ignored: event.type ?? "unknown" });
+
+  // Idempotency: Resend/Svix can redeliver — process each event once.
+  if (await alreadyProcessed("inbound", req.headers.get("svix-id"))) {
+    return NextResponse.json({ ok: true, deduped: true });
+  }
 
   const data = event.data ?? {};
   const emailId = (data.email_id ?? data.id) as string | undefined;
