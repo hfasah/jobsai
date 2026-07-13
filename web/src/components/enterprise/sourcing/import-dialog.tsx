@@ -12,7 +12,7 @@ type Target = "talent_pool" | "job" | "intake" | "crm_contact" | "campaign";
 
 interface JobOption { id: string; title: string }
 interface GroupOption { id: string; name: string }
-interface CampaignOption { id: string; name: string; status: string }
+interface CampaignOption { id: string; name: string; status: string; steps: number }
 
 export default function ImportDialog({
   resultIds,
@@ -66,13 +66,24 @@ export default function ImportDialog({
     fetch("/api/enterprise/campaigns")
       .then((r) => r.json())
       .then((j) => {
-        const list = (j.data ?? j.campaigns ?? []) as { id: string; name: string; status: string }[];
-        setCampaigns(list.map((x) => ({ id: x.id, name: x.name, status: x.status })));
+        const list = (j.data ?? j.campaigns ?? []) as { id: string; name: string; status: string; stats?: { steps?: number } }[];
+        setCampaigns(list.map((x) => ({ id: x.id, name: x.name, status: x.status, steps: x.stats?.steps ?? 0 })));
       })
       .catch(() => {});
   }, []);
 
+  // A campaign with no email steps has nothing to send — enrolling would fail
+  // for every candidate AFTER we'd already charged for reveals. Catch it here,
+  // before spending a single credit. (lockedCampaign resolves against the same
+  // loaded list; if it's not found yet we fail open and let the server answer.)
+  const activeCampaign = campaigns.find((c) => c.id === (lockedCampaign?.id ?? campaignId));
+  const campaignHasNoSteps = target === "campaign" && !!activeCampaign && activeCampaign.steps === 0;
+
   const submit = async (onDuplicate: "skip" | "import_anyway" | "merge") => {
+    if (campaignHasNoSteps) {
+      setError(`"${activeCampaign?.name}" has no email steps yet — add at least one step to the sequence before enrolling. (No credits are spent.)`);
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -289,6 +300,16 @@ export default function ImportDialog({
               </label>
             )}
 
+            {campaignHasNoSteps && (
+              <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>
+                  <span className="font-medium">{activeCampaign?.name}</span> has no email steps yet. Add at least one step to its
+                  sequence before enrolling — otherwise there&apos;s nothing to send. No credits are spent until it&apos;s ready.
+                </span>
+              </div>
+            )}
+
             {error && (
               <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
                 <div className="flex items-center gap-2"><TriangleAlert className="h-3.5 w-3.5 shrink-0" /> {error}</div>
@@ -313,7 +334,7 @@ export default function ImportDialog({
                   )}
                   <button
                     onClick={() => submit("skip")}
-                    disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId)}
+                    disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId) || campaignHasNoSteps}
                     className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
                   >
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : target === "campaign" ? <Send className="h-4 w-4" /> : <Database className="h-4 w-4" />}
