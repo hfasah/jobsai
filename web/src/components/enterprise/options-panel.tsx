@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { SlidersHorizontal, Loader2, X, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Options { track_opens: boolean; dedup_days: number | null; allow_unverified: boolean; mailbox_strategy: string; mailbox_id: string | null }
+interface Options { track_opens: boolean; dedup_days: number | null; allow_unverified: boolean; mailbox_strategy: string; mailbox_id: string | null; daily_send_limit: number | null; holidays: string[]; send_jitter_hours: number }
 interface Mailbox { id: string; address: string; status: string }
 
 function Toggle({ on, onClick }: { on: boolean; onClick: () => void }) {
@@ -23,9 +23,10 @@ export default function OptionsPanel({ campaignId, campaignName, onClose, embedd
   const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [holidayInput, setHolidayInput] = useState("");
 
   useEffect(() => {
-    fetch(base).then((r) => r.json()).then((j) => setOpt(j.data ?? { track_opens: true, dedup_days: null, allow_unverified: true, mailbox_strategy: "auto", mailbox_id: null })).catch(() => {}).finally(() => setLoading(false));
+    fetch(base).then((r) => r.json()).then((j) => setOpt(j.data ?? { track_opens: true, dedup_days: null, allow_unverified: true, mailbox_strategy: "auto", mailbox_id: null, daily_send_limit: null, holidays: [], send_jitter_hours: 0 })).catch(() => {}).finally(() => setLoading(false));
     fetch("/api/enterprise/outreach/mailboxes").then((r) => r.json()).then((j) => setMailboxes((j.data ?? []).filter((m: Mailbox) => m.status === "active").map((m: Mailbox) => ({ id: m.id, address: m.address, status: m.status })))).catch(() => {});
   }, [base]);
 
@@ -107,6 +108,63 @@ export default function OptionsPanel({ campaignId, campaignName, onClose, embedd
               )}
               {opt.mailbox_strategy === "fixed" && mailboxes.length === 0 && (
                 <p className="mt-1 text-[10px] text-muted-foreground">No active domain mailboxes — it&apos;ll fall back to the default sender.</p>
+              )}
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">Daily send limit</p>
+              <p className="mb-1.5 text-[11px] text-muted-foreground">Cap how many emails this campaign sends per day. Leave blank for no cap (mailbox ramp limits still apply).</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={1} max={5000}
+                  value={opt.daily_send_limit ?? ""}
+                  onChange={(e) => patch({ daily_send_limit: e.target.value ? Math.max(1, Number(e.target.value)) : null })}
+                  placeholder="no cap"
+                  className="w-24 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-sm text-muted-foreground">emails / day</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">Send jitter</p>
+              <p className="mb-1.5 text-[11px] text-muted-foreground">Randomize each follow-up by 0–N hours so sends look less machine-timed. 0 = exact timing.</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0} max={48}
+                  value={opt.send_jitter_hours}
+                  onChange={(e) => patch({ send_jitter_hours: Math.max(0, Math.min(48, Number(e.target.value) || 0)) })}
+                  className="w-24 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <span className="text-sm text-muted-foreground">hours</span>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-sm font-medium">Holidays / blackout dates</p>
+              <p className="mb-1.5 text-[11px] text-muted-foreground">No emails send on these dates (campaign timezone). Sends defer to the next working day.</p>
+              <div className="flex items-center gap-2">
+                <input
+                  type="date"
+                  value={holidayInput}
+                  onChange={(e) => setHolidayInput(e.target.value)}
+                  className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+                <button
+                  type="button"
+                  onClick={() => { if (holidayInput && !opt.holidays.includes(holidayInput)) { patch({ holidays: [...opt.holidays, holidayInput].sort() }); setHolidayInput(""); } }}
+                  className="rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                >Add</button>
+              </div>
+              {opt.holidays.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {opt.holidays.map((d) => (
+                    <span key={d} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-[11px]">
+                      {d}
+                      <button type="button" onClick={() => patch({ holidays: opt.holidays.filter((x) => x !== d) })} aria-label={`Remove ${d}`}><X className="h-3 w-3 text-muted-foreground" /></button>
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </div>

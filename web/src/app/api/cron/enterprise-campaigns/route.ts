@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
+    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -68,15 +68,43 @@ export async function POST(req: NextRequest) {
     stepsByCampaign.set(s.campaign_id, arr);
   }
 
+  // Per-campaign sends already made today (for the daily-limit cap).
+  const todayStart = now.toISOString().slice(0, 10) + "T00:00:00Z";
+  const sentToday = new Map<string, number>();
+  await Promise.all(campaignIds.map(async (cid) => {
+    const { count } = await supabaseAdmin
+      .from("enterprise_campaign_sends").select("id", { count: "exact", head: true })
+      .eq("campaign_id", cid).gte("sent_at", todayStart);
+    sentToday.set(cid as string, count ?? 0);
+  }));
+
   let sent = 0;
 
   const processOne = async (e: Record<string, unknown>) => {
     const campaign = e.campaign as
-      | ({ status: string } & SendWindow)
+      | ({ status: string; daily_send_limit?: number | null; holidays?: string[] | null; send_jitter_hours?: number | null } & SendWindow)
       | null;
     // Only send for live campaigns. Paused/draft enrollments wait (next_send_at
     // stays put, so they resume the moment the campaign goes active again).
     if (campaign?.status !== "active") return;
+
+    // Holiday: skip today entirely — defer to the next send window.
+    const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: campaign.send_timezone || "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
+    if ((campaign.holidays ?? []).includes(localDate)) {
+      await supabaseAdmin.from("enterprise_campaign_enrollments")
+        .update({ next_send_at: nextWindowOpen(campaign, new Date(now.getTime() + 86_400_000)).toISOString() })
+        .eq("id", e.id as string);
+      return;
+    }
+
+    // Daily send limit for the campaign.
+    const cid = e.campaign_id as string;
+    if (campaign.daily_send_limit && (sentToday.get(cid) ?? 0) >= campaign.daily_send_limit) {
+      await supabaseAdmin.from("enterprise_campaign_enrollments")
+        .update({ next_send_at: nextWindowOpen(campaign, new Date(now.getTime() + 86_400_000)).toISOString() })
+        .eq("id", e.id as string);
+      return;
+    }
 
     // Send window: outside the campaign's local-time window (or on a weekend
     // when business-days-only), park the enrollment until the window opens.
@@ -225,10 +253,15 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    // Advance to the next step (or complete).
+    // Count this send toward the campaign's daily cap.
+    sentToday.set(cid, (sentToday.get(cid) ?? 0) + 1);
+
+    // Advance to the next step (or complete). A jitter of 0..N hours makes the
+    // next send look less machine-timed.
     const nextStep = steps.find((s) => s.step_order === stepOrder + 1);
     if (nextStep) {
-      const nextAt = new Date(now.getTime() + Math.max(0, nextStep.delay_days || 0) * 86_400_000).toISOString();
+      const jitterMs = Math.floor(Math.random() * Math.max(0, campaign.send_jitter_hours ?? 0) * 3_600_000);
+      const nextAt = new Date(now.getTime() + Math.max(0, nextStep.delay_days || 0) * 86_400_000 + jitterMs).toISOString();
       await supabaseAdmin
         .from("enterprise_campaign_enrollments")
         .update({ current_step_order: stepOrder + 1, next_send_at: nextAt, last_sent_at: now.toISOString() })

@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
   const g = await guard(id);
   if (g.error) return g.error;
   const { data } = await supabaseAdmin
-    .from("enterprise_campaigns").select("track_opens, dedup_days, allow_unverified, mailbox_strategy, mailbox_id").eq("id", id).eq("org_id", g.org.id).maybeSingle();
+    .from("enterprise_campaigns").select("track_opens, dedup_days, allow_unverified, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours").eq("id", id).eq("org_id", g.org.id).maybeSingle();
   return NextResponse.json({ data });
 }
 
@@ -43,6 +43,11 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
   if (body.mailbox_strategy === "auto" || body.mailbox_strategy === "fixed") update.mailbox_strategy = body.mailbox_strategy;
   if ("mailbox_id" in body) update.mailbox_id = typeof body.mailbox_id === "string" && body.mailbox_id ? body.mailbox_id : null;
+  if ("daily_send_limit" in body) update.daily_send_limit = typeof body.daily_send_limit === "number" && body.daily_send_limit > 0 ? Math.floor(body.daily_send_limit) : null;
+  if (typeof body.send_jitter_hours === "number") update.send_jitter_hours = Math.max(0, Math.min(48, Math.floor(body.send_jitter_hours)));
+  if (Array.isArray(body.holidays)) {
+    update.holidays = body.holidays.filter((d: unknown): d is string => typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d)).slice(0, 60);
+  }
   if (Object.keys(update).length === 1) return NextResponse.json({ error: "Nothing to update." }, { status: 400 });
   await supabaseAdmin.from("enterprise_campaigns").update(update).eq("id", id).eq("org_id", g.org.id);
   return NextResponse.json({ ok: true });
