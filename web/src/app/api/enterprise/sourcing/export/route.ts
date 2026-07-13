@@ -79,7 +79,10 @@ export async function GET(req: NextRequest) {
         csvEscape(unlocked ? emails[0]?.value ?? "" : ""),
         csvEscape(unlocked ? emails[0]?.verification_status ?? "" : ""),
         csvEscape(unlocked ? phones[0]?.value ?? "" : ""),
-        csvEscape(ext.linkedin_url),
+        // LinkedIn is a reachable channel — only export it once the profile is
+        // unlocked (paid). Locked rows export a blank so no un-paid contact
+        // channel ever leaves the system.
+        csvEscape(unlocked ? ext.linkedin_url ?? "" : ""),
         csvEscape(ext.provider_key),
         csvEscape(ext.collected_at),
         csvEscape(r.fit_reason),

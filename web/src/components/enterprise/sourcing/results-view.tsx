@@ -33,6 +33,7 @@ export interface RunResultRow {
     github_url: string | null;
     has_email: boolean | null;
     has_phone: boolean | null;
+    has_linkedin?: boolean | null;
     emails: { value: string; verification_status?: string }[];
     phones: { value: string }[];
     profile_unlocked: boolean;
@@ -118,6 +119,11 @@ function ContactAvailability({ row }: { row: RunResultRow }) {
             <Phone className="h-3 w-3" /> {ext.phones[0].value}
           </span>
         )}
+        {ext.linkedin_url && (
+          <a href={ext.linkedin_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-emerald-400 hover:underline">
+            <ExternalLink className="h-3 w-3" /> Profile
+          </a>
+        )}
       </span>
     );
   }
@@ -129,6 +135,11 @@ function ContactAvailability({ row }: { row: RunResultRow }) {
       <span className={cn("inline-flex items-center gap-1", ext.has_phone ? "font-medium text-green-500" : "opacity-55")}>
         <Phone className="h-3.5 w-3.5" /> {ext.has_phone ? "Phone available" : "No phone"}
       </span>
+      {ext.has_linkedin && (
+        <span className="inline-flex items-center gap-1 font-medium text-green-500">
+          <ExternalLink className="h-3.5 w-3.5" /> Profile available
+        </span>
+      )}
     </span>
   );
 }
