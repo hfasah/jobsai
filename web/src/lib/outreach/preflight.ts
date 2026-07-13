@@ -102,12 +102,23 @@ export async function preflightCampaign(orgId: string, campaignId: string): Prom
   // verified/likely-valid email. valid/risky are safe to send; the rest risk
   // bouncing and hurt sender reputation.
   if (enrolled > 0) {
-    const unverified = enrollRows.filter((e) => e.email_status !== "valid" && e.email_status !== "risky").length;
-    checks.push(
-      unverified > 0
-        ? { key: "deliverability", label: "Email deliverability", status: "warn", detail: `${unverified} of ${enrolled} enrolled ${unverified === 1 ? "email is" : "emails are"} unverified — verify them to avoid bounces.` }
-        : { key: "deliverability", label: "Email deliverability", status: "pass", detail: "All enrolled emails are verified or likely valid." },
-    );
+    // Invalid addresses are auto-skipped at send (never emailed), so they're not
+    // a bounce risk — call that out separately from genuinely unverified ones.
+    const invalid = enrollRows.filter((e) => e.email_status === "invalid").length;
+    const unverified = enrollRows.filter((e) => e.email_status !== "valid" && e.email_status !== "risky" && e.email_status !== "invalid").length;
+    if (invalid > 0 || unverified > 0) {
+      const parts: string[] = [];
+      if (invalid > 0) parts.push(`${invalid} invalid (auto-skipped)`);
+      if (unverified > 0) parts.push(`${unverified} unverified`);
+      checks.push({
+        key: "deliverability",
+        label: "Email deliverability",
+        status: "warn",
+        detail: `${parts.join(", ")} of ${enrolled} — invalid addresses are skipped automatically; verify the rest to avoid bounces.`,
+      });
+    } else {
+      checks.push({ key: "deliverability", label: "Email deliverability", status: "pass", detail: "All enrolled emails are verified or likely valid." });
+    }
   }
 
   // 5. Sending identity: a usable org domain mailbox, or a connected personal
