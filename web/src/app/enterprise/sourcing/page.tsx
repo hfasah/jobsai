@@ -5,18 +5,20 @@
 // Talent Rediscovery, unchanged), and Combined. Global/Combined are gated on
 // the global_sourcing entitlement with an upgrade CTA.
 import { useEffect, useState } from "react";
-import { Globe, Database, Layers, Sparkles, Lock } from "lucide-react";
+import { Globe, Database, Layers, Sparkles, Lock, Users } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import InternalRediscovery from "@/components/enterprise/sourcing/internal-rediscovery";
 import GlobalSourcing from "@/components/enterprise/sourcing/global-sourcing";
+import LeadsLibrary from "@/components/enterprise/sourcing/leads-library";
 
-type Mode = "global" | "internal" | "combined";
+type Mode = "global" | "internal" | "combined" | "leads";
 
 const MODES: { key: Mode; label: string; icon: typeof Globe; blurb: string }[] = [
   { key: "global",   label: "Global",       icon: Globe,    blurb: "Search external talent sources worldwide" },
   { key: "internal", label: "Internal CRM", icon: Database, blurb: "Rediscover candidates already in your database" },
   { key: "combined", label: "Combined",     icon: Layers,   blurb: "External + internal in one ranked view" },
+  { key: "leads",    label: "My Leads",     icon: Users,    blurb: "Your revealed, owned lead inventory" },
 ];
 
 export default function SourcingPage() {
@@ -52,7 +54,7 @@ export default function SourcingPage() {
         </div>
 
         {/* Mode tabs */}
-        <div className="mb-6 grid grid-cols-3 gap-2">
+        <div className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
           {MODES.map((m) => {
             const active = mode === m.key;
             const locked = m.key !== "internal" && features !== null && !features.includes("global_sourcing");
@@ -80,7 +82,11 @@ export default function SourcingPage() {
         {mode === "internal" ? (
           <InternalRediscovery />
         ) : hasGlobal ? (
-          <GlobalSourcing mode={mode === "combined" ? "combined" : "external"} />
+          mode === "leads" ? (
+            <LeadsLibrary />
+          ) : (
+            <GlobalSourcing mode={mode === "combined" ? "combined" : "external"} />
+          )
         ) : (
           <div className="rounded-2xl border border-dashed border-border py-14 text-center">
             <Globe className="mx-auto mb-3 h-10 w-10 text-muted-foreground/30" />
