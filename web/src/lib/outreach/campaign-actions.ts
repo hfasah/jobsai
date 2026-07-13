@@ -4,8 +4,9 @@
 import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
-import { emailFromName } from "@/lib/email-utils";
+import { emailFromName, wrapEmail } from "@/lib/email-utils";
 import { getOrCreateIntakePool } from "@/lib/enterprise-intake-inbox";
+import { renderTemplate, firstName, type CampaignVars } from "@/lib/campaigns";
 
 // Create an ATS application for a candidate (on the job they were sourced for,
 // or the intake pool), deduped by org + email. Returns the application id.
@@ -74,4 +75,49 @@ export async function enrollInCampaign(orgId: string, targetCampaignId: string, 
     .insert({ campaign_id: targetCampaignId, org_id: orgId, candidate_name: name ?? lower.split("@")[0], candidate_email: lower, candidate_source: "subsequence", status: "active", current_step_order: 0, next_send_at: nextSendAt, enrolled_by: enrolledBy })
     .select("id").single();
   return (enrollment as { id: string } | null)?.id ?? null;
+}
+
+// Send a one-off email to a candidate (white-label, from the org's default
+// sender). Subject/body support the standard {{vars}}. Best-effort — returns
+// whether it sent. Used by the send_email subsequence action.
+export async function sendOneOffEmail(orgId: string, email: string, name: string | null, subject: string, body: string): Promise<boolean> {
+  if (!subject.trim() || !body.trim()) return false;
+  const { data: org } = await supabaseAdmin
+    .from("enterprise_orgs").select("name, show_powered_by, white_label_email_from").eq("id", orgId).maybeSingle();
+  const orgName = (org as { name?: string } | null)?.name ?? "Recruiting";
+  const showPoweredBy = (org as { show_powered_by?: boolean } | null)?.show_powered_by ?? true;
+  const fromName = emailFromName(orgName, (org as { white_label_email_from?: string | null } | null)?.white_label_email_from ?? null);
+  const vars: CampaignVars = {
+    candidate_name: name ?? email.split("@")[0],
+    first_name: firstName(name ?? email.split("@")[0]),
+    job_title: "our open role",
+    org_name: orgName,
+    sender_name: `${orgName} Recruiting`,
+  };
+  const html = wrapEmail(`<p>${renderTemplate(body, vars).replace(/\n/g, "<br>")}</p>`, showPoweredBy);
+  try {
+    await resend.emails.send({ from: `${fromName} <support@jobsai.work>`, to: email, subject: renderTemplate(subject, vars), html });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Append a tag to the candidate's application(s) in the org (deduped). Best-
+// effort — returns how many rows were tagged (0 if the candidate has no
+// application yet). Used by the add_tag subsequence action.
+export async function addTagToCandidate(orgId: string, email: string, tag: string): Promise<number> {
+  const clean = tag.trim();
+  if (!clean) return 0;
+  const { data: apps } = await supabaseAdmin
+    .from("enterprise_applications").select("id, tags").eq("org_id", orgId).ilike("candidate_email", email.toLowerCase());
+  const rows = (apps ?? []) as { id: string; tags: string[] | null }[];
+  let tagged = 0;
+  for (const app of rows) {
+    const tags = app.tags ?? [];
+    if (tags.includes(clean)) continue;
+    const { error } = await supabaseAdmin.from("enterprise_applications").update({ tags: [...tags, clean] }).eq("id", app.id).eq("org_id", orgId);
+    if (!error) tagged++;
+  }
+  return tagged;
 }

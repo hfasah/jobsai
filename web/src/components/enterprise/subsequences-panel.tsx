@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { Workflow, Loader2, X, Plus, Trash2, ArrowRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface Action { type: string; config?: { campaign_id?: string } }
+interface Action { type: string; config?: { campaign_id?: string; subject?: string; body?: string; tag?: string } }
 interface Rule { id: string; name: string; trigger_type: string; trigger_config: { category?: string }; actions: Action[]; enabled: boolean }
 interface CampaignOpt { id: string; name: string }
 
@@ -22,6 +22,8 @@ const ACTIONS = [
   { key: "notify_recruiter", label: "Notify the team" },
   { key: "move_to_pipeline", label: "Move to ATS pipeline" },
   { key: "add_to_campaign", label: "Add to another campaign" },
+  { key: "send_email", label: "Send an email" },
+  { key: "add_tag", label: "Tag the candidate" },
 ];
 const TRIGGER_LABEL: Record<string, string> = { reply_category: "Reply", sequence_completed: "Sequence completed" };
 
@@ -39,6 +41,9 @@ export default function SubsequencesPanel({ campaignId, campaignName, onClose, e
   const [category, setCategory] = useState("interested");
   const [actionTypes, setActionTypes] = useState<Set<string>>(new Set(["notify_recruiter"]));
   const [targetCampaign, setTargetCampaign] = useState("");
+  const [emailSubject, setEmailSubject] = useState("");
+  const [emailBody, setEmailBody] = useState("");
+  const [tag, setTag] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -52,8 +57,15 @@ export default function SubsequencesPanel({ campaignId, campaignName, onClose, e
     setError(null);
     if (!name.trim()) { setError("Name the rule."); return; }
     if (actionTypes.size === 0) { setError("Pick at least one action."); return; }
-    const actions: Action[] = [...actionTypes].map((t) => t === "add_to_campaign" ? { type: t, config: { campaign_id: targetCampaign } } : { type: t });
     if (actionTypes.has("add_to_campaign") && !targetCampaign) { setError("Pick the campaign to add them to."); return; }
+    if (actionTypes.has("send_email") && !(emailSubject.trim() && emailBody.trim())) { setError("Give the email a subject and body."); return; }
+    if (actionTypes.has("add_tag") && !tag.trim()) { setError("Enter the tag to apply."); return; }
+    const actions: Action[] = [...actionTypes].map((t) => {
+      if (t === "add_to_campaign") return { type: t, config: { campaign_id: targetCampaign } };
+      if (t === "send_email") return { type: t, config: { subject: emailSubject.trim(), body: emailBody.trim() } };
+      if (t === "add_tag") return { type: t, config: { tag: tag.trim() } };
+      return { type: t };
+    });
     setSaving(true);
     const res = await fetch(base, {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -63,7 +75,7 @@ export default function SubsequencesPanel({ campaignId, campaignName, onClose, e
     if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Could not save."); return; }
     const j = await res.json();
     setRules((r) => [...r, j.data]);
-    setName(""); setActionTypes(new Set(["notify_recruiter"])); setTargetCampaign(""); setAdding(false);
+    setName(""); setActionTypes(new Set(["notify_recruiter"])); setTargetCampaign(""); setEmailSubject(""); setEmailBody(""); setTag(""); setAdding(false);
   };
 
   const remove = async (id: string) => {
@@ -146,6 +158,15 @@ export default function SubsequencesPanel({ campaignId, campaignName, onClose, e
                       <option value="">Select a campaign…</option>
                       {campaigns.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
                     </select>
+                  )}
+                  {actionTypes.has("send_email") && (
+                    <div className="mt-1 space-y-1 rounded-lg border border-border p-2">
+                      <input value={emailSubject} onChange={(e) => setEmailSubject(e.target.value)} placeholder="Email subject" className="w-full rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                      <textarea value={emailBody} onChange={(e) => setEmailBody(e.target.value)} rows={3} placeholder="Email body — supports {{first_name}}, {{org_name}}…" className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+                    </div>
+                  )}
+                  {actionTypes.has("add_tag") && (
+                    <input value={tag} onChange={(e) => setTag(e.target.value)} placeholder="Tag to apply (e.g. warm-lead)" className="mt-1 w-full rounded-lg border border-border bg-background px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
                   )}
                 </div>
               </div>

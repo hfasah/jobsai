@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft, ArrowRight, Loader2, Check, Bot, X, Wand2,
-  Users, Search, CircleCheck, CircleAlert, CircleDot, Rocket, Mail, Clock,
+  Users, Search, CircleCheck, CircleAlert, CircleDot, Rocket, Mail, Clock, ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -14,6 +14,7 @@ import {
 } from "@/components/enterprise/campaign-builder";
 import AiSdrPanel from "@/components/enterprise/ai-sdr-panel";
 import GlobalSourcing from "@/components/enterprise/sourcing/global-sourcing";
+import TalentPoolPicker from "@/components/enterprise/talent-pool-picker";
 import { validateSteps, type CampaignPreset } from "@/lib/campaigns";
 
 const STEPS = ["Setup", "Audience", "Sequence", "AI replies", "Review"] as const;
@@ -80,6 +81,7 @@ export default function CampaignWizard({
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audience, setAudience] = useState<AudienceData | null>(null);
+  const [poolOpen, setPoolOpen] = useState(false);
   const [pilot, setPilot] = useState<{ on: boolean; size: number }>({ on: false, size: 25 });
   const [schedule, setSchedule] = useState<{ on: boolean; at: string }>({ on: false, at: "" });
 
@@ -399,6 +401,22 @@ export default function CampaignWizard({
                 campaignContext={{ id: campaignId, name: draft.name || "this campaign" }}
                 onEnrolled={() => loadAudience(campaignId)}
               />
+            </div>
+
+            {/* Or pull from candidates you already have */}
+            <div className="rounded-2xl border border-border">
+              <button
+                onClick={() => setPoolOpen((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium"><Users className="h-4 w-4 text-primary" /> Add from your talent pool</span>
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", poolOpen && "rotate-180")} />
+              </button>
+              {poolOpen && (
+                <div className="border-t border-border">
+                  <TalentPoolPicker campaignId={campaignId} onEnrolled={() => loadAudience(campaignId)} />
+                </div>
+              )}
             </div>
 
             {audience && audience.enrollments.length > 0 && (
