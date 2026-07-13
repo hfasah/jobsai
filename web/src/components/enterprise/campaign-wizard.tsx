@@ -92,8 +92,8 @@ export default function CampaignWizard({
       objective: objective || undefined,
       status: activate ? "active" : "draft",
       ...(activate && pilot.on ? { pilot_size: pilot.size } : {}),
-      steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body }) => ({
-        delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body,
+      steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body, skip_if_in_pipeline }) => ({
+        delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body, skip_if_in_pipeline,
       })),
       send_window: w.enabled
         ? { start: w.start, end: w.end, timezone: w.timezone, business_days_only: w.business_days_only }

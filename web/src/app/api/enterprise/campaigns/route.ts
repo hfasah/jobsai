@@ -110,6 +110,7 @@ export async function POST(req: NextRequest) {
     ai_prompt: s.ai_prompt?.trim() || null,
     ab_subject: s.ab_subject?.trim() || null,
     ab_body: s.ab_body?.trim() || null,
+    skip_if_in_pipeline: !!s.skip_if_in_pipeline,
   }));
   const { error: stepErr2 } = await supabaseAdmin.from("enterprise_campaign_steps").insert(stepRows);
   if (stepErr2) {

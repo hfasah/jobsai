@@ -60,7 +60,7 @@ export function draftFromCampaign(c: {
   name: string; description: string | null;
   send_window_start?: number | null; send_window_end?: number | null;
   send_timezone?: string | null; business_days_only?: boolean;
-  steps: { delay_days: number; subject: string; body: string; ai_personalize: boolean; ai_prompt: string | null; ab_subject?: string | null; ab_body?: string | null }[];
+  steps: { delay_days: number; subject: string; body: string; ai_personalize: boolean; ai_prompt: string | null; ab_subject?: string | null; ab_body?: string | null; skip_if_in_pipeline?: boolean }[];
 }): CampaignDraft {
   const win = defaultWindow();
   return {
@@ -75,6 +75,7 @@ export function draftFromCampaign(c: {
       ai_prompt: s.ai_prompt ?? "",
       ab_subject: s.ab_subject ?? "",
       ab_body: s.ab_body ?? "",
+      skip_if_in_pipeline: s.skip_if_in_pipeline ?? false,
     })),
     sendWindow: {
       enabled: c.send_window_start != null && c.send_window_end != null,
@@ -349,6 +350,22 @@ export function CampaignBuilder({
                   </div>
                 );
               })()}
+
+              {/* Condition: skip follow-ups for candidates already progressed */}
+              {i > 0 && (
+                <label className="mt-2 flex cursor-pointer items-start gap-2.5 rounded-xl border border-border p-2.5">
+                  <input
+                    type="checkbox"
+                    checked={!!step.skip_if_in_pipeline}
+                    onChange={(e) => patchStep(i, { skip_if_in_pipeline: e.target.checked })}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-primary"
+                  />
+                  <span className="text-sm">
+                    <span className="font-medium">Skip if already in pipeline</span>
+                    <span className="ml-1.5 text-xs text-muted-foreground">Don&apos;t send this step to a candidate who already has an application in your pipeline.</span>
+                  </span>
+                </label>
+              )}
             </div>
           );
         })}
