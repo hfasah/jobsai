@@ -67,6 +67,7 @@ async function pdlFetch<T>(
 function buildQuery(f: SourcingFilters): Record<string, unknown> {
   const must: unknown[] = [];
   const must_not: unknown[] = [];
+  const should: unknown[] = []; // relevance boosts (optional matches), never required
 
   if (f.titles.length) {
     if (f.title_operator === "is_all_of") {
@@ -132,12 +133,18 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
     must.push({ terms: { job_company_size: f.company_sizes } });
   }
 
-  // Seniority / management level and department / function (PDL enums).
+  // Seniority (job_title_levels) and department (job_title_role) are dense on
+  // their own but PDL doesn't tag them consistently against a free-text job
+  // title — so hard-AND-ing them with a title collapses to 0 results. When the
+  // recruiter already has an identity criterion (title/skill), apply these as a
+  // relevance BOOST (should) so they refine ranking without zeroing the set;
+  // used on their own they hard-filter (must).
+  const hasIdentityCriteria = f.titles.length > 0 || f.skills_any.length > 0 || f.skills_all.length > 0;
   if (f.seniority.length) {
-    must.push({ terms: { job_title_levels: f.seniority.map((s) => s.toLowerCase()) } });
+    (hasIdentityCriteria ? should : must).push({ terms: { job_title_levels: f.seniority.map((s) => s.toLowerCase()) } });
   }
   if (f.job_functions.length) {
-    must.push({ terms: { job_title_role: f.job_functions.map((r) => r.toLowerCase()) } });
+    (hasIdentityCriteria ? should : must).push({ terms: { job_title_role: f.job_functions.map((r) => r.toLowerCase()) } });
   }
 
   if (f.schools.length) {
@@ -157,7 +164,7 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
   // and can't be deduped reliably — require one.
   must.push({ exists: { field: "linkedin_url" } });
 
-  return { bool: { must, must_not } };
+  return { bool: { must, must_not, ...(should.length ? { should } : {}) } };
 }
 
 function firstEmail(p: PdlPerson): string | null {

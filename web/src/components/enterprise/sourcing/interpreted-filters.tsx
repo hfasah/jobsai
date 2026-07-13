@@ -4,12 +4,12 @@
 // search execution. Chips are add/removable; the search only runs after the
 // recruiter confirms.
 import { useEffect, useRef, useState } from "react";
-import { Plus, X, ShieldAlert, SlidersHorizontal } from "lucide-react";
+import { Plus, X, ShieldAlert, SlidersHorizontal, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoreWeights, SourcingFilters, SourcingLocation } from "@/lib/sourcing/types";
 import { DEFAULT_WEIGHTS, COMPANY_SIZES, SENIORITY_LEVELS, JOB_FUNCTIONS } from "@/lib/sourcing/types";
 import {
-  TITLE_SUGGESTIONS, SKILL_SUGGESTIONS, INDUSTRY_SUGGESTIONS, COUNTRY_SUGGESTIONS, suggestFor,
+  TITLE_SUGGESTIONS, SKILL_SUGGESTIONS, INDUSTRY_SUGGESTIONS, COUNTRY_SUGGESTIONS,
 } from "@/lib/sourcing/suggestions";
 
 function ChipEditor({
@@ -40,16 +40,23 @@ function ChipEditor({
     setHighlight(0);
   };
 
-  // Suggestions: filtered as you type. On empty focus we only show a short
-  // "browse" starter list when the field is still empty — once a value is picked
-  // (e.g. "Paralegal"), an unrelated generic dump is noise, so we require typing.
-  const suggestions = suggestionList
-    ? draft.trim()
-      ? suggestFor(suggestionList, draft, values)
-      : values.length === 0
-        ? suggestionList.slice(0, 8)
-        : []
+  const has = (val: string) => values.some((x) => x.toLowerCase() === val.toLowerCase());
+  const toggle = (val: string) => {
+    const v = val.trim();
+    if (!v) return;
+    if (has(v)) onChange(values.filter((x) => x.toLowerCase() !== v.toLowerCase()));
+    else onChange([...values, v]);
+  };
+
+  // Browsable catalog: the whole suggestion list (checkable), filtered by what
+  // you type. Selected items stay in the list (checked), so you can un-check
+  // them. Capped so the dropdown scrolls instead of rendering thousands.
+  const q = draft.trim().toLowerCase();
+  const browse = suggestionList
+    ? suggestionList.filter((s) => !q || s.toLowerCase().includes(q)).slice(0, 60)
     : [];
+  const exactInList = !!suggestionList?.some((s) => s.toLowerCase() === q);
+  const showAddCustom = q.length > 0 && !exactInList && !has(draft.trim());
 
   useEffect(() => {
     const onClick = (e: MouseEvent) => { if (boxRef.current && !boxRef.current.contains(e.target as Node)) setOpen(false); };
@@ -60,11 +67,11 @@ function ChipEditor({
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
       e.preventDefault();
-      if (open && suggestions[highlight]) addValue(suggestions[highlight]);
+      if (open && browse[highlight]) toggle(browse[highlight]);
       else addValue(draft);
-    } else if (e.key === "ArrowDown" && suggestions.length) {
-      e.preventDefault(); setOpen(true); setHighlight((h) => Math.min(h + 1, suggestions.length - 1));
-    } else if (e.key === "ArrowUp" && suggestions.length) {
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault(); setOpen(true); setHighlight((h) => Math.min(h + 1, Math.max(0, browse.length - 1)));
+    } else if (e.key === "ArrowUp") {
       e.preventDefault(); setHighlight((h) => Math.max(h - 1, 0));
     } else if (e.key === "Escape") {
       setOpen(false);
@@ -101,6 +108,7 @@ function ChipEditor({
             className="w-32 rounded-full border border-dashed border-border bg-transparent px-2.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
           />
           <button
+            type="button"
             onClick={() => (draft.trim() ? addValue(draft) : setOpen((o) => !o))}
             className="rounded-full p-0.5 text-muted-foreground hover:text-foreground"
             aria-label="Add or browse"
@@ -108,21 +116,41 @@ function ChipEditor({
             <Plus className="h-3.5 w-3.5" />
           </button>
 
-          {open && suggestions.length > 0 && (
-            <div className="absolute left-0 top-7 z-40 max-h-52 w-52 overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-2xl">
-              {suggestions.map((s, i) => (
+          {/* Browsable, searchable checkbox list (when the field has a catalog). */}
+          {open && suggestionList && (browse.length > 0 || showAddCustom) && (
+            <div className="absolute left-0 top-7 z-40 max-h-64 w-60 overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-2xl">
+              {showAddCustom && (
                 <button
-                  key={s}
-                  onMouseEnter={() => setHighlight(i)}
-                  onClick={() => addValue(s)}
-                  className={cn(
-                    "block w-full truncate rounded-lg px-2 py-1 text-left text-xs",
-                    i === highlight ? "bg-primary/10 text-primary" : "text-foreground hover:bg-muted/50",
-                  )}
+                  type="button"
+                  onClick={() => addValue(draft)}
+                  className="mb-1 flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-primary hover:bg-primary/10"
                 >
-                  {s}
+                  <Plus className="h-3 w-3" /> Add &ldquo;{draft.trim()}&rdquo;
                 </button>
-              ))}
+              )}
+              {browse.map((s, i) => {
+                const checked = has(s);
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onMouseEnter={() => setHighlight(i)}
+                    onClick={() => toggle(s)}
+                    className={cn(
+                      "flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs",
+                      i === highlight ? "bg-muted/60" : "hover:bg-muted/40",
+                    )}
+                  >
+                    <span className={cn(
+                      "flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded border",
+                      checked ? "border-primary bg-primary text-white" : "border-border",
+                    )}>
+                      {checked && <Check className="h-2.5 w-2.5" />}
+                    </span>
+                    <span className={cn("truncate", checked ? "text-primary" : "text-foreground")}>{s}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </span>
