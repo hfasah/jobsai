@@ -3,8 +3,15 @@
 // (including any sensitive-trait criterion an LLM or client might smuggle in)
 // is silently dropped before a provider ever sees it.
 import { dedupeStrings } from "./normalize";
-import { COMPANY_SIZE_VALUES } from "./types";
+import { COMPANY_SIZE_VALUES, SENIORITY_VALUES, JOB_FUNCTION_VALUES } from "./types";
 import type { FilterOperator, SourcingFilters, SourcingLocation } from "./types";
+
+// Enum-whitelist a list against a set of allowed values (lowercased).
+function enumList(v: unknown, allowed: string[]): string[] {
+  if (!Array.isArray(v)) return [];
+  const set = new Set(allowed);
+  return [...new Set(v.filter((x): x is string => typeof x === "string").map((s) => s.trim().toLowerCase()).filter((s) => set.has(s)))];
+}
 
 const OPERATORS: FilterOperator[] = ["is_any_of", "is_all_of", "is_not_any_of", "contains"];
 const MAX_LIST = 25;
@@ -56,6 +63,8 @@ export function emptyFilters(): SourcingFilters {
     companies_include: [],
     companies_exclude: [],
     company_sizes: [],
+    seniority: [],
+    job_functions: [],
     education_levels: [],
     schools: [],
     languages: [],
@@ -96,6 +105,8 @@ export function sanitizeFilters(input: unknown): SourcingFilters {
   f.companies_exclude = strList(raw.companies_exclude);
   // Only accept known headcount buckets (drops anything an LLM/client invents).
   f.company_sizes = strList(raw.company_sizes).filter((s) => COMPANY_SIZE_VALUES.includes(s));
+  f.seniority = enumList(raw.seniority, SENIORITY_VALUES);
+  f.job_functions = enumList(raw.job_functions, JOB_FUNCTION_VALUES);
   f.education_levels = strList(raw.education_levels);
   f.schools = strList(raw.schools);
   f.languages = strList(raw.languages);

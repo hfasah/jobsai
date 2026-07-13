@@ -28,6 +28,8 @@ Return ONLY a JSON object with these keys (omit none; use [] / null / false when
   "companies_include": ["current/previous employers to require"],
   "companies_exclude": [],
   "company_sizes": ["headcount buckets; use ONLY these exact values: 1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5001-10000, 10001+"],
+  "seniority": ["management level; use ONLY these exact values: entry, senior, manager, director, vp, cxo, owner, partner"],
+  "job_functions": ["department/function; use ONLY these exact values: legal, health, finance, sales, marketing, human_resources, operations, engineering, product, design, education, research, support, trade, manufacturing, analyst, advisory, public_service"],
   "education_levels": [],
   "schools": [],
   "languages": [],
@@ -39,7 +41,8 @@ Return ONLY a JSON object with these keys (omit none; use [] / null / false when
 
 Rules:
 - Expand common synonyms into titles/skills (e.g. "K8s" -> "Kubernetes"; "SRE" adds "Site Reliability Engineer").
-- Seniority words ("senior", "lead") belong inside titles, and may set experience_years_min (senior ~5, lead/staff ~7) only when the query implies it.
+- Map seniority words to the "seniority" field ("senior"->senior, "lead"/"principal"/"staff"->senior, "manager"->manager, "director"/"head of"->director, "VP"->vp, "C-level"/"CEO"/"CTO"/"chief"->cxo, "founder"/"owner"->owner). Keep the title itself clean (don't also stuff "Senior" into titles). May additionally set experience_years_min when clearly implied (senior ~5, lead/staff ~7).
+- Map a stated field/department to "job_functions" (e.g. "legal"->legal, "nursing"/"clinical"->health, "accounting"->finance, "devs"/"software"->engineering) ONLY when the query names a function/department, not just a single specific title.
 - Countries/cities in lowercase English names.
 - NEVER filter or infer race, ethnicity, religion, gender, age (beyond years of professional experience), disability, health, sexual orientation, political views, or any other protected trait. If asked, put the request in dropped_criteria and continue without it.
 - Do not invent criteria the recruiter didn't state.`;

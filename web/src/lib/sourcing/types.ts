@@ -29,6 +29,8 @@ export interface SourcingFilters {
   companies_include: string[];
   companies_exclude: string[];
   company_sizes: string[]; // headcount buckets (PDL job_company_size values)
+  seniority: string[];     // management/seniority levels (PDL job_title_levels)
+  job_functions: string[]; // department / function (PDL job_title_role)
   education_levels: string[];
   schools: string[];
   languages: string[];
@@ -150,6 +152,42 @@ export const COMPANY_SIZES: { value: string; label: string }[] = [
   { value: "10001+", label: "10,001+" },
 ];
 export const COMPANY_SIZE_VALUES = COMPANY_SIZES.map((s) => s.value);
+
+// Seniority / management level — maps to PDL `job_title_levels`.
+export const SENIORITY_LEVELS: { value: string; label: string }[] = [
+  { value: "entry", label: "Entry / Individual contributor" },
+  { value: "senior", label: "Senior" },
+  { value: "manager", label: "Manager" },
+  { value: "director", label: "Director" },
+  { value: "vp", label: "VP" },
+  { value: "cxo", label: "C-level / Executive" },
+  { value: "owner", label: "Owner" },
+  { value: "partner", label: "Partner" },
+];
+export const SENIORITY_VALUES = SENIORITY_LEVELS.map((s) => s.value);
+
+// Department / job function — maps to PDL `job_title_role`.
+export const JOB_FUNCTIONS: { value: string; label: string }[] = [
+  { value: "legal", label: "Legal" },
+  { value: "health", label: "Healthcare" },
+  { value: "finance", label: "Finance & Accounting" },
+  { value: "sales", label: "Sales" },
+  { value: "marketing", label: "Marketing" },
+  { value: "human_resources", label: "Human Resources" },
+  { value: "operations", label: "Operations" },
+  { value: "engineering", label: "Engineering" },
+  { value: "product", label: "Product" },
+  { value: "design", label: "Design & Creative" },
+  { value: "education", label: "Education" },
+  { value: "research", label: "Research" },
+  { value: "support", label: "Customer Support" },
+  { value: "trade", label: "Skilled Trades" },
+  { value: "manufacturing", label: "Manufacturing" },
+  { value: "analyst", label: "Analyst" },
+  { value: "advisory", label: "Advisory / Consulting" },
+  { value: "public_service", label: "Public Service" },
+];
+export const JOB_FUNCTION_VALUES = JOB_FUNCTIONS.map((f) => f.value);
 
 // Credits
 export type CreditAction = "search" | "unlock_profile" | "reveal_email" | "reveal_phone" | "enrich";
