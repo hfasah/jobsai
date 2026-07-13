@@ -70,6 +70,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (outcome.status === "needs_email") {
     return NextResponse.json({ error: "Reveal the candidate's email before importing.", needs_email: true }, { status: 409 });
   }
+  if (outcome.status === "do_not_contact") {
+    return NextResponse.json({ error: "This person is on your Do-Not-Contact list — can't enrol them.", do_not_contact: true }, { status: 409 });
+  }
   if (outcome.status === "duplicate_confirm") {
     return NextResponse.json({ data: { status: "duplicate_confirm", verdict: outcome.verdict } });
   }

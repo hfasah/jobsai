@@ -95,6 +95,10 @@ export default function ImportDialog({
           setError("Reveal this candidate's email first — imports need a contact email.");
           return;
         }
+        if (res.status === 409 && json.do_not_contact) {
+          setError("This person is on your Do-Not-Contact list — can't enrol them.");
+          return;
+        }
         if (!res.ok) { setError(json.error ?? "Import failed."); return; }
         if (json.data.status === "duplicate_confirm") {
           setDupMatches(json.data.verdict?.matches ?? []);
@@ -127,6 +131,7 @@ export default function ImportDialog({
           s.merged ? `${s.merged} merged` : null,
           s.duplicates ? `${s.duplicates} duplicates skipped` : null,
           s.needs_email ? `${s.needs_email} need a revealed email` : null,
+          s.do_not_contact ? `${s.do_not_contact} on do-not-contact` : null,
           s.errors ? `${s.errors} failed` : null,
         ].filter(Boolean);
         onDone(revealPrefix + (parts.join(", ") || "Nothing to import."));

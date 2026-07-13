@@ -43,6 +43,7 @@ export default function UnlockContactButton({
       const json = await res.json().catch(() => ({}));
       if (res.status === 402) { setNotice(json.daily_cap ? "Daily credit cap reached." : `Not enough credits (balance ${json.balance}).`); return; }
       if (res.status === 404 && json.no_data) { setNotice("No contact data found — no credits charged."); return; }
+      if (res.status === 409 && json.do_not_contact) { setNotice("On your Do-Not-Contact list — not unlocked, no charge."); return; }
       if (!res.ok) { setNotice(json.error ?? "Unlock failed."); return; }
       const d = json.data ?? {};
       onUnlocked({ resultId, email: d.email ?? null, email_verification: d.email_verification ?? null, phone: d.phone ?? null, linkedin_url: d.linkedin_url ?? null });

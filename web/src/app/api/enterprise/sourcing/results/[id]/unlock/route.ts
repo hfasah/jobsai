@@ -8,6 +8,7 @@ import { audit } from "@/lib/enterprise-audit";
 import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
 import { spendCredits, refundCredits, getCreditCosts, ensureMonthlyGrant } from "@/lib/sourcing/credits";
 import { normEmail } from "@/lib/sourcing/normalize";
+import { isEmailSuppressed } from "@/lib/outreach/suppression";
 import type { EmailVerificationStatus, RevealResult } from "@/lib/sourcing/types";
 
 export const maxDuration = 30;
@@ -118,6 +119,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       update.has_phone = true;
       gotPhone = true;
     }
+  }
+
+  // Do-Not-Contact: never monetize a suppressed address. Flag the candidate and
+  // bail before charging (nothing persisted, cached payload avoids a re-bill).
+  if (emailValue && await isEmailSuppressed(org.id, emailValue)) {
+    await supabaseAdmin.from("sourcing_external_candidates").update({ suppressed: true, updated_at: new Date().toISOString() }).eq("id", c.id).eq("org_id", org.id);
+    return NextResponse.json({ error: "This person is on your Do-Not-Contact list — not unlocked, no credits charged.", do_not_contact: true }, { status: 409 });
   }
 
   // Nothing usable and nothing previously unlocked → no charge, no unlock.
