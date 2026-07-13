@@ -118,7 +118,7 @@ function normalize(p: ApolloPerson): ExternalCandidate {
     company: p.organization?.name ?? null,
     company_size: p.organization?.estimated_num_employees != null ? String(p.organization.estimated_num_employees) : null,
     location_country: p.country ?? null,
-    location_locality: p.city ?? (location.length ? location[0] : null),
+    location_locality: p.city ?? (location[0] ?? null),
     skills: [],
     experience_years: null,
     industries: p.organization?.industry ? [p.organization.industry] : [],
