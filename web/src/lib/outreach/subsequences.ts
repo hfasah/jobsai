@@ -1,12 +1,12 @@
 // Subsequence engine — runs a campaign's configured trigger→action rules when a
 // trigger fires for a lead. SERVER-ONLY.
 import { supabaseAdmin } from "@/lib/supabase";
-import { moveEmailToPipeline, notifyRecruiters, enrollInCampaign } from "./campaign-actions";
+import { moveEmailToPipeline, notifyRecruiters, enrollInCampaign, sendOneOffEmail, addTagToCandidate } from "./campaign-actions";
 
 export type SubTrigger = "reply_category" | "sequence_completed";
 export interface SubsequenceAction {
-  type: "notify_recruiter" | "move_to_pipeline" | "add_to_campaign";
-  config?: { campaign_id?: string };
+  type: "notify_recruiter" | "move_to_pipeline" | "add_to_campaign" | "send_email" | "add_tag";
+  config?: { campaign_id?: string; subject?: string; body?: string; tag?: string };
 }
 interface SubsequenceRow {
   id: string; name: string; trigger_type: string;
@@ -53,6 +53,12 @@ export async function runSubsequences(args: {
         } else if (action.type === "add_to_campaign" && action.config?.campaign_id) {
           const id = await enrollInCampaign(orgId, action.config.campaign_id, candidateEmail, candidateName, actingUser);
           if (id) performed.push(`${sub.name}: added to another campaign`);
+        } else if (action.type === "send_email" && action.config?.subject && action.config?.body) {
+          const ok = await sendOneOffEmail(orgId, candidateEmail, candidateName, action.config.subject, action.config.body);
+          if (ok) performed.push(`${sub.name}: sent an email`);
+        } else if (action.type === "add_tag" && action.config?.tag) {
+          const n = await addTagToCandidate(orgId, candidateEmail, action.config.tag);
+          if (n) performed.push(`${sub.name}: tagged “${action.config.tag}”`);
         }
       } catch (e) {
         console.error("[subsequences] action failed", sub.name, action.type, e);

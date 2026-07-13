@@ -7,7 +7,7 @@ import { CAMPAIGN_FEATURE_KEY } from "@/lib/campaigns";
 
 type Ctx = { params: Promise<{ id: string }> };
 const TRIGGERS = ["reply_category", "sequence_completed"];
-const ACTION_TYPES = ["notify_recruiter", "move_to_pipeline", "add_to_campaign"];
+const ACTION_TYPES = ["notify_recruiter", "move_to_pipeline", "add_to_campaign", "send_email", "add_tag"];
 
 async function guard(id: string) {
   const { userId } = await auth();
@@ -43,10 +43,23 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
   if (!name) return NextResponse.json({ error: "Give the rule a name." }, { status: 400 });
   if (!TRIGGERS.includes(body.trigger_type)) return NextResponse.json({ error: "Invalid trigger." }, { status: 400 });
-  const actions = Array.isArray(body.actions)
-    ? body.actions.filter((a: { type?: string }) => a && ACTION_TYPES.includes(a.type ?? "")).slice(0, 6)
+  type RawAction = { type?: string; config?: { campaign_id?: string; subject?: string; body?: string; tag?: string } };
+  const raw: RawAction[] = Array.isArray(body.actions)
+    ? body.actions.filter((a: RawAction) => a && ACTION_TYPES.includes(a.type ?? "")).slice(0, 6)
     : [];
-  if (actions.length === 0) return NextResponse.json({ error: "Add at least one action." }, { status: 400 });
+  // Config-completeness check: an action that needs config but lacks it is dropped.
+  const actions = raw.filter((a) => {
+    if (a.type === "add_to_campaign") return !!a.config?.campaign_id;
+    if (a.type === "send_email") return !!(a.config?.subject?.trim() && a.config?.body?.trim());
+    if (a.type === "add_tag") return !!a.config?.tag?.trim();
+    return true;
+  }).map((a) => {
+    if (a.type === "send_email") return { type: a.type, config: { subject: a.config!.subject!.trim().slice(0, 200), body: a.config!.body!.trim().slice(0, 4000) } };
+    if (a.type === "add_tag") return { type: a.type, config: { tag: a.config!.tag!.trim().slice(0, 60) } };
+    if (a.type === "add_to_campaign") return { type: a.type, config: { campaign_id: a.config!.campaign_id } };
+    return { type: a.type };
+  });
+  if (actions.length === 0) return NextResponse.json({ error: "Add at least one complete action." }, { status: 400 });
 
   const { data, error } = await supabaseAdmin
     .from("enterprise_campaign_subsequences")
