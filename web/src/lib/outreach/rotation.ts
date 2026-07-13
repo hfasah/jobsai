@@ -57,3 +57,19 @@ export async function claimFromPool(pool: RotationPool, preferredId?: string | n
   }
   return null;
 }
+
+// Claim a slot on ONE specific mailbox only — no fall-through to the pool. Used
+// to keep a candidate locked to their assigned sender across the whole sequence.
+// Returns null if that mailbox is absent (e.g. paused, so not in the pool),
+// exhausted, or the atomic reservation refuses — caller should defer, not switch.
+export async function claimSpecificMailbox(pool: RotationPool, id: string): Promise<(MailboxRow & { display_name: string | null }) | null> {
+  const mailbox = pool.mailboxes.find((m) => m.id === id);
+  if (!mailbox || mailbox.remaining <= 0) return null;
+  const res = await reserveSend(mailbox);
+  if (res.ok) {
+    mailbox.remaining -= 1;
+    return mailbox;
+  }
+  mailbox.remaining = 0;
+  return null;
+}

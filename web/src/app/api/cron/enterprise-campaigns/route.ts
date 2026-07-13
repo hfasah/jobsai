@@ -10,7 +10,7 @@ import { renderTemplate, firstName, type CampaignVars } from "@/lib/campaigns";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 import { loadSuppressedSet } from "@/lib/outreach/suppression";
 import { runSubsequences } from "@/lib/outreach/subsequences";
-import { loadRotationPool, claimFromPool, type RotationPool } from "@/lib/outreach/rotation";
+import { loadRotationPool, claimFromPool, claimSpecificMailbox, type RotationPool } from "@/lib/outreach/rotation";
 
 export const maxDuration = 60;
 
@@ -240,13 +240,22 @@ export async function POST(req: NextRequest) {
     // back to the legacy shared address when the org has no domain mailboxes;
     // when it HAS mailboxes but they're all exhausted/paused, defer to
     // tomorrow rather than overflowing onto the shared domain.
+    //
+    // Sender lock: once a candidate has been emailed from a mailbox, every later
+    // step in the sequence must come from that SAME sender (no rotating senders
+    // mid-conversation). We lock it on first send and only claim that mailbox
+    // thereafter; if the locked mailbox is unavailable (paused/exhausted) we
+    // defer rather than switch identity.
     const pool = pools.get(e.org_id as string) ?? { mailboxes: [] };
     let fromEmail = "support@jobsai.work";
     let mailboxId: string | null = null;
+    let lockMailboxId: string | null = null; // set when we newly lock this enrollment
     if (pool.mailboxes.length > 0) {
       const camp = campaign as { mailbox_strategy?: string; mailbox_id?: string | null };
-      const preferredMailbox = camp.mailbox_strategy === "fixed" ? camp.mailbox_id ?? null : null;
-      const claimed = await claimFromPool(pool, preferredMailbox);
+      const lockedId = (e.mailbox_id as string | null) ?? null;
+      const claimed = lockedId
+        ? await claimSpecificMailbox(pool, lockedId)
+        : await claimFromPool(pool, camp.mailbox_strategy === "fixed" ? camp.mailbox_id ?? null : null);
       if (!claimed) {
         await supabaseAdmin
           .from("enterprise_campaign_enrollments")
@@ -256,6 +265,7 @@ export async function POST(req: NextRequest) {
       }
       fromEmail = claimed.address;
       mailboxId = claimed.id;
+      if (!lockedId) lockMailboxId = claimed.id; // first send → remember to persist the lock
     }
 
     // Insert the send row first so we have an id for the open-tracking pixel.
@@ -318,18 +328,19 @@ export async function POST(req: NextRequest) {
 
     // Advance to the next step (or complete). A jitter of 0..N hours makes the
     // next send look less machine-timed.
+    const lockPatch = lockMailboxId ? { mailbox_id: lockMailboxId } : {};
     const nextStep = steps.find((s) => s.step_order === stepOrder + 1);
     if (nextStep) {
       const jitterMs = Math.floor(Math.random() * Math.max(0, campaign.send_jitter_hours ?? 0) * 3_600_000);
       const nextAt = new Date(now.getTime() + Math.max(0, nextStep.delay_days || 0) * 86_400_000 + jitterMs).toISOString();
       await supabaseAdmin
         .from("enterprise_campaign_enrollments")
-        .update({ current_step_order: stepOrder + 1, next_send_at: nextAt, last_sent_at: now.toISOString() })
+        .update({ current_step_order: stepOrder + 1, next_send_at: nextAt, last_sent_at: now.toISOString(), ...lockPatch })
         .eq("id", e.id as string);
     } else {
       await supabaseAdmin
         .from("enterprise_campaign_enrollments")
-        .update({ status: "completed", next_send_at: null, last_sent_at: now.toISOString(), completed_at: now.toISOString() })
+        .update({ status: "completed", next_send_at: null, last_sent_at: now.toISOString(), completed_at: now.toISOString(), ...lockPatch })
         .eq("id", e.id as string);
       // Sequence finished with no reply → fire any 'sequence_completed' rules.
       await runSubsequences({
