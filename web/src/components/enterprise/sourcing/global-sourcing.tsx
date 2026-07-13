@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Coins, Info, Loader2, Search, Sparkles, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoreWeights, SourcingFilters } from "@/lib/sourcing/types";
-import { DEFAULT_WEIGHTS } from "@/lib/sourcing/types";
+import { DEFAULT_WEIGHTS, bundleUnitPrice, bundleDiscount } from "@/lib/sourcing/types";
 import InterpretedFilters from "./interpreted-filters";
 import ResultsView, { type RunResultRow } from "./results-view";
 import RevealButton, { type RevealOutcome } from "./reveal-button";
@@ -317,6 +317,40 @@ export default function GlobalSourcing({
     if (runId) loadPage(runId, 0, false); // refresh so revealed emails + verification show
   };
 
+  // Selected rows that aren't fully unlocked yet (email + phone + profile).
+  const unlockableSelected = [...selected].filter((id) => {
+    const r = results.find((x) => x.id === id);
+    const e = r?.external;
+    return !!e && !e.suppressed && !(e.emails.length > 0 && e.phones.length > 0 && e.profile_unlocked) && (e.has_email || e.has_phone);
+  });
+  const [unlocking, setUnlocking] = useState(false);
+  const [unlockConfirm, setUnlockConfirm] = useState(false);
+  const unlockUnit = bundleUnitPrice(estimate?.costs?.full_contact_unlock ?? 6, unlockableSelected.length);
+  const unlockEstimate = unlockUnit * unlockableSelected.length;
+  const unlockLabel = bundleDiscount(unlockableSelected.length).label;
+
+  const bulkUnlock = async () => {
+    if (!unlockConfirm) { setUnlockConfirm(true); return; }
+    setUnlockConfirm(false);
+    setUnlocking(true); setImportNotice(null);
+    const res = await fetch("/api/enterprise/sourcing/bulk-unlock", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resultIds: unlockableSelected }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setUnlocking(false);
+    if (!res.ok) { setImportNotice(j.error ?? "Unlock failed."); return; }
+    const d = j.data;
+    setImportNotice(
+      `Unlocked ${d.unlocked} contact${d.unlocked !== 1 ? "s" : ""} for ${d.credits_charged} credit${d.credits_charged !== 1 ? "s" : ""}` +
+      (d.discount ? ` (${d.discount})` : "") +
+      (d.no_data ? `, ${d.no_data} had no data` : "") +
+      (d.do_not_contact ? `, ${d.do_not_contact} on do-not-contact` : "") +
+      (d.ran_out ? " — ran out of credits" : "") + ".",
+    );
+    if (runId) loadPage(runId, 0, false);
+  };
+
   return (
     <div>
       <SavedSearches
@@ -446,6 +480,21 @@ export default function GlobalSourcing({
             {unrevealedSelected.length > 0 && <span className="text-muted-foreground"> · {unrevealedSelected.length} without a revealed email</span>}
           </p>
           <div className="flex items-center gap-2">
+            {unlockableSelected.length > 0 && (
+              <button
+                onClick={bulkUnlock}
+                onMouseLeave={() => setUnlockConfirm(false)}
+                disabled={unlocking}
+                title="Unlock email + phone + LinkedIn for all selected, at a bundle discount"
+                className="rounded-lg border border-primary/40 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary hover:border-primary/60 disabled:opacity-60"
+              >
+                {unlocking
+                  ? "Unlocking…"
+                  : unlockConfirm
+                    ? `Confirm — unlock ${unlockableSelected.length} · ~${unlockEstimate} credits${unlockLabel ? ` (${unlockLabel})` : ""}`
+                    : `Unlock all ${unlockableSelected.length}${unlockLabel ? ` · ${unlockLabel}` : ""}`}
+              </button>
+            )}
             {unrevealedSelected.length > 0 && (
               <button
                 onClick={bulkReveal}

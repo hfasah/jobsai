@@ -202,3 +202,7 @@ export function estimateCost(
   }
   return total;
 }
+
+// Volume-discount helpers live in the client-safe types module so the UI can
+// show the bundle price without importing this server-only file.
+export { BUNDLE_TIERS, bundleDiscount, bundleUnitPrice } from "./types";

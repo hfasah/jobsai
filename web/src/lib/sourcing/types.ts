@@ -191,3 +191,20 @@ export const JOB_FUNCTION_VALUES = JOB_FUNCTIONS.map((f) => f.value);
 
 // Credits
 export type CreditAction = "search" | "unlock_profile" | "reveal_email" | "reveal_phone" | "enrich" | "full_contact_unlock";
+
+// Volume discount for unlocking many contacts in one bundle — cheaper per
+// contact the more you unlock at once. Pure + client-safe (no server imports).
+export const BUNDLE_TIERS: { min: number; factor: number; label: string }[] = [
+  { min: 20, factor: 0.7, label: "30% off" },
+  { min: 10, factor: 0.8, label: "20% off" },
+  { min: 5, factor: 0.85, label: "15% off" },
+  { min: 1, factor: 1, label: "" },
+];
+export function bundleDiscount(count: number): { factor: number; label: string } {
+  const t = BUNDLE_TIERS.find((x) => count >= x.min) ?? BUNDLE_TIERS[BUNDLE_TIERS.length - 1];
+  return { factor: t.factor, label: t.label };
+}
+// Discounted per-contact price for a bundle of `count`, rounded to whole credits.
+export function bundleUnitPrice(fullPrice: number, count: number): number {
+  return Math.max(0, Math.round(fullPrice * bundleDiscount(count).factor));
+}
