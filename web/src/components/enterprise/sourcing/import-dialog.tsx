@@ -4,7 +4,7 @@
 // Single import surfaces the dedup matches (skip / import anyway / merge);
 // bulk import applies the chosen duplicate policy across the selection.
 import { useEffect, useState } from "react";
-import { Briefcase, Check, Contact, Database, Inbox, Loader2, Send, TriangleAlert, Users, X } from "lucide-react";
+import { Briefcase, Check, Coins, Contact, Database, Inbox, Loader2, Send, TriangleAlert, Users, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { DedupMatch } from "@/lib/sourcing/types";
 
@@ -286,8 +286,13 @@ export default function ImportDialog({
             )}
 
             {error && (
-              <div className="mb-3 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
-                <TriangleAlert className="h-3.5 w-3.5 shrink-0" /> {error}
+              <div className="mb-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-400">
+                <div className="flex items-center gap-2"><TriangleAlert className="h-3.5 w-3.5 shrink-0" /> {error}</div>
+                {/credit|top up/i.test(error) && (
+                  <a href="/enterprise/sourcing/credits" className="mt-2 flex items-center justify-center gap-1 rounded-lg border border-primary/40 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+                    <Coins className="h-3 w-3" /> Top up credits →
+                  </a>
+                )}
               </div>
             )}
 
