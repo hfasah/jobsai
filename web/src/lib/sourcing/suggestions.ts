@@ -3,32 +3,76 @@
 // type anything free-form. Kept broad enough to feel like the competitor's
 // "+ add from a list" affordance.
 
+// Cross-industry title list — recruiters source for every field, not just tech.
+// Ordered to LEAD with common, industry-neutral roles so an empty-focus "browse"
+// never reads as tech-only. Users can still type anything free-form.
 export const TITLE_SUGGESTIONS = [
-  "DevOps Engineer", "Senior DevOps Engineer", "Lead DevOps Engineer", "Site Reliability Engineer",
-  "Platform Engineer", "Cloud Engineer", "Cloud Architect", "Infrastructure Engineer",
-  "Software Engineer", "Senior Software Engineer", "Staff Software Engineer", "Backend Engineer",
-  "Frontend Engineer", "Full Stack Engineer", "Mobile Engineer", "iOS Engineer", "Android Engineer",
-  "Data Engineer", "Data Scientist", "Machine Learning Engineer", "AI Engineer", "MLOps Engineer",
-  "Security Engineer", "QA Engineer", "Engineering Manager", "Director of Engineering", "VP of Engineering",
-  "CTO", "Chief Technology Officer", "Product Manager", "Senior Product Manager", "Product Designer",
-  "UX Designer", "Designer", "Project Manager", "Scrum Master", "Business Analyst",
-  "CEO", "Chief Executive Officer", "Founder", "Co-Founder", "COO", "CFO", "CMO",
-  "Managing Director", "Head of Talent", "Recruiter", "Technical Recruiter", "Talent Acquisition",
-  "Sales Director", "Account Executive", "Account Manager", "Sales Development Representative",
-  "Marketing Manager", "Growth Marketer", "Customer Success Manager",
-  "Registered Nurse", "Nurse Practitioner", "Physician", "Pharmacist",
+  // General / cross-industry
+  "Manager", "Director", "Vice President", "Operations Manager", "General Manager",
+  "Administrative Assistant", "Executive Assistant", "Office Manager", "Project Manager", "Program Manager",
+  "Business Analyst", "Consultant", "Coordinator", "Team Lead", "Specialist",
+  // Legal
+  "Paralegal", "Legal Assistant", "Litigation Paralegal", "Corporate Paralegal", "Legal Secretary",
+  "Attorney", "Lawyer", "Associate Attorney", "Counsel", "General Counsel", "Compliance Officer", "Contract Manager",
+  // Healthcare
+  "Registered Nurse", "Nurse Practitioner", "Licensed Practical Nurse", "Physician", "Physician Assistant",
+  "Medical Assistant", "Pharmacist", "Pharmacy Technician", "Physical Therapist", "Dental Hygienist",
+  "Healthcare Administrator", "Clinical Research Coordinator", "Caregiver", "Home Health Aide",
+  // Finance & accounting
+  "Accountant", "Senior Accountant", "Staff Accountant", "Bookkeeper", "Financial Analyst",
+  "Controller", "CFO", "Auditor", "Tax Manager", "Payroll Specialist", "Financial Advisor", "Loan Officer",
+  // Sales & marketing
+  "Account Executive", "Account Manager", "Sales Representative", "Sales Manager", "Sales Director",
+  "Business Development Manager", "Sales Development Representative", "Customer Success Manager",
+  "Marketing Manager", "Marketing Coordinator", "Digital Marketing Specialist", "Content Marketer", "Brand Manager",
+  // HR & recruiting
+  "HR Manager", "HR Generalist", "HR Business Partner", "Recruiter", "Technical Recruiter",
+  "Talent Acquisition Specialist", "Head of Talent", "Benefits Administrator",
+  // Operations, supply chain, skilled trades
+  "Supply Chain Manager", "Logistics Coordinator", "Warehouse Manager", "Procurement Manager",
+  "Electrician", "Plumber", "HVAC Technician", "Welder", "Machinist", "Maintenance Technician",
+  "Construction Manager", "Project Superintendent", "Estimator", "Quality Manager",
+  // Education
+  "Teacher", "Professor", "Instructional Designer", "School Administrator", "Academic Advisor",
+  // Design & product
+  "Product Manager", "Product Designer", "UX Designer", "Graphic Designer", "Designer",
+  // Technology
+  "Software Engineer", "Senior Software Engineer", "Backend Engineer", "Frontend Engineer", "Full Stack Engineer",
+  "Data Engineer", "Data Scientist", "Data Analyst", "Machine Learning Engineer", "DevOps Engineer",
+  "Cloud Engineer", "Security Engineer", "QA Engineer", "IT Manager", "Systems Administrator",
+  "Engineering Manager", "CTO", "IT Support Specialist",
+  // Executive
+  "CEO", "COO", "CFO", "CMO", "President", "Founder", "Co-Founder", "Managing Director",
 ];
 
+// Cross-industry skills/competencies — not just engineering stacks.
 export const SKILL_SUGGESTIONS = [
-  "Kubernetes", "Terraform", "AWS", "GCP", "Azure", "Docker", "Helm", "ArgoCD", "Ansible",
-  "Jenkins", "CI/CD", "GitHub Actions", "Linux", "Networking", "Prometheus", "Grafana",
-  "React", "Next.js", "Vue", "Angular", "Node.js", "TypeScript", "JavaScript",
-  "Python", "Django", "Flask", "FastAPI", "Go", "Rust", "Java", "Spring", "Kotlin", "Swift",
-  "C++", "C#", ".NET", "PHP", "Laravel", "Ruby", "Rails",
-  "GraphQL", "gRPC", "REST", "PostgreSQL", "MySQL", "MongoDB", "Redis", "Kafka", "RabbitMQ",
-  "Spark", "Airflow", "Snowflake", "dbt", "Tableau", "Power BI",
-  "PyTorch", "TensorFlow", "MLOps", "SageMaker", "LLM", "NLP",
-  "Salesforce", "HubSpot", "Figma", "Product Management", "Agile", "Scrum",
+  // General / business
+  "Project Management", "Account Management", "Customer Service", "Data Analysis", "Microsoft Excel",
+  "Microsoft Office", "Team Leadership", "Negotiation", "Public Speaking", "Budgeting", "Forecasting",
+  "Process Improvement", "Vendor Management", "Strategic Planning", "Operations Management",
+  // Legal
+  "Legal Research", "Litigation", "Contract Drafting", "Contract Review", "E-Discovery", "Compliance",
+  "Corporate Law", "Immigration Law", "Family Law", "Intellectual Property", "Westlaw", "LexisNexis",
+  // Healthcare
+  "Patient Care", "Triage", "Phlebotomy", "EMR", "Epic", "Cerner", "ACLS", "BLS", "Medication Administration",
+  "Care Coordination", "HIPAA", "Clinical Documentation",
+  // Finance & accounting
+  "Accounting", "Bookkeeping", "QuickBooks", "Financial Reporting", "Financial Modeling", "GAAP",
+  "Accounts Payable", "Accounts Receivable", "Payroll", "Tax Preparation", "Auditing", "SAP", "NetSuite",
+  // Sales & marketing
+  "Salesforce", "HubSpot", "CRM", "Lead Generation", "Cold Calling", "Pipeline Management", "SEO", "SEM",
+  "Google Analytics", "Content Marketing", "Email Marketing", "Social Media Marketing", "Copywriting",
+  // HR
+  "Recruiting", "Talent Acquisition", "Onboarding", "Employee Relations", "Benefits Administration", "Workday", "ATS",
+  // Trades & operations
+  "Welding", "HVAC", "Electrical", "Plumbing", "Blueprint Reading", "OSHA", "Forklift", "CNC", "Inventory Management",
+  "Supply Chain Management", "Logistics", "Lean Manufacturing", "Six Sigma",
+  // Design
+  "Figma", "Adobe Photoshop", "Adobe Illustrator", "UX Design", "UI Design", "Wireframing",
+  // Technology
+  "Python", "JavaScript", "TypeScript", "React", "Node.js", "Java", "SQL", "AWS", "Azure", "Docker",
+  "Kubernetes", "Machine Learning", "Data Engineering", "DevOps", "Cybersecurity",
 ];
 
 export const INDUSTRY_SUGGESTIONS = [

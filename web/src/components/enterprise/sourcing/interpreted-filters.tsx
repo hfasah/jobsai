@@ -40,11 +40,15 @@ function ChipEditor({
     setHighlight(0);
   };
 
-  // Suggestions: filtered when typing, else a short "browse" list on focus.
+  // Suggestions: filtered as you type. On empty focus we only show a short
+  // "browse" starter list when the field is still empty — once a value is picked
+  // (e.g. "Paralegal"), an unrelated generic dump is noise, so we require typing.
   const suggestions = suggestionList
     ? draft.trim()
       ? suggestFor(suggestionList, draft, values)
-      : suggestionList.filter((s) => !values.some((v) => v.toLowerCase() === s.toLowerCase())).slice(0, 8)
+      : values.length === 0
+        ? suggestionList.slice(0, 8)
+        : []
     : [];
 
   useEffect(() => {
