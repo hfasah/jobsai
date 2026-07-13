@@ -148,6 +148,29 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
       .eq("id", id)
       .eq("org_id", a.org.id);
 
+    // Backfill parked enrollments: leads added while this was a draft have
+    // next_send_at = null (they couldn't be scheduled without a sequence). Now
+    // that it's live — and the preflight guaranteed a first step exists —
+    // schedule them off that step's delay. Runs BEFORE the pilot hold so the
+    // pilot logic can still cap how many actually go out.
+    if (status === "active" && (currentStatus === "draft" || currentStatus === "scheduled")) {
+      const { data: firstStep } = await supabaseAdmin
+        .from("enterprise_campaign_steps")
+        .select("delay_days")
+        .eq("campaign_id", id)
+        .order("step_order", { ascending: true })
+        .limit(1);
+      const delayMs = Math.max(0, firstStep?.[0]?.delay_days || 0) * 86_400_000;
+      const parkedSendAt = new Date(Date.now() + delayMs).toISOString();
+      await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update({ next_send_at: parkedSendAt })
+        .eq("campaign_id", id)
+        .eq("org_id", a.org.id)
+        .eq("status", "active")
+        .is("next_send_at", null);
+    }
+
     // Pilot launch: hold everyone past the first N so only the pilot batch sends.
     // The held enrollments stay active with next_send_at cleared; "Release the
     // rest" (below) re-schedules them.
