@@ -515,6 +515,11 @@ export default function GlobalSourcing({
         <ImportDialog
           resultIds={importIds}
           lockedCampaign={campaignContext}
+          revealNeeded={importIds.filter((id) => {
+            const r = results.find((x) => x.id === id);
+            return r?.external && r.external.emails.length === 0 && r.external.has_email !== false;
+          }).length}
+          revealCost={estimate?.costs?.reveal_email ?? 2}
           candidateName={
             importIds.length === 1
               ? results.find((r) => r.id === importIds[0])?.external?.full_name ?? null

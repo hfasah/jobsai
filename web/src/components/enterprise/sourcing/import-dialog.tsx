@@ -18,6 +18,8 @@ export default function ImportDialog({
   resultIds,
   candidateName,
   lockedCampaign,
+  revealNeeded = 0,
+  revealCost = 2,
   onClose,
   onDone,
 }: {
@@ -26,6 +28,11 @@ export default function ImportDialog({
   // When set (from the campaign wizard's Audience step), the dialog skips the
   // target picker and enrolls straight into this campaign.
   lockedCampaign?: { id: string; name: string } | null;
+  // How many of the selected candidates still need an email revealed, and the
+  // per-reveal cost — so campaign/talent-pool enrolment can show ONE bundle
+  // price up front instead of dripping charges one candidate at a time.
+  revealNeeded?: number;
+  revealCost?: number;
   onClose: () => void;
   onDone: (summary: string) => void;
 }) {
@@ -284,23 +291,43 @@ export default function ImportDialog({
               </div>
             )}
 
-            <button
-              onClick={() => submit("skip")}
-              disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId)}
-              className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
-            >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : target === "campaign" ? <Send className="h-4 w-4" /> : <Database className="h-4 w-4" />}
-              {busy
-                ? target === "campaign" ? "Enrolling…" : "Importing…"
-                : target === "campaign"
-                  ? single ? "Add to campaign" : `Enroll ${resultIds.length} in campaign`
-                  : single ? "Import candidate" : `Import ${resultIds.length} candidates`}
-            </button>
-            <p className="mt-2 text-[10px] text-muted-foreground">
-              {target === "campaign" || target === "talent_pool"
-                ? "Any candidate whose email isn't revealed yet is revealed now (≈2 credits each) so they can be contacted. Duplicates are flagged before anything is overwritten."
-                : "Duplicates are detected first — you'll be asked before anything is overwritten."}
-            </p>
+            {(() => {
+              const needsReveal = (target === "campaign" || target === "talent_pool") && revealNeeded > 0;
+              const bundleCost = revealNeeded * revealCost;
+              return (
+                <>
+                  {needsReveal && (
+                    <div className="mb-2 flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-xs">
+                      <span className="text-muted-foreground">Reveal {revealNeeded} contact{revealNeeded !== 1 ? "s" : ""} (bundle)</span>
+                      <span className="font-semibold text-primary">{bundleCost} credit{bundleCost !== 1 ? "s" : ""}</span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => submit("skip")}
+                    disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId)}
+                    className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : target === "campaign" ? <Send className="h-4 w-4" /> : <Database className="h-4 w-4" />}
+                    {busy
+                      ? target === "campaign" ? "Revealing & enrolling…" : "Importing…"
+                      : target === "campaign"
+                        ? needsReveal
+                          ? `Unlock & enroll ${resultIds.length} · ${bundleCost} credits`
+                          : single ? "Add to campaign" : `Enroll ${resultIds.length} in campaign`
+                        : target === "talent_pool" && needsReveal
+                          ? `Unlock & save ${resultIds.length} · ${bundleCost} credits`
+                          : single ? "Import candidate" : `Import ${resultIds.length} candidates`}
+                  </button>
+                  <p className="mt-2 text-[10px] text-muted-foreground">
+                    {needsReveal
+                      ? `${revealNeeded} of these need an email revealed — done in one bundle (${bundleCost} credits total), not one at a time. Already-revealed candidates cost nothing. Duplicates are flagged first.`
+                      : target === "campaign" || target === "talent_pool"
+                        ? "All selected already have a revealed email. Duplicates are flagged before anything is overwritten."
+                        : "Duplicates are detected first — you'll be asked before anything is overwritten."}
+                  </p>
+                </>
+              );
+            })()}
           </>
         )}
       </div>
