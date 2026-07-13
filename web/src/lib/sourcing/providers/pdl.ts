@@ -132,6 +132,14 @@ function buildQuery(f: SourcingFilters): Record<string, unknown> {
     must.push({ terms: { job_company_size: f.company_sizes } });
   }
 
+  // Seniority / management level and department / function (PDL enums).
+  if (f.seniority.length) {
+    must.push({ terms: { job_title_levels: f.seniority.map((s) => s.toLowerCase()) } });
+  }
+  if (f.job_functions.length) {
+    must.push({ terms: { job_title_role: f.job_functions.map((r) => r.toLowerCase()) } });
+  }
+
   if (f.schools.length) {
     must.push({ bool: { should: f.schools.map((s) => ({ match: { "education.school.name": s } })) } });
   }

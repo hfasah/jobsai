@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { Plus, X, ShieldAlert, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScoreWeights, SourcingFilters, SourcingLocation } from "@/lib/sourcing/types";
-import { DEFAULT_WEIGHTS, COMPANY_SIZES } from "@/lib/sourcing/types";
+import { DEFAULT_WEIGHTS, COMPANY_SIZES, SENIORITY_LEVELS, JOB_FUNCTIONS } from "@/lib/sourcing/types";
 import {
   TITLE_SUGGESTIONS, SKILL_SUGGESTIONS, INDUSTRY_SUGGESTIONS, COUNTRY_SUGGESTIONS, suggestFor,
 } from "@/lib/sourcing/suggestions";
@@ -131,6 +131,40 @@ function ChipEditor({
   );
 }
 
+// Fixed-enum multi-select rendered as toggle pills (seniority, department, size).
+function PillGroup({
+  label, options, selected, onToggle,
+}: {
+  label: string;
+  options: { value: string; label: string }[];
+  selected: string[];
+  onToggle: (value: string, active: boolean) => void;
+}) {
+  return (
+    <div>
+      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <div className="flex flex-wrap gap-1.5">
+        {options.map((o) => {
+          const active = selected.includes(o.value);
+          return (
+            <button
+              key={o.value}
+              type="button"
+              onClick={() => onToggle(o.value, active)}
+              className={cn(
+                "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
+                active ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {o.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function locationsToStrings(locs: SourcingLocation[]): string[] {
   return locs.map((l) => (l.locality ? `${l.locality}, ${l.country}` : l.country));
 }
@@ -244,29 +278,29 @@ export default function InterpretedFilters({
         <ChipEditor label="Companies (exclude)" tone="exclude" values={filters.companies_exclude} onChange={(v) => set("companies_exclude", v)} />
       </div>
 
+      {/* Seniority / management level — multi-select (PDL job_title_levels) */}
+      <PillGroup
+        label="Seniority / level"
+        options={SENIORITY_LEVELS}
+        selected={filters.seniority}
+        onToggle={(v, active) => set("seniority", active ? filters.seniority.filter((x) => x !== v) : [...filters.seniority, v])}
+      />
+
+      {/* Department / function — multi-select (PDL job_title_role) */}
+      <PillGroup
+        label="Department / function"
+        options={JOB_FUNCTIONS}
+        selected={filters.job_functions}
+        onToggle={(v, active) => set("job_functions", active ? filters.job_functions.filter((x) => x !== v) : [...filters.job_functions, v])}
+      />
+
       {/* Company size (headcount) — multi-select buckets */}
-      <div>
-        <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Company size (employees)</p>
-        <div className="flex flex-wrap gap-1.5">
-          {COMPANY_SIZES.map((s) => {
-            const active = filters.company_sizes.includes(s.value);
-            return (
-              <button
-                key={s.value}
-                onClick={() =>
-                  set("company_sizes", active ? filters.company_sizes.filter((v) => v !== s.value) : [...filters.company_sizes, s.value])
-                }
-                className={cn(
-                  "rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-                  active ? "border-primary/40 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:text-foreground",
-                )}
-              >
-                {s.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <PillGroup
+        label="Company size (employees)"
+        options={COMPANY_SIZES}
+        selected={filters.company_sizes}
+        onToggle={(v, active) => set("company_sizes", active ? filters.company_sizes.filter((x) => x !== v) : [...filters.company_sizes, v])}
+      />
 
       <div className="flex flex-wrap items-end gap-4">
         <label className="text-xs">
