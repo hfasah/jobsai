@@ -407,8 +407,13 @@ export default function GlobalSourcing({
       )}
 
       {error && (
-        <div className="mb-4 flex items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+        <div className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
           <TriangleAlert className="h-4 w-4 shrink-0" /> {error}
+          {/^Not enough/i.test(error) && (
+            <a href="/enterprise/sourcing/credits" className="ml-auto inline-flex items-center gap-1 rounded-lg border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10">
+              <Coins className="h-3.5 w-3.5" /> Top up credits →
+            </a>
+          )}
         </div>
       )}
 
@@ -467,8 +472,13 @@ export default function GlobalSourcing({
       )}
 
       {importNotice && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
           {importNotice}
+          {/ran out of credits/i.test(importNotice) && (
+            <a href="/enterprise/sourcing/credits" className="ml-auto inline-flex items-center gap-1 rounded-lg border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10">
+              <Coins className="h-3.5 w-3.5" /> Top up credits →
+            </a>
+          )}
         </div>
       )}
 

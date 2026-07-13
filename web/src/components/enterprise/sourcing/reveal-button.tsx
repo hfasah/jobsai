@@ -30,12 +30,14 @@ export default function RevealButton({
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [needCredits, setNeedCredits] = useState(false);
 
   const Icon = type === "email" ? Mail : Phone;
 
   const reveal = async () => {
     setLoading(true);
     setNotice(null);
+    setNeedCredits(false);
     try {
       const res = await fetch(`/api/enterprise/sourcing/results/${resultId}/reveal`, {
         method: "POST",
@@ -45,6 +47,7 @@ export default function RevealButton({
       const json = await res.json().catch(() => ({}));
       if (res.status === 402) {
         setNotice(json.daily_cap ? "Daily credit cap reached — try again tomorrow." : `Not enough credits (balance ${json.balance}).`);
+        setNeedCredits(!json.daily_cap);
         return;
       }
       if (res.status === 404 && json.no_data) {
@@ -116,6 +119,11 @@ export default function RevealButton({
             Refunded automatically if nothing is found.
           </p>
           {notice && <p className="mb-2 text-[11px] text-amber-400">{notice}</p>}
+          {needCredits && (
+            <a href="/enterprise/sourcing/credits" className="mb-2 flex items-center justify-center gap-1 rounded-lg border border-primary/40 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+              <Coins className="h-3 w-3" /> Top up credits →
+            </a>
+          )}
           <button
             onClick={reveal}
             disabled={loading}

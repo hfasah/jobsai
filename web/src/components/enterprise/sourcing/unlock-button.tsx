@@ -28,6 +28,7 @@ export default function UnlockContactButton({
   const [confirming, setConfirming] = useState(false);
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [needCredits, setNeedCredits] = useState(false);
 
   // Progressive display price. Target is the bundle when a phone is expected,
   // else the email rate; minus what's already been paid on this candidate.
@@ -37,11 +38,11 @@ export default function UnlockContactButton({
   const partial = emailRevealed || phoneRevealed;
 
   const unlock = async () => {
-    setLoading(true); setNotice(null);
+    setLoading(true); setNotice(null); setNeedCredits(false);
     try {
       const res = await fetch(`/api/enterprise/sourcing/results/${resultId}/unlock`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
       const json = await res.json().catch(() => ({}));
-      if (res.status === 402) { setNotice(json.daily_cap ? "Daily credit cap reached." : `Not enough credits (balance ${json.balance}).`); return; }
+      if (res.status === 402) { setNotice(json.daily_cap ? "Daily credit cap reached." : `Not enough credits (balance ${json.balance}).`); setNeedCredits(!json.daily_cap); return; }
       if (res.status === 404 && json.no_data) { setNotice("No contact data found — no credits charged."); return; }
       if (res.status === 409 && json.do_not_contact) { setNotice("On your Do-Not-Contact list — not unlocked, no charge."); return; }
       if (!res.ok) { setNotice(json.error ?? "Unlock failed."); return; }
@@ -78,6 +79,11 @@ export default function UnlockContactButton({
             {partial && " You're only charged the difference from what you've already revealed."} Refunded if nothing usable is found.
           </p>
           {notice && <p className="mb-2 text-[11px] text-amber-400">{notice}</p>}
+          {needCredits && (
+            <a href="/enterprise/sourcing/credits" className="mb-2 flex items-center justify-center gap-1 rounded-lg border border-primary/40 py-1.5 text-[11px] font-semibold text-primary hover:bg-primary/10">
+              <Coins className="h-3 w-3" /> Top up credits →
+            </a>
+          )}
           <button onClick={unlock} disabled={loading} className="btn-cta inline-flex w-full items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold disabled:opacity-60">
             {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Coins className="h-3.5 w-3.5" />}
             {loading ? "Unlocking…" : price === 0 ? "Unlock (included)" : `Unlock for ${price} credit${price !== 1 ? "s" : ""}`}
