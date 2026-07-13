@@ -122,12 +122,12 @@ function ContactAvailability({ row }: { row: RunResultRow }) {
     );
   }
   return (
-    <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
-      <span className={cn("inline-flex items-center gap-1", ext.has_email ? "text-foreground/70" : "opacity-40")}>
-        <Mail className="h-3 w-3" /> {ext.has_email ? "Email available" : "No email"}
+    <span className="flex items-center gap-3 text-xs text-muted-foreground">
+      <span className={cn("inline-flex items-center gap-1", ext.has_email ? "font-medium text-green-500" : "opacity-55")}>
+        <Mail className="h-3.5 w-3.5" /> {ext.has_email ? "Email available" : "No email"}
       </span>
-      <span className={cn("inline-flex items-center gap-1", ext.has_phone ? "text-foreground/70" : "opacity-40")}>
-        <Phone className="h-3 w-3" /> {ext.has_phone ? "Phone available" : "No phone"}
+      <span className={cn("inline-flex items-center gap-1", ext.has_phone ? "font-medium text-green-500" : "opacity-55")}>
+        <Phone className="h-3.5 w-3.5" /> {ext.has_phone ? "Phone available" : "No phone"}
       </span>
     </span>
   );
@@ -288,7 +288,7 @@ export default function ResultsView({
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="font-medium">{titleCase(ext?.full_name ?? null) || "Unknown"}</p>
+                      <p className="text-[15px] font-semibold">{titleCase(ext?.full_name ?? null) || "Unknown"}</p>
                       <span className={cn("rounded-full border px-1.5 py-0.5 text-[10px] font-medium", ORIGIN_BADGE[row.origin].cls)}>
                         {ORIGIN_BADGE[row.origin].label}
                       </span>
@@ -300,16 +300,16 @@ export default function ResultsView({
                       </span>
                     </div>
 
-                    <p className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                    <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[13px] text-foreground/80">
                       {ext?.job_title && (
-                        <span className="inline-flex items-center gap-1"><Briefcase className="h-3 w-3" /> {titleCase(ext.job_title)}</span>
+                        <span className="inline-flex items-center gap-1"><Briefcase className="h-3.5 w-3.5 text-muted-foreground" /> {titleCase(ext.job_title)}</span>
                       )}
                       {ext?.company && (
-                        <span className="inline-flex items-center gap-1"><Building2 className="h-3 w-3" /> {titleCase(ext.company)}</span>
+                        <span className="inline-flex items-center gap-1"><Building2 className="h-3.5 w-3.5 text-muted-foreground" /> {titleCase(ext.company)}</span>
                       )}
                       {(ext?.location_locality || ext?.location_country) && (
                         <span className="inline-flex items-center gap-1">
-                          <MapPin className="h-3 w-3" />
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
                           {[titleCase(ext?.location_locality ?? null), titleCase(ext?.location_country ?? null)].filter(Boolean).join(", ")}
                         </span>
                       )}
@@ -317,16 +317,16 @@ export default function ResultsView({
                     </p>
 
                     {ext && ext.skills.length > 0 && (
-                      <p className="mt-1 flex flex-wrap gap-1">
+                      <p className="mt-1.5 flex flex-wrap gap-1">
                         {ext.skills.slice(0, 6).map((s) => (
-                          <span key={s} className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{s}</span>
+                          <span key={s} className="rounded-full border border-border bg-muted/50 px-2 py-0.5 text-[11px] text-foreground/85">{s}</span>
                         ))}
-                        {ext.skills.length > 6 && <span className="text-[10px] text-muted-foreground/60">+{ext.skills.length - 6}</span>}
+                        {ext.skills.length > 6 && <span className="self-center text-[11px] text-muted-foreground">+{ext.skills.length - 6}</span>}
                       </p>
                     )}
 
                     {row.fit_reason && (
-                      <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{row.fit_reason}</p>
+                      <p className="mt-1.5 text-sm leading-relaxed text-foreground/70">{row.fit_reason}</p>
                     )}
 
                     <div className="mt-1.5"><ContactAvailability row={row} /></div>
