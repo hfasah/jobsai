@@ -137,7 +137,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .select("id").single();
   const revealId = (revealRow as { id: string } | null)?.id ?? null;
 
-  let spend = { ok: true, balance: -1, ledgerEntryId: null as string | null, cost: 0, dailyCap: false as boolean | undefined };
+  let spend: { ok: boolean; balance: number; ledgerEntryId: string | null; cost: number; dailyCap?: boolean } =
+    { ok: true, balance: -1, ledgerEntryId: null, cost: 0 };
   if (charge > 0 && revealId) {
     spend = await spendCredits({ orgId: org.id, userId, action: "full_contact_unlock", refType: "reveal", refId: revealId, amountOverride: charge });
     if (!spend.ok) {
