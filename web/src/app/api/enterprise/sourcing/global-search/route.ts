@@ -25,7 +25,9 @@ const PROVIDER_TIMEOUT_MS = 20000;
 // (competitive with other tools) but PDL bills per record, so it's an
 // acquisition cost while search stays free. Admin-tunable per org via the
 // provider's settings.search_limit (clamped 10–100).
-const DEFAULT_PER_PROVIDER_LIMIT = 50;
+// PDL bills per matched record RETURNED, so keep this modest — recruiters filter
+// down anyway, and 25 halves the provider cost of every search vs 50.
+const DEFAULT_PER_PROVIDER_LIMIT = 25;
 function clampLimit(n: unknown): number {
   const v = typeof n === "number" ? Math.floor(n) : NaN;
   return Number.isFinite(v) ? Math.max(10, Math.min(100, v)) : DEFAULT_PER_PROVIDER_LIMIT;
@@ -431,10 +433,14 @@ export async function POST(req: NextRequest) {
       external_count: externalCount,
       internal_count: internalCount,
       credits_charged: creditsCharged,
-      // Client-safe: never expose provider names, raw errors, or a misleading
-      // top-up prompt for a search the client didn't pay for.
+      // Client-safe: never expose provider names, raw errors, or a top-up prompt
+      // (the recruiter can't fix the platform's provider allowance). A quota hit
+      // won't clear by retrying, so don't promise "try again shortly" for it —
+      // the operator sees the real cause (limit=…) in the logs.
       notice: providerErrors.length > 0 && externalCount === 0
-        ? "External sourcing is temporarily unavailable. Please try again shortly — our team has been notified."
+        ? limitReached
+          ? "External talent search is unavailable right now — our team has been notified and is on it."
+          : "External sourcing is temporarily unavailable. Please try again shortly — our team has been notified."
         : null,
     },
   });
