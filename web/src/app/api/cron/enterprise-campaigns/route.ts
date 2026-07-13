@@ -8,6 +8,7 @@ import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { recordUsage } from "@/lib/llm-usage";
 import { renderTemplate, firstName, type CampaignVars } from "@/lib/campaigns";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
+import { loadSuppressedSet } from "@/lib/outreach/suppression";
 import { runSubsequences } from "@/lib/outreach/subsequences";
 import { loadRotationPool, claimFromPool, type RotationPool } from "@/lib/outreach/rotation";
 
@@ -86,6 +87,15 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Do-Not-Contact: org-wide suppressed addresses in this batch. Final gate
+  // before any send — authoritative even if a suppressed contact slipped past
+  // the enrollment-time check (e.g. imported, or suppressed after enrolling).
+  const suppressedByOrg = new Map<string, Set<string>>();
+  await Promise.all(orgIds.map(async (orgId) => {
+    const emails = due.filter((e) => e.org_id === orgId).map((e) => e.candidate_email as string);
+    suppressedByOrg.set(orgId, await loadSuppressedSet(orgId, emails));
+  }));
+
   // Per-campaign sends already made today (for the daily-limit cap).
   const todayStart = now.toISOString().slice(0, 10) + "T00:00:00Z";
   const sentToday = new Map<string, number>();
@@ -105,6 +115,16 @@ export async function POST(req: NextRequest) {
     // Only send for live campaigns. Paused/draft enrollments wait (next_send_at
     // stays put, so they resume the moment the campaign goes active again).
     if (campaign?.status !== "active") return;
+
+    // Do-Not-Contact: hard stop. Never email a suppressed address; retire the
+    // enrollment so it's not reconsidered.
+    if ((suppressedByOrg.get(e.org_id as string) ?? new Set()).has((e.candidate_email as string).toLowerCase())) {
+      await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update({ status: "unsubscribed", next_send_at: null })
+        .eq("id", e.id as string);
+      return;
+    }
 
     // Holiday: skip today entirely — defer to the next send window.
     const localDate = new Intl.DateTimeFormat("en-CA", { timeZone: campaign.send_timezone || "UTC", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
@@ -266,7 +286,15 @@ export async function POST(req: NextRequest) {
     // Open-tracking pixel — omitted when the campaign turns it off (better deliverability).
     const trackOpens = (campaign as { track_opens?: boolean }).track_opens !== false;
     const pixel = trackOpens ? `<img src="${BASE_URL}/api/enterprise/campaigns/track?s=${send.id}" width="1" height="1" alt="" style="display:none"/>` : "";
-    const html = wrapEmail(`<p>${bodyText.replace(/\n/g, "<br>")}</p>${pixel}`, showPoweredBy);
+
+    // One-click unsubscribe: an opaque per-enrollment token (never exposes ids).
+    // Powers both the footer link and the List-Unsubscribe header.
+    const unsubToken = e.unsubscribe_token as string | null;
+    const unsubUrl = unsubToken ? `${BASE_URL}/api/outreach/unsubscribe?t=${unsubToken}` : null;
+    const unsubFooter = unsubUrl
+      ? `<p style="color:#94a3b8;font-size:12px;margin:18px 0 0">Not the right time? <a href="${unsubUrl}" style="color:#94a3b8">Unsubscribe</a> and we won't email you again.</p>`
+      : "";
+    const html = wrapEmail(`<p>${bodyText.replace(/\n/g, "<br>")}</p>${pixel}${unsubFooter}`, showPoweredBy);
 
     try {
       await resend.emails.send({
@@ -274,6 +302,7 @@ export async function POST(req: NextRequest) {
         to: e.candidate_email as string,
         subject,
         html,
+        ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
       });
     } catch {
       // Leave the send row; mark enrollment bounced so it doesn't retry forever.

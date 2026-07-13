@@ -4,6 +4,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { CAMPAIGN_FEATURE_KEY } from "@/lib/campaigns";
+import { loadSuppressedSet } from "@/lib/outreach/suppression";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -90,6 +91,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       .in("candidate_email", emails);
     for (const e of recent ?? []) already.add(e.candidate_email.toLowerCase());
   }
+
+  // Do-Not-Contact: never enrol a suppressed address (org-wide).
+  const suppressed = await loadSuppressedSet(org.id, emails);
+  for (const e of suppressed) already.add(e);
 
   const rows = (candidates as EnrollCandidate[])
     .filter((c) => c.email?.trim() && c.name?.trim() && !already.has(c.email.trim().toLowerCase()))

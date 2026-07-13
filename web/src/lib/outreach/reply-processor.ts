@@ -9,6 +9,7 @@ import { classifyIntent, isPositiveIntent, type Intent, type InterestLevel } fro
 import { maybeEnqueueAiSdrReply } from "./ai-sdr";
 import { getOrCreateIntakePool } from "@/lib/enterprise-intake-inbox";
 import { runSubsequences } from "./subsequences";
+import { suppressEmail } from "./suppression";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").replace(/\/$/, "");
 
@@ -70,6 +71,13 @@ async function pauseSequences(orgId: string, email: string, intent: Intent): Pro
     .eq("status", "active")
     .select("id");
   if ((enr ?? []).length) actions.push(intent === "unsubscribe" ? "unsubscribed_campaigns" : "paused_campaigns");
+
+  // A clear opt-out is org-wide and permanent: record a Do-Not-Contact entry so
+  // the address can never be re-enrolled or emailed in any future campaign.
+  if (intent === "unsubscribe") {
+    const ok = await suppressEmail({ orgId, email, reason: "explicit_unsubscribe", source: "inbound_reply" });
+    if (ok) actions.push("added_to_do_not_contact");
+  }
 
   return actions;
 }
