@@ -218,9 +218,17 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     update.has_phone = true;
   }
 
-  // Fold in the full enrich payload when the provider returned one.
+  // Fold in the full enrich payload when the provider returned one. Crucially
+  // this un-masks the NAME: search previews are obfuscated (Apollo returns
+  // "Daniela Fe***a"), but the paid match/enrich returns the real name — persist
+  // it (and the now-known location) so the owned lead shows who they actually are.
   if (enriched) {
     update.raw = enriched.raw ?? candidate.raw;
+    if (enriched.full_name) update.full_name = enriched.full_name;
+    if (enriched.first_name) update.first_name = enriched.first_name;
+    if (enriched.last_name) update.last_name = enriched.last_name;
+    if (enriched.location_country) update.location_country = enriched.location_country;
+    if (enriched.location_locality) update.location_locality = enriched.location_locality;
     if (enriched.skills?.length) update.skills = enriched.skills;
     if (enriched.experience_years != null) update.experience_years = enriched.experience_years;
     if (enriched.job_title) update.job_title = enriched.job_title;
