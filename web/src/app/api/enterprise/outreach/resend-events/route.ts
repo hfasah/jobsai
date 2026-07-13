@@ -5,6 +5,7 @@ import { audit } from "@/lib/enterprise-audit";
 import { recordNegativeEvent, type MailboxRow } from "@/lib/outreach/deliverability";
 import { isUsableStatus } from "@/lib/outreach/resend-domains";
 import { normEmail } from "@/lib/sourcing/normalize";
+import { suppressEmail } from "@/lib/outreach/suppression";
 
 export const maxDuration = 30;
 
@@ -41,12 +42,22 @@ interface ResendEvent {
     from?: string;
     to?: string[] | string;
     email_id?: string;
+    bounce?: { type?: string; subType?: string };
     // domain.* events
     id?: string;
     name?: string;
     status?: string;
     records?: unknown[];
   };
+}
+
+// A bounce is worth suppressing only when it's permanent. Resend/SES surface a
+// "Transient" type for soft bounces (mailbox full, throttled) — don't burn the
+// address on those.
+function isPermanentBounce(data: ResendEvent["data"]): boolean {
+  const t = (data?.bounce?.type ?? "").toLowerCase();
+  if (!t) return true; // no classification → treat email.bounced as permanent
+  return t !== "transient" && t !== "soft" && t !== "undetermined";
 }
 
 function firstAddr(v: string[] | string | undefined): string | null {
@@ -97,6 +108,20 @@ export async function POST(req: NextRequest) {
 
       if (mailbox) {
         await recordNegativeEvent(mailbox, type === "email.bounced" ? "bounce" : "complaint");
+
+        // Suppress the RECIPIENT org-wide too — a permanent bounce or a spam
+        // complaint means we must stop contacting that address in every campaign,
+        // not just pause the sending mailbox. (Soft bounces are skipped.)
+        const isComplaint = type === "email.complained";
+        if (recipient && (isComplaint || isPermanentBounce(event.data))) {
+          await suppressEmail({
+            orgId: mailbox.org_id,
+            email: recipient,
+            reason: isComplaint ? "spam_complaint" : "hard_bounce",
+            source: "resend_webhook",
+            messageId: event.data?.email_id ?? null,
+          });
+        }
       }
     } else if (type === "domain.updated" || type === "domain.created") {
       const resendId = event.data?.id;
