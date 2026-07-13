@@ -184,6 +184,28 @@ export default function CampaignWizard({
     loadAudience(initialId);
   }, [initialId, loadAudience]);
 
+  // Autosave: once the campaign exists, persist any edit (name / objective /
+  // sequence copy / send window) 1.5s after you stop typing — so closing or
+  // reloading mid-step never loses work. Content only (no status), so it never
+  // downgrades an active campaign back to draft.
+  const [savedTick, setSavedTick] = useState(0);
+  useEffect(() => {
+    if (!campaignId || !draft) return;
+    const t = setTimeout(async () => {
+      const payload = buildPayload(false);
+      if (!payload) return;
+      const { status: _status, ...content } = payload;
+      const res = await fetch(`/api/enterprise/campaigns/${campaignId}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(content),
+      }).catch(() => null);
+      if (res?.ok) setSavedTick((n) => n + 1);
+    }, 1500);
+    return () => clearTimeout(t);
+    // buildPayload is a render-local closure over draft/objective; deps below
+    // cover every field it reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, objective, campaignId]);
+
   const loadPreview = useCallback(async (id: string, enrollmentId?: string) => {
     setPreviewLoading(true);
     const qs = enrollmentId ? `?enrollmentId=${enrollmentId}` : "";
@@ -287,7 +309,12 @@ export default function CampaignWizard({
           <button onClick={onCancel} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> Campaigns
           </button>
-          <span className="text-xs text-muted-foreground">{campaignId ? "Editing" : "New campaign"}</span>
+          <span className="inline-flex items-center gap-2 text-xs text-muted-foreground">
+            {campaignId && savedTick > 0 && (
+              <span className="inline-flex items-center gap-1 text-green-500"><Check className="h-3.5 w-3.5" /> Saved</span>
+            )}
+            {campaignId ? "Editing" : "New campaign"}
+          </span>
         </div>
 
         {/* Stepper */}
