@@ -139,9 +139,13 @@ export default function ImportDialog({
           s.duplicates ? `${s.duplicates} duplicates skipped` : null,
           s.needs_email ? `${s.needs_email} need a revealed email` : null,
           s.do_not_contact ? `${s.do_not_contact} on do-not-contact` : null,
+          s.skipped ? `${s.skipped} skipped` : null,
           s.errors ? `${s.errors} failed` : null,
         ].filter(Boolean);
-        onDone(revealPrefix + (parts.join(", ") || "Nothing to import."));
+        // Append the actual reasons (e.g. "Add a step to the campaign before
+        // enrolling") so a "failed" count is never a dead end.
+        const why = Array.isArray(s.reasons) && s.reasons.length ? ` — ${s.reasons.join("; ")}` : "";
+        onDone(revealPrefix + (parts.join(", ") || "Nothing to import.") + why);
       }
     } catch {
       setError("Something went wrong.");
