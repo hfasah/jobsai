@@ -4,15 +4,18 @@ import { supabaseAdmin } from "@/lib/supabase";
 import type { EmailVerifier, ProviderKey, SourcingProvider } from "./provider";
 import { mockProvider } from "./providers/mock";
 import { pdlProvider } from "./providers/pdl";
+import { apolloProvider } from "./providers/apollo";
 import { mockVerifier } from "./verifiers/mock";
 import { emailableVerifier } from "./verifiers/emailable";
 
 const PROVIDERS: Record<ProviderKey, SourcingProvider> = {
   mock: mockProvider,
   pdl: pdlProvider,
+  apollo: apolloProvider,
 };
 
 function envKeyFor(key: ProviderKey): string | null {
+  if (key === "apollo") return process.env.APOLLO_API_KEY ?? null;
   if (key === "pdl") return process.env.PDL_API_KEY ?? null;
   if (key === "mock") return "mock"; // mock needs no real key
   return null;
@@ -57,17 +60,22 @@ export async function getProvidersForOrg(orgId: string): Promise<ResolvedProvide
     resolved.push({ provider, apiKey, settings: row.settings ?? {} });
   }
 
+  // No org rows → platform default. Prefer Apollo (free search, pay-per-reveal)
+  // when its key is set; otherwise PDL; otherwise mock.
+  const apolloKey = envKeyFor("apollo");
   const pdlKey = envKeyFor("pdl");
-  const result: ResolvedProvider[] =
-    resolved.length > 0
-      ? resolved
+  const fallback: ResolvedProvider =
+    apolloKey
+      ? { provider: apolloProvider, apiKey: apolloKey, settings: {} }
       : pdlKey
-        ? [{ provider: pdlProvider, apiKey: pdlKey, settings: {} }]
-        : [{ provider: mockProvider, apiKey: "mock", settings: {} }];
+        ? { provider: pdlProvider, apiKey: pdlKey, settings: {} }
+        : { provider: mockProvider, apiKey: "mock", settings: {} };
+  const result: ResolvedProvider[] = resolved.length > 0 ? resolved : [fallback];
 
   // One-line resolution trace so a wrong provider is diagnosable without DB access.
   console.info("[sourcing/registry] resolved", {
     orgId,
+    apolloEnv: !!apolloKey,
     pdlEnv: !!pdlKey,
     rows: rows.map((r) => ({ key: r.provider_key, enabled: r.enabled, hasKey: !!(r.api_key && r.api_key.trim()) })),
     resolved: result.map((r) => r.provider.key),

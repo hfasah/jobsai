@@ -8,7 +8,7 @@ import type {
   VerifyResult,
 } from "./types";
 
-export type ProviderKey = "mock" | "pdl";
+export type ProviderKey = "mock" | "pdl" | "apollo";
 
 export interface ProviderCallOpts {
   apiKey: string;
