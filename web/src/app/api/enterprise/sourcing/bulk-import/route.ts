@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
     .in("id", resultIds);
   const rows = (results ?? []) as { id: string; external_candidate_id: string | null }[];
 
-  const summary = { imported: 0, merged: 0, skipped: 0, needs_email: 0, duplicates: 0, do_not_contact: 0, errors: 0 };
+  const summary = { imported: 0, merged: 0, skipped: 0, needs_email: 0, duplicates: 0, do_not_contact: 0, errors: 0, pending: 0 };
   const importedResultIds: string[] = [];
   // Collect the distinct human reasons behind failures/skips so the UI can say
   // WHY (e.g. "Add a step to the campaign before enrolling") instead of a bare
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       campaignId: typeof body.campaignId === "string" ? body.campaignId : null,
       onDuplicate,
     });
-    if (outcome.status === "imported") { summary.imported++; importedResultIds.push(row.id); }
+    if (outcome.status === "imported") { summary.imported++; if (outcome.pending) summary.pending++; importedResultIds.push(row.id); }
     else if (outcome.status === "merged") { summary.merged++; importedResultIds.push(row.id); }
     else if (outcome.status === "needs_email") { summary.needs_email++; noteReason("Reveal an email first — imports need a contact email."); }
     else if (outcome.status === "duplicate_confirm") summary.duplicates++;

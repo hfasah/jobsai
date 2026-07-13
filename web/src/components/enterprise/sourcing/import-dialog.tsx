@@ -72,18 +72,13 @@ export default function ImportDialog({
       .catch(() => {});
   }, []);
 
-  // A campaign with no email steps has nothing to send — enrolling would fail
-  // for every candidate AFTER we'd already charged for reveals. Catch it here,
-  // before spending a single credit. (lockedCampaign resolves against the same
-  // loaded list; if it's not found yet we fail open and let the server answer.)
+  // A draft campaign may not have its email sequence written yet. That's fine —
+  // leads enrol as "parked" (nothing sends until a sequence exists and the
+  // campaign is launched). We just tell the user so it isn't a surprise.
   const activeCampaign = campaigns.find((c) => c.id === (lockedCampaign?.id ?? campaignId));
   const campaignHasNoSteps = target === "campaign" && !!activeCampaign && activeCampaign.steps === 0;
 
   const submit = async (onDuplicate: "skip" | "import_anyway" | "merge") => {
-    if (campaignHasNoSteps) {
-      setError(`"${activeCampaign?.name}" has no email steps yet — add at least one step to the sequence before enrolling. (No credits are spent.)`);
-      return;
-    }
     setBusy(true);
     setError(null);
     try {
@@ -130,7 +125,9 @@ export default function ImportDialog({
           json.data.status === "merged"
             ? "Merged with an existing record."
             : target === "campaign"
-              ? "Added to campaign — first email is queued."
+              ? json.data.pending
+                ? "Added to campaign — held until you write a sequence and launch."
+                : "Added to campaign — first email is queued."
               : target === "crm_contact"
                 ? "Added to CRM contacts."
                 : "Candidate imported."
@@ -145,7 +142,7 @@ export default function ImportDialog({
         if (!res.ok) { setError(json.error ?? "Import failed."); return; }
         const s = json.data;
         const parts = [
-          s.imported ? `${s.imported} imported` : null,
+          s.imported ? `${s.imported} ${target === "campaign" ? "enrolled" : "imported"}${s.pending ? " (held — no sequence yet)" : ""}` : null,
           s.merged ? `${s.merged} merged` : null,
           s.duplicates ? `${s.duplicates} duplicates skipped` : null,
           s.needs_email ? `${s.needs_email} need a revealed email` : null,
@@ -301,11 +298,11 @@ export default function ImportDialog({
             )}
 
             {campaignHasNoSteps && (
-              <div className="mb-3 flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-500">
-                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              <div className="mb-3 flex items-start gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
                 <span>
-                  <span className="font-medium">{activeCampaign?.name}</span> has no email steps yet. Add at least one step to its
-                  sequence before enrolling — otherwise there&apos;s nothing to send. No credits are spent until it&apos;s ready.
+                  <span className="font-medium text-foreground">{activeCampaign?.name}</span> has no email sequence yet — these leads will be
+                  <span className="font-medium text-foreground"> added and held</span>. Nothing sends until you write a step and launch the campaign.
                 </span>
               </div>
             )}
@@ -334,7 +331,7 @@ export default function ImportDialog({
                   )}
                   <button
                     onClick={() => submit("skip")}
-                    disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId) || campaignHasNoSteps}
+                    disabled={busy || (target === "job" && !jobId) || (target === "campaign" && !campaignId)}
                     className="btn-cta inline-flex w-full items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-semibold disabled:opacity-60"
                   >
                     {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : target === "campaign" ? <Send className="h-4 w-4" /> : <Database className="h-4 w-4" />}

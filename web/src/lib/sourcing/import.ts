@@ -39,6 +39,7 @@ export interface ImportOutcome {
   talent_pool_id?: string;
   crm_contact_id?: string;
   enrollment_id?: string;
+  pending?: boolean; // enrolled into a draft with no sequence yet — parked until launch
   error?: string;
   reason?: string; // human-readable note for a skip (e.g. already in a campaign)
 }
@@ -301,13 +302,19 @@ export async function importExternalCandidate(args: {
       if (recent) return { status: "skipped", verdict, reason: `Contacted within the last ${opts.dedup_days} days — skipped.` };
     }
 
+    // A draft campaign may have no sequence yet. Rather than block (the old
+    // deadlock: sourcing wouldn't add leads without steps, and you couldn't
+    // write steps without leads), we PARK the lead — enrolled but unscheduled
+    // (next_send_at = null). Nothing sends until a step is written AND the
+    // campaign is launched (the launch preflight requires steps, and launch
+    // backfills next_send_at for parked enrollments). See PATCH campaigns/[id].
     const { data: steps } = await supabaseAdmin
       .from("enterprise_campaign_steps")
       .select("delay_days")
       .eq("campaign_id", args.campaignId)
       .order("step_order", { ascending: true })
       .limit(1);
-    if (!steps || steps.length === 0) return { status: "error", error: "Add a step to the campaign before enrolling." };
+    const hasSteps = !!steps && steps.length > 0;
 
     // Already enrolled in THIS campaign → don't double-message.
     const { data: existingEnroll } = await supabaseAdmin
@@ -336,7 +343,11 @@ export async function importExternalCandidate(args: {
       return { status: "skipped", verdict, reason: "Already in another active campaign — skipped to avoid overlapping outreach." };
     }
 
-    const nextSendAt = new Date(Date.now() + Math.max(0, steps[0].delay_days || 0) * 86_400_000).toISOString();
+    // Parked (no steps yet) → next_send_at null so the cron never picks it up.
+    // Launch backfills the schedule once a sequence exists.
+    const nextSendAt = hasSteps
+      ? new Date(Date.now() + Math.max(0, steps![0].delay_days || 0) * 86_400_000).toISOString()
+      : null;
     const { data: enrollment, error } = await supabaseAdmin
       .from("enterprise_campaign_enrollments")
       .insert({
@@ -356,7 +367,7 @@ export async function importExternalCandidate(args: {
     if (error || !enrollment) return { status: "error", error: error?.message ?? "Could not enroll." };
     const enrollmentId = (enrollment as { id: string }).id;
     await recordImport({ orgId, userId, candidateId: candidate.id, target, campaignId: args.campaignId, enrollmentId, dedupStatus: verdict.status, decision });
-    return { status: "imported", verdict, enrollment_id: enrollmentId };
+    return { status: "imported", verdict, enrollment_id: enrollmentId, pending: !hasSteps };
   }
 
   // job / intake -> an enterprise_applications row

@@ -50,17 +50,20 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     return NextResponse.json({ error: "This campaign only accepts verified emails — add leads via Search (with reveal), or allow unverified in Options." }, { status: 400 });
   }
 
+  // A draft campaign can be built before its sequence exists. If there are no
+  // steps yet, PARK enrollees (next_send_at = null) so the list can be built
+  // now; launch backfills the schedule once a sequence is written. This breaks
+  // the deadlock where you couldn't add leads without steps, nor easily write
+  // steps around leads. The launch preflight still requires steps to send.
   const { data: steps } = await supabaseAdmin
     .from("enterprise_campaign_steps")
     .select("step_order, delay_days")
     .eq("campaign_id", id)
     .order("step_order", { ascending: true });
-  if (!steps || steps.length === 0) {
-    return NextResponse.json({ error: "Add at least one step before enrolling candidates." }, { status: 400 });
-  }
-
-  const firstDelayMs = Math.max(0, steps[0].delay_days || 0) * 86_400_000;
-  const nextSendAt = new Date(Date.now() + firstDelayMs).toISOString();
+  const hasSteps = !!steps && steps.length > 0;
+  const nextSendAt = hasSteps
+    ? new Date(Date.now() + Math.max(0, steps![0].delay_days || 0) * 86_400_000).toISOString()
+    : null;
 
   // Skip candidates already enrolled (don't double-message anyone).
   const emails = (candidates as EnrollCandidate[])
