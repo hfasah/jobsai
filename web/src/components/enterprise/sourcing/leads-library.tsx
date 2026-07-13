@@ -60,16 +60,20 @@ export default function LeadsLibrary() {
     setHasMore(!!j.has_more);
   }, []);
 
-  useEffect(() => { load("", 0, false); }, [load]);
-
-  // Debounced search.
+  // Load on mount and whenever the (debounced) search changes. The setTimeout
+  // keeps the setState out of the effect body (no cascading-render lint) and
+  // also debounces typing. Fires immediately on mount because q starts empty.
   useEffect(() => {
-    const t = setTimeout(() => { setSelected(new Set()); load(q, 0, false); }, 350);
+    const t = setTimeout(() => { setSelected(new Set()); load(q, 0, false); }, q ? 350 : 0);
     return () => clearTimeout(t);
   }, [q, load]);
 
   const toggle = (id: string) =>
-    setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
   const allOnPage = leads.length > 0 && leads.every((l) => selected.has(l.id));
   const toggleAll = () =>
     setSelected((s) => {
