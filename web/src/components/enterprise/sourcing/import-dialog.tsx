@@ -69,6 +69,21 @@ export default function ImportDialog({
     setBusy(true);
     setError(null);
     try {
+      // Campaign & talent-pool enrollment need a VERIFIED email. "Email available"
+      // means the provider has one, not that it's revealed — so reveal any that
+      // aren't yet (idempotent; only un-revealed candidates cost credits), then
+      // enroll. Without this the enroll silently skips everyone as needs_email.
+      let revealPrefix = "";
+      if (target === "campaign" || target === "talent_pool") {
+        const rev = await fetch("/api/enterprise/sourcing/bulk-reveal", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ resultIds }),
+        });
+        const rj = await rev.json().catch(() => ({}));
+        if (!rev.ok) { setError(rj.error ?? "Could not reveal emails."); return; }
+        if (rj.data?.ran_out) { setError("Ran out of credits while revealing — top up and try again."); return; }
+        if (rj.data?.revealed) revealPrefix = `Revealed ${rj.data.revealed} email${rj.data.revealed !== 1 ? "s" : ""}. `;
+      }
       if (single) {
         const res = await fetch(`/api/enterprise/sourcing/results/${resultIds[0]}/import`, {
           method: "POST",
@@ -89,15 +104,15 @@ export default function ImportDialog({
           setError(json.data.reason ?? "Skipped — not added.");
           return;
         }
-        onDone(
+        onDone(revealPrefix + (
           json.data.status === "merged"
             ? "Merged with an existing record."
             : target === "campaign"
               ? "Added to campaign — first email is queued."
               : target === "crm_contact"
                 ? "Added to CRM contacts."
-                : "Candidate imported.",
-        );
+                : "Candidate imported."
+        ));
       } else {
         const res = await fetch("/api/enterprise/sourcing/bulk-import", {
           method: "POST",
@@ -114,7 +129,7 @@ export default function ImportDialog({
           s.needs_email ? `${s.needs_email} need a revealed email` : null,
           s.errors ? `${s.errors} failed` : null,
         ].filter(Boolean);
-        onDone(parts.join(", ") || "Nothing to import.");
+        onDone(revealPrefix + (parts.join(", ") || "Nothing to import."));
       }
     } catch {
       setError("Something went wrong.");
@@ -277,7 +292,9 @@ export default function ImportDialog({
                   : single ? "Import candidate" : `Import ${resultIds.length} candidates`}
             </button>
             <p className="mt-2 text-[10px] text-muted-foreground">
-              Imports need a revealed email. Duplicates are detected first — you&apos;ll be asked before anything is overwritten.
+              {target === "campaign" || target === "talent_pool"
+                ? "Any candidate whose email isn't revealed yet is revealed now (≈2 credits each) so they can be contacted. Duplicates are flagged before anything is overwritten."
+                : "Duplicates are detected first — you'll be asked before anything is overwritten."}
             </p>
           </>
         )}
