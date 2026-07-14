@@ -46,11 +46,12 @@ export async function POST(req: NextRequest) {
     .eq("status", "scheduled")
     .lte("scheduled_at", now.toISOString());
 
-  // Self-heal: enrolments that never got a scheduled send time (enrolled while
-  // the campaign was a draft, then the campaign went live — the launch backfill
-  // didn't reach them) sit active-but-stuck forever. Schedule their first step
-  // now. Scoped to LIVE campaigns that aren't mid-pilot-hold (a pilot leaves
-  // held rows at next_send_at=null on purpose) and to the first, unsent step.
+  // Self-heal the first touch. A never-sent, step-0 enrolment in a LIVE,
+  // non-pilot campaign whose FIRST step sends immediately (delay 0) must be due
+  // now — but launch/enrol quirks can leave it null OR mis-dated to the future,
+  // so it never sends. Pull all such enrolments to "now" so the send query
+  // below picks them up on this same run. (Campaigns with a deliberate delayed
+  // first touch are left alone; a pilot leaves held rows on purpose.)
   const { data: liveCampaigns } = await supabaseAdmin
     .from("enterprise_campaigns")
     .select("id")
@@ -58,16 +59,25 @@ export async function POST(req: NextRequest) {
     .or("pilot_size.is.null,pilot_released.eq.true");
   const liveIds = ((liveCampaigns ?? []) as { id: string }[]).map((c) => c.id);
   if (liveIds.length > 0) {
-    const { data: healed } = await supabaseAdmin
-      .from("enterprise_campaign_enrollments")
-      .update({ next_send_at: now.toISOString() })
-      .eq("status", "active")
-      .is("next_send_at", null)
-      .eq("current_step_order", 0)
-      .is("last_sent_at", null)
+    const { data: firstSteps } = await supabaseAdmin
+      .from("enterprise_campaign_steps")
+      .select("campaign_id, delay_days")
       .in("campaign_id", liveIds)
-      .select("id");
-    if (healed && healed.length > 0) console.log(`[campaigns cron] self-healed ${healed.length} unscheduled enrolment(s)`);
+      .eq("step_order", 0);
+    const immediateIds = ((firstSteps ?? []) as { campaign_id: string; delay_days: number | null }[])
+      .filter((s) => (s.delay_days ?? 0) <= 0)
+      .map((s) => s.campaign_id);
+    if (immediateIds.length > 0) {
+      const { data: healed } = await supabaseAdmin
+        .from("enterprise_campaign_enrollments")
+        .update({ next_send_at: now.toISOString() })
+        .eq("status", "active")
+        .eq("current_step_order", 0)
+        .is("last_sent_at", null)
+        .in("campaign_id", immediateIds)
+        .select("id");
+      if (healed && healed.length > 0) console.log(`[campaigns cron] scheduled ${healed.length} first-touch enrolment(s) to send now`);
+    }
   }
 
   const { data: due } = await supabaseAdmin
