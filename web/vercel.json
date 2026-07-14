@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/enterprise-campaigns",
-      "schedule": "0 14 * * *"
+      "schedule": "0 12-22 * * *"
     },
     {
       "path": "/api/cron/ai-sdr",
