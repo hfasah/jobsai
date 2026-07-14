@@ -318,7 +318,10 @@ export async function POST(req: NextRequest) {
     let subject = renderTemplate(useB && step.ab_subject ? step.ab_subject : step.subject, vars);
     let bodyText = renderTemplate(useB && step.ab_body ? step.ab_body : step.body, vars);
 
-    // Optional per-candidate AI rewrite — keeps the recruiter's intent, makes it personal.
+    // Optional per-candidate AI rewrite — keeps the recruiter's intent, makes it
+    // personal. HARD-CAP at 12s: a slow/hung AI provider must never block the
+    // send (5 hung calls would time out the whole cron). On timeout or error,
+    // fall through to the already-good rendered template.
     if (step.ai_personalize) {
       try {
         const resp = await ai().chat.completions.create({
@@ -330,12 +333,13 @@ export async function POST(req: NextRequest) {
             role: "user",
             content: `Rewrite this recruiting outreach email to feel personal and natural for ${candidateName}, a candidate for the ${jobTitle} role at ${orgName}. Keep it short (under 120 words), warm, and human. Preserve the intent and any call to action. Do not invent specific facts about the candidate.${step.ai_prompt ? `\nExtra guidance: ${step.ai_prompt}` : ""}\n\nDraft subject: ${subject}\nDraft body:\n${bodyText}\n\nReturn JSON: { "subject": "...", "body": "..." }`,
           }],
-        });
+        }, { timeout: 12000, maxRetries: 0 });
         const parsed = JSON.parse(resp.choices[0]?.message?.content ?? "{}");
         if (parsed.subject) subject = parsed.subject;
         if (parsed.body) bodyText = parsed.body;
         recordUsage({ orgId: e.org_id as string, feature: "campaign_step", model: AI_TIERS.fast.model, usage: { prompt_tokens: resp.usage?.prompt_tokens, completion_tokens: resp.usage?.completion_tokens } });
-      } catch {
+      } catch (err) {
+        console.log(`[campaigns cron] AI personalize skipped (${String(err).slice(0, 80)}) — using template`);
         // fall through to the rendered template
       }
     }
