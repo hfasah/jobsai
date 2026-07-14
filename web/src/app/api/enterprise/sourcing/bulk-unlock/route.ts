@@ -5,6 +5,7 @@ import { requireFeature } from "@/lib/enterprise-entitlements";
 import { requirePermission } from "@/lib/enterprise-permissions";
 import { getMyOrg } from "@/lib/enterprise";
 import { audit } from "@/lib/enterprise-audit";
+import { syncLeadToCrm } from "@/lib/sourcing/crm-sync";
 import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
 import { spendCredits, getCreditCosts, ensureMonthlyGrant, bundleUnitPrice, bundleDiscount } from "@/lib/sourcing/credits";
 import { isEmailSuppressed } from "@/lib/outreach/suppression";
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
   const discount = bundleDiscount(todo.length);
 
   const summary = { unlocked: 0, no_data: 0, do_not_contact: 0, already: 0, credits_charged: 0 };
+  const unlockedIds: string[] = []; // for CRM sync in after()
 
   for (const c of candidates) {
     if (c.suppressed) { summary.do_not_contact++; continue; }
@@ -136,7 +138,10 @@ export async function POST(req: NextRequest) {
         await supabaseAdmin.from("sourcing_reveals").update({ status: "failed", result: { error: spend.dailyCap ? "daily_cap" : "insufficient_credits" } }).eq("id", revealId).eq("org_id", org.id);
         // Ran out — stop here; report what we've done so far.
         const { data: state } = await supabaseAdmin.from("sourcing_credit_balances").select("balance").eq("org_id", org.id).maybeSingle();
-        after(() => audit({ org_id: org.id, user_id: userId, action: "sourcing.contact_revealed", resource_type: "sourcing_bulk_unlock", metadata: { ...summary, ran_out: true, discount: discount.label } }));
+        after(async () => {
+          for (const cid of unlockedIds) await syncLeadToCrm(org.id, userId, cid).catch((e) => console.error("[sourcing] CRM sync failed", e));
+          audit({ org_id: org.id, user_id: userId, action: "sourcing.contact_revealed", resource_type: "sourcing_bulk_unlock", metadata: { ...summary, ran_out: true, discount: discount.label } });
+        });
         return NextResponse.json({ data: { ...summary, ran_out: true, balance: (state as { balance?: number } | null)?.balance ?? 0, discount: discount.label } });
       }
       summary.credits_charged += spend.cost;
@@ -147,9 +152,13 @@ export async function POST(req: NextRequest) {
 
     await supabaseAdmin.from("sourcing_external_candidates").update(update).eq("id", c.id).eq("org_id", org.id);
     summary.unlocked++;
+    if (gotEmail) unlockedIds.push(c.id);
   }
 
   const { data: state } = await supabaseAdmin.from("sourcing_credit_balances").select("balance").eq("org_id", org.id).maybeSingle();
-  after(() => audit({ org_id: org.id, user_id: userId, action: "sourcing.contact_revealed", resource_type: "sourcing_bulk_unlock", metadata: { ...summary, discount: discount.label } }));
+  after(async () => {
+    for (const cid of unlockedIds) await syncLeadToCrm(org.id, userId, cid).catch((e) => console.error("[sourcing] CRM sync failed", e));
+    audit({ org_id: org.id, user_id: userId, action: "sourcing.contact_revealed", resource_type: "sourcing_bulk_unlock", metadata: { ...summary, discount: discount.label } });
+  });
   return NextResponse.json({ data: { ...summary, balance: (state as { balance?: number } | null)?.balance ?? 0, discount: discount.label } });
 }
