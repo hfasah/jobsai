@@ -208,6 +208,7 @@ export async function POST(req: NextRequest) {
     // Send window: outside the campaign's local-time window (or on a weekend
     // when business-days-only), park the enrollment until the window opens.
     if (!isWithinSendWindow(campaign, now)) {
+      console.log(`[campaigns cron] defer(window) ${e.candidate_email} tz=${campaign.send_timezone} start=${campaign.send_window_start} end=${campaign.send_window_end} biz=${campaign.business_days_only}`);
       await supabaseAdmin
         .from("enterprise_campaign_enrollments")
         .update({ next_send_at: nextWindowOpen(campaign, now).toISOString() })
@@ -383,7 +384,7 @@ export async function POST(req: NextRequest) {
       )
       .select("id")
       .maybeSingle();
-    if (!send) return; // this step was already sent by another run
+    if (!send) { console.log(`[campaigns cron] skip(send-row-exists) ${e.candidate_email} step=${stepOrder}`); return; } // already sent by another run
 
     // Open-tracking pixel — omitted when the campaign turns it off (better deliverability).
     const trackOpens = (campaign as { track_opens?: boolean }).track_opens !== false;
@@ -420,14 +421,16 @@ export async function POST(req: NextRequest) {
           ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
         });
       }
-    } catch {
+    } catch (err) {
       // Leave the send row; mark enrollment bounced so it doesn't retry forever.
+      console.log(`[campaigns cron] SEND FAILED ${e.candidate_email} via ${connectedSender ? connectedSender.address : fromEmail}: ${String(err).slice(0, 120)}`);
       await supabaseAdmin
         .from("enterprise_campaign_enrollments")
         .update({ status: "bounced", next_send_at: null })
         .eq("id", e.id as string);
       return;
     }
+    console.log(`[campaigns cron] SENT ${e.candidate_email} via ${connectedSender ? connectedSender.address : fromEmail}`);
 
     // Count this send toward the campaign's daily cap.
     sentToday.set(cid, (sentToday.get(cid) ?? 0) + 1);
