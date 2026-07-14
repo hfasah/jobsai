@@ -185,7 +185,7 @@ function InboxInner() {
       <div className="flex w-full max-w-sm shrink-0 flex-col border-r border-border">
         <div className="border-b border-border p-3">
           <h1 className="mb-2 flex items-center gap-2 text-lg font-bold">
-            <Inbox className="h-5 w-5 text-primary" /> Inbox
+            <Inbox className="h-5 w-5 text-primary" /> AI SDR Inbox
             {counts.unread > 0 && (
               <span className="rounded-full bg-primary/15 px-1.5 py-0.5 text-[11px] font-semibold text-primary">{counts.unread} new</span>
             )}
