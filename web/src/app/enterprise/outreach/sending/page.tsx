@@ -57,9 +57,13 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+interface ConnectableAccount { provider: string; kind: string; email: string; registered: boolean }
+
 export default function SendingPage() {
   const [domains, setDomains] = useState<DomainRow[]>([]);
   const [mailboxes, setMailboxes] = useState<MailboxRow[]>([]);
+  const [connectable, setConnectable] = useState<ConnectableAccount[]>([]);
+  const [connecting, setConnecting] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [newDomain, setNewDomain] = useState("");
   const [addingDomain, setAddingDomain] = useState(false);
@@ -70,14 +74,33 @@ export default function SendingPage() {
   const [openDomain, setOpenDomain] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const [d, m] = await Promise.all([
+    const [d, m, c] = await Promise.all([
       fetch("/api/enterprise/outreach/domains").then((r) => r.json()).catch(() => null),
       fetch("/api/enterprise/outreach/mailboxes").then((r) => r.json()).catch(() => null),
+      fetch("/api/enterprise/outreach/mailboxes/connect").then((r) => r.json()).catch(() => null),
     ]);
     if (d?.data) setDomains(d.data);
     if (m?.data) setMailboxes(m.data);
+    if (c?.data) setConnectable(c.data);
     setLoading(false);
   }, []);
+
+  const connectMailbox = async (provider: string) => {
+    setConnecting(provider);
+    setError(null);
+    try {
+      const res = await fetch("/api/enterprise/outreach/mailboxes/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ provider }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setError(json.error ?? "Could not add the mailbox."); return; }
+      await load();
+    } finally {
+      setConnecting(null);
+    }
+  };
 
   useEffect(() => { load(); }, [load]);
 
@@ -168,6 +191,50 @@ export default function SendingPage() {
             <TriangleAlert className="h-4 w-4 shrink-0" /> {error}
           </div>
         )}
+
+        {/* Send from your own inbox — the easy path (no DNS) */}
+        <section className="mt-6 rounded-2xl border border-primary/30 bg-primary/5 p-4">
+          <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+            <Mail className="h-4 w-4 text-primary" /> Send from your own inbox
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            The simplest way to start: send campaigns straight from your connected Gmail or Outlook.
+            No DNS setup, and replies land right back in your inbox. Best for lower volume
+            (~a few hundred/day); use a sending domain below for high-volume cold outreach.
+          </p>
+
+          <div className="mt-3 space-y-2">
+            {connectable.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
+                No mailbox connected yet. Connect your Google or Microsoft account under{" "}
+                <a href="/enterprise/settings" className="font-medium text-primary hover:underline">Settings → Integrations</a>, then come back to send from it.
+              </p>
+            ) : (
+              connectable.map((a) => (
+                <div key={a.email} className="flex items-center gap-2 rounded-xl border border-border/60 bg-background px-3 py-2.5">
+                  <Mail className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium">{a.email}</p>
+                    <p className="text-[11px] text-muted-foreground">{a.provider === "google" ? "Gmail" : "Outlook / Microsoft 365"}</p>
+                  </div>
+                  {a.registered ? (
+                    <span className="inline-flex items-center gap-1 rounded-full border border-green-500/30 bg-green-500/10 px-2.5 py-1 text-[11px] font-medium text-green-400">
+                      <Check className="h-3 w-3" /> Sending from this inbox
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => connectMailbox(a.provider)}
+                      disabled={connecting === a.provider}
+                      className="btn-cta inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-60"
+                    >
+                      {connecting === a.provider ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Use as sender
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </section>
 
         {/* Domains */}
         <section className="mt-6 rounded-2xl border border-border bg-card p-4">
