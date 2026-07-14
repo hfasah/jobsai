@@ -46,6 +46,30 @@ export async function POST(req: NextRequest) {
     .eq("status", "scheduled")
     .lte("scheduled_at", now.toISOString());
 
+  // Self-heal: enrolments that never got a scheduled send time (enrolled while
+  // the campaign was a draft, then the campaign went live — the launch backfill
+  // didn't reach them) sit active-but-stuck forever. Schedule their first step
+  // now. Scoped to LIVE campaigns that aren't mid-pilot-hold (a pilot leaves
+  // held rows at next_send_at=null on purpose) and to the first, unsent step.
+  const { data: liveCampaigns } = await supabaseAdmin
+    .from("enterprise_campaigns")
+    .select("id")
+    .eq("status", "active")
+    .or("pilot_size.is.null,pilot_released.eq.true");
+  const liveIds = ((liveCampaigns ?? []) as { id: string }[]).map((c) => c.id);
+  if (liveIds.length > 0) {
+    const { data: healed } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .update({ next_send_at: now.toISOString() })
+      .eq("status", "active")
+      .is("next_send_at", null)
+      .eq("current_step_order", 0)
+      .is("last_sent_at", null)
+      .in("campaign_id", liveIds)
+      .select("id");
+    if (healed && healed.length > 0) console.log(`[campaigns cron] self-healed ${healed.length} unscheduled enrolment(s)`);
+  }
+
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
     .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
@@ -55,6 +79,7 @@ export async function POST(req: NextRequest) {
     .order("next_send_at", { ascending: true })
     .limit(BATCH);
 
+  console.log(`[campaigns cron] due enrolments: ${due?.length ?? 0}`);
   if (!due || due.length === 0) return NextResponse.json({ ok: true, sent: 0 });
 
   // One rotation pool per org in this batch (mailbox rotation across the
