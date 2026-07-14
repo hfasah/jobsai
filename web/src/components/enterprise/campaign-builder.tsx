@@ -106,6 +106,7 @@ export function CampaignBuilder({
   const [focusedField, setFocusedField] = useState<{ i: number; field: "subject" | "body" } | null>(null);
   const [testing, setTesting] = useState<number | null>(null);
   const [testMsg, setTestMsg] = useState<string | null>(null);
+  const [testEmail, setTestEmail] = useState("");
 
   const sendTest = async (i: number) => {
     if (!campaignId) return;
@@ -115,12 +116,12 @@ export function CampaignBuilder({
     setTestMsg(null);
     const res = await fetch(`/api/enterprise/campaigns/${campaignId}/send-test`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subject: step.subject, body: step.body }),
+      body: JSON.stringify({ subject: step.subject, body: step.body, to: testEmail.trim() || undefined }),
     });
     const j = await res.json().catch(() => ({}));
     setTesting(null);
-    setTestMsg(res.ok ? `Test sent to ${j.data?.sent_to}.` : (j.error ?? "Could not send test."));
-    setTimeout(() => setTestMsg(null), 4000);
+    // Keep the confirmation up (no auto-dismiss) so you always know where it went.
+    setTestMsg(res.ok ? `✓ Test sent to ${j.data?.sent_to}${j.data?.sent_from ? ` (from ${j.data.sent_from})` : ""} — check inbox & spam.` : (j.error ?? "Could not send test."));
   };
 
   const patchStep = (i: number, patch: Partial<BuilderStep>) => {
@@ -155,6 +156,19 @@ export function CampaignBuilder({
 
   return (
     <div className="mx-auto max-w-3xl">
+      {campaignId && (
+        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-card px-3 py-2 text-xs">
+          <span className="shrink-0 text-muted-foreground">Send tests to</span>
+          <input
+            type="email"
+            value={testEmail}
+            onChange={(e) => setTestEmail(e.target.value)}
+            placeholder="your account email (default)"
+            className="min-w-[200px] flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <span className="shrink-0 text-[10px] text-muted-foreground">Sends from your campaign mailbox — check inbox &amp; spam.</span>
+        </div>
+      )}
       {testMsg && (
         <div className="mb-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">{testMsg}</div>
       )}
