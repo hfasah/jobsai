@@ -9,6 +9,7 @@ import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { CAMPAIGN_FEATURE_KEY, renderTemplate } from "@/lib/campaigns";
+import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
 
 type Ctx = { params: Promise<{ id: string }> };
 export const maxDuration = 30;
@@ -31,19 +32,24 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     .from("enterprise_campaigns").select("id").eq("id", id).eq("org_id", org.id).maybeSingle();
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
-  const { subject, body } = await req.json().catch(() => ({}));
+  const { subject, body, to } = await req.json().catch(() => ({}));
   if (!subject?.trim() || !body?.trim()) return NextResponse.json({ error: "Subject and body are required." }, { status: 400 });
 
   const { data: orgData } = await supabaseAdmin
-    .from("enterprise_orgs").select("name, white_label_email_from, slug, intake_email_handle").eq("id", org.id).maybeSingle();
+    .from("enterprise_orgs").select("name, white_label_email_from, slug, intake_email_handle, reply_to_email").eq("id", org.id).maybeSingle();
   const orgName = (orgData?.name as string) ?? org.name;
   const recruiter = await getRecruiterIdentity(userId);
-  if (!recruiter.email) return NextResponse.json({ error: "Your account has no email to send the test to." }, { status: 400 });
+
+  // Destination: an explicit address if given, else the recruiter's own email.
+  const override = typeof to === "string" ? to.trim() : "";
+  const dest = override || recruiter.email;
+  if (!dest) return NextResponse.json({ error: "Enter an email to send the test to." }, { status: 400 });
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest)) return NextResponse.json({ error: "That test email isn't valid." }, { status: 400 });
 
   const vars = {
     candidate_name: "Jordan Rivera",
     first_name: "Jordan",
-    job_title: "the role",
+    job_title: "Account Manager", // realistic sample so previews read naturally
     org_name: orgName,
     sender_name: recruiter.name,
   };
@@ -55,13 +61,26 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const senderEmail = enterpriseSenderEmail(intake);
   const html = wrapEmail(renderOutreachBody(renderedBody, recruiter.name, orgName), false);
 
-  const { error } = await resend.emails.send({
-    from: `${fromName} <${senderEmail}>`,
-    to: recruiter.email,
-    subject: renderedSubject,
-    html,
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Send the test through the SAME sender the campaign uses, so it reflects real
+  // deliverability (inbox vs spam) — a connected Gmail/Outlook if configured,
+  // else the shared Resend address. Reply-to the org's shared inbox, as live sends do.
+  const replyTo = (orgData?.reply_to_email as string | null)?.trim() || null;
+  const connected = await getConnectedSender(org.id);
+  let sentFrom = senderEmail;
+  if (connected) {
+    const r = await sendViaConnectedMailbox(connected, { to: dest, subject: renderedSubject, html, fromName, replyTo });
+    if (!r.ok) return NextResponse.json({ error: r.error ?? "Could not send the test from your connected mailbox." }, { status: 500 });
+    sentFrom = connected.address;
+  } else {
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${senderEmail}>`,
+      to: dest,
+      subject: renderedSubject,
+      html,
+      ...(replyTo ? { replyTo } : {}),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
-  return NextResponse.json({ data: { sent_to: recruiter.email } });
+  return NextResponse.json({ data: { sent_to: dest, sent_from: sentFrom } });
 }
