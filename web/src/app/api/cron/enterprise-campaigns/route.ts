@@ -11,6 +11,7 @@ import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outre
 import { loadSuppressedSet } from "@/lib/outreach/suppression";
 import { runSubsequences } from "@/lib/outreach/subsequences";
 import { loadRotationPool, claimFromPool, claimSpecificMailbox, type RotationPool } from "@/lib/outreach/rotation";
+import { getConnectedSender, sendViaConnectedMailbox, type ConnectedMailbox } from "@/lib/outreach/connected-send";
 
 export const maxDuration = 60;
 
@@ -54,6 +55,12 @@ export async function POST(req: NextRequest) {
   const orgIds = [...new Set(due.map((e) => e.org_id as string))];
   const pools = new Map<string, RotationPool>();
   await Promise.all(orgIds.map(async (orgId) => pools.set(orgId, await loadRotationPool(orgId))));
+
+  // Connected-mailbox senders (Gmail/Outlook) per org — the "easy" path: send
+  // from the recruiter's own inbox so replies thread back there. Used when the
+  // org has no domain mailboxes (or an enrolment is already locked to it).
+  const connectedSenders = new Map<string, ConnectedMailbox | null>();
+  await Promise.all(orgIds.map(async (orgId) => connectedSenders.set(orgId, await getConnectedSender(orgId))));
 
   // Load all steps for the campaigns in this batch, grouped by campaign.
   const campaignIds = [...new Set(due.map((e) => e.campaign_id))];
@@ -262,9 +269,22 @@ export async function POST(req: NextRequest) {
     let fromEmail = "support@jobsai.work";
     let mailboxId: string | null = null;
     let lockMailboxId: string | null = null; // set when we newly lock this enrollment
-    if (pool.mailboxes.length > 0) {
+    let connectedSender: ConnectedMailbox | null = null;
+
+    const lockedId = (e.mailbox_id as string | null) ?? null;
+    const orgConnected = connectedSenders.get(e.org_id as string) ?? null;
+    // Send via the recruiter's connected inbox when the org has no domain
+    // mailboxes, or when this enrolment is already locked to that connected
+    // mailbox (keep the sender consistent across the whole sequence).
+    const useConnected = !!orgConnected && (pool.mailboxes.length === 0 || lockedId === orgConnected.id);
+
+    if (useConnected && orgConnected) {
+      connectedSender = orgConnected;
+      fromEmail = orgConnected.address;
+      mailboxId = orgConnected.id;
+      if (!lockedId) lockMailboxId = orgConnected.id;
+    } else if (pool.mailboxes.length > 0) {
       const camp = campaign as { mailbox_strategy?: string; mailbox_id?: string | null };
-      const lockedId = (e.mailbox_id as string | null) ?? null;
       const claimed = lockedId
         ? await claimSpecificMailbox(pool, lockedId)
         : await claimFromPool(pool, camp.mailbox_strategy === "fixed" ? camp.mailbox_id ?? null : null);
@@ -319,13 +339,25 @@ export async function POST(req: NextRequest) {
     const html = wrapEmail(`<p>${bodyText.replace(/\n/g, "<br>")}</p>${pixel}${unsubFooter}`, showPoweredBy);
 
     try {
-      await resend.emails.send({
-        from: `${fromName} <${fromEmail}>`,
-        to: e.candidate_email as string,
-        subject,
-        html,
-        ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
-      });
+      if (connectedSender) {
+        // Send from the recruiter's own Gmail/Outlook. Replies thread back to
+        // their inbox; no reply-to routing needed.
+        const r = await sendViaConnectedMailbox(connectedSender, {
+          to: e.candidate_email as string,
+          subject,
+          html,
+          fromName,
+        });
+        if (!r.ok) throw new Error(r.error ?? "connected send failed");
+      } else {
+        await resend.emails.send({
+          from: `${fromName} <${fromEmail}>`,
+          to: e.candidate_email as string,
+          subject,
+          html,
+          ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
+        });
+      }
     } catch {
       // Leave the send row; mark enrollment bounced so it doesn't retry forever.
       await supabaseAdmin

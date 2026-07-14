@@ -102,6 +102,30 @@ export async function getMicrosoftProfile(accessToken: string): Promise<{ email:
   return { email: (j.mail ?? j.userPrincipalName ?? ""), name: j.displayName ?? "" };
 }
 
+// Send an HTML email from the user's connected Outlook/365 mailbox via Graph.
+// Mirrors sendFromRecruiterGmail — the campaign cron uses it so replies thread
+// back into the recruiter's own inbox.
+export async function sendFromMicrosoft(
+  userId: string,
+  opts: { to: string; subject: string; html: string; replyTo?: string | null },
+): Promise<{ ok: boolean; error?: string }> {
+  const token = await getValidMicrosoftToken(userId);
+  if (!token) return { ok: false, error: "Outlook not connected." };
+  const message: Record<string, unknown> = {
+    subject: opts.subject,
+    body: { contentType: "HTML", content: opts.html },
+    toRecipients: [{ emailAddress: { address: opts.to } }],
+  };
+  if (opts.replyTo) message.replyTo = [{ emailAddress: { address: opts.replyTo } }];
+  const res = await fetch("https://graph.microsoft.com/v1.0/me/sendMail", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ message, saveToSentItems: true }),
+  });
+  if (!res.ok) return { ok: false, error: `Outlook send failed: ${res.status}` };
+  return { ok: true };
+}
+
 export interface OutlookCalendarEventInput {
   subject: string;
   body?: string;
