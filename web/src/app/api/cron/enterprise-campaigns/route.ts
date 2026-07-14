@@ -22,8 +22,14 @@ const ai = () => (_ai ??= getAIClient(AI_TIERS.fast.provider));
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work";
 const BATCH = 120;
 
-// Daily cron. Walks every active enrollment whose next step is due, sends it,
-// records a send row (for per-step analytics), and schedules the next step.
+// Vercel Cron Jobs invoke the endpoint with a GET request — delegate to the
+// handler so scheduled runs actually execute (POST kept for manual triggers).
+export async function GET(req: NextRequest) {
+  return POST(req);
+}
+
+// Runs on the schedule in vercel.json. Walks every active enrollment whose next
+// step is due, sends it, records a send row (per-step analytics), schedules next.
 export async function POST(req: NextRequest) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
