@@ -12,6 +12,7 @@ import { loadSuppressedSet } from "@/lib/outreach/suppression";
 import { runSubsequences } from "@/lib/outreach/subsequences";
 import { loadRotationPool, claimFromPool, claimSpecificMailbox, type RotationPool } from "@/lib/outreach/rotation";
 import { getConnectedSender, sendViaConnectedMailbox, type ConnectedMailbox } from "@/lib/outreach/connected-send";
+import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 
 export const maxDuration = 60;
 
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email)")
+    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -199,12 +200,14 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    const org = e.org as { name: string; show_powered_by: boolean; white_label_email_from: string | null; reply_to_email: string | null } | null;
+    const org = e.org as { name: string; show_powered_by: boolean; white_label_email_from: string | null; reply_to_email: string | null; slug: string | null; intake_email_handle: string | null } | null;
     const orgName = org?.name ?? "Recruiting";
-    // Shared reply-to: whoever/whatever sends, replies route to the org's
-    // configured team inbox (e.g. hr@company.com) — not the individual sender's
-    // mailbox. Keeps the client on ONE inbox and survives a recruiter leaving.
-    const replyTo = org?.reply_to_email?.trim() || null;
+    // Reply-to = the org's intake address, so candidate replies land straight in
+    // the AI SDR Inbox (Resend inbound webhook -> processReply), auto-classified
+    // and shared team-wide — no forwarding setup, no dependence on the sender's
+    // mailbox. Falls back to reply_to_email, then none.
+    const replyTo = (org?.slug ? intakeAddress({ slug: org.slug, intake_email_handle: org.intake_email_handle }) : null)
+      || org?.reply_to_email?.trim() || null;
     const fromName = emailFromName(orgName, org?.white_label_email_from ?? null);
     const showPoweredBy = org?.show_powered_by ?? true;
     const jobTitle = (e.job as { title: string } | null)?.title ?? "our open role";

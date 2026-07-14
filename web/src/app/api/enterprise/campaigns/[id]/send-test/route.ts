@@ -64,7 +64,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // Send the test through the SAME sender the campaign uses, so it reflects real
   // deliverability (inbox vs spam) — a connected Gmail/Outlook if configured,
   // else the shared Resend address. Reply-to the org's shared inbox, as live sends do.
-  const replyTo = (orgData?.reply_to_email as string | null)?.trim() || null;
+  const replyTo = intake || (orgData?.reply_to_email as string | null)?.trim() || null;
   const connected = await getConnectedSender(org.id);
   let sentFrom = senderEmail;
   if (connected) {
