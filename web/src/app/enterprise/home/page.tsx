@@ -13,7 +13,7 @@ export const metadata = {
   // otherwise double-stamps the brand and pushes the title past 60 chars).
   title: { absolute: "JobsAI Enterprise — Talent Acquisition Operating System" }, // 55 chars
   description:
-    "JobsAI Enterprise is an AI-powered talent acquisition platform to source, engage, screen, interview, and hire top talent faster. Start a 14-day free trial.", // 155 chars
+    "JobsAI Enterprise orchestrates sourcing, engagement, screening, evidence, submissions, hiring, and redeployment in one AI platform. 14-day free trial.", // 150 chars
   alternates: { canonical: "/enterprise/home" },
 };
 
@@ -101,11 +101,12 @@ export default function EnterpriseHome() {
         </div>
         <p className="text-xs font-bold uppercase tracking-widest text-primary">JobsAI Enterprise</p>
         <h1 className="mx-auto mt-3 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-          AI-Powered Talent Acquisition Operating System
+          The AI-Powered Talent Acquisition Operating System
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-          Source, engage, screen, interview, and hire top talent from a single AI-powered platform.
+          Orchestrate sourcing, engagement, screening, evidence, submissions, hiring, and redeployment&mdash;all in one intelligent platform.
         </p>
+        <p className="mt-3 text-sm font-medium text-muted-foreground">All plans include a 14-day free trial.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start 14-day free trial <ArrowRight className="h-4 w-4" /></Link>
           <Link href="/enterprise/tour" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Take a tour</Link>
