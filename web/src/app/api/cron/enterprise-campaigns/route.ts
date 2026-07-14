@@ -78,6 +78,30 @@ export async function POST(req: NextRequest) {
         .select("id");
       if (healed && healed.length > 0) console.log(`[campaigns cron] scheduled ${healed.length} first-touch enrolment(s) to send now`);
     }
+
+    // Clear ORPHANED first-step send markers. The send row is created before the
+    // actual send (for the tracking-pixel id); if a prior run created it but died
+    // before sending/advancing, `if (!send) return` then skips the enrolment
+    // forever — scheduled every run, never sent. For active, never-sent, step-0
+    // enrolments in these live campaigns, delete their step-0 send rows so the
+    // send proceeds. Safe: never-sent (last_sent_at null) means no email went out.
+    const { data: stuck } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .select("id")
+      .eq("status", "active")
+      .eq("current_step_order", 0)
+      .is("last_sent_at", null)
+      .in("campaign_id", liveIds);
+    const stuckIds = ((stuck ?? []) as { id: string }[]).map((r) => r.id);
+    if (stuckIds.length > 0) {
+      const { data: cleared } = await supabaseAdmin
+        .from("enterprise_campaign_sends")
+        .delete()
+        .eq("step_order", 0)
+        .in("enrollment_id", stuckIds)
+        .select("id");
+      if (cleared && cleared.length > 0) console.log(`[campaigns cron] cleared ${cleared.length} orphaned send marker(s)`);
+    }
   }
 
   const { data: due } = await supabaseAdmin
