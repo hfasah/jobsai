@@ -337,19 +337,23 @@ export async function importExternalCandidate(args: {
       return { status: "merged", verdict, enrollment_id: (existingEnroll as { id: string }).id };
     }
 
-    // Already in an ACTIVE campaign elsewhere in the org → don't let two
-    // campaigns (or two recruiters) contact the same person at once.
+    // Already being contacted by another LIVE campaign (active/scheduled) → don't
+    // let two campaigns contact the same person at once. Being parked in a
+    // draft/paused/stopped campaign is NOT active outreach and must not block.
     const { data: activeElsewhere } = await supabaseAdmin
       .from("enterprise_campaign_enrollments")
-      .select("id")
+      .select("id, campaign:enterprise_campaigns(status)")
       .eq("org_id", orgId)
       .ilike("candidate_email", email)
       .eq("status", "active")
       .neq("campaign_id", args.campaignId)
-      .limit(1)
-      .maybeSingle();
-    if (activeElsewhere) {
-      return { status: "skipped", verdict, reason: "Already in another active campaign — skipped to avoid overlapping outreach." };
+      .limit(5);
+    const liveElsewhere = (activeElsewhere ?? []).some((r) => {
+      const cs = (r.campaign as { status?: string } | null)?.status;
+      return cs === "active" || cs === "scheduled";
+    });
+    if (liveElsewhere) {
+      return { status: "skipped", verdict, reason: "Already in another live campaign — skipped to avoid overlapping outreach." };
     }
 
     // Parked (no steps yet) → next_send_at null so the cron never picks it up.

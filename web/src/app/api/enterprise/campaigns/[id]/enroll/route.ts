@@ -76,13 +76,18 @@ export async function POST(req: NextRequest, { params }: Ctx) {
     .in("candidate_email", emails);
   const already = new Set((existing ?? []).map((e) => e.candidate_email.toLowerCase()));
 
-  // Cross-campaign: don't add anyone already active in another campaign.
+  // Cross-campaign: don't add anyone already being contacted by another LIVE
+  // campaign (active/scheduled). Being parked in a draft/paused/stopped campaign
+  // is NOT active outreach, so it must not block enrolling here.
   const { data: elsewhere } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("candidate_email")
+    .select("candidate_email, campaign:enterprise_campaigns(status)")
     .eq("org_id", org.id).neq("campaign_id", id).eq("status", "active")
     .in("candidate_email", emails);
-  for (const e of elsewhere ?? []) already.add(e.candidate_email.toLowerCase());
+  for (const e of elsewhere ?? []) {
+    const cs = (e.campaign as { status?: string } | null)?.status;
+    if (cs === "active" || cs === "scheduled") already.add(e.candidate_email.toLowerCase());
+  }
 
   // Recency guard from the campaign's dedup window.
   if (opts.dedup_days && opts.dedup_days > 0) {

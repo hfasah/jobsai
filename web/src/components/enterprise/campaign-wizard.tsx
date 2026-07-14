@@ -82,6 +82,29 @@ export default function CampaignWizard({
   const [previewLoading, setPreviewLoading] = useState(false);
   const [audience, setAudience] = useState<AudienceData | null>(null);
   const [poolOpen, setPoolOpen] = useState(false);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualName, setManualName] = useState("");
+  const [manualEmail, setManualEmail] = useState("");
+  const [manualBusy, setManualBusy] = useState(false);
+  const [manualMsg, setManualMsg] = useState<string | null>(null);
+
+  const addByEmail = async (id: string) => {
+    const email = manualEmail.trim().toLowerCase();
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { setManualMsg("Enter a valid email."); return; }
+    setManualBusy(true); setManualMsg(null);
+    const res = await fetch(`/api/enterprise/campaigns/${id}/enroll`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ candidates: [{ name: manualName.trim() || email, email, source: "manual" }] }),
+    });
+    const j = await res.json().catch(() => ({}));
+    setManualBusy(false);
+    if (!res.ok) { setManualMsg(j.error ?? "Could not add."); return; }
+    if (j.data?.enrolled > 0) {
+      setManualMsg(`Added ${email}.`); setManualName(""); setManualEmail(""); loadAudience(id);
+    } else {
+      setManualMsg("Skipped — already in another live campaign, or unsubscribed.");
+    }
+  };
   const [pilot, setPilot] = useState<{ on: boolean; size: number }>({ on: false, size: 25 });
   const [schedule, setSchedule] = useState<{ on: boolean; at: string }>({ on: false, at: "" });
 
@@ -442,6 +465,45 @@ export default function CampaignWizard({
               {poolOpen && (
                 <div className="border-t border-border">
                   <TalentPoolPicker campaignId={campaignId} onEnrolled={() => loadAudience(campaignId)} />
+                </div>
+              )}
+            </div>
+
+            {/* Or add a specific address directly */}
+            <div className="rounded-2xl border border-border">
+              <button
+                onClick={() => setManualOpen((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left"
+              >
+                <span className="flex items-center gap-2 text-sm font-medium"><Users className="h-4 w-4 text-primary" /> Add by email</span>
+                <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", manualOpen && "rotate-180")} />
+              </button>
+              {manualOpen && (
+                <div className="space-y-2 border-t border-border p-3">
+                  <div className="flex flex-wrap gap-2">
+                    <input
+                      value={manualName}
+                      onChange={(e) => setManualName(e.target.value)}
+                      placeholder="Name (optional)"
+                      className="min-w-[140px] flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <input
+                      type="email"
+                      value={manualEmail}
+                      onChange={(e) => setManualEmail(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addByEmail(campaignId)}
+                      placeholder="name@company.com"
+                      className="min-w-[180px] flex-[2] rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
+                    <button
+                      onClick={() => addByEmail(campaignId)}
+                      disabled={manualBusy || !manualEmail.trim()}
+                      className="btn-cta shrink-0 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60"
+                    >
+                      {manualBusy ? "Adding…" : "Add"}
+                    </button>
+                  </div>
+                  {manualMsg && <p className="text-[11px] text-muted-foreground">{manualMsg}</p>}
                 </div>
               )}
             </div>
