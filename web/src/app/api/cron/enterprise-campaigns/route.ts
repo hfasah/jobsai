@@ -80,7 +80,19 @@ export async function POST(req: NextRequest) {
     .limit(BATCH);
 
   console.log(`[campaigns cron] due enrolments: ${due?.length ?? 0}`);
-  if (!due || due.length === 0) return NextResponse.json({ ok: true, sent: 0 });
+  if (!due || due.length === 0) {
+    // Diagnostic: why is nothing due? Dump the schedule of active enrolments.
+    const { data: sample } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments")
+      .select("next_send_at, current_step_order, last_sent_at, email_status, campaign:enterprise_campaigns(name, status, pilot_size, pilot_released)")
+      .eq("status", "active")
+      .limit(20);
+    console.log("[campaigns cron] 0 due; active enrolments:", JSON.stringify((sample ?? []).map((s) => {
+      const c = s.campaign as { name?: string; status?: string; pilot_size?: number | null; pilot_released?: boolean } | null;
+      return { nsa: s.next_send_at, step: s.current_step_order, sent: s.last_sent_at, email_status: s.email_status, camp: c?.name, status: c?.status, pilot: c?.pilot_size, released: c?.pilot_released };
+    })), "now:", now.toISOString());
+    return NextResponse.json({ ok: true, sent: 0 });
+  }
 
   // One rotation pool per org in this batch (mailbox rotation across the
   // org's healthy sending mailboxes; legacy shared-address send when none).
