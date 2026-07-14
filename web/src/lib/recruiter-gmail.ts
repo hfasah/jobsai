@@ -6,6 +6,7 @@ export interface RecruiterEmailOpts {
   subject: string;
   html: string;
   fromName?: string;
+  replyTo?: string | null;
   inReplyTo?: string;
   threadId?: string;
 }
@@ -34,6 +35,8 @@ export async function sendFromRecruiterGmail(
     'Content-Type: text/html; charset="UTF-8"',
     "MIME-Version: 1.0",
   ];
+  // Reply-To: route replies to a shared team inbox, not the sending mailbox.
+  if (opts.replyTo) lines.push(`Reply-To: ${opts.replyTo}`);
   if (opts.inReplyTo) {
     lines.push(`In-Reply-To: ${opts.inReplyTo}`, `References: ${opts.inReplyTo}`);
   }

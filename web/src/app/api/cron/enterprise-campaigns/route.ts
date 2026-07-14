@@ -41,7 +41,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from)")
+    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -199,8 +199,12 @@ export async function POST(req: NextRequest) {
       return;
     }
 
-    const org = e.org as { name: string; show_powered_by: boolean; white_label_email_from: string | null } | null;
+    const org = e.org as { name: string; show_powered_by: boolean; white_label_email_from: string | null; reply_to_email: string | null } | null;
     const orgName = org?.name ?? "Recruiting";
+    // Shared reply-to: whoever/whatever sends, replies route to the org's
+    // configured team inbox (e.g. hr@company.com) — not the individual sender's
+    // mailbox. Keeps the client on ONE inbox and survives a recruiter leaving.
+    const replyTo = org?.reply_to_email?.trim() || null;
     const fromName = emailFromName(orgName, org?.white_label_email_from ?? null);
     const showPoweredBy = org?.show_powered_by ?? true;
     const jobTitle = (e.job as { title: string } | null)?.title ?? "our open role";
@@ -347,6 +351,7 @@ export async function POST(req: NextRequest) {
           subject,
           html,
           fromName,
+          replyTo,
         });
         if (!r.ok) throw new Error(r.error ?? "connected send failed");
       } else {
@@ -355,6 +360,7 @@ export async function POST(req: NextRequest) {
           to: e.candidate_email as string,
           subject,
           html,
+          ...(replyTo ? { replyTo } : {}),
           ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
         });
       }
