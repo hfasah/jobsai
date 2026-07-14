@@ -7,6 +7,7 @@ import { audit } from "@/lib/enterprise-audit";
 import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
 import { ensureMonthlyGrant, getCreditState } from "@/lib/sourcing/credits";
 import { revealEmailForResult, type BulkRevealOutcome } from "@/lib/sourcing/reveal";
+import { syncLeadToCrm } from "@/lib/sourcing/crm-sync";
 
 export const maxDuration = 60;
 const MAX_BULK = 100; // reveal up to 100 in one pass; the UI shows the credit cost first
@@ -56,7 +57,13 @@ export async function POST(req: NextRequest) {
   };
   const state = await getCreditState(org.id);
 
-  after(() => {
+  after(async () => {
+    // Mirror every freshly-revealed lead into the Recruiting CRM (best-effort).
+    for (const o of outcomes) {
+      if (o.status === "revealed" && o.externalCandidateId) {
+        await syncLeadToCrm(org.id, userId, o.externalCandidateId).catch((e) => console.error("[sourcing] CRM sync failed", e));
+      }
+    }
     audit({
       org_id: org.id, user_id: userId, action: "sourcing.contact_revealed",
       resource_type: "sourcing_bulk_reveal", metadata: { requested: resultIds.length, ...summary },

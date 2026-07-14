@@ -9,6 +9,7 @@ import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
 import { spendCredits, refundCredits, getCreditCosts, ensureMonthlyGrant } from "@/lib/sourcing/credits";
 import { normEmail } from "@/lib/sourcing/normalize";
 import { isEmailSuppressed } from "@/lib/outreach/suppression";
+import { syncLeadToCrm } from "@/lib/sourcing/crm-sync";
 import type { EmailVerificationStatus, RevealResult } from "@/lib/sourcing/types";
 
 export const maxDuration = 30;
@@ -166,7 +167,8 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .eq("id", revealId).eq("org_id", org.id);
   }
 
-  after(() => {
+  after(async () => {
+    if (gotEmail) await syncLeadToCrm(org.id, userId, c.id).catch((e) => console.error("[sourcing] CRM sync failed", e));
     audit({
       org_id: org.id, user_id: userId, action: "sourcing.contact_revealed",
       resource_type: "sourcing_external_candidate", resource_id: c.id,

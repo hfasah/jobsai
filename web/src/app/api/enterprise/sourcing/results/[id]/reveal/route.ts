@@ -8,6 +8,7 @@ import { audit } from "@/lib/enterprise-audit";
 import { getProvidersForOrg, getEmailVerifier } from "@/lib/sourcing/registry";
 import { spendCredits, refundCredits, ensureMonthlyGrant } from "@/lib/sourcing/credits";
 import { loadInternalIndex, dedupeVerdict } from "@/lib/sourcing/dedupe";
+import { syncLeadToCrm } from "@/lib/sourcing/crm-sync";
 import { normEmail } from "@/lib/sourcing/normalize";
 import { isEmailSuppressed } from "@/lib/outreach/suppression";
 import type { CreditAction, EmailVerificationStatus, ExternalCandidate, RevealResult } from "@/lib/sourcing/types";
@@ -253,6 +254,11 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .eq("org_id", org.id);
 
   after(async () => {
+    // Mirror the now-revealed lead into the Recruiting CRM so the team can
+    // research/re-contact it there too (best-effort; never blocks the reveal).
+    if (type !== "phone") {
+      await syncLeadToCrm(org.id, userId, candidate.id).catch((e) => console.error("[sourcing] CRM sync failed", e));
+    }
     // A freshly revealed email may match an existing internal record — refresh
     // the dedup verdict on this run result and warn the UI next load.
     if (type !== "phone") {

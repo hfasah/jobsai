@@ -15,6 +15,7 @@ export interface BulkRevealOutcome {
   email?: string | null;
   verification?: EmailVerificationStatus | null;
   creditsCharged?: number;
+  externalCandidateId?: string; // set on a successful reveal — for CRM sync
 }
 
 interface StoredContact { value: string; type?: string; verification_status?: EmailVerificationStatus; revealed_at: string }
@@ -125,5 +126,5 @@ export async function revealEmailForResult(args: {
     result: { value: reveal.value, verification_status: verification ?? null, confidence: reveal.confidence ?? null },
   }).eq("id", revealId).eq("org_id", orgId);
 
-  return { resultId, status: "revealed", email: reveal.value, verification: verification ?? null, creditsCharged: spend.cost };
+  return { resultId, status: "revealed", email: reveal.value, verification: verification ?? null, creditsCharged: spend.cost, externalCandidateId: candidate.id };
 }
