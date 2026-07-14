@@ -43,7 +43,7 @@ export async function getConnectedSender(
 // failure so the caller can treat it like a bounce (never silently drop).
 export async function sendViaConnectedMailbox(
   mailbox: ConnectedMailbox,
-  opts: { to: string; subject: string; html: string; fromName?: string },
+  opts: { to: string; subject: string; html: string; fromName?: string; replyTo?: string | null },
 ): Promise<{ ok: boolean; error?: string }> {
   if (mailbox.kind === "gmail") {
     return sendFromRecruiterGmail(mailbox.created_by, {
@@ -51,11 +51,13 @@ export async function sendViaConnectedMailbox(
       subject: opts.subject,
       html: opts.html,
       fromName: opts.fromName,
+      replyTo: opts.replyTo,
     });
   }
   return sendFromMicrosoft(mailbox.created_by, {
     to: opts.to,
     subject: opts.subject,
     html: opts.html,
+    replyTo: opts.replyTo,
   });
 }
