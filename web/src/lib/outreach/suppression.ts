@@ -44,6 +44,22 @@ export async function isEmailSuppressed(orgId: string, email: string): Promise<b
   return (await loadSuppressedSet(orgId, [norm])).has(norm);
 }
 
+// Undo a suppression (e.g. the classifier misread a quoted footer as an
+// opt-out). Deactivates rather than deletes — the history stays auditable.
+// Returns how many rows were deactivated.
+export async function unsuppressEmail(orgId: string, email: string): Promise<number> {
+  const norm = normEmail(email);
+  if (!norm) return 0;
+  const { data } = await supabaseAdmin
+    .from("enterprise_suppressions")
+    .update({ active: false })
+    .eq("org_id", orgId)
+    .eq("normalized_email", norm)
+    .eq("active", true)
+    .select("id");
+  return (data ?? []).length;
+}
+
 // Record (or refresh) an org-wide suppression. Idempotent per (org, email):
 // re-suppressing an address reactivates it and updates the reason/source.
 export async function suppressEmail(args: {
