@@ -11,6 +11,7 @@ import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
+import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
 
 export const maxDuration = 30;
 type Ctx = { params: Promise<{ id: string }> };
@@ -120,12 +121,23 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   }
 
   const html = wrapEmail(renderOutreachBody(bodyText, recruiter.name, orgName), false);
-  const { error } = await resend.emails.send({
-    from: `${fromName} <${senderEmail}>`,
-    to: t.candidate_email, subject: subjectLine, html,
-    ...(replyTo ? { replyTo } : {}),
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Same sender identity as the campaign (connected mailbox when available) so
+  // the candidate sees one continuous conversation; Reply-To stays the intake.
+  const connected = await getConnectedSender(a.org.id);
+  if (connected) {
+    const res = await sendViaConnectedMailbox(connected, {
+      to: t.candidate_email, subject: subjectLine, html, fromName,
+      replyTo: intake ?? recruiter.email ?? null,
+    });
+    if (!res.ok) return NextResponse.json({ error: res.error ?? "Could not send from the connected mailbox." }, { status: 500 });
+  } else {
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${senderEmail}>`,
+      to: t.candidate_email, subject: subjectLine, html,
+      ...(replyTo ? { replyTo } : {}),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   const edited = bodyText !== d.draft_body;
   await logMessage({
