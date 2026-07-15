@@ -85,6 +85,7 @@ function InboxInner() {
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
+  const [resubBusy, setResubBusy] = useState(false);
   const [draftBusy, setDraftBusy] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<"open" | "done" | "all">("open");
@@ -341,9 +342,22 @@ function InboxInner() {
             {/* Composer */}
             <div className="border-t border-border p-3">
               {detail.thread.intent === "unsubscribe" ? (
-                <p className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">
-                  This contact unsubscribed — replying is disabled.
-                </p>
+                <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">
+                  <p>This contact unsubscribed — replying is disabled.</p>
+                  <button
+                    onClick={async () => {
+                      if (!selectedId) return;
+                      setResubBusy(true);
+                      const res = await fetch(`/api/enterprise/outreach/inbox/${selectedId}/resubscribe`, { method: "POST" });
+                      setResubBusy(false);
+                      if (res.ok) { openThread(selectedId); loadList(); }
+                    }}
+                    disabled={resubBusy}
+                    className="mt-1.5 rounded-lg border border-red-500/40 px-3 py-1 font-semibold text-red-300 hover:bg-red-500/20 disabled:opacity-60"
+                  >
+                    {resubBusy ? "Undoing…" : "Undo — they didn't unsubscribe"}
+                  </button>
+                </div>
               ) : (
                 <>
                   {aiDraft && (

@@ -97,6 +97,32 @@ export function deriveInterest(intent: Intent, rawScore: number): { interestScor
 const UNSUB_RE = /\b(unsubscribe|opt[\s-]?out|stop\s+(emailing|contacting)|remove me|take me off|do not (contact|email))\b/i;
 const OOO_RE = /\b(out of office|on (vacation|holiday|leave|pto)|away until|automatic reply|auto[\s-]?reply)\b/i;
 
+// Strip quoted history + footers so classification sees ONLY the candidate's
+// NEW words. Critical: the quoted original contains our own footer — literally
+// the word "Unsubscribe" — which used to trip UNSUB_RE on EVERY reply that
+// quoted the email (Gmail's default), auto-suppressing interested candidates.
+export function stripQuotedReply(body: string): string {
+  let text = body.replace(/\r\n/g, "\n");
+  // Cut at the earliest quote-header marker.
+  const markers = [
+    /^On .{0,300}wrote:\s*$/m,               // Gmail: "On Wed, Jul 15 ... wrote:"
+    /^-{2,}\s*Original Message\s*-{2,}/im,   // Outlook
+    /^_{5,}\s*$/m,                           // Outlook divider
+    /^From:\s.+$/m,                          // forwarded-header block
+    /^Le .{0,300}a écrit\s*:\s*$/m,          // Gmail (fr)
+  ];
+  let cut = text.length;
+  for (const re of markers) {
+    const m = re.exec(text);
+    if (m && m.index < cut) cut = m.index;
+  }
+  text = text.slice(0, cut);
+  // Drop any remaining quoted lines and our own footer if it leaked unquoted.
+  text = text.split("\n").filter((l) => !/^\s*>/.test(l)).join("\n");
+  text = text.replace(/Not the right time\?[\s\S]*$/i, "").replace(/Powered by JobsAI[\s\S]*$/i, "");
+  return text.trim();
+}
+
 const SYSTEM_PROMPT = `You classify a candidate's reply to a recruiter's outreach email. Return ONLY JSON:
 {"intent": "...", "confidence": 0.0-1.0, "interest": 0-100, "summary": "one short sentence", "referral": {"name": "...or null", "email": "...or null"}}
 
@@ -120,12 +146,18 @@ interest is how warm/likely-to-convert the reply is, 0-100:
 - 20-39: lukewarm / mostly deflecting
 - 0-19: no interest, a decline, or an automated reply
 
-confidence is your certainty about the intent (0-1). summary is a neutral one-line paraphrase — never invent facts.`;
+confidence is your certainty about the intent (0-1). summary is a neutral one-line paraphrase — never invent facts.
+
+The text may still contain remnants of quoted earlier emails or footers — classify ONLY the candidate's new words; mentions of "unsubscribe" inside quoted/footer text are NOT an opt-out.`;
 
 export async function classifyIntent(
   args: { subject: string; body: string; orgId: string },
 ): Promise<IntentResult> {
-  const text = `${args.subject}\n\n${args.body}`.trim();
+  // Classify ONLY the new message — never the quoted original (whose footer
+  // contains "Unsubscribe"). If stripping leaves nothing (rare), fall back to
+  // a short prefix of the raw body so we still classify something.
+  const newText = stripQuotedReply(args.body);
+  const text = `${args.subject}\n\n${newText || args.body.slice(0, 400)}`.trim();
 
   // Deterministic overrides first.
   if (UNSUB_RE.test(text))
