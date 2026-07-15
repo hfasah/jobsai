@@ -1,7 +1,10 @@
-// Standing booking links: availability math + link management. A candidate
-// opens /enterprise/book/p/<token>, sees open slots (work hours minus Google
-// Calendar busy minus existing bookings), and books one. SERVER-ONLY.
+// Standing booking links: availability math + link management + the booking
+// action itself. A candidate opens /enterprise/book/p/<token> (or the AI SDR
+// books on their behalf mid-conversation), sees open slots (work hours minus
+// Google Calendar busy minus existing bookings), and books one. SERVER-ONLY.
 import { supabaseAdmin } from "@/lib/supabase";
+import { listBusyIntervals, createEnterpriseCalendarEvent } from "@/lib/google-calendar-enterprise";
+import { getRecruiterIdentity } from "@/lib/sourcing-email";
 
 export interface BookingLink {
   id: string;
@@ -96,6 +99,85 @@ export function computeSlots(link: BookingLink, busy: BusyInterval[], now: Date,
     out.push(new Date(t).toISOString());
   }
   return out;
+}
+
+export function urlForBookingLink(link: BookingLink): string {
+  return `${BASE_URL}/enterprise/book/p/${link.token}`;
+}
+
+// Live open slots for a link: work hours − Google Calendar busy − existing
+// bookings. calendarChecked=false means the owner has no valid Google token
+// (slots are still offered from work hours + recorded bookings).
+export async function openSlotsForLink(
+  link: BookingLink,
+  now: Date = new Date(),
+): Promise<{ slots: string[]; calendarChecked: boolean }> {
+  const windowEndISO = new Date(now.getTime() + link.window_days * 86_400_000).toISOString();
+  const [gcalBusy, booked] = await Promise.all([
+    listBusyIntervals(link.user_id, link.conflict_calendar_ids, now.toISOString(), windowEndISO),
+    bookedIntervals(link.org_id, link.user_id, now.toISOString()),
+  ]);
+  return {
+    slots: computeSlots(link, [...(gcalBusy ?? []), ...booked], now),
+    calendarChecked: gcalBusy !== null,
+  };
+}
+
+// Book a slot: re-validate against LIVE availability, record the booking, and
+// create the calendar event (chosen calendar, Google Meet, invite emailed to
+// the candidate). Used by the public booking page AND the AI SDR's
+// conversational booking. A calendar failure doesn't void the booking.
+export async function bookSlot(
+  link: BookingLink,
+  startsAt: string,
+  candidate: { name: string; email: string; phone?: string | null; notes?: string | null },
+): Promise<{ ok: boolean; taken?: boolean; meetLink?: string | null; calendarOk?: boolean; error?: string }> {
+  const { slots } = await openSlotsForLink(link);
+  if (!slots.includes(startsAt)) return { ok: false, taken: true, error: "That time is no longer available." };
+
+  const endsAt = new Date(Date.parse(startsAt) + link.duration_min * 60_000).toISOString();
+  const { data: row, error } = await supabaseAdmin
+    .from("recruiter_availability")
+    .insert({
+      org_id: link.org_id,
+      created_by: link.user_id,
+      starts_at: startsAt,
+      ends_at: endsAt,
+      duration_min: link.duration_min,
+      booked: true,
+      booked_by_name: candidate.name,
+      booked_by_email: candidate.email,
+      booked_by_phone: candidate.phone ?? null,
+      booked_notes: candidate.notes ?? null,
+      booked_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+  if (error || !row) return { ok: false, error: "Could not save the booking." };
+
+  const { data: org } = await supabaseAdmin
+    .from("enterprise_orgs").select("name").eq("id", link.org_id).maybeSingle();
+  const orgName = (org as { name?: string } | null)?.name ?? "Recruiting";
+  const recruiter = await getRecruiterIdentity(link.user_id);
+
+  const ev = await createEnterpriseCalendarEvent(link.user_id, {
+    summary: `${link.title}: ${candidate.name} <> ${orgName}`,
+    description: [
+      `Booked via your JobsAI booking page.`,
+      ``,
+      `Candidate: ${candidate.name} <${candidate.email}>${candidate.phone ? ` · ${candidate.phone}` : ""}`,
+      candidate.notes ? `Notes: ${candidate.notes}` : null,
+    ].filter((x) => x !== null).join("\n"),
+    startISO: startsAt,
+    endISO: endsAt,
+    timeZone: link.timezone,
+    attendees: [{ email: candidate.email, name: candidate.name }, ...(recruiter.email ? [{ email: recruiter.email, name: recruiter.name }] : [])],
+    calendarId: link.create_on_calendar_id,
+    sendUpdates: "all",
+    withMeet: true,
+  });
+
+  return { ok: true, meetLink: ev.meetLink ?? null, calendarOk: ev.ok };
 }
 
 // Existing bookings for the link owner (they block re-booking even if the

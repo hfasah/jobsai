@@ -8,6 +8,7 @@ import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
+import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
 
 export const maxDuration = 60;
 
@@ -26,15 +27,15 @@ export async function GET(req: NextRequest) {
   const nowIso = new Date().toISOString();
   const { data: due } = await supabaseAdmin
     .from("ai_sdr_replies")
-    .select("id, org_id, thread_id, campaign_id, candidate_email, draft_subject, draft_body, created_at")
+    .select("id, org_id, thread_id, campaign_id, enrollment_id, candidate_email, draft_subject, draft_body, book_slot, created_at")
     .eq("status", "queued")
     .lte("scheduled_at", nowIso)
     .order("scheduled_at", { ascending: true })
     .limit(BATCH);
 
   const rows = (due ?? []) as {
-    id: string; org_id: string; thread_id: string; campaign_id: string | null;
-    candidate_email: string; draft_subject: string | null; draft_body: string; created_at: string;
+    id: string; org_id: string; thread_id: string; campaign_id: string | null; enrollment_id: string | null;
+    candidate_email: string; draft_subject: string | null; draft_body: string; book_slot: string | null; created_at: string;
   }[];
 
   const summary = { sent: 0, suppressed: 0, deferred: 0, failed: 0 };
@@ -111,7 +112,26 @@ export async function GET(req: NextRequest) {
         subjectLine = prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`;
       }
 
-      const html = wrapEmail(renderOutreachBody(r.draft_body, recruiter.name, orgName), false);
+      // Conversational booking: the draft carries an agreed slot — book it NOW,
+      // before the confirmation email goes out. If the slot got taken in the
+      // meantime, hold the draft for human review instead of sending a false
+      // confirmation.
+      let bodyText = r.draft_body as string;
+      if (r.book_slot) {
+        const booking = await executeSdrBooking({
+          org_id: r.org_id, campaign_id: r.campaign_id, enrollment_id: (r as { enrollment_id?: string | null }).enrollment_id ?? null,
+          candidate_email: r.candidate_email, book_slot: r.book_slot as string,
+        });
+        if (!booking.ok) {
+          await supabaseAdmin.from("ai_sdr_replies")
+            .update({ status: "needs_review", suppressed_reason: `Couldn't book the agreed time (${booking.error ?? "taken"}) — review and re-offer times.`, updated_at: new Date().toISOString() })
+            .eq("id", r.id).eq("org_id", r.org_id);
+          continue;
+        }
+        if (booking.meetLink) bodyText += `\n\nGoogle Meet: ${booking.meetLink}`;
+      }
+
+      const html = wrapEmail(renderOutreachBody(bodyText, recruiter.name, orgName), false);
       const { error } = await resend.emails.send({
         from: `${fromName} <${senderEmail}>`,
         to: t.candidate_email,
@@ -129,7 +149,7 @@ export async function GET(req: NextRequest) {
 
       await logMessage({
         orgId: r.org_id, applicationId: t.application_id, direction: "outbound",
-        fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: r.draft_body,
+        fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: bodyText,
         sentVia: "ai_sdr",
       });
       await Promise.all([
