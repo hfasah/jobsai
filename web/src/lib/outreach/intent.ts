@@ -119,7 +119,10 @@ export function stripQuotedReply(body: string): string {
   text = text.slice(0, cut);
   // Drop any remaining quoted lines and our own footer if it leaked unquoted.
   text = text.split("\n").filter((l) => !/^\s*>/.test(l)).join("\n");
-  text = text.replace(/Not the right time\?[\s\S]*$/i, "").replace(/Powered by JobsAI[\s\S]*$/i, "");
+  text = text
+    .replace(/Not the right time\?[\s\S]*$/i, "")
+    .replace(/You can unsubscribe[\s\S]*$/i, "")
+    .replace(/Powered by JobsAI[\s\S]*$/i, "");
   return text.trim();
 }
 
