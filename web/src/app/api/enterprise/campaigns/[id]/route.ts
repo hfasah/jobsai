@@ -122,7 +122,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   }
 
   // Apply content/settings edits first — they should survive a blocked launch.
-  await supabaseAdmin.from("enterprise_campaigns").update(update).eq("id", id);
+  // MUST surface the error: a failed update (e.g. a column from an unrun
+  // migration) otherwise looks like a successful save while persisting nothing.
+  const { error: updateErr } = await supabaseAdmin.from("enterprise_campaigns").update(update).eq("id", id);
+  if (updateErr) return NextResponse.json({ error: `Could not save: ${updateErr.message}` }, { status: 500 });
 
   // HARD LAUNCH GATE: activating a campaign requires a passing preflight
   // (steps and settings above are already saved, so the preflight sees the
