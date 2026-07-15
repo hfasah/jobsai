@@ -10,6 +10,7 @@ import { audit } from "@/lib/enterprise-audit";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
 import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
+import { isEmailSuppressed } from "@/lib/outreach/suppression";
 
 export const maxDuration = 60;
 
@@ -111,6 +112,14 @@ export async function GET(req: NextRequest) {
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         const prev = (last?.subject as string | null) ?? null;
         subjectLine = prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`;
+      }
+
+      // Compliance: a suppression may have landed after this draft was queued.
+      if (await isEmailSuppressed(r.org_id, r.candidate_email)) {
+        await supabaseAdmin.from("ai_sdr_replies")
+          .update({ status: "suppressed", suppressed_reason: "Contact is on Do-Not-Contact.", updated_at: new Date().toISOString() })
+          .eq("id", r.id).eq("org_id", r.org_id);
+        continue;
       }
 
       // Conversational booking: the draft carries an agreed slot — book it NOW,

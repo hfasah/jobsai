@@ -9,6 +9,7 @@ import { AI_TIERS } from "@/lib/ai-models";
 import { recordUsage } from "@/lib/llm-usage";
 import { getRecruiterIdentity } from "@/lib/sourcing-email";
 import { getOrCreateBookingLink, openSlotsForLink, urlForBookingLink, bookSlot } from "@/lib/booking";
+import { isEmailSuppressed } from "./suppression";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "./send-window";
 import type { Intent, InterestLevel } from "./intent";
 
@@ -319,6 +320,10 @@ export async function maybeEnqueueAiSdrReply(args: {
     const org = orgRow as { name?: string; ai_sdr_paused?: boolean } | null;
     if (org?.ai_sdr_paused) return;
     const orgName = org?.name ?? "our team";
+
+    // Compliance: never auto-reply to a Do-Not-Contact address, whatever the
+    // classified intent (the enqueue used to skip this check entirely).
+    if (await isEmailSuppressed(args.orgId, email)) return;
 
     const match = await getCampaignForReply(args.orgId, email);
     if (!match) return;
