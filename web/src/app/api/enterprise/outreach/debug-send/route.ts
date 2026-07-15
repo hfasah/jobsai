@@ -47,7 +47,7 @@ export async function GET(req: NextRequest) {
     .select("org_id, role, created_at, org:enterprise_orgs(name)")
     .eq("user_id", userId)
     .order("created_at", { ascending: true });
-  const memberships = ((mems ?? []) as { org_id: string; role: string; created_at: string; org: { name: string } | null }[])
+  const memberships = ((mems ?? []) as unknown as { org_id: string; role: string; created_at: string; org: { name: string } | null }[])
     .map((m) => ({ org_id: m.org_id, role: m.role, created_at: m.created_at, name: m.org?.name ?? null }));
   out.memberships = memberships;
 
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     .limit(25);
   if (!admin) campQuery = campQuery.in("org_id", memIds.length ? memIds : ["00000000-0000-0000-0000-000000000000"]);
   const { data: found } = await campQuery;
-  const campaignsFound = ((found ?? []) as { id: string; name: string; status: string; org_id: string; updated_at: string; org: { name: string } | null }[])
+  const campaignsFound = ((found ?? []) as unknown as { id: string; name: string; status: string; org_id: string; updated_at: string; org: { name: string } | null }[])
     .map((c) => ({ id: c.id, name: c.name, status: c.status, org_id: c.org_id, org_name: c.org?.name ?? null }));
   out.campaigns_found = campaignsFound;
 
