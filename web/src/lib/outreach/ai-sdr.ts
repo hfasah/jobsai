@@ -8,7 +8,7 @@ import { getAIClient } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { recordUsage } from "@/lib/llm-usage";
 import { getRecruiterIdentity } from "@/lib/sourcing-email";
-import { bookingUrlFor } from "@/lib/booking";
+import { getOrCreateBookingLink, openSlotsForLink, urlForBookingLink, bookSlot } from "@/lib/booking";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "./send-window";
 import type { Intent, InterestLevel } from "./intent";
 
@@ -171,6 +171,7 @@ export interface DraftResult {
   subject: string;
   body: string;
   needsHuman: boolean;               // model flagged it can't answer from the KB
+  bookSlot: string | null;           // agreed open time (validated ISO) to book at send
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -183,17 +184,32 @@ function buildSystemPrompt(args: {
   orgName: string;
   recruiterName: string;
   bookingUrl?: string | null;
+  openSlots?: { iso: string; label: string }[];
 }): string {
+  const slots = args.openSlots ?? [];
+  let scheduling: string;
+  if (slots.length > 0) {
+    scheduling = [
+      `SCHEDULING: you can book meetings directly on ${args.recruiterName}'s calendar. These times are currently OPEN:`,
+      ...slots.map((s, i) => `${i + 1}. ${s.label}  [iso: ${s.iso}]`),
+      `- When the conversation turns to scheduling, naturally offer 2-3 of these times in plain language (never show the iso values).`,
+      `- If the candidate clearly agrees to ONE specific open time from this list, set "book_slot" to that time's exact iso value and write the body as a warm confirmation — the calendar invite with the meeting link is sent automatically ("I've booked us in for Wednesday at 9:30 — invite on its way.").`,
+      `- If they suggest a time that is NOT on the list, do NOT book it: offer the nearest open times instead${args.bookingUrl ? `, and include this self-serve link as an alternative: ${args.bookingUrl}` : ""}.`,
+      `- Never invent times or links. Book only times from the list, and only after clear agreement.`,
+    ].join("\n");
+  } else if (args.bookingUrl) {
+    scheduling = `SCHEDULING: when the candidate shows interest, asks about next steps, or wants to talk, invite them to pick a time on ${args.recruiterName}'s calendar using exactly this link: ${args.bookingUrl} — never propose specific times yourself and never invent any other scheduling link.`;
+  } else {
+    scheduling = `SCHEDULING: you cannot book meetings — if the candidate wants to schedule, say ${args.recruiterName} will follow up with times, and set "needs_human": true.`;
+  }
   return [
     `You are an AI Sales Development Rep replying on behalf of ${args.recruiterName} at ${args.orgName} to a candidate who answered a recruiting outreach email.`,
     args.persona ? `Persona / tone:\n${args.persona}` : `Be warm, concise, and professional. Keep it to a few sentences.`,
     `Ground every factual claim ONLY in the knowledge base below. NEVER invent compensation, dates, titles, or commitments. If the candidate asks something the knowledge base doesn't cover, do NOT guess — set "needs_human": true and write a short holding reply that offers to connect them with ${args.recruiterName}.`,
-    args.bookingUrl
-      ? `SCHEDULING: when the candidate shows interest, asks about next steps, or wants to talk, invite them to pick a time on ${args.recruiterName}'s calendar using exactly this link: ${args.bookingUrl} — never propose specific times yourself and never invent any other scheduling link.`
-      : `SCHEDULING: you cannot book meetings — if the candidate wants to schedule, say ${args.recruiterName} will follow up with times, and set "needs_human": true.`,
+    scheduling,
     args.guardrails ? `Hard rules (must obey):\n${args.guardrails}` : "",
     args.knowledge ? `--- KNOWLEDGE BASE ---\n${args.knowledge}\n--- END KNOWLEDGE BASE ---` : `(No knowledge base configured — answer only generic scheduling/logistics questions and otherwise set needs_human.)`,
-    `Return ONLY JSON: {"subject": "...", "body": "...", "needs_human": true|false}. The body is the email text only — no signature block, no "[Your name]" placeholders.`,
+    `Return ONLY JSON: {"subject": "...", "body": "...", "needs_human": true|false, "book_slot": "<iso of the agreed open time, or null>"}. The body is the email text only — no signature block, no "[Your name]" placeholders.`,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -206,6 +222,7 @@ export async function draftAutoReply(args: {
   orgName: string;
   recruiterName: string;
   bookingUrl?: string | null;
+  openSlots?: { iso: string; label: string }[];
 }): Promise<DraftResult> {
   const tier = args.campaign.ai_sdr_tier === "smart" ? AI_TIERS.smart : AI_TIERS.fast;
   const system = buildSystemPrompt({
@@ -215,6 +232,7 @@ export async function draftAutoReply(args: {
     orgName: args.orgName,
     recruiterName: args.recruiterName,
     bookingUrl: args.bookingUrl,
+    openSlots: args.openSlots,
   });
 
   // Recent conversation, oldest→newest, capped.
@@ -239,11 +257,16 @@ export async function draftAutoReply(args: {
   const subject = typeof parsed.subject === "string" ? parsed.subject.slice(0, 200) : "";
   const body = typeof parsed.body === "string" ? parsed.body.trim() : "";
   const needsHuman = parsed.needs_human === true || !body;
+  // Only accept a book_slot that is EXACTLY one of the open times we offered —
+  // the model can never book an invented or stale time.
+  const offered = new Set((args.openSlots ?? []).map((s) => s.iso));
+  const bookSlot = typeof parsed.book_slot === "string" && offered.has(parsed.book_slot) ? parsed.book_slot : null;
 
   return {
     subject,
     body,
     needsHuman,
+    bookSlot,
     model: tier.model,
     inputTokens: completion.usage?.prompt_tokens ?? 0,
     outputTokens: completion.usage?.completion_tokens ?? 0,
@@ -329,12 +352,23 @@ export async function maybeEnqueueAiSdrReply(args: {
     if (!gate.ok) return;
 
     // Grounding + who we're speaking as (the campaign's creator) + their
-    // booking page so the SDR can offer a real "pick a time" link.
-    const [knowledge, recruiter, bookingUrl] = await Promise.all([
+    // booking page and LIVE open slots, so the SDR can propose real times in
+    // conversation and book the one the candidate agrees to.
+    const [knowledge, recruiter, bookingLink] = await Promise.all([
       buildKnowledgeContext(args.orgId, campaign.id),
       getRecruiterIdentity(campaign.created_by),
-      bookingUrlFor(args.orgId, campaign.created_by),
+      campaign.created_by ? getOrCreateBookingLink(args.orgId, campaign.created_by).catch(() => null) : Promise.resolve(null),
     ]);
+    const bookingUrl = bookingLink?.active ? urlForBookingLink(bookingLink) : null;
+    let openSlots: { iso: string; label: string }[] = [];
+    if (bookingLink?.active) {
+      const { slots } = await openSlotsForLink(bookingLink).catch(() => ({ slots: [] as string[] }));
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: bookingLink.timezone, weekday: "short", month: "short", day: "numeric",
+        hour: "numeric", minute: "2-digit",
+      });
+      openSlots = slots.slice(0, 8).map((iso) => ({ iso, label: `${fmt.format(new Date(iso))} (${bookingLink.timezone})` }));
+    }
 
     // Recent transcript for context.
     let msgs;
@@ -367,6 +401,7 @@ export async function maybeEnqueueAiSdrReply(args: {
       orgName,
       recruiterName: recruiter.name,
       bookingUrl,
+      openSlots,
     });
     if (!draft.body.trim()) return;
 
@@ -390,8 +425,45 @@ export async function maybeEnqueueAiSdrReply(args: {
       input_tokens: draft.inputTokens,
       output_tokens: draft.outputTokens,
       scheduled_at: scheduledAt,
+      book_slot: draft.bookSlot,
     });
   } catch (e) {
     console.error("[ai-sdr] enqueue failed", e);
   }
+}
+
+// Execute a draft's agreed booking right before its email goes out (cron auto-
+// send or human approval). Books on the campaign creator's calendar; a taken
+// slot returns ok=false so the caller can hold the email for review instead of
+// sending a false confirmation.
+export async function executeSdrBooking(reply: {
+  org_id: string;
+  campaign_id: string | null;
+  enrollment_id: string | null;
+  candidate_email: string;
+  book_slot: string;
+}): Promise<{ ok: boolean; taken?: boolean; meetLink?: string | null; error?: string }> {
+  let creator: string | null = null;
+  if (reply.campaign_id) {
+    const { data } = await supabaseAdmin
+      .from("enterprise_campaigns").select("created_by")
+      .eq("id", reply.campaign_id).eq("org_id", reply.org_id).maybeSingle();
+    creator = (data as { created_by?: string | null } | null)?.created_by ?? null;
+  }
+  if (!creator) return { ok: false, error: "No campaign creator to book on behalf of." };
+  const link = await getOrCreateBookingLink(reply.org_id, creator);
+  if (!link || !link.active) return { ok: false, error: "No active booking page." };
+
+  let name = reply.candidate_email;
+  if (reply.enrollment_id) {
+    const { data } = await supabaseAdmin
+      .from("enterprise_campaign_enrollments").select("candidate_name")
+      .eq("id", reply.enrollment_id).maybeSingle();
+    name = (data as { candidate_name?: string } | null)?.candidate_name || name;
+  }
+  return bookSlot(link, reply.book_slot, {
+    name,
+    email: reply.candidate_email,
+    notes: "Booked by the AI SDR from the email conversation.",
+  });
 }

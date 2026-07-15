@@ -10,6 +10,7 @@ import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
+import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
 
 export const maxDuration = 30;
 type Ctx = { params: Promise<{ id: string }> };
@@ -54,10 +55,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const { data: draft } = await supabaseAdmin
     .from("ai_sdr_replies")
-    .select("id, draft_subject, draft_body")
+    .select("id, draft_subject, draft_body, book_slot, campaign_id, enrollment_id, candidate_email")
     .eq("org_id", a.org.id).eq("thread_id", id).eq("status", "needs_review")
     .order("created_at", { ascending: false }).limit(1).maybeSingle();
-  const d = draft as { id: string; draft_subject: string | null; draft_body: string } | null;
+  const d = draft as { id: string; draft_subject: string | null; draft_body: string; book_slot: string | null; campaign_id: string | null; enrollment_id: string | null; candidate_email: string } | null;
   if (!d) return NextResponse.json({ error: "No draft to act on." }, { status: 404 });
 
   if (action === "dismiss") {
@@ -81,7 +82,20 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!t) return NextResponse.json({ error: "Thread not found." }, { status: 404 });
   if (t.intent === "unsubscribe") return NextResponse.json({ error: "This contact unsubscribed." }, { status: 403 });
 
-  const bodyText = (typeof editedBody === "string" && editedBody.trim()) ? editedBody.trim() : d.draft_body;
+  let bodyText = (typeof editedBody === "string" && editedBody.trim()) ? editedBody.trim() : d.draft_body;
+
+  // Conversational booking: the draft carries an agreed slot — book it before
+  // sending the confirmation. If it was taken meanwhile, tell the reviewer.
+  if (d.book_slot) {
+    const booking = await executeSdrBooking({
+      org_id: a.org.id, campaign_id: d.campaign_id, enrollment_id: d.enrollment_id,
+      candidate_email: d.candidate_email || t.candidate_email, book_slot: d.book_slot,
+    });
+    if (!booking.ok) {
+      return NextResponse.json({ error: `Couldn't book the agreed time (${booking.error ?? "it was just taken"}) — edit the reply to offer different times.` }, { status: 409 });
+    }
+    if (booking.meetLink) bodyText += `\n\nGoogle Meet: ${booking.meetLink}`;
+  }
 
   const { data: org } = await supabaseAdmin
     .from("enterprise_orgs")
