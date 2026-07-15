@@ -142,6 +142,16 @@ export async function GET(req: NextRequest) {
     out.due_query_matches_now = (due ?? []).length;
   }
 
+  // D2. AI SDR reply queue — the definitive record of what the SDR did with
+  // each inbound reply (queued/sent/failed/needs_review + reason + booking).
+  const { data: sdrReplies } = await supabaseAdmin
+    .from("ai_sdr_replies")
+    .select("candidate_email, status, intent, confidence, scheduled_at, sent_at, suppressed_reason, book_slot, created_at, draft_subject")
+    .eq("org_id", targetOrgId)
+    .order("created_at", { ascending: false })
+    .limit(10);
+  out.ai_sdr_replies = sdrReplies ?? [];
+
   // E. Sender resolution — for the target org AND every org the user belongs
   // to, so a mailbox registered under the wrong workspace is visible.
   const orgScan = [...new Set([targetOrgId, ...memIds])];
