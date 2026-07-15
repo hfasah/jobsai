@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const { data: due } = await supabaseAdmin
+  const { data: due, error: dueErr } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
     .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
     .eq("status", "active")
@@ -113,6 +113,10 @@ export async function POST(req: NextRequest) {
     .order("next_send_at", { ascending: true })
     .limit(BATCH);
 
+  // A schema error here (e.g. a migration that wasn't run, so a selected column
+  // doesn't exist) silently yields null data — which looked exactly like "0 due"
+  // and hid a total send outage. Scream about it.
+  if (dueErr) console.error(`[campaigns cron] DUE QUERY FAILED: ${dueErr.message}`);
   console.log(`[campaigns cron] due enrolments: ${due?.length ?? 0}`);
   if (!due || due.length === 0) {
     // Diagnostic: why is nothing due? Dump the schedule of active enrolments.
