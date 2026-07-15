@@ -10,6 +10,7 @@ import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { CAMPAIGN_FEATURE_KEY, renderTemplate } from "@/lib/campaigns";
 import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
+import { bookingUrlFor } from "@/lib/booking";
 
 type Ctx = { params: Promise<{ id: string }> };
 export const maxDuration = 30;
@@ -46,12 +47,14 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   if (!dest) return NextResponse.json({ error: "Enter an email to send the test to." }, { status: 400 });
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(dest)) return NextResponse.json({ error: "That test email isn't valid." }, { status: 400 });
 
+  const bookingLink = await bookingUrlFor(org.id, userId).catch(() => null);
   const vars = {
     candidate_name: "Jordan Rivera",
     first_name: "Jordan",
     job_title: "Account Manager", // realistic sample so previews read naturally
     org_name: orgName,
     sender_name: recruiter.name,
+    ...(bookingLink ? { booking_link: bookingLink } : {}),
   };
   const renderedSubject = `[TEST] ${renderTemplate(String(subject), vars)}`;
   const renderedBody = renderTemplate(String(body), vars);

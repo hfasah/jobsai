@@ -133,7 +133,7 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose, embedded
                   {([
                     { key: "manual", title: "Manual", desc: "No AI draft — a recruiter writes every reply." },
                     { key: "draft", title: "Draft for review", desc: "Suggests a reply; a human approves & sends." },
-                    { key: "auto", title: "Auto-send", desc: "Sends automatically when confident." },
+                    { key: "auto", title: "Auto-reply", desc: "Replies automatically when confident — can answer job questions and share your booking link." },
                   ] as const).map((m) => (
                     <button
                       key={m.key}
@@ -150,7 +150,7 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose, embedded
               {cfg.ai_sdr_enabled && cfg.ai_sdr_mode === "auto" && (
                 <div className="mt-2 flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-400">
                   <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  Auto-send emails candidates without a human in the loop. It still only fires on positive/neutral replies above the confidence floor, never on opt-outs or declines, and caps replies per thread.
+                  Auto-reply emails candidates without a human in the loop. It still only fires on positive/neutral replies above the confidence floor, never on opt-outs or declines, and caps replies per thread.
                 </div>
               )}
             </section>
@@ -185,7 +185,7 @@ export default function AiSdrPanel({ campaignId, campaignName, onClose, embedded
                 <section className="grid grid-cols-3 gap-3">
                   {cfg.ai_sdr_mode === "auto" && (
                     <label className="block text-xs">
-                      <span className="mb-1 block font-semibold uppercase tracking-wide text-muted-foreground">Auto-send confidence</span>
+                      <span className="mb-1 block font-semibold uppercase tracking-wide text-muted-foreground">Auto-reply confidence</span>
                       <input
                         type="number" min={0} max={1} step={0.05}
                         value={cfg.ai_sdr_min_confidence}

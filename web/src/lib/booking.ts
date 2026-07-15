@@ -40,6 +40,16 @@ export async function getOrCreateBookingLink(orgId: string, userId: string): Pro
   return (created as unknown as BookingLink) ?? null;
 }
 
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work";
+
+// Full public URL of a recruiter's booking page (created on first use). Used
+// by the {{booking_link}} template variable and the AI SDR's scheduling offer.
+export async function bookingUrlFor(orgId: string, userId: string | null | undefined): Promise<string | null> {
+  if (!userId) return null;
+  const link = await getOrCreateBookingLink(orgId, userId);
+  return link && link.active ? `${BASE_URL}/enterprise/book/p/${link.token}` : null;
+}
+
 export async function getBookingLinkByToken(token: string): Promise<BookingLink | null> {
   const { data } = await supabaseAdmin
     .from("enterprise_booking_links")
