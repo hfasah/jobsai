@@ -9,6 +9,7 @@ import { logMessage } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
+import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
 
 export const maxDuration = 60;
 
@@ -132,17 +133,32 @@ export async function GET(req: NextRequest) {
       }
 
       const html = wrapEmail(renderOutreachBody(bodyText, recruiter.name, orgName), false);
-      const { error } = await resend.emails.send({
-        from: `${fromName} <${senderEmail}>`,
-        to: t.candidate_email,
-        subject: subjectLine,
-        html,
-        ...(replyTo ? { replyTo } : {}),
-      });
-      if (error) {
+      // Send from the SAME identity the campaign used — the recruiter's
+      // connected mailbox when the org has one — so the conversation stays in
+      // one thread for the candidate. Reply-To stays the intake address so
+      // their answers keep landing in the AI SDR Inbox.
+      const connected = await getConnectedSender(r.org_id);
+      let sendError: string | null = null;
+      if (connected) {
+        const res = await sendViaConnectedMailbox(connected, {
+          to: t.candidate_email, subject: subjectLine, html, fromName,
+          replyTo: intake ?? recruiter.email ?? null,
+        });
+        if (!res.ok) sendError = res.error ?? "connected send failed";
+      } else {
+        const { error } = await resend.emails.send({
+          from: `${fromName} <${senderEmail}>`,
+          to: t.candidate_email,
+          subject: subjectLine,
+          html,
+          ...(replyTo ? { replyTo } : {}),
+        });
+        if (error) sendError = error.message;
+      }
+      if (sendError) {
         summary.failed++;
         await supabaseAdmin.from("ai_sdr_replies")
-          .update({ status: "failed", suppressed_reason: error.message, updated_at: new Date().toISOString() })
+          .update({ status: "failed", suppressed_reason: sendError, updated_at: new Date().toISOString() })
           .eq("id", r.id).eq("org_id", r.org_id);
         continue;
       }
