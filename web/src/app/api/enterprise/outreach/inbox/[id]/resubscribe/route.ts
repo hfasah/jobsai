@@ -40,13 +40,14 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
 
   // 2. Campaign enrollments flipped to 'unsubscribed' → back to 'replied'
   //    (they DID reply; sequences stay paused — no send is re-scheduled).
-  const { data: enr } = await supabaseAdmin
+  const { data: enr, error: enrErr } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
     .update({ status: "replied", updated_at: now })
     .eq("org_id", org.id)
     .ilike("candidate_email", email)
     .eq("status", "unsubscribed")
     .select("id");
+  if (enrErr) return NextResponse.json({ error: `Could not restore enrollments: ${enrErr.message}` }, { status: 500 });
 
   // 3. Sourcing outreach opt-out flag.
   await supabaseAdmin

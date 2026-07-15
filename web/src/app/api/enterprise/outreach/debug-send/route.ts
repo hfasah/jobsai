@@ -152,6 +152,33 @@ export async function GET(req: NextRequest) {
     .limit(10);
   out.ai_sdr_replies = sdrReplies ?? [];
 
+  // D3. Suppression rows WITH timestamps (was it never removed, or re-added?)
+  const { data: suppRows } = await supabaseAdmin
+    .from("enterprise_suppressions")
+    .select("normalized_email, reason, source, active, created_at, updated_at, expires_at")
+    .eq("org_id", targetOrgId)
+    .order("updated_at", { ascending: false })
+    .limit(10);
+  out.suppression_rows = suppRows ?? [];
+
+  // D4. Inbox threads + the last few inbound bodies (what classification saw).
+  const { data: threads } = await supabaseAdmin
+    .from("inbox_threads")
+    .select("candidate_email, intent, intent_manual, interest_level, ai_summary, updated_at")
+    .eq("org_id", targetOrgId)
+    .order("updated_at", { ascending: false })
+    .limit(5);
+  out.inbox_threads = threads ?? [];
+  const { data: lastInbound } = await supabaseAdmin
+    .from("enterprise_messages")
+    .select("from_email, subject, body, created_at")
+    .eq("org_id", targetOrgId)
+    .eq("direction", "inbound")
+    .order("created_at", { ascending: false })
+    .limit(3);
+  out.last_inbound_messages = ((lastInbound ?? []) as { from_email: string; subject: string | null; body: string | null; created_at: string }[])
+    .map((m) => ({ ...m, body: (m.body ?? "").slice(0, 700) }));
+
   // E. Sender resolution — for the target org AND every org the user belongs
   // to, so a mailbox registered under the wrong workspace is visible.
   const orgScan = [...new Set([targetOrgId, ...memIds])];
