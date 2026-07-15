@@ -57,8 +57,8 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
   const currentStatus = (campaign as { status: string }).status;
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps, send_window, objective, pilot_size, scheduled_at } = body as {
-    name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
+  const { name, description, status, steps, send_window, objective, pilot_size, scheduled_at, role_title } = body as {
+    name?: string; description?: string; status?: string; steps?: CampaignStepInput[]; role_title?: string;
     send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
     objective?: string;
     pilot_size?: number | null;
@@ -72,6 +72,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx) {
     update.name = name.trim();
   }
   if (typeof description === "string") update.description = description.trim() || null;
+  if (typeof role_title === "string") update.role_title = role_title.trim().slice(0, 120) || null;
   if (typeof objective === "string") {
     update.objective = ["source", "re_engage", "promote", "pipeline"].includes(objective) ? objective : null;
   }
