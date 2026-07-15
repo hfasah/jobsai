@@ -20,10 +20,14 @@ export function greetingName(name: string | undefined): string {
 }
 
 // Drop any AI-generated sign-off so we control a single, consistent signature.
+// ONLY a sign-off at the END counts: the phrase may be followed by at most a
+// couple of short name lines. The old greedy version matched the FIRST
+// "Thanks…"/"Best…" anywhere and deleted the entire rest of the email — a body
+// with a mid-message "Thanks for your interest!" arrived as just the greeting.
 function stripSignoff(body: string): string {
   return body
     .trim()
-    .replace(/\n+\s*(best regards|warm regards|kind regards|regards|best wishes|best|thanks|thank you|cheers|sincerely|yours)\b[\s\S]*$/i, "")
+    .replace(/\n+\s*(best regards|warm regards|kind regards|regards|best wishes|best|thanks|thank you|cheers|sincerely|yours)[,!.]?\s*(\n[^\n]{0,60}){0,3}\s*$/i, "")
     .trim();
 }
 
