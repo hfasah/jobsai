@@ -106,6 +106,7 @@ export function stripQuotedReply(body: string): string {
   // Cut at the earliest quote-header marker.
   const markers = [
     /^On .{0,300}wrote:\s*$/m,               // Gmail: "On Wed, Jul 15 ... wrote:"
+    /^On [^\n]{0,300}\n[^\n]{0,200}wrote:\s*$/m, // same, WRAPPED across two lines
     /^-{2,}\s*Original Message\s*-{2,}/im,   // Outlook
     /^_{5,}\s*$/m,                           // Outlook divider
     /^From:\s.+$/m,                          // forwarded-header block
@@ -123,6 +124,13 @@ export function stripQuotedReply(body: string): string {
     .replace(/Not the right time\?[\s\S]*$/i, "")
     .replace(/You can unsubscribe[\s\S]*$/i, "")
     .replace(/Powered by JobsAI[\s\S]*$/i, "");
+  // De-fang leftovers that can never be a candidate's own words: URLs (the
+  // unsubscribe link text survives HTML→text without ">" prefixes) and our
+  // footer sentences wherever they appear.
+  text = text
+    .replace(/https?:\/\/\S+/g, " ")
+    .replace(/Not the right time\?\s*Unsubscribe[\s\S]{0,160}?again\.?/gi, " ")
+    .replace(/You can unsubscribe from these emails anytime\.?/gi, " ");
   return text.trim();
 }
 
