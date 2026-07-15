@@ -109,12 +109,15 @@ export interface GoogleCalendarEventInput {
   endISO: string;
   timeZone?: string;
   attendees?: { email: string; name?: string }[];
+  calendarId?: string;            // default "primary"
+  sendUpdates?: "all" | "none";   // "all" emails the attendees an invite
+  withMeet?: boolean;             // attach a Google Meet link
 }
 
 export async function createEnterpriseCalendarEvent(
   userId: string,
   ev: GoogleCalendarEventInput
-): Promise<{ ok: boolean; htmlLink?: string; error?: string }> {
+): Promise<{ ok: boolean; htmlLink?: string; meetLink?: string; error?: string }> {
   const token = await getValidGoogleEnterpriseToken(userId);
   if (!token) return { ok: false, error: "Google Calendar not connected." };
 
@@ -130,9 +133,16 @@ export async function createEnterpriseCalendarEvent(
   if (ev.attendees?.length) {
     body.attendees = ev.attendees.map((a) => ({ email: a.email, displayName: a.name ?? a.email }));
   }
+  if (ev.withMeet) {
+    body.conferenceData = {
+      createRequest: { requestId: crypto.randomUUID(), conferenceSolutionKey: { type: "hangoutsMeet" } },
+    };
+  }
 
+  const cal = encodeURIComponent(ev.calendarId ?? "primary");
+  const params = `sendUpdates=${ev.sendUpdates ?? "none"}${ev.withMeet ? "&conferenceDataVersion=1" : ""}`;
   const res = await fetch(
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events?sendUpdates=none",
+    `https://www.googleapis.com/calendar/v3/calendars/${cal}/events?${params}`,
     {
       method: "POST",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -140,6 +150,40 @@ export async function createEnterpriseCalendarEvent(
     }
   );
   if (!res.ok) return { ok: false, error: `Calendar API error: ${res.status}` };
-  const j = (await res.json()) as { htmlLink?: string };
-  return { ok: true, htmlLink: j.htmlLink };
+  const j = (await res.json()) as { htmlLink?: string; hangoutLink?: string };
+  return { ok: true, htmlLink: j.htmlLink, meetLink: j.hangoutLink };
+}
+
+// Busy intervals across the given calendars for a time window, via events.list
+// (works with the approved calendar.events scope — freeBusy/calendarList would
+// need broader scopes and re-verification). Returns null when the user has no
+// valid Google token; unknown calendar ids are skipped rather than failing.
+export async function listBusyIntervals(
+  userId: string,
+  calendarIds: string[],
+  timeMinISO: string,
+  timeMaxISO: string,
+): Promise<{ start: number; end: number }[] | null> {
+  const token = await getValidGoogleEnterpriseToken(userId);
+  if (!token) return null;
+  const busy: { start: number; end: number }[] = [];
+  for (const cal of calendarIds.length ? calendarIds : ["primary"]) {
+    const url = new URL(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(cal)}/events`);
+    url.searchParams.set("singleEvents", "true");
+    url.searchParams.set("orderBy", "startTime");
+    url.searchParams.set("timeMin", timeMinISO);
+    url.searchParams.set("timeMax", timeMaxISO);
+    url.searchParams.set("maxResults", "250");
+    const res = await fetch(url.toString(), { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) continue;
+    const j = (await res.json()) as { items?: { status?: string; transparency?: string; start?: { dateTime?: string; date?: string }; end?: { dateTime?: string; date?: string } }[] };
+    for (const it of j.items ?? []) {
+      if (it.status === "cancelled" || it.transparency === "transparent") continue; // "free" events don't block
+      const s = it.start?.dateTime ?? (it.start?.date ? `${it.start.date}T00:00:00Z` : null);
+      const e = it.end?.dateTime ?? (it.end?.date ? `${it.end.date}T23:59:59Z` : null);
+      if (!s || !e) continue;
+      busy.push({ start: Date.parse(s), end: Date.parse(e) });
+    }
+  }
+  return busy;
 }
