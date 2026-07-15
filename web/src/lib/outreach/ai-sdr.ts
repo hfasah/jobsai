@@ -8,6 +8,7 @@ import { getAIClient } from "@/lib/ai-client";
 import { AI_TIERS } from "@/lib/ai-models";
 import { recordUsage } from "@/lib/llm-usage";
 import { getRecruiterIdentity } from "@/lib/sourcing-email";
+import { bookingUrlFor } from "@/lib/booking";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "./send-window";
 import type { Intent, InterestLevel } from "./intent";
 
@@ -181,11 +182,15 @@ function buildSystemPrompt(args: {
   knowledge: string;
   orgName: string;
   recruiterName: string;
+  bookingUrl?: string | null;
 }): string {
   return [
     `You are an AI Sales Development Rep replying on behalf of ${args.recruiterName} at ${args.orgName} to a candidate who answered a recruiting outreach email.`,
     args.persona ? `Persona / tone:\n${args.persona}` : `Be warm, concise, and professional. Keep it to a few sentences.`,
     `Ground every factual claim ONLY in the knowledge base below. NEVER invent compensation, dates, titles, or commitments. If the candidate asks something the knowledge base doesn't cover, do NOT guess — set "needs_human": true and write a short holding reply that offers to connect them with ${args.recruiterName}.`,
+    args.bookingUrl
+      ? `SCHEDULING: when the candidate shows interest, asks about next steps, or wants to talk, invite them to pick a time on ${args.recruiterName}'s calendar using exactly this link: ${args.bookingUrl} — never propose specific times yourself and never invent any other scheduling link.`
+      : `SCHEDULING: you cannot book meetings — if the candidate wants to schedule, say ${args.recruiterName} will follow up with times, and set "needs_human": true.`,
     args.guardrails ? `Hard rules (must obey):\n${args.guardrails}` : "",
     args.knowledge ? `--- KNOWLEDGE BASE ---\n${args.knowledge}\n--- END KNOWLEDGE BASE ---` : `(No knowledge base configured — answer only generic scheduling/logistics questions and otherwise set needs_human.)`,
     `Return ONLY JSON: {"subject": "...", "body": "...", "needs_human": true|false}. The body is the email text only — no signature block, no "[Your name]" placeholders.`,
@@ -200,6 +205,7 @@ export async function draftAutoReply(args: {
   candidateName: string | null;
   orgName: string;
   recruiterName: string;
+  bookingUrl?: string | null;
 }): Promise<DraftResult> {
   const tier = args.campaign.ai_sdr_tier === "smart" ? AI_TIERS.smart : AI_TIERS.fast;
   const system = buildSystemPrompt({
@@ -208,6 +214,7 @@ export async function draftAutoReply(args: {
     knowledge: args.knowledge,
     orgName: args.orgName,
     recruiterName: args.recruiterName,
+    bookingUrl: args.bookingUrl,
   });
 
   // Recent conversation, oldest→newest, capped.
@@ -321,10 +328,12 @@ export async function maybeEnqueueAiSdrReply(args: {
     });
     if (!gate.ok) return;
 
-    // Grounding + who we're speaking as (the campaign's creator).
-    const [knowledge, recruiter] = await Promise.all([
+    // Grounding + who we're speaking as (the campaign's creator) + their
+    // booking page so the SDR can offer a real "pick a time" link.
+    const [knowledge, recruiter, bookingUrl] = await Promise.all([
       buildKnowledgeContext(args.orgId, campaign.id),
       getRecruiterIdentity(campaign.created_by),
+      bookingUrlFor(args.orgId, campaign.created_by),
     ]);
 
     // Recent transcript for context.
@@ -357,6 +366,7 @@ export async function maybeEnqueueAiSdrReply(args: {
       candidateName: args.candidateName ?? match.candidateName,
       orgName,
       recruiterName: recruiter.name,
+      bookingUrl,
     });
     if (!draft.body.trim()) return;
 

@@ -13,6 +13,7 @@ import { runSubsequences } from "@/lib/outreach/subsequences";
 import { loadRotationPool, claimFromPool, claimSpecificMailbox, type RotationPool } from "@/lib/outreach/rotation";
 import { getConnectedSender, sendViaConnectedMailbox, type ConnectedMailbox } from "@/lib/outreach/connected-send";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
+import { bookingUrlFor } from "@/lib/booking";
 
 export const maxDuration = 60;
 
@@ -106,7 +107,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due, error: dueErr } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
+    .select("*, campaign:enterprise_campaigns(status, created_by, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -142,6 +143,8 @@ export async function POST(req: NextRequest) {
   // from the recruiter's own inbox so replies thread back there. Used when the
   // org has no domain mailboxes (or an enrolment is already locked to it).
   const connectedSenders = new Map<string, ConnectedMailbox | null>();
+  // {{booking_link}} per campaign (creator's booking page), resolved lazily.
+  const bookingUrls = new Map<string, string | null>();
   await Promise.all(orgIds.map(async (orgId) => connectedSenders.set(orgId, await getConnectedSender(orgId))));
 
   // Load all steps for the campaigns in this batch, grouped by campaign.
@@ -295,12 +298,22 @@ export async function POST(req: NextRequest) {
     const jobTitle = (e.job as { title: string } | null)?.title ?? "our open role";
     const candidateName = e.candidate_name as string;
 
+    // {{booking_link}} → the campaign creator's public "pick a time" page
+    // (resolved once per campaign per run; created lazily on first use).
+    const cid0 = e.campaign_id as string;
+    if (!bookingUrls.has(cid0)) {
+      const creator = (campaign as { created_by?: string | null }).created_by ?? null;
+      bookingUrls.set(cid0, await bookingUrlFor(e.org_id as string, creator).catch(() => null));
+    }
+    const bookingLink = bookingUrls.get(cid0) ?? null;
+
     const vars: CampaignVars = {
       candidate_name: candidateName,
       first_name: firstName(candidateName),
       job_title: jobTitle,
       org_name: orgName,
       sender_name: `${orgName} Recruiting`,
+      ...(bookingLink ? { booking_link: bookingLink } : {}),
     };
 
     // A/B: sticky per-enrollment bucket (assigned on first send, persisted so

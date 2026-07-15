@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ScheduleModal } from "@/components/enterprise/schedule-modal";
+import BookingLinkCard from "@/components/enterprise/booking-link-card";
 
 interface Interview {
   id: string; candidate_name: string; candidate_email: string; title: string;
@@ -155,6 +156,9 @@ export default function SchedulePage() {
             <button onClick={() => setNewOpen(true)} className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"><Plus className="h-4 w-4" /> Schedule interview</button>
           </div>
         </div>
+
+        {/* Standing booking page (pick-a-time link candidates can self-book on) */}
+        <BookingLinkCard />
 
         {/* Tabs */}
         <div className="mb-5 inline-flex rounded-xl border border-border bg-muted/40 p-1 gap-1">

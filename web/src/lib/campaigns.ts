@@ -33,6 +33,7 @@ export const CAMPAIGN_VARS = [
   "job_title",
   "org_name",
   "sender_name",
+  "booking_link", // the campaign creator's public "pick a time" page
 ] as const;
 
 export type CampaignVars = Partial<Record<(typeof CAMPAIGN_VARS)[number], string>>;
