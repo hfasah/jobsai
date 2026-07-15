@@ -29,28 +29,20 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   const thread = await loadThread(org.id, id);
   if (!thread) return NextResponse.json({ error: "Thread not found." }, { status: 404 });
 
-  // Messages: prefer application thread; fall back to email-matched rows.
-  let messages;
-  if (thread.application_id) {
-    const { data } = await supabaseAdmin
-      .from("enterprise_messages")
-      .select("id, direction, from_email, to_email, subject, body, created_at, sent_via")
-      .eq("org_id", org.id)
-      .eq("application_id", thread.application_id)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    messages = data;
-  } else {
-    const email = thread.candidate_email as string;
-    const { data } = await supabaseAdmin
-      .from("enterprise_messages")
-      .select("id, direction, from_email, to_email, subject, body, created_at, sent_via")
-      .eq("org_id", org.id)
-      .or(`from_email.ilike.${email},to_email.ilike.${email}`)
-      .order("created_at", { ascending: true })
-      .limit(200);
-    messages = data;
-  }
+  // Messages: application-linked rows AND email-matched rows, unioned. The old
+  // either/or blanked the history the moment a thread gained an application_id
+  // (the interested-intent auto-action links one) because earlier messages were
+  // logged by email only, with a null application_id.
+  const email = thread.candidate_email as string;
+  const ors = [`from_email.ilike.${email}`, `to_email.ilike.${email}`];
+  if (thread.application_id) ors.push(`application_id.eq.${thread.application_id}`);
+  const { data: messages } = await supabaseAdmin
+    .from("enterprise_messages")
+    .select("id, direction, from_email, to_email, subject, body, created_at, sent_via")
+    .eq("org_id", org.id)
+    .or(ors.join(","))
+    .order("created_at", { ascending: true })
+    .limit(200);
 
   if (thread.unread) {
     await supabaseAdmin.from("inbox_threads").update({ unread: false }).eq("id", id).eq("org_id", org.id);
