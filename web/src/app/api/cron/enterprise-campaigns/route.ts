@@ -448,7 +448,7 @@ export async function POST(req: NextRequest) {
     const unsubToken = e.unsubscribe_token as string | null;
     const unsubUrl = unsubToken ? `${BASE_URL}/api/outreach/unsubscribe?t=${unsubToken}` : null;
     const unsubFooter = unsubUrl
-      ? `<p style="color:#94a3b8;font-size:12px;margin:18px 0 0">Not the right time? <a href="${unsubUrl}" style="color:#94a3b8">Unsubscribe</a> and we won't email you again.</p>`
+      ? `<p style="color:#a3adb8;font-size:10px;line-height:1.5;margin:24px 0 0">You can <a href="${unsubUrl}" style="color:#a3adb8;text-decoration:underline">unsubscribe</a> from these emails anytime.</p>`
       : "";
     const html = wrapEmail(`<p>${bodyText.replace(/\n/g, "<br>")}</p>${pixel}${unsubFooter}`, showPoweredBy);
 
