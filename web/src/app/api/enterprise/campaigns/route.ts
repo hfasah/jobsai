@@ -60,8 +60,8 @@ export async function POST(req: NextRequest) {
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const { name, description, status, steps, objective, send_window } = body as {
-    name?: string; description?: string; status?: string; steps?: CampaignStepInput[];
+  const { name, description, status, steps, objective, send_window, role_title } = body as {
+    name?: string; description?: string; status?: string; steps?: CampaignStepInput[]; role_title?: string;
     objective?: string;
     send_window?: { start?: number | null; end?: number | null; timezone?: string | null; business_days_only?: boolean };
   };
@@ -82,6 +82,7 @@ export async function POST(req: NextRequest) {
       org_id: org.id,
       name: name.trim(),
       description: description?.trim() || null,
+      role_title: typeof role_title === "string" ? role_title.trim().slice(0, 120) || null : null,
       status: status === "active" ? "active" : "draft",
       objective: ["source", "re_engage", "promote", "pipeline"].includes(objective ?? "") ? objective : null,
       created_by: userId,

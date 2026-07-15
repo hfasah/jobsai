@@ -6,7 +6,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { recordUsage } from "@/lib/llm-usage";
-import { renderTemplate, firstName, type CampaignVars } from "@/lib/campaigns";
+import { renderTemplate, type CampaignVars } from "@/lib/campaigns";
+import { greetingName } from "@/lib/sourcing-email";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 import { loadSuppressedSet } from "@/lib/outreach/suppression";
 import { runSubsequences } from "@/lib/outreach/subsequences";
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
 
   const { data: due, error: dueErr } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .select("*, campaign:enterprise_campaigns(status, created_by, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
+    .select("*, campaign:enterprise_campaigns(status, created_by, role_title, track_opens, mailbox_strategy, mailbox_id, daily_send_limit, holidays, send_jitter_hours, send_window_start, send_window_end, send_timezone, business_days_only), job:enterprise_jobs(title), org:enterprise_orgs(name, show_powered_by, white_label_email_from, reply_to_email, slug, intake_email_handle)")
     .eq("status", "active")
     .not("next_send_at", "is", null)
     .lte("next_send_at", now.toISOString())
@@ -295,8 +296,15 @@ export async function POST(req: NextRequest) {
       || org?.reply_to_email?.trim() || null;
     const fromName = emailFromName(orgName, org?.white_label_email_from ?? null);
     const showPoweredBy = org?.show_powered_by ?? true;
-    const jobTitle = (e.job as { title: string } | null)?.title ?? "our open role";
+    const jobTitle = (e.job as { title: string } | null)?.title
+      ?? ((campaign as { role_title?: string | null }).role_title ?? null)
+      ?? "our open role";
     const candidateName = e.candidate_name as string;
+    // Manually-added leads sometimes have an email handle as their "name"
+    // ("dimmples038") — greeting them with it reads like spam. greetingName
+    // falls back to "there" for handle-like values.
+    const safeFirst = greetingName(candidateName);
+    const safeName = safeFirst === "there" ? "there" : candidateName;
 
     // {{booking_link}} → the campaign creator's public "pick a time" page
     // (resolved once per campaign per run; created lazily on first use).
@@ -308,8 +316,8 @@ export async function POST(req: NextRequest) {
     const bookingLink = bookingUrls.get(cid0) ?? null;
 
     const vars: CampaignVars = {
-      candidate_name: candidateName,
-      first_name: firstName(candidateName),
+      candidate_name: safeName,
+      first_name: safeFirst,
       job_title: jobTitle,
       org_name: orgName,
       sender_name: `${orgName} Recruiting`,
@@ -348,7 +356,7 @@ export async function POST(req: NextRequest) {
           response_format: { type: "json_object" },
           messages: [{
             role: "user",
-            content: `Rewrite this recruiting outreach email to feel personal and natural for ${candidateName}, a candidate for the ${jobTitle} role at ${orgName}. Keep it short (under 120 words), warm, and human. Preserve the intent and any call to action. Do not invent specific facts about the candidate.${step.ai_prompt ? `\nExtra guidance: ${step.ai_prompt}` : ""}\n\nDraft subject: ${subject}\nDraft body:\n${bodyText}\n\nReturn JSON: { "subject": "...", "body": "..." }`,
+            content: `Rewrite this recruiting outreach email to feel personal and natural for ${candidateName}, a candidate for the ${jobTitle} role at ${orgName}. Keep it short (under 120 words), warm, and human. Preserve the intent and any call to action. Do not invent specific facts about the candidate. Smooth out any awkward phrasing left by placeholder substitution (duplicated words, wrong articles).${step.ai_prompt ? `\nExtra guidance: ${step.ai_prompt}` : ""}\n\nDraft subject: ${subject}\nDraft body:\n${bodyText}\n\nReturn JSON: { "subject": "...", "body": "..." }`,
           }],
         }, { timeout: 12000, maxRetries: 0 });
         const parsed = JSON.parse(resp.choices[0]?.message?.content ?? "{}");

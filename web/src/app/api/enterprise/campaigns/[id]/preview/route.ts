@@ -4,7 +4,8 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { getRecruiterIdentity } from "@/lib/sourcing-email";
-import { CAMPAIGN_FEATURE_KEY, renderTemplate, firstName, cumulativeOffsetDays } from "@/lib/campaigns";
+import { CAMPAIGN_FEATURE_KEY, renderTemplate, cumulativeOffsetDays } from "@/lib/campaigns";
+import { greetingName } from "@/lib/sourcing-email";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,10 +24,10 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
   const { data: campaign } = await supabaseAdmin
     .from("enterprise_campaigns")
-    .select("id, name, created_by")
+    .select("id, name, created_by, role_title")
     .eq("id", id).eq("org_id", org.id).maybeSingle();
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
-  const camp = campaign as { created_by: string };
+  const camp = campaign as { created_by: string; role_title: string | null };
 
   const [{ data: steps }, { data: enrollments }] = await Promise.all([
     supabaseAdmin.from("enterprise_campaign_steps")
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest, { params }: Ctx) {
 
   // Resolve the sample candidate's variable values.
   const candidateName = chosen?.candidate_name || "Jordan Rivera";
-  let jobTitle = "the role";
+  let jobTitle = camp.role_title || "the role";
   if (chosen?.job_id) {
     const { data: job } = await supabaseAdmin
       .from("enterprise_jobs").select("title").eq("id", chosen.job_id).eq("org_id", org.id).maybeSingle();
@@ -53,8 +54,8 @@ export async function GET(req: NextRequest, { params }: Ctx) {
   const recruiter = await getRecruiterIdentity(camp.created_by);
 
   const vars = {
-    candidate_name: candidateName,
-    first_name: firstName(candidateName),
+    candidate_name: greetingName(candidateName) === "there" ? "there" : candidateName,
+    first_name: greetingName(candidateName),
     job_title: jobTitle,
     org_name: org.name,
     sender_name: recruiter.name,

@@ -30,7 +30,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const { id } = await params;
 
   const { data: campaign } = await supabaseAdmin
-    .from("enterprise_campaigns").select("id").eq("id", id).eq("org_id", org.id).maybeSingle();
+    .from("enterprise_campaigns").select("id, role_title").eq("id", id).eq("org_id", org.id).maybeSingle();
   if (!campaign) return NextResponse.json({ error: "Campaign not found." }, { status: 404 });
 
   const { subject, body, to } = await req.json().catch(() => ({}));
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const vars = {
     candidate_name: "Jordan Rivera",
     first_name: "Jordan",
-    job_title: "Account Manager", // realistic sample so previews read naturally
+    job_title: ((campaign as { role_title?: string | null }).role_title ?? null) || "Account Manager", // the campaign's real role when set
     org_name: orgName,
     sender_name: recruiter.name,
     ...(bookingLink ? { booking_link: bookingLink } : {}),

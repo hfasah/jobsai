@@ -115,6 +115,7 @@ export default function CampaignWizard({
       name: draft.name,
       description: draft.description,
       objective: objective || undefined,
+      role_title: targetRole.trim() || undefined,
       status: activate ? "active" : "draft",
       ...(activate && pilot.on ? { pilot_size: pilot.size } : {}),
       steps: draft.steps.map(({ delay_days, subject, body, ai_personalize, ai_prompt, ab_subject, ab_body, skip_if_in_pipeline }) => ({
@@ -159,7 +160,7 @@ export default function CampaignWizard({
       // Already created — persist any Setup edits (name / objective).
       await fetch(`/api/enterprise/campaigns/${campaignId}`, {
         method: "PATCH", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: draft?.name, description: draft?.description, objective: objective || undefined }),
+        body: JSON.stringify({ name: draft?.name, description: draft?.description, objective: objective || undefined, role_title: targetRole.trim() || undefined }),
       }).catch(() => {});
       return campaignId;
     }
@@ -167,7 +168,7 @@ export default function CampaignWizard({
     setError(null);
     const res = await fetch(`/api/enterprise/campaigns`, {
       method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name: draft?.name, description: draft?.description, objective: objective || undefined, status: "draft" }),
+      body: JSON.stringify({ name: draft?.name, description: draft?.description, objective: objective || undefined, role_title: targetRole.trim() || undefined, status: "draft" }),
     });
     setSaving(false);
     if (!res.ok) { const j = await res.json().catch(() => ({})); setError(j.error ?? "Could not save."); return null; }
