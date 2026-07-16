@@ -80,7 +80,7 @@ function InboxInner() {
   const [me, setMe] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(params.get("thread"));
-  const [detail, setDetail] = useState<{ thread: ThreadRow; messages: Message[] } | null>(null);
+  const [detail, setDetail] = useState<{ thread: ThreadRow; messages: Message[]; suppressed?: boolean } | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -341,9 +341,9 @@ function InboxInner() {
 
             {/* Composer */}
             <div className="border-t border-border p-3">
-              {detail.thread.intent === "unsubscribe" ? (
+              {(detail.thread.intent === "unsubscribe" || detail.suppressed) ? (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">
-                  <p>This contact unsubscribed — replying is disabled.</p>
+                  <p>This contact is on the Do-Not-Contact list — auto-replies and sends are blocked.</p>
                   <button
                     onClick={async () => {
                       if (!selectedId) return;
