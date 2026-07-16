@@ -456,6 +456,20 @@ export async function maybeEnqueueAiSdrReply(args: {
     });
   } catch (e) {
     console.error("[ai-sdr] enqueue failed", e);
+    // Record the failure so it's visible in the queue/debug endpoint — a
+    // drafting exception (LLM error, bad JSON, provider outage) used to
+    // vanish without a trace.
+    try {
+      await supabaseAdmin.from("ai_sdr_replies").insert({
+        org_id: args.orgId,
+        thread_id: args.threadId,
+        candidate_email: args.candidateEmail.toLowerCase(),
+        draft_body: "(no draft — drafting failed)",
+        status: "failed",
+        suppressed_reason: String(e).slice(0, 300),
+        intent: args.intent,
+      });
+    } catch { /* best effort */ }
   }
 }
 
