@@ -42,7 +42,7 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
   //    (they DID reply; sequences stay paused — no send is re-scheduled).
   const { data: enr, error: enrErr } = await supabaseAdmin
     .from("enterprise_campaign_enrollments")
-    .update({ status: "replied", updated_at: now })
+    .update({ status: "replied" }) // enterprise_campaign_enrollments has no updated_at column
     .eq("org_id", org.id)
     .ilike("candidate_email", email)
     .eq("status", "unsubscribed")
