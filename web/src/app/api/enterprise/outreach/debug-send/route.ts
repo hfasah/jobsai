@@ -79,7 +79,7 @@ export async function GET(req: NextRequest) {
   // D. Full send-path diagnostics for the target org.
   const { data: camps } = await supabaseAdmin
     .from("enterprise_campaigns")
-    .select("id, name, status, pilot_size, pilot_released, daily_send_limit, holidays, send_window_start, send_window_end, send_timezone, business_days_only, mailbox_strategy, mailbox_id")
+    .select("id, name, status, pilot_size, pilot_released, daily_send_limit, holidays, send_window_start, send_window_end, send_timezone, business_days_only, mailbox_strategy, mailbox_id, ai_sdr_enabled, ai_sdr_mode, ai_sdr_min_confidence, ai_sdr_max_replies")
     .eq("org_id", targetOrgId)
     .in("status", ["active", "scheduled", "draft"]);
   const campRows = (camps ?? []) as ({ id: string; name: string; status: string; pilot_size: number | null; pilot_released: boolean | null } & SendWindow & { daily_send_limit: number | null; holidays: string[] | null })[];
