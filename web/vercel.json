@@ -14,7 +14,7 @@
     },
     {
       "path": "/api/cron/ai-sdr",
-      "schedule": "*/15 * * * *"
+      "schedule": "*/2 * * * *"
     },
     {
       "path": "/api/cron/enterprise-digest",
