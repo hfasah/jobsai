@@ -5,7 +5,7 @@ import { getMyOrg } from "@/lib/enterprise";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { requirePermission } from "@/lib/enterprise-permissions";
 import { audit } from "@/lib/enterprise-audit";
-import { unsuppressEmail } from "@/lib/outreach/suppression";
+import { unsuppressEmail, isEmailSuppressed } from "@/lib/outreach/suppression";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -76,6 +76,16 @@ export async function POST(_req: NextRequest, { params }: Ctx) {
     resource_id: t.id,
     metadata: { email, suppressions_removed: removed, enrollments_restored: (enr ?? []).length },
   });
+
+  // Verify: is the contact ACTUALLY off the list now? A silent update failure
+  // here is exactly how this undo appeared to work while doing nothing.
+  const stillSuppressed = await isEmailSuppressed(org.id, email);
+  if (stillSuppressed) {
+    return NextResponse.json(
+      { error: `Do-Not-Contact row would not deactivate (rows updated: ${removed}). Check enterprise_suppressions for ${email}.` },
+      { status: 500 },
+    );
+  }
 
   return NextResponse.json({
     data: { ok: true, suppressions_removed: removed, enrollments_restored: (enr ?? []).length },

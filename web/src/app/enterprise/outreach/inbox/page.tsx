@@ -86,6 +86,7 @@ function InboxInner() {
   const [replyError, setReplyError] = useState<string | null>(null);
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
   const [resubBusy, setResubBusy] = useState(false);
+  const [resubMsg, setResubMsg] = useState<string | null>(null);
   const [draftBusy, setDraftBusy] = useState(false);
 
   const [filterStatus, setFilterStatus] = useState<"open" | "done" | "all">("open");
@@ -348,15 +349,24 @@ function InboxInner() {
                     onClick={async () => {
                       if (!selectedId) return;
                       setResubBusy(true);
+                      setResubMsg(null);
                       const res = await fetch(`/api/enterprise/outreach/inbox/${selectedId}/resubscribe`, { method: "POST" });
+                      const j = await res.json().catch(() => ({}));
                       setResubBusy(false);
-                      if (res.ok) { openThread(selectedId); loadList(); }
+                      if (res.ok) {
+                        setResubMsg(`Undone — removed ${j.data?.suppressions_removed ?? 0} block(s), restored ${j.data?.enrollments_restored ?? 0} enrollment(s).`);
+                        openThread(selectedId);
+                        loadList();
+                      } else {
+                        setResubMsg(j.error ?? `Undo failed (${res.status}).`);
+                      }
                     }}
                     disabled={resubBusy}
                     className="mt-1.5 rounded-lg border border-red-500/40 px-3 py-1 font-semibold text-red-300 hover:bg-red-500/20 disabled:opacity-60"
                   >
                     {resubBusy ? "Undoing…" : "Undo — they didn't unsubscribe"}
                   </button>
+                  {resubMsg && <p className="mt-1.5 text-[11px]">{resubMsg}</p>}
                 </div>
               ) : (
                 <>
