@@ -297,6 +297,22 @@ export function scheduleAutoReply(campaign: AiSdrCampaign, now: Date, jitter: nu
 // ── Orchestration: called from processReply after an inbound reply lands ─────
 // Best-effort — resolves the campaign, runs guardrails, drafts a grounded
 // reply, and inserts an ai_sdr_replies row (status 'queued' for auto-send,
+// Record WHY the SDR stayed silent — a 'suppressed' queue row with the gate
+// reason. Without this, every refusal (DNC, reply cap, loop guard, manual
+// mode) was invisible and looked like a bug.
+async function recordGatedReply(args: { orgId: string; threadId: string; campaignId: string | null; email: string; intent: string; reason: string }): Promise<void> {
+  await supabaseAdmin.from("ai_sdr_replies").insert({
+    org_id: args.orgId,
+    thread_id: args.threadId,
+    campaign_id: args.campaignId,
+    candidate_email: args.email,
+    draft_body: "(no draft — gated)",
+    status: "suppressed",
+    suppressed_reason: args.reason,
+    intent: args.intent,
+  });
+}
+
 // 'needs_review' for a human). Never throws (the caller is fire-and-forget).
 export async function maybeEnqueueAiSdrReply(args: {
   orgId: string;
@@ -323,7 +339,10 @@ export async function maybeEnqueueAiSdrReply(args: {
 
     // Compliance: never auto-reply to a Do-Not-Contact address, whatever the
     // classified intent (the enqueue used to skip this check entirely).
-    if (await isEmailSuppressed(args.orgId, email)) return;
+    if (await isEmailSuppressed(args.orgId, email)) {
+      await recordGatedReply({ orgId: args.orgId, threadId: args.threadId, campaignId: null, email, intent: args.intent, reason: "Contact is on Do-Not-Contact — no auto-reply. Undo the unsubscribe to re-enable." });
+      return;
+    }
 
     const match = await getCampaignForReply(args.orgId, email);
     if (!match) return;
@@ -354,7 +373,10 @@ export async function maybeEnqueueAiSdrReply(args: {
       priorAiReplies: priorAiReplies ?? 0,
       minutesSinceLastOutbound,
     });
-    if (!gate.ok) return;
+    if (!gate.ok) {
+      await recordGatedReply({ orgId: args.orgId, threadId: args.threadId, campaignId: campaign.id, email, intent: args.intent, reason: gate.reason });
+      return;
+    }
 
     // Grounding + who we're speaking as (the campaign's creator) + their
     // booking page and LIVE open slots, so the SDR can propose real times in
