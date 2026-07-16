@@ -280,8 +280,8 @@ export async function draftAutoReply(args: {
 // is injected (0..1) so the caller controls randomness — the cron passes
 // Math.random(); tests can pass a fixed value.
 export function scheduleAutoReply(campaign: AiSdrCampaign, now: Date, jitter: number): Date {
-  const minMs = 3 * 60_000;   // 3 min floor
-  const spanMs = 7 * 60_000;  // up to +7 min
+  const minMs = 45_000;   // 45s floor — still reads human, keeps testing fast
+  const spanMs = 45_000;  // up to +45s (total 45-90s before the send tick)
   let when = new Date(now.getTime() + minMs + Math.floor(Math.max(0, Math.min(1, jitter)) * spanMs));
 
   const window: SendWindow = {
