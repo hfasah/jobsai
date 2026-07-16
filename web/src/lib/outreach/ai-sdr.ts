@@ -237,10 +237,18 @@ function buildSystemPrompt(args: {
   recruiterName: string;
   bookingUrl?: string | null;
   openSlots?: { iso: string; label: string }[];
+  confirmedSlot?: { iso: string; label: string } | null;
 }): string {
   const slots = args.openSlots ?? [];
   let scheduling: string;
-  if (slots.length > 0) {
+  if (args.confirmedSlot) {
+    scheduling = [
+      `SCHEDULING: the candidate has agreed to ${args.confirmedSlot.label} and the meeting IS being booked at that exact time automatically — the calendar invite with the meeting link goes out alongside this email.`,
+      `- Write the body as a warm confirmation of that specific time ("I've booked us in for ... — the calendar invite is on its way.").`,
+      `- Set "book_slot" to exactly ${args.confirmedSlot.iso}.`,
+      `- Do NOT propose other times and do NOT include any scheduling link.`,
+    ].join("\n");
+  } else if (slots.length > 0) {
     scheduling = [
       `SCHEDULING: you can book meetings directly on ${args.recruiterName}'s calendar. These times are currently OPEN:`,
       ...slots.map((s, i) => `${i + 1}. ${s.label}  [iso: ${s.iso}]`),
@@ -275,6 +283,7 @@ export async function draftAutoReply(args: {
   recruiterName: string;
   bookingUrl?: string | null;
   openSlots?: { iso: string; label: string }[];
+  confirmedSlot?: { iso: string; label: string } | null;
 }): Promise<DraftResult> {
   const tier = args.campaign.ai_sdr_tier === "smart" ? AI_TIERS.smart : AI_TIERS.fast;
   const system = buildSystemPrompt({
@@ -285,6 +294,7 @@ export async function draftAutoReply(args: {
     recruiterName: args.recruiterName,
     bookingUrl: args.bookingUrl,
     openSlots: args.openSlots,
+    confirmedSlot: args.confirmedSlot,
   });
 
   // Recent conversation, oldest→newest, capped.
@@ -309,9 +319,10 @@ export async function draftAutoReply(args: {
   const subject = typeof parsed.subject === "string" ? parsed.subject.slice(0, 200) : "";
   const body = typeof parsed.body === "string" ? parsed.body.trim() : "";
   const needsHuman = parsed.needs_human === true || !body;
-  // Only accept a book_slot that is EXACTLY one of the open times we offered —
-  // the model can never book an invented or stale time.
+  // Only accept a book_slot that is EXACTLY one of the open times we offered
+  // (or the code-confirmed slot) — the model can never book an invented time.
   const offered = new Set((args.openSlots ?? []).map((s) => s.iso));
+  if (args.confirmedSlot) offered.add(args.confirmedSlot.iso);
   const bookSlot = typeof parsed.book_slot === "string" && offered.has(parsed.book_slot) ? parsed.book_slot : null;
 
   return {
@@ -438,14 +449,19 @@ export async function maybeEnqueueAiSdrReply(args: {
       campaign.created_by ? getOrCreateBookingLink(args.orgId, campaign.created_by).catch(() => null) : Promise.resolve(null),
     ]);
     const bookingUrl = bookingLink?.active ? urlForBookingLink(bookingLink) : null;
+    // allSlots = every bookable time on the calendar (what the booking page
+    // itself offers); openSlots = the handful we surface in the email. The
+    // candidate may name a time we didn't list — it must still book if open.
     let openSlots: { iso: string; label: string }[] = [];
+    let allSlots: { iso: string; label: string }[] = [];
     if (bookingLink?.active) {
       const { slots } = await openSlotsForLink(bookingLink).catch(() => ({ slots: [] as string[] }));
       const fmt = new Intl.DateTimeFormat("en-US", {
         timeZone: bookingLink.timezone, weekday: "short", month: "short", day: "numeric",
         hour: "numeric", minute: "2-digit",
       });
-      openSlots = slots.slice(0, 8).map((iso) => ({ iso, label: `${fmt.format(new Date(iso))} (${bookingLink.timezone})` }));
+      allSlots = slots.map((iso) => ({ iso, label: `${fmt.format(new Date(iso))} (${bookingLink.timezone})` }));
+      openSlots = allSlots.slice(0, 8);
     }
 
     // Recent transcript for context.
@@ -470,6 +486,22 @@ export async function maybeEnqueueAiSdrReply(args: {
       .map((m): TranscriptMessage => ({ direction: m.direction === "outbound" ? "outbound" : "inbound", body: m.body ?? "" }))
       .filter((m) => m.body.trim().length > 0);
 
+    // Deterministic pre-match: if the candidate's own words name ANY open time
+    // on the calendar (not just the ones we emailed), the booking is decided in
+    // code BEFORE drafting — the model is then told to write a confirmation of
+    // that exact time instead of re-proposing alternatives.
+    let confirmedSlot: { iso: string; label: string } | null = null;
+    if (allSlots.length && bookingLink) {
+      const lastInbound = [...transcript].reverse().find((m) => m.direction === "inbound");
+      if (lastInbound) {
+        const iso = matchSlotFromText(stripQuotedReply(lastInbound.body), allSlots, bookingLink.timezone);
+        if (iso) {
+          confirmedSlot = allSlots.find((s) => s.iso === iso) ?? null;
+          console.log(`[ai-sdr] deterministic slot match armed booking: ${iso}`);
+        }
+      }
+    }
+
     const draft = await draftAutoReply({
       orgId: args.orgId,
       campaign,
@@ -480,19 +512,12 @@ export async function maybeEnqueueAiSdrReply(args: {
       recruiterName: recruiter.name,
       bookingUrl,
       openSlots,
+      confirmedSlot,
     });
     if (!draft.body.trim()) return;
 
-    // Deterministic booking backstop: if the model didn't arm book_slot but
-    // the candidate's own words name one of the offered open times, book it.
-    let bookSlot = draft.bookSlot;
-    if (!bookSlot && openSlots.length && bookingLink) {
-      const lastInbound = [...transcript].reverse().find((m) => m.direction === "inbound");
-      if (lastInbound) {
-        bookSlot = matchSlotFromText(stripQuotedReply(lastInbound.body), openSlots, bookingLink.timezone);
-        if (bookSlot) console.log(`[ai-sdr] deterministic slot match armed booking: ${bookSlot}`);
-      }
-    }
+    // The code-level match wins even if the model forgot to arm book_slot.
+    const bookSlot = draft.bookSlot ?? confirmedSlot?.iso ?? null;
 
     // The model flagging needs_human forces review even in auto mode.
     const autoSend = gate.autoSend && !draft.needsHuman;
