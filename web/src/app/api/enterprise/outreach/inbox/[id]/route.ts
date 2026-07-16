@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireFeature } from "@/lib/enterprise-entitlements";
 import { getMyOrg } from "@/lib/enterprise";
+import { isEmailSuppressed } from "@/lib/outreach/suppression";
 import { INTENTS, deriveInterest, type Intent } from "@/lib/outreach/intent";
 
 async function loadThread(orgId: string, id: string) {
@@ -49,7 +50,11 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
     thread.unread = false;
   }
 
-  return NextResponse.json({ data: { thread, messages: messages ?? [] } });
+  // Live DNC state — the intent chip can say anything while the contact is
+  // still suppressed underneath; the UI needs the truth to offer the Undo.
+  const suppressed = await isEmailSuppressed(org.id, thread.candidate_email as string);
+
+  return NextResponse.json({ data: { thread, messages: messages ?? [], suppressed } });
 }
 
 // PATCH — operator actions on a thread:
