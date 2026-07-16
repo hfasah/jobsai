@@ -100,9 +100,11 @@ export async function GET(req: NextRequest) {
       const replyTo = intake ? `${orgName} <${intake}>` : (recruiter.email ?? undefined);
       const senderEmail = enterpriseSenderEmail(intake);
 
-      // Subject: prefer the drafted subject, else thread the last inbound subject.
-      let subjectLine = r.draft_subject?.trim() || "";
-      if (!subjectLine) {
+      // Subject: ALWAYS thread on the conversation's subject when one exists —
+      // model-invented subjects broke Gmail threading (the reply landed as a
+      // brand-new conversation the recruiter/candidate never saw).
+      let subjectLine = "";
+      {
         const { data: last } = await supabaseAdmin
           .from("enterprise_messages")
           .select("subject")
@@ -111,7 +113,9 @@ export async function GET(req: NextRequest) {
           .not("subject", "is", null)
           .order("created_at", { ascending: false }).limit(1).maybeSingle();
         const prev = (last?.subject as string | null) ?? null;
-        subjectLine = prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`;
+        subjectLine = prev
+          ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`)
+          : (r.draft_subject?.trim() || `Message from ${orgName}`);
       }
 
       // Compliance: a suppression may have landed after this draft was queued.

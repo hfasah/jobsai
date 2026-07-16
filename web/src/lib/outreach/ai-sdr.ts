@@ -11,6 +11,7 @@ import { getRecruiterIdentity } from "@/lib/sourcing-email";
 import { getOrCreateBookingLink, openSlotsForLink, urlForBookingLink, bookSlot } from "@/lib/booking";
 import { isEmailSuppressed } from "./suppression";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "./send-window";
+import { stripQuotedReply } from "./intent";
 import type { Intent, InterestLevel } from "./intent";
 
 // Campaign row + AI SDR config (subset of enterprise_campaigns columns).
@@ -41,6 +42,34 @@ const CAMPAIGN_COLS =
 // up cost/latency. Pinned docs win the budget first. (Embedding retrieval is a
 // later upgrade if a campaign outgrows this.)
 const KB_CHAR_BUDGET = 6000;
+
+// Deterministic slot matcher: does the candidate's own text name one of the
+// offered open times? The LLM setting book_slot is helpful but NOT trusted as
+// the only path — a clear "Thursday, July 16, at 2:00 PM works for me" must
+// book even if the model forgets to arm it.
+export function matchSlotFromText(text: string, slots: { iso: string }[], tz: string): string | null {
+  const t = text.toLowerCase().replace(/\s+/g, " ");
+  for (const s of slots) {
+    const d = new Date(s.iso);
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, weekday: "long", month: "long", day: "numeric",
+      hour: "numeric", minute: "2-digit", hour12: true,
+    }).formatToParts(d);
+    const get = (k: string) => parts.find((x) => x.type === k)?.value ?? "";
+    const weekday = get("weekday").toLowerCase();
+    const month = get("month").toLowerCase();
+    const day = get("day");
+    const hour = get("hour");
+    const minute = get("minute");
+    const ampm = get("dayPeriod").toLowerCase();
+    const dayHit = t.includes(`${month} ${day}`) || t.includes(weekday);
+    const timeHit =
+      t.includes(`${hour}:${minute} ${ampm}`) || t.includes(`${hour}:${minute}${ampm}`) ||
+      (minute === "00" && (t.includes(`${hour} ${ampm}`) || t.includes(`${hour}${ampm}`)));
+    if (dayHit && timeHit) return s.iso;
+  }
+  return null;
+}
 
 export interface CampaignMatch {
   campaign: AiSdrCampaign;
@@ -216,7 +245,7 @@ function buildSystemPrompt(args: {
       `SCHEDULING: you can book meetings directly on ${args.recruiterName}'s calendar. These times are currently OPEN:`,
       ...slots.map((s, i) => `${i + 1}. ${s.label}  [iso: ${s.iso}]`),
       `- When the conversation turns to scheduling, naturally offer 2-3 of these times in plain language (never show the iso values).`,
-      `- If the candidate clearly agrees to ONE specific open time from this list, set "book_slot" to that time's exact iso value and write the body as a warm confirmation — the calendar invite with the meeting link is sent automatically ("I've booked us in for Wednesday at 9:30 — invite on its way.").`,
+      `- If the candidate clearly agrees to ONE specific open time from this list, you MUST set "book_slot" to that time's exact iso value (never leave it null when they named an open time) and write the body as a warm confirmation — the calendar invite with the meeting link is sent automatically ("I've booked us in for Wednesday at 9:30 — invite on its way.").`,
       `- If they suggest a time that is NOT on the list, do NOT book it: offer the nearest open times instead${args.bookingUrl ? `, and include this self-serve link as an alternative: ${args.bookingUrl}` : ""}.`,
       `- Never invent times or links. Book only times from the list, and only after clear agreement.`,
     ].join("\n");
@@ -454,6 +483,17 @@ export async function maybeEnqueueAiSdrReply(args: {
     });
     if (!draft.body.trim()) return;
 
+    // Deterministic booking backstop: if the model didn't arm book_slot but
+    // the candidate's own words name one of the offered open times, book it.
+    let bookSlot = draft.bookSlot;
+    if (!bookSlot && openSlots.length && bookingLink) {
+      const lastInbound = [...transcript].reverse().find((m) => m.direction === "inbound");
+      if (lastInbound) {
+        bookSlot = matchSlotFromText(stripQuotedReply(lastInbound.body), openSlots, bookingLink.timezone);
+        if (bookSlot) console.log(`[ai-sdr] deterministic slot match armed booking: ${bookSlot}`);
+      }
+    }
+
     // The model flagging needs_human forces review even in auto mode.
     const autoSend = gate.autoSend && !draft.needsHuman;
     const status = autoSend ? "queued" : "needs_review";
@@ -484,7 +524,7 @@ export async function maybeEnqueueAiSdrReply(args: {
       input_tokens: draft.inputTokens,
       output_tokens: draft.outputTokens,
       scheduled_at: scheduledAt,
-      book_slot: draft.bookSlot,
+      book_slot: bookSlot,
     });
   } catch (e) {
     console.error("[ai-sdr] enqueue failed", e);
