@@ -112,6 +112,28 @@ export async function buildKnowledgeContext(orgId: string, campaignId: string): 
   const docs = (kb ?? []) as { title: string; content: string; pinned: boolean }[];
   for (const d of docs) push(`## ${d.title}${d.pinned ? " (pinned)" : ""}\n${d.content}\n`);
 
+  // No KB docs? The campaign itself is grounded material: the role, the
+  // description, and everything the outreach emails already told candidates.
+  // This lets the SDR answer usefully out of the box instead of deferring
+  // every question to a human.
+  if (docs.length === 0) {
+    const [{ data: camp }, { data: steps }] = await Promise.all([
+      supabaseAdmin.from("enterprise_campaigns").select("name, role_title, description").eq("id", campaignId).eq("org_id", orgId).maybeSingle(),
+      supabaseAdmin.from("enterprise_campaign_steps").select("subject, body").eq("campaign_id", campaignId).order("step_order", { ascending: true }).limit(3),
+    ]);
+    const c = camp as { name?: string; role_title?: string | null; description?: string | null } | null;
+    if (c) {
+      push(`## Campaign facts (auto-derived — the only role facts you may state)\n` +
+        (c.role_title ? `Role: ${c.role_title}\n` : "") +
+        (c.description ? `About: ${c.description}\n` : ""));
+    }
+    const st = (steps ?? []) as { subject: string | null; body: string | null }[];
+    if (st.length) {
+      push(`## What our outreach emails already told candidates\n` +
+        st.map((x, i) => `Email ${i + 1}: ${x.subject ?? ""}\n${(x.body ?? "").slice(0, 500)}`).join("\n\n"));
+    }
+  }
+
   return parts.join("\n").trim();
 }
 
@@ -206,7 +228,7 @@ function buildSystemPrompt(args: {
   return [
     `You are an AI Sales Development Rep replying on behalf of ${args.recruiterName} at ${args.orgName} to a candidate who answered a recruiting outreach email.`,
     args.persona ? `Persona / tone:\n${args.persona}` : `Be warm, concise, and professional. Keep it to a few sentences.`,
-    `Ground every factual claim ONLY in the knowledge base below. NEVER invent compensation, dates, titles, or commitments. If the candidate asks something the knowledge base doesn't cover, do NOT guess — set "needs_human": true and write a short holding reply that offers to connect them with ${args.recruiterName}.`,
+    `Ground every factual claim ONLY in the knowledge base below. NEVER invent compensation, dates, titles, or commitments. If the candidate asks about something the knowledge base doesn't cover, do NOT guess — say it's best covered on a quick call and offer to schedule (this is a natural recruiter move, not a failure). Set "needs_human": true only when they insist on specifics you cannot provide (exact compensation, contract terms, legal questions).`,
     scheduling,
     args.guardrails ? `Hard rules (must obey):\n${args.guardrails}` : "",
     args.knowledge ? `--- KNOWLEDGE BASE ---\n${args.knowledge}\n--- END KNOWLEDGE BASE ---` : `(No knowledge base configured — answer only generic scheduling/logistics questions and otherwise set needs_human.)`,
