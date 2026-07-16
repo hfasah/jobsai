@@ -164,11 +164,11 @@ export function evaluateAutoReply(args: {
   if (priorAiReplies >= campaign.ai_sdr_max_replies) {
     return { ok: false, autoSend: false, reason: `Reached ${campaign.ai_sdr_max_replies} AI replies on this thread — handing off.` };
   }
-  // Loop guard: don't fire again right after our own last outbound (catches
-  // bot↔auto-responder ping-pong).
-  if (minutesSinceLastOutbound !== null && minutesSinceLastOutbound < 10) {
-    return { ok: false, autoSend: false, reason: "Just sent an outbound — throttled to avoid loops." };
-  }
+  // Loop-guard note: replies arriving right after our own outbound are NOT
+  // refused — the caller defers the send until 10 min after the last outbound
+  // instead (refusing dropped fast candidate replies on the floor). The unused
+  // arg is kept for the call-site contract.
+  void minutesSinceLastOutbound;
 
   // A draft is always allowed for a replyable intent; auto-send needs the
   // campaign in auto mode AND confidence above the floor.
@@ -457,7 +457,17 @@ export async function maybeEnqueueAiSdrReply(args: {
     // The model flagging needs_human forces review even in auto mode.
     const autoSend = gate.autoSend && !draft.needsHuman;
     const status = autoSend ? "queued" : "needs_review";
-    const scheduledAt = autoSend ? scheduleAutoReply(campaign, new Date(), Math.random()).toISOString() : null;
+    let sendAt: Date | null = null;
+    if (autoSend) {
+      sendAt = scheduleAutoReply(campaign, new Date(), Math.random());
+      // Human-pacing floor: never send within 10 min of our previous outbound
+      // (loop protection without dropping fast candidate replies).
+      if (lastOut) {
+        const floor = new Date(new Date(lastOut).getTime() + 10 * 60_000);
+        if (floor > sendAt) sendAt = floor;
+      }
+    }
+    const scheduledAt = sendAt ? sendAt.toISOString() : null;
 
     await supabaseAdmin.from("ai_sdr_replies").insert({
       org_id: args.orgId,
