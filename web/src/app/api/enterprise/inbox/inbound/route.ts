@@ -4,7 +4,7 @@ import { extractText } from "@/lib/resume-extractor";
 import { parseResumeText } from "@/lib/resume-parser";
 import { supabaseAdmin } from "@/lib/supabase";
 import {
-  resolveIntakeOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
+  resolveInboundOrg, getOrCreateIntakePool, createIntakeApplication, parseAddress, firstEmail, storeResumeFile,
 } from "@/lib/enterprise-intake-inbox";
 import { parseJobFromText, createDraftJobFromParsed, classifyIntakeEmail } from "@/lib/job-intake";
 import { logMessage, findApplicationIdByEmail, markOutreachReplied } from "@/lib/enterprise-messages";
@@ -202,7 +202,7 @@ export async function POST(req: NextRequest) {
     .flat()
     .map(String);
 
-  const org = await resolveIntakeOrg(toList);
+  const org = await resolveInboundOrg(toList);
   if (!org) return NextResponse.json({ ok: true, ignored: "no-intake-match" });
 
   const full = emailId ? await fetchReceivedEmail(emailId) : null;

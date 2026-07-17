@@ -37,7 +37,15 @@ function normalizeDomain(input: {
 }
 
 export async function createResendDomain(name: string): Promise<ResendDomain> {
-  const { data, error } = await resend.domains.create({ name });
+  // receiving=enabled: candidate replies to ANY address on the tenant domain
+  // flow back through Resend inbound → our webhook — this closes the
+  // reply-capture blind spot that connected-Gmail sending has. The Receiving
+  // MX record is returned in `records` and shows up in the DNS checklist.
+  // (capabilities isn't in the SDK's typed params yet — pass it through.)
+  const { data, error } = await resend.domains.create({
+    name,
+    capabilities: { sending: "enabled", receiving: "enabled" },
+  } as unknown as Parameters<typeof resend.domains.create>[0]);
   if (error || !data) throw new Error(error?.message ?? "Resend domain create failed");
   return normalizeDomain(data as unknown as Parameters<typeof normalizeDomain>[0]);
 }
