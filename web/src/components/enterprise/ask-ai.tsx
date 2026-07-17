@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { usePathname } from "next/navigation";
 import {
   Sparkles, X, Loader2, Copy, Check, Bookmark, Trash2, Send, Plus, Wand2,
 } from "lucide-react";
@@ -66,10 +67,15 @@ export function AskAI() {
     await fetch(`/api/enterprise/ai-prompts/${id}`, { method: "DELETE" });
   };
 
+  // The inbox has its own composer in the bottom-right corner — the floating
+  // launcher sat directly on top of its send button, so it stays off there.
+  const pathname = usePathname();
+  if (pathname?.startsWith("/enterprise/outreach/inbox")) return null;
+
   return (
     <>
-      {/* Launcher — top-right, clear of the support chat widget (bottom-right).
-          Compact icon on mobile (fits the top header bar), full pill on desktop. */}
+      {/* Launcher — bottom-right floating pill.
+          Compact icon on mobile, full pill on desktop. */}
       <button onClick={() => setOpen(true)} aria-label="Ask AI"
         className="fixed bottom-5 right-4 z-[55] inline-flex items-center gap-2 rounded-full bg-gradient-brand px-3 py-3 text-sm font-semibold text-white shadow-glow-purple transition-transform hover:scale-105 md:bottom-6 md:right-6 md:px-4 print:hidden">
         <Sparkles className="h-4 w-4" />

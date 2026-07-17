@@ -89,7 +89,7 @@ function InboxInner() {
   const [me, setMe] = useState("");
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(params.get("thread"));
-  const [detail, setDetail] = useState<{ thread: ThreadRow; messages: Message[]; suppressed?: boolean } | null>(null);
+  const [detail, setDetail] = useState<{ thread: ThreadRow; messages: Message[]; suppressed?: boolean; ai_reply?: { state: "auto" | "draft" | "off"; reason: string } } | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -318,6 +318,20 @@ function InboxInner() {
                   <p className="truncate text-xs text-muted-foreground">{detail.thread.candidate_email}</p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                  {detail.ai_reply && (
+                    <span
+                      title={detail.ai_reply.reason}
+                      className={cn(
+                        "inline-flex cursor-help items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium",
+                        detail.ai_reply.state === "auto" && "border-green-500/30 bg-green-500/10 text-green-400",
+                        detail.ai_reply.state === "draft" && "border-sky-500/30 bg-sky-500/10 text-sky-400",
+                        detail.ai_reply.state === "off" && "border-red-500/30 bg-red-500/10 text-red-400",
+                      )}
+                    >
+                      <Bot className="h-3 w-3" />
+                      {detail.ai_reply.state === "auto" ? "Auto-reply ON" : detail.ai_reply.state === "draft" ? "AI drafts only" : "AI auto-reply OFF"}
+                    </span>
+                  )}
                   <OutcomeSelect current={detail.thread.outcome} onPick={(outcome) => patchThread(detail.thread.id, { outcome })} />
                   <IntentSelect current={detail.thread.intent} onPick={(intent) => patchThread(detail.thread.id, { intent })} />
                   <button
@@ -420,8 +434,7 @@ function InboxInner() {
                     </div>
                   )}
                   {replyError && <p className="mb-1.5 text-xs text-red-400">{replyError}</p>}
-                  {/* pr-20 keeps the send button clear of the floating Ask AI launcher (fixed bottom-right). */}
-                  <div className="flex items-end gap-2 pr-20">
+                  <div className="flex items-end gap-2">
                     <textarea
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}

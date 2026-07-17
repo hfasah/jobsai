@@ -5,6 +5,7 @@ import { requireFeature } from "@/lib/enterprise-entitlements";
 import { getMyOrg } from "@/lib/enterprise";
 import { isEmailSuppressed } from "@/lib/outreach/suppression";
 import { INTENTS, deriveInterest, type Intent } from "@/lib/outreach/intent";
+import { getCampaignForReply } from "@/lib/outreach/ai-sdr";
 
 async function loadThread(orgId: string, id: string) {
   const { data } = await supabaseAdmin
@@ -54,7 +55,28 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   // still suppressed underneath; the UI needs the truth to offer the Undo.
   const suppressed = await isEmailSuppressed(org.id, thread.candidate_email as string);
 
-  return NextResponse.json({ data: { thread, messages: messages ?? [], suppressed } });
+  // Will the AI actually answer the next reply on this thread? Resolve the
+  // same gates the enqueue path checks so the UI can show an honest
+  // "Auto-reply on / drafts only / OFF (why)" chip instead of leaving the
+  // recruiter guessing why no reply went out.
+  let aiReply: { state: "auto" | "draft" | "off"; reason: string } = { state: "off", reason: "No active campaign with AI SDR covers this contact." };
+  const { data: orgRow } = await supabaseAdmin
+    .from("enterprise_orgs").select("ai_sdr_paused").eq("id", org.id).maybeSingle();
+  if ((orgRow as { ai_sdr_paused?: boolean } | null)?.ai_sdr_paused) {
+    aiReply = { state: "off", reason: "AI SDR is paused for the whole workspace (Settings)." };
+  } else if (thread.ai_sdr_disabled) {
+    aiReply = { state: "off", reason: "AI SDR is disabled on this thread — set the status chip to something else to re-enable." };
+  } else {
+    const match = await getCampaignForReply(org.id, email).catch(() => null);
+    if (match) {
+      const c = match.campaign as { name?: string | null; ai_sdr_mode?: string | null };
+      aiReply = c.ai_sdr_mode === "auto"
+        ? { state: "auto", reason: `Auto-reply is on (campaign "${c.name ?? "…"}").` }
+        : { state: "draft", reason: `Drafts only — replies wait for your approval (campaign "${c.name ?? "…"}").` };
+    }
+  }
+
+  return NextResponse.json({ data: { thread, messages: messages ?? [], suppressed, ai_reply: aiReply } });
 }
 
 // PATCH — operator actions on a thread:
