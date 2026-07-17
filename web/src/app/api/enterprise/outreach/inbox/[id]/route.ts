@@ -69,10 +69,22 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
   } else {
     const match = await getCampaignForReply(org.id, email).catch(() => null);
     if (match) {
-      const c = match.campaign as { name?: string | null; ai_sdr_mode?: string | null };
-      aiReply = c.ai_sdr_mode === "auto"
-        ? { state: "auto", reason: `Auto-reply is on (campaign "${c.name ?? "…"}").` }
-        : { state: "draft", reason: `Drafts only — replies wait for your approval (campaign "${c.name ?? "…"}").` };
+      const c = match.campaign as { name?: string | null; ai_sdr_mode?: string | null; ai_sdr_max_replies?: number };
+      // Rolling-24h loop-protection cap — the chip must report it, or the
+      // thread looks "ON" while every reply is being refused.
+      const cap = c.ai_sdr_max_replies ?? 10;
+      const { count: sent24h } = await supabaseAdmin
+        .from("ai_sdr_replies")
+        .select("id", { count: "exact", head: true })
+        .eq("org_id", org.id).eq("thread_id", id).eq("status", "sent")
+        .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+      if ((sent24h ?? 0) >= cap) {
+        aiReply = { state: "off", reason: `Paused — hit the loop-protection cap of ${cap} AI replies in 24h on this thread. Resumes automatically as the window rolls over; reply manually or raise the cap in the campaign's AI SDR panel.` };
+      } else {
+        aiReply = c.ai_sdr_mode === "auto"
+          ? { state: "auto", reason: `Auto-reply is on (campaign "${c.name ?? "…"}").` }
+          : { state: "draft", reason: `Drafts only — replies wait for your approval (campaign "${c.name ?? "…"}").` };
+      }
     }
   }
 

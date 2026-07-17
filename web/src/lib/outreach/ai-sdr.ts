@@ -191,7 +191,7 @@ export function evaluateAutoReply(args: {
   if (campaign.ai_sdr_mode === "manual") return { ok: false, autoSend: false, reason: "Manual mode — a recruiter writes every reply." };
   if (!REPLYABLE_INTENTS.includes(intent)) return { ok: false, autoSend: false, reason: `Intent "${intent}" is handled by a human.` };
   if (priorAiReplies >= campaign.ai_sdr_max_replies) {
-    return { ok: false, autoSend: false, reason: `Reached ${campaign.ai_sdr_max_replies} AI replies on this thread — handing off.` };
+    return { ok: false, autoSend: false, reason: `Reached ${campaign.ai_sdr_max_replies} AI replies on this thread in 24h — pausing until the window rolls over (loop protection). Reply manually or raise the campaign cap.` };
   }
   // Loop-guard note: replies arriving right after our own outbound are NOT
   // refused — the caller defers the send until 10 min after the last outbound
@@ -424,12 +424,16 @@ export async function maybeEnqueueAiSdrReply(args: {
       await recordGatedReply({ orgId: args.orgId, threadId: args.threadId, campaignId: null, email, intent: args.intent, reason: "AI SDR is disabled on this thread — reply manually or re-enable it from the thread header." });
       return;
     }
+    // Loop protection is a ROLLING 24h window, not thread-lifetime: a long
+    // legitimate conversation (booking + follow-up questions over days) must
+    // never silently go quiet just for being long.
     const { count: priorAiReplies } = await supabaseAdmin
       .from("ai_sdr_replies")
       .select("id", { count: "exact", head: true })
       .eq("org_id", args.orgId)
       .eq("thread_id", args.threadId)
-      .eq("status", "sent");
+      .eq("status", "sent")
+      .gte("created_at", new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
     const lastOut = (thread as { last_outbound_at: string | null } | null)?.last_outbound_at ?? null;
     const minutesSinceLastOutbound = lastOut ? (Date.now() - new Date(lastOut).getTime()) / 60_000 : null;
 
