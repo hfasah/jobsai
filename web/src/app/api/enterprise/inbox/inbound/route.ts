@@ -212,22 +212,14 @@ export async function POST(req: NextRequest) {
   const subject = full?.subject ?? (data.subject as string) ?? "";
   const bodyHtml = full?.html ?? "";
   const bodyText = full?.text ?? (bodyHtml ? bodyHtml.replace(/<[^>]+>/g, " ") : "") ?? "";
-
-  // Forwarding-confirmation email from Google? Capture the code/link for the
-  // Intake settings page and stop — don't create a candidate from it.
-  const confirm = parseForwardingConfirmation(fromRaw ?? sender.email, subject, bodyText, bodyHtml);
-  if (confirm) {
-    await supabaseAdmin
-      .from("enterprise_orgs")
-      .update({
-        intake_forward_code: confirm.code,
-        intake_forward_link: confirm.link,
-        intake_forward_from: confirm.from,
-        intake_forward_at: new Date().toISOString(),
-      })
-      .eq("id", org.id);
-    return NextResponse.json({ ok: true, forwarding_confirmation: true });
-  }
+  // The new content only — quoted history below "On ... wrote:" must never
+  // drive routing decisions (a quoted "Looking forward..." + a candidate's
+  // "confirmed" once misclassified a meeting acceptance as a forwarding
+  // confirmation and silently swallowed it).
+  // The attribution line can wrap ("On … <\n addr> wrote:"), so allow one
+  // newline inside it — a single-line pattern silently keeps the whole quote.
+  const freshCut = bodyText.search(/\n\s*(On [^\n]{0,300}(\n[^\n]{0,200})?wrote:|-{2,}\s*Original Message|From:\s.+@)/);
+  const freshBody = (freshCut > 0 ? bodyText.slice(0, freshCut) : bodyText).trim();
 
   // Resume text + original file: from the first usable resume attachment.
   let resumeText = "";
@@ -283,6 +275,25 @@ export async function POST(req: NextRequest) {
       );
       return NextResponse.json({ ok: true, threaded: existingAppId ?? "outreach" });
     }
+  }
+
+  // Forwarding-confirmation email from a mail host (Gmail, one.com, …)? Capture
+  // the code/link for the Intake settings page and stop — don't create a
+  // candidate from it. Runs AFTER the known-contact branch (a reply in an
+  // ongoing conversation is never a forwarding confirmation) and only on the
+  // fresh, unquoted text.
+  const confirm = parseForwardingConfirmation(fromRaw ?? sender.email, subject, freshBody, bodyHtml);
+  if (confirm) {
+    await supabaseAdmin
+      .from("enterprise_orgs")
+      .update({
+        intake_forward_code: confirm.code,
+        intake_forward_link: confirm.link,
+        intake_forward_from: confirm.from,
+        intake_forward_at: new Date().toISOString(),
+      })
+      .eq("id", org.id);
+    return NextResponse.json({ ok: true, forwarding_confirmation: true });
   }
 
   if (!resumeText && bodyText.trim().length >= 50) resumeText = bodyText.trim();
