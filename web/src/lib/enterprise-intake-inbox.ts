@@ -84,6 +84,39 @@ export async function resolveIntakeOrg(
   return org ?? null;
 }
 
+// Like resolveIntakeOrg, but also matches recipients on an org's own SENDING
+// domain (receiving-enabled via Resend). A candidate replying straight to the
+// From address of a domain-sent campaign email lands here — without this the
+// webhook dropped it as "no-intake-match" and the reply silently vanished.
+export async function resolveInboundOrg(
+  toList: string[],
+): Promise<{ id: string; slug: string } | null> {
+  const byIntake = await resolveIntakeOrg(toList);
+  if (byIntake) return byIntake;
+
+  const domains = [...new Set(
+    toList
+      .map((addr) => parseAddress(addr).email.split("@")[1]?.trim().toLowerCase())
+      .filter((d): d is string => !!d),
+  )];
+  if (!domains.length) return null;
+
+  const { data: dom } = await supabaseAdmin
+    .from("sending_domains")
+    .select("org_id, domain")
+    .in("domain", domains)
+    .limit(1);
+  const orgId = (dom?.[0] as { org_id: string } | undefined)?.org_id;
+  if (!orgId) return null;
+
+  const { data: org } = await supabaseAdmin
+    .from("enterprise_orgs")
+    .select("id, slug")
+    .eq("id", orgId)
+    .maybeSingle();
+  return (org as { id: string; slug: string } | null) ?? null;
+}
+
 // Find (or lazily create) the org's catch-all "General Applications" job, so
 // candidates with no specific posting still land in the inbox.
 export async function getOrCreateIntakePool(orgId: string, createdBy: string): Promise<string | null> {
