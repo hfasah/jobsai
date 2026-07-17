@@ -244,6 +244,48 @@ export const GUIDE: GuideCategory[] = [
     description: "Nurture candidates with multi-step email sequences.",
     articles: [
       {
+        slug: "email-sending-setup",
+        title: "Set up email sending",
+        icon: "📮",
+        summary: "Two ways to send campaigns: connect your own inbox (fastest) or verify your own sending domain (recommended).",
+        sections: [
+          {
+            body: [
+              "Before your first campaign, decide where your emails send from. There are two options, and you can start with one and upgrade later.",
+              "Connected inbox — send from your own Gmail or Outlook. Fastest to set up (two clicks, no DNS), and replies land in your real inbox. Best for trying the platform or low-volume outreach.",
+              "Your own sending domain — verify a subdomain you own (like talent.yourcompany.com) and send from addresses on it. This keeps your main domain's reputation safe, supports real volume, and every candidate reply is captured by the platform — no matter which address they reply to — so the AI SDR never misses one. This is the setup we recommend for real campaigns.",
+            ],
+          },
+          {
+            heading: "Option 1 — Connect your inbox (2 minutes)",
+            steps: [
+              "Go to Settings → Integrations and connect your Google or Microsoft account.",
+              "Go to Outreach → Sending and under \"Send from your own inbox\" click Use as sender.",
+              "Done — campaigns you create now send from your address, and each teammate who connects their own inbox sends their campaigns from theirs.",
+            ],
+            tip: "Keep connected-inbox sending to a few dozen emails a day — it uses your personal mailbox's reputation. Purchased Google Workspace or Microsoft 365 inboxes can be connected the same way.",
+          },
+          {
+            heading: "Option 2 — Verify your own sending domain (recommended)",
+            steps: [
+              "Pick a fresh subdomain of a domain you own — for example talent.yourcompany.com or jobs.yourcompany.com. Never use your root domain, and never a name that already receives email: the subdomain must have no existing MX records.",
+              "Go to Outreach → Sending → Add domain and enter it. A DNS checklist appears with the exact records to add (SPF, DKIM, and MX — including the Receiving MX that routes candidate replies back to your workspace).",
+              "Add each record at your DNS provider exactly as shown. Watch the host/name field: some providers want just the subdomain part (send.talent), others the full name (send.talent.yourcompany.com).",
+              "Back on the Sending page, click Verify. DNS usually propagates in 15–30 minutes; re-check if it's still pending.",
+              "Once verified, add a sending mailbox on the domain — for example recruiting@talent.yourcompany.com with your company's display name. There's no password and no inbox to manage: the platform sends as that address and every reply to it flows straight into your AI SDR Inbox.",
+            ],
+            tip: "One domain gives you unlimited sending addresses, isolates outreach from your company's main email reputation, and captures every reply for the AI SDR. Set it up once per workspace.",
+          },
+          {
+            heading: "Which should I choose?",
+            body: [
+              "Trying things out or sending a handful of emails? Connect your inbox and go.",
+              "Running real campaigns? Verify a sending domain. Your campaigns automatically prefer the domain mailboxes once one exists, and any enrolled candidate keeps their original sender for the whole sequence — identities never switch mid-conversation.",
+            ],
+          },
+        ],
+      },
+      {
         slug: "create-a-campaign",
         title: "Create an outreach campaign",
         icon: "📣",
