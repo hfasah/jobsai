@@ -317,7 +317,7 @@ function InboxInner() {
                   </div>
                   <p className="truncate text-xs text-muted-foreground">{detail.thread.candidate_email}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
+                <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                   <OutcomeSelect current={detail.thread.outcome} onPick={(outcome) => patchThread(detail.thread.id, { outcome })} />
                   <IntentSelect current={detail.thread.intent} onPick={(intent) => patchThread(detail.thread.id, { intent })} />
                   <button
@@ -420,7 +420,8 @@ function InboxInner() {
                     </div>
                   )}
                   {replyError && <p className="mb-1.5 text-xs text-red-400">{replyError}</p>}
-                  <div className="flex items-end gap-2">
+                  {/* pr-20 keeps the send button clear of the floating Ask AI launcher (fixed bottom-right). */}
+                  <div className="flex items-end gap-2 pr-20">
                     <textarea
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
