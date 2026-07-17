@@ -41,11 +41,20 @@ const INTENT_META: Record<Intent, { label: string; cls: string; icon: typeof Sta
 };
 const INTENT_ORDER: Intent[] = ["interested", "meeting_requested", "question", "referral", "neutral", "out_of_office", "not_interested", "wrong_person", "unsubscribe"];
 
+type Outcome = "meeting_booked" | "manual_reply" | "ai_sdr_disabled";
+const OUTCOME_META: Record<Outcome, { label: string; cls: string; icon: typeof Star }> = {
+  meeting_booked:  { label: "Meeting Booked",  cls: "border-emerald-500/40 bg-emerald-500/15 text-emerald-400", icon: CalendarClock },
+  manual_reply:    { label: "Manual Reply",    cls: "border-sky-500/30 bg-sky-500/10 text-sky-400",             icon: Share2 },
+  ai_sdr_disabled: { label: "AI SDR Disabled", cls: "border-amber-500/40 bg-amber-500/10 text-amber-400",       icon: Bot },
+};
+const OUTCOME_ORDER: Outcome[] = ["meeting_booked", "manual_reply", "ai_sdr_disabled"];
+
 interface ThreadRow {
   id: string; candidate_email: string; candidate_name: string | null; application_id: string | null;
   intent: Intent | null; intent_confidence: number | null; intent_manual: boolean;
   interest_score: number | null; interest_level: InterestLevel | null;
-  ai_summary: string | null; status: "open" | "snoozed" | "done"; assignee_user_id: string | null;
+  ai_summary: string | null; status: "open" | "snoozed" | "done"; outcome?: Outcome | null;
+  assignee_user_id: string | null;
   last_inbound_at: string | null; reply_count: number; unread: boolean; has_ai_draft?: boolean;
 }
 interface AiDraft { id: string; draft_subject: string | null; draft_body: string; model: string | null }
@@ -167,6 +176,7 @@ function InboxInner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(patch),
     });
+    openThread(id); // refresh the header chips with the saved values
     loadList();
     if (detail?.thread.id === id) openThread(id);
   };
@@ -271,6 +281,7 @@ function InboxInner() {
                   </span>
                 </div>
                 <div className="flex flex-wrap items-center gap-1.5">
+                  <OutcomeBadge outcome={t.outcome} />
                   <IntentBadge intent={t.intent} confidence={t.intent_confidence} manual={t.intent_manual} />
                   <InterestBadge level={t.interest_level} />
                   {t.has_ai_draft && (
@@ -307,6 +318,7 @@ function InboxInner() {
                   <p className="truncate text-xs text-muted-foreground">{detail.thread.candidate_email}</p>
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
+                  <OutcomeSelect current={detail.thread.outcome} onPick={(outcome) => patchThread(detail.thread.id, { outcome })} />
                   <IntentSelect current={detail.thread.intent} onPick={(intent) => patchThread(detail.thread.id, { intent })} />
                   <button
                     onClick={() => patchThread(detail.thread.id, { assignee_user_id: detail.thread.assignee_user_id === me ? null : "me" })}
@@ -432,6 +444,52 @@ function InboxInner() {
         )}
       </div>
     </main>
+  );
+}
+
+function OutcomeBadge({ outcome }: { outcome: Outcome | null | undefined }) {
+  if (!outcome || !OUTCOME_META[outcome]) return null;
+  const meta = OUTCOME_META[outcome];
+  const Icon = meta.icon;
+  return (
+    <span className={cn("inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-[10px] font-semibold", meta.cls)}>
+      <Icon className="h-3 w-3" /> {meta.label}
+    </span>
+  );
+}
+
+// Competitor-style thread status chip: auto-set (booking, manual reply, AI
+// handoff) but always operator-overridable. "AI SDR Disabled" also stops
+// auto-replies on the thread; picking anything else re-enables them.
+function OutcomeSelect({ current, onPick }: { current: Outcome | null | undefined; onPick: (o: Outcome | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const meta = current ? OUTCOME_META[current] : null;
+  const Icon = meta?.icon ?? CircleDot;
+  return (
+    <span className="relative">
+      <button onClick={() => setOpen((o) => !o)} className={cn("inline-flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] font-medium", meta?.cls ?? "border-border text-muted-foreground")}>
+        <Icon className="h-3 w-3" /> {meta?.label ?? "Status"} <ChevronDown className="h-3 w-3 opacity-60" />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-8 z-30 w-44 rounded-xl border border-border bg-card p-1 shadow-2xl" onMouseLeave={() => setOpen(false)}>
+          {OUTCOME_ORDER.map((o) => (
+            <button key={o} onClick={() => { onPick(o); setOpen(false); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs hover:bg-muted/50">
+              <span className={cn("inline-flex h-4 w-4 items-center justify-center rounded-full", OUTCOME_META[o].cls)}>
+                {(() => { const I = OUTCOME_META[o].icon; return <I className="h-2.5 w-2.5" />; })()}
+              </span>
+              {OUTCOME_META[o].label}
+            </button>
+          ))}
+          <button onClick={() => { onPick(null); setOpen(false); }}
+            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted/50">
+            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full border border-border"><CircleDot className="h-2.5 w-2.5" /></span>
+            Clear status
+          </button>
+          <p className="px-2 pb-1 pt-1.5 text-[9px] text-muted-foreground">&ldquo;AI SDR Disabled&rdquo; stops auto-replies on this thread.</p>
+        </div>
+      )}
+    </span>
   );
 }
 

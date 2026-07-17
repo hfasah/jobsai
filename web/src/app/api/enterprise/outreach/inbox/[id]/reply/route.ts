@@ -100,6 +100,13 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .update({ last_outbound_at: new Date().toISOString(), unread: false, updated_at: new Date().toISOString() })
     .eq("id", id)
     .eq("org_id", org.id);
+  // A human took the conversation → "Manual Reply" chip, unless a meeting is
+  // already booked (that outcome is stickier).
+  await supabaseAdmin
+    .from("inbox_threads")
+    .update({ outcome: "manual_reply" })
+    .eq("id", id).eq("org_id", org.id)
+    .is("outcome", null);
 
   return NextResponse.json({ data: { sent: true } });
 }

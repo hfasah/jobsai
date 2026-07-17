@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   let q = supabaseAdmin
     .from("inbox_threads")
-    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, interest_score, interest_level, ai_summary, status, assignee_user_id, last_inbound_at, reply_count, unread, updated_at")
+    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, interest_score, interest_level, ai_summary, status, outcome, assignee_user_id, last_inbound_at, reply_count, unread, updated_at")
     .eq("org_id", org.id);
 
   const status = p.get("status");
