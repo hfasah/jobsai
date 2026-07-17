@@ -150,7 +150,9 @@ export async function GET(req: NextRequest) {
       // connected mailbox when the org has one — so the conversation stays in
       // one thread for the candidate. Reply-To stays the intake address so
       // their answers keep landing in the AI SDR Inbox.
-      const connected = await getConnectedSender(r.org_id);
+      // Prefer the campaign creator's own mailbox — SDR replies must come from
+      // the same identity the campaign emails did.
+      const connected = await getConnectedSender(r.org_id, c.created_by);
       // In-Reply-To: anchor the reply to the candidate's own last message so
       // their mail client threads it into the existing conversation — a matching
       // subject alone is not enough for Gmail.

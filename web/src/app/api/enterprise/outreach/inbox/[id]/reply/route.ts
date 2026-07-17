@@ -8,7 +8,8 @@ import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
-import { logMessage } from "@/lib/enterprise-messages";
+import { logMessage, lastInboundRfcId } from "@/lib/enterprise-messages";
+import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
 
 export const maxDuration = 30;
 
@@ -56,39 +57,57 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   const replyTo = intake ? `${orgName} <${intake}>` : (recruiterEmail ?? undefined);
   const senderEmail = enterpriseSenderEmail(intake);
 
-  // Keep the subject thread when we can find a prior subject.
-  let prev: string | null = null;
-  if (t.application_id) {
-    const { data: last } = await supabaseAdmin
-      .from("enterprise_messages")
-      .select("subject")
-      .eq("org_id", org.id)
-      .eq("application_id", t.application_id)
-      .not("subject", "is", null)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    prev = (last?.subject as string | null) ?? null;
-  }
+  // Keep the subject thread — look up the latest prior subject by application
+  // OR by the candidate's email (email-matched threads used to fall through to
+  // a generic subject and start a new Gmail conversation).
+  const { data: last } = await supabaseAdmin
+    .from("enterprise_messages")
+    .select("subject")
+    .eq("org_id", org.id)
+    .or(`from_email.ilike.${t.candidate_email},to_email.ilike.${t.candidate_email}`)
+    .not("subject", "is", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const prev = (last?.subject as string | null) ?? null;
   const subjectLine =
     (typeof subject === "string" && subject.trim()) ||
     (prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`);
 
   const html = wrapEmail(renderOutreachBody(String(body), recruiterName, orgName), false);
-  const { error } = await resend.emails.send({
-    from: `${fromName} <${senderEmail}>`,
-    to: t.candidate_email,
-    subject: subjectLine,
-    html,
-    ...(replyTo ? { replyTo } : {}),
-  });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  // Send from the REPLYING recruiter's own connected mailbox when they have
+  // one (else any org mailbox, else white-label Resend) — same identity rules
+  // as the SDR paths, so the conversation never switches From address.
+  const connected = await getConnectedSender(org.id, userId);
+  const inReplyTo = await lastInboundRfcId(org.id, t.candidate_email);
+  let sendError: string | null = null;
+  let sentFrom = senderEmail;
+  if (connected) {
+    const res = await sendViaConnectedMailbox(connected, {
+      to: t.candidate_email, subject: subjectLine, html, fromName,
+      replyTo: intake ?? recruiterEmail ?? null,
+      inReplyTo,
+    });
+    if (!res.ok) sendError = res.error ?? "Could not send from the connected mailbox.";
+    else sentFrom = connected.address;
+  } else {
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${senderEmail}>`,
+      to: t.candidate_email,
+      subject: subjectLine,
+      html,
+      ...(replyTo ? { replyTo } : {}),
+      ...(inReplyTo ? { headers: { "In-Reply-To": inReplyTo, References: inReplyTo } } : {}),
+    });
+    if (error) sendError = error.message;
+  }
+  if (sendError) return NextResponse.json({ error: sendError }, { status: 500 });
 
   await logMessage({
     orgId: org.id,
     applicationId: t.application_id,
     direction: "outbound",
-    fromEmail: senderEmail,
+    fromEmail: sentFrom,
     toEmail: t.candidate_email,
     subject: subjectLine,
     body: String(body),

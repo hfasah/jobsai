@@ -12,7 +12,7 @@ import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outre
 import { loadSuppressedSet } from "@/lib/outreach/suppression";
 import { runSubsequences } from "@/lib/outreach/subsequences";
 import { loadRotationPool, claimFromPool, claimSpecificMailbox, type RotationPool } from "@/lib/outreach/rotation";
-import { getConnectedSender, sendViaConnectedMailbox, type ConnectedMailbox } from "@/lib/outreach/connected-send";
+import { getConnectedMailboxes, sendViaConnectedMailbox, type ConnectedMailbox } from "@/lib/outreach/connected-send";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { bookingUrlFor } from "@/lib/booking";
 
@@ -140,13 +140,14 @@ export async function POST(req: NextRequest) {
   const pools = new Map<string, RotationPool>();
   await Promise.all(orgIds.map(async (orgId) => pools.set(orgId, await loadRotationPool(orgId))));
 
-  // Connected-mailbox senders (Gmail/Outlook) per org — the "easy" path: send
-  // from the recruiter's own inbox so replies thread back there. Used when the
-  // org has no domain mailboxes (or an enrolment is already locked to it).
-  const connectedSenders = new Map<string, ConnectedMailbox | null>();
+  // Connected mailboxes (Gmail/Outlook) per org — the "easy" path: send from a
+  // recruiter's own inbox so replies thread back there. ALL of the org's
+  // connected mailboxes are cached; per enrolment the sender resolves to the
+  // locked mailbox first, then the campaign creator's own mailbox, then any.
+  const connectedByOrg = new Map<string, ConnectedMailbox[]>();
   // {{booking_link}} per campaign (creator's booking page), resolved lazily.
   const bookingUrls = new Map<string, string | null>();
-  await Promise.all(orgIds.map(async (orgId) => connectedSenders.set(orgId, await getConnectedSender(orgId))));
+  await Promise.all(orgIds.map(async (orgId) => connectedByOrg.set(orgId, await getConnectedMailboxes(orgId))));
 
   // Load all steps for the campaigns in this batch, grouped by campaign.
   const campaignIds = [...new Set(due.map((e) => e.campaign_id))];
@@ -386,7 +387,15 @@ export async function POST(req: NextRequest) {
     let connectedSender: ConnectedMailbox | null = null;
 
     const lockedId = (e.mailbox_id as string | null) ?? null;
-    const orgConnected = connectedSenders.get(e.org_id as string) ?? null;
+    // Per-recruiter sender: the enrolment's locked mailbox wins (identity must
+    // never change mid-sequence), else the CAMPAIGN CREATOR's own connected
+    // mailbox, else any active one in the org.
+    const connectedRows = connectedByOrg.get(e.org_id as string) ?? [];
+    const campaignCreator = (campaign as { created_by?: string | null }).created_by ?? null;
+    const orgConnected =
+      connectedRows.find((m) => m.id === lockedId) ??
+      (campaignCreator ? connectedRows.find((m) => m.created_by === campaignCreator) : undefined) ??
+      connectedRows[0] ?? null;
     // Send via the recruiter's connected inbox when the org has no domain
     // mailboxes, or when this enrolment is already locked to that connected
     // mailbox (keep the sender consistent across the whole sequence).
