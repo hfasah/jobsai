@@ -94,6 +94,7 @@ function InboxInner() {
   const [sending, setSending] = useState(false);
   const [forwardMode, setForwardMode] = useState(false);
   const [forwardTo, setForwardTo] = useState("");
+  const [composerOpen, setComposerOpen] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
   const [resubBusy, setResubBusy] = useState(false);
@@ -199,7 +200,13 @@ function InboxInner() {
     setReply("");
     setForwardMode(false);
     setForwardTo("");
+    setComposerOpen(false);
     openThread(selectedId);
+  };
+
+  const startReply = () => {
+    setForwardMode(false);
+    setComposerOpen(true);
   };
 
   // Prefill the composer with the latest message, quoted, and switch to
@@ -209,6 +216,14 @@ function InboxInner() {
     const lastMsg = detail.messages[detail.messages.length - 1];
     setForwardMode(true);
     setReply(`\n\n---------- Forwarded message ----------\n${(lastMsg?.body ?? "").trim()}`);
+    setComposerOpen(true);
+  };
+
+  const closeComposer = () => {
+    setComposerOpen(false);
+    setForwardMode(false);
+    setForwardTo("");
+    setReplyError(null);
   };
 
   return (
@@ -314,7 +329,7 @@ function InboxInner() {
       </div>
 
       {/* Detail column */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="relative flex flex-1 flex-col overflow-hidden">
         {!detail ? (
           <div className="flex flex-1 items-center justify-center text-sm text-muted-foreground">
             {selectedId ? <Loader2 className="h-5 w-5 animate-spin" /> : "Select a conversation"}
@@ -370,26 +385,10 @@ function InboxInner() {
             </div>
 
             {/* Messages — NEWEST first (like every mail client): the latest
-                exchange is what the recruiter came to see, no scrolling. */}
+                exchange is what the recruiter came to see, no scrolling. The
+                DNC banner / AI suggestion sit at the top with it. */}
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
-              {detail.messages.length === 0 && <p className="text-center text-xs text-muted-foreground">No message history captured.</p>}
-              {[...detail.messages].reverse().map((m) => (
-                <div key={m.id} className={cn("flex", m.direction === "outbound" ? "justify-end" : "justify-start")}>
-                  <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", m.direction === "outbound" ? "bg-primary/10 text-foreground" : "bg-muted/50")}>
-                    {m.subject && <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{m.subject}</p>}
-                    <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
-                    <p className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
-                      {new Date(m.created_at).toLocaleString()}
-                      {m.sent_via === "ai_sdr" && <span className="inline-flex items-center gap-0.5 text-primary/70"><Bot className="h-2.5 w-2.5" /> AI SDR</span>}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Composer */}
-            <div className="border-t border-border p-3">
-              {(detail.thread.intent === "unsubscribe" || detail.suppressed) ? (
+              {(detail.thread.intent === "unsubscribe" || detail.suppressed) && (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">
                   <p>This contact is on the Do-Not-Contact list — auto-replies and sends are blocked.</p>
                   <button
@@ -415,88 +414,121 @@ function InboxInner() {
                   </button>
                   {resubMsg && <p className="mt-1.5 text-[11px]">{resubMsg}</p>}
                 </div>
-              ) : (
-                <>
-                  {aiDraft && (
-                    <div className="mb-2 rounded-xl border border-primary/40 bg-primary/5 p-2.5">
-                      <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-primary">
-                        <Bot className="h-3.5 w-3.5" /> AI SDR suggests a reply
-                      </div>
-                      <p className="mb-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-foreground/90">{aiDraft.draft_body}</p>
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => actOnDraft("send")}
-                          disabled={draftBusy}
-                          className="btn-cta inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-60"
-                        >
-                          {draftBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Approve &amp; send
-                        </button>
-                        <button
-                          onClick={() => { setReply(aiDraft.draft_body); actOnDraft("dismiss"); }}
-                          disabled={draftBusy}
-                          className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-60"
-                        >
-                          <Pencil className="h-3.5 w-3.5" /> Edit
-                        </button>
-                        <button
-                          onClick={() => actOnDraft("dismiss")}
-                          disabled={draftBusy}
-                          className="rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-red-400 disabled:opacity-60"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {replyError && <p className="mb-1.5 text-xs text-red-400">{replyError}</p>}
+              )}
+              {aiDraft && !(detail.thread.intent === "unsubscribe" || detail.suppressed) && (
+                <div className="rounded-xl border border-primary/40 bg-primary/5 p-2.5">
+                  <div className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold text-primary">
+                    <Bot className="h-3.5 w-3.5" /> AI SDR suggests a reply
+                  </div>
+                  <p className="mb-2 max-h-32 overflow-y-auto whitespace-pre-wrap text-xs text-foreground/90">{aiDraft.draft_body}</p>
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => actOnDraft("send")}
+                      disabled={draftBusy}
+                      className="btn-cta inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-60"
+                    >
+                      {draftBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />} Approve &amp; send
+                    </button>
+                    <button
+                      onClick={() => { setReply(aiDraft.draft_body); actOnDraft("dismiss"); startReply(); }}
+                      disabled={draftBusy}
+                      className="inline-flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-60"
+                    >
+                      <Pencil className="h-3.5 w-3.5" /> Edit
+                    </button>
+                    <button
+                      onClick={() => actOnDraft("dismiss")}
+                      disabled={draftBusy}
+                      className="rounded-lg px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-red-400 disabled:opacity-60"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                </div>
+              )}
+              {detail.messages.length === 0 && <p className="text-center text-xs text-muted-foreground">No message history captured.</p>}
+              {[...detail.messages].reverse().map((m) => (
+                <div key={m.id} className={cn("flex", m.direction === "outbound" ? "justify-end" : "justify-start")}>
+                  <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", m.direction === "outbound" ? "bg-primary/10 text-foreground" : "bg-muted/50")}>
+                    {m.subject && <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{m.subject}</p>}
+                    <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                    <p className="mt-1 flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                      {new Date(m.created_at).toLocaleString()}
+                      {m.sent_via === "ai_sdr" && <span className="inline-flex items-center gap-0.5 text-primary/70"><Bot className="h-2.5 w-2.5" /> AI SDR</span>}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Action bar — the composer itself opens as an overlay card, so
+                writing never lives at the bottom of a long scroll. */}
+            {!(detail.thread.intent === "unsubscribe" || detail.suppressed) && (
+              <div className="flex items-center gap-2 border-t border-border p-3">
+                <button
+                  onClick={startReply}
+                  className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
+                >
+                  <Send className="h-4 w-4" /> Reply
+                </button>
+                <button
+                  onClick={startForward}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                >
+                  <Share2 className="h-4 w-4" /> Forward
+                </button>
+              </div>
+            )}
+
+            {/* Composer overlay (competitor-style floating card) */}
+            {composerOpen && (
+              <div className="absolute inset-0 z-20 flex items-start justify-center bg-black/40 p-4 pt-16 backdrop-blur-[2px]" onClick={closeComposer}>
+                <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="text-sm font-semibold">
+                      {forwardMode ? "Forward to a teammate" : `Reply to ${detail.thread.candidate_name || detail.thread.candidate_email}`}
+                    </h3>
+                    <button onClick={closeComposer} aria-label="Close" className="rounded-lg px-2 py-1 text-sm text-muted-foreground hover:text-foreground">✕</button>
+                  </div>
                   {forwardMode && (
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <span className="text-[11px] font-medium text-muted-foreground">Forward to</span>
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="w-8 text-[11px] font-medium text-muted-foreground">To</span>
                       <input
                         type="email"
                         value={forwardTo}
                         onChange={(e) => setForwardTo(e.target.value)}
                         placeholder="teammate@company.com"
+                        autoFocus
                         className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
                       />
-                      <button
-                        onClick={() => { setForwardMode(false); setForwardTo(""); setReply(""); }}
-                        className="text-[11px] text-muted-foreground hover:text-foreground"
-                      >
-                        Cancel
-                      </button>
                     </div>
                   )}
-                  <div className="flex items-end gap-2">
-                    <textarea
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendReply(); }}
-                      rows={2}
-                      placeholder={forwardMode ? "Add a note for the recipient…" : "Write a reply…  (⌘/Ctrl+Enter to send)"}
-                      className="flex-1 resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                    />
-                    {!forwardMode && (
-                      <button
-                        onClick={startForward}
-                        title="Forward the latest message to a teammate"
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-                      >
-                        <Share2 className="h-4 w-4" />
-                      </button>
-                    )}
+                  <textarea
+                    value={reply}
+                    onChange={(e) => setReply(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendReply(); }}
+                    rows={8}
+                    autoFocus={!forwardMode}
+                    placeholder={forwardMode ? "Add a note for the recipient…" : "Write a reply…  (⌘/Ctrl+Enter to send)"}
+                    className="w-full resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                  {replyError && <p className="mt-1.5 text-xs text-red-400">{replyError}</p>}
+                  <div className="mt-3 flex items-center justify-end gap-2">
+                    <button onClick={closeComposer} className="rounded-xl px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+                      Cancel
+                    </button>
                     <button
                       onClick={sendReply}
                       disabled={sending || !reply.trim()}
-                      title={forwardMode ? "Forward" : "Send reply"}
-                      className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
+                      className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold disabled:opacity-60"
                     >
                       {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      {forwardMode ? "Forward" : "Send reply"}
                     </button>
                   </div>
-                </>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>
