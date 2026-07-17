@@ -9,7 +9,7 @@ import { INTENTS, deriveInterest, type Intent } from "@/lib/outreach/intent";
 async function loadThread(orgId: string, id: string) {
   const { data } = await supabaseAdmin
     .from("inbox_threads")
-    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, interest_score, interest_level, ai_summary, status, assignee_user_id, last_inbound_at, last_outbound_at, reply_count, unread")
+    .select("id, candidate_email, candidate_name, application_id, intent, intent_confidence, intent_manual, interest_score, interest_level, ai_summary, status, outcome, ai_sdr_disabled, assignee_user_id, last_inbound_at, last_outbound_at, reply_count, unread")
     .eq("id", id)
     .eq("org_id", orgId)
     .maybeSingle();
@@ -91,6 +91,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   }
   if (typeof body.status === "string" && ["open", "snoozed", "done"].includes(body.status)) {
     patch.status = body.status;
+  }
+  // Outcome chip (Meeting Booked / Manual Reply / AI SDR Disabled / none).
+  // Choosing "AI SDR Disabled" also gates auto-replies on this thread; choosing
+  // anything else re-enables them.
+  if ("outcome" in body && (body.outcome === null || ["meeting_booked", "manual_reply", "ai_sdr_disabled"].includes(body.outcome as string))) {
+    patch.outcome = body.outcome;
+    patch.ai_sdr_disabled = body.outcome === "ai_sdr_disabled";
   }
   if ("assignee_user_id" in body) {
     patch.assignee_user_id = body.assignee_user_id === "me" ? userId : (body.assignee_user_id || null);

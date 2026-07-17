@@ -156,7 +156,10 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       .update({ status: "sent", sent_at: now, reviewed_by: a.userId, draft_body: bodyText, updated_at: now })
       .eq("id", d.id).eq("org_id", a.org.id),
     supabaseAdmin.from("inbox_threads")
-      .update({ last_outbound_at: now, unread: false, updated_at: now })
+      .update({
+        last_outbound_at: now, unread: false, updated_at: now,
+        ...(d.book_slot ? { outcome: "meeting_booked" } : {}),
+      })
       .eq("id", id).eq("org_id", a.org.id),
   ]);
   audit({ org_id: a.org.id, user_id: a.userId, action: "ai_sdr.reply_sent", resource_type: "ai_sdr_reply", resource_id: d.id, metadata: { thread_id: id, mode: "reviewed", edited } });

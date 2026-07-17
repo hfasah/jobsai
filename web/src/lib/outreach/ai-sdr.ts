@@ -414,10 +414,16 @@ export async function maybeEnqueueAiSdrReply(args: {
     // outbound (loop guard).
     const { data: thread } = await supabaseAdmin
       .from("inbox_threads")
-      .select("last_outbound_at, intent")
+      .select("last_outbound_at, intent, ai_sdr_disabled")
       .eq("id", args.threadId)
       .eq("org_id", args.orgId)
       .maybeSingle();
+    // Per-thread kill switch: the recruiter (or a prior needs-human handoff)
+    // turned the AI off for this conversation.
+    if ((thread as { ai_sdr_disabled?: boolean } | null)?.ai_sdr_disabled) {
+      await recordGatedReply({ orgId: args.orgId, threadId: args.threadId, campaignId: null, email, intent: args.intent, reason: "AI SDR is disabled on this thread — reply manually or re-enable it from the thread header." });
+      return;
+    }
     const { count: priorAiReplies } = await supabaseAdmin
       .from("ai_sdr_replies")
       .select("id", { count: "exact", head: true })
@@ -557,6 +563,16 @@ export async function maybeEnqueueAiSdrReply(args: {
       scheduled_at: scheduledAt,
       book_slot: bookSlot,
     });
+
+    // The model handed off a question it can't answer → mark the thread so the
+    // recruiter sees "AI SDR Disabled" (competitor-style status) and the AI
+    // stays out of the conversation until re-enabled.
+    if (draft.needsHuman) {
+      await supabaseAdmin.from("inbox_threads")
+        .update({ ai_sdr_disabled: true, outcome: "ai_sdr_disabled", updated_at: new Date().toISOString() })
+        .eq("id", args.threadId).eq("org_id", args.orgId)
+        .or("outcome.is.null,outcome.neq.meeting_booked");
+    }
   } catch (e) {
     console.error("[ai-sdr] enqueue failed", e);
     // Record the failure so it's visible in the queue/debug endpoint — a

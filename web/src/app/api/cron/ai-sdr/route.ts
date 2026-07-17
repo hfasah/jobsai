@@ -192,7 +192,13 @@ export async function GET(req: NextRequest) {
           .update({ status: "sent", sent_at: new Date().toISOString(), updated_at: new Date().toISOString() })
           .eq("id", r.id).eq("org_id", r.org_id),
         supabaseAdmin.from("inbox_threads")
-          .update({ last_outbound_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+          .update({
+            last_outbound_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            // A booking just happened on this send → surface it as the thread's
+            // outcome chip ("Meeting Booked").
+            ...(r.book_slot ? { outcome: "meeting_booked" } : {}),
+          })
           .eq("id", r.thread_id).eq("org_id", r.org_id),
       ]);
       audit({
