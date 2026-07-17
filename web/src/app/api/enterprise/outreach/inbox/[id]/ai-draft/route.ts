@@ -126,7 +126,16 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const html = wrapEmail(renderOutreachBody(bodyText, recruiter.name, orgName), false);
   // Same sender identity as the campaign (connected mailbox when available) so
   // the candidate sees one continuous conversation; Reply-To stays the intake.
-  const connected = await getConnectedSender(a.org.id);
+  // Prefer the CAMPAIGN CREATOR's mailbox (the identity the campaign sent
+  // from), falling back to the approving user's own.
+  let senderPrefer: string | null = a.userId;
+  if (d.campaign_id) {
+    const { data: camp } = await supabaseAdmin
+      .from("enterprise_campaigns").select("created_by")
+      .eq("id", d.campaign_id).eq("org_id", a.org.id).maybeSingle();
+    senderPrefer = (camp as { created_by?: string | null } | null)?.created_by ?? a.userId;
+  }
+  const connected = await getConnectedSender(a.org.id, senderPrefer);
   const inReplyTo = await lastInboundRfcId(a.org.id, t.candidate_email);
   if (connected) {
     const res = await sendViaConnectedMailbox(connected, {

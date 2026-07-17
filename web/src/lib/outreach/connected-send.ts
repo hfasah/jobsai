@@ -17,6 +17,17 @@ export interface ConnectedMailbox {
   created_by: string; // clerk userId whose OAuth token sends the mail
 }
 
+// All active connected mailboxes in the org (Gmail/Outlook).
+export async function getConnectedMailboxes(orgId: string): Promise<ConnectedMailbox[]> {
+  const { data } = await supabaseAdmin
+    .from("sending_mailboxes")
+    .select("id, kind, address, created_by")
+    .eq("org_id", orgId)
+    .in("kind", ["gmail", "microsoft"])
+    .eq("status", "active");
+  return (data ?? []) as ConnectedMailbox[];
+}
+
 // The org's active connected sender, if any. Prefer the campaign creator's own
 // connected mailbox so the From address matches who built the campaign; else
 // fall back to any active connected mailbox in the org.
@@ -24,13 +35,7 @@ export async function getConnectedSender(
   orgId: string,
   preferUserId?: string | null,
 ): Promise<ConnectedMailbox | null> {
-  const { data } = await supabaseAdmin
-    .from("sending_mailboxes")
-    .select("id, kind, address, created_by")
-    .eq("org_id", orgId)
-    .in("kind", ["gmail", "microsoft"])
-    .eq("status", "active");
-  const rows = (data ?? []) as ConnectedMailbox[];
+  const rows = await getConnectedMailboxes(orgId);
   if (rows.length === 0) return null;
   if (preferUserId) {
     const mine = rows.find((r) => r.created_by === preferUserId);
