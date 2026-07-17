@@ -464,14 +464,19 @@ export async function maybeEnqueueAiSdrReply(args: {
       openSlots = allSlots.slice(0, 8);
     }
 
-    // Recent transcript for context.
+    // Recent transcript for context — the NEWEST 12 messages (fetched newest-
+    // first, then restored to chronological order). Ascending+limit takes the
+    // OLDEST 12: once a conversation outgrew the cap, the model never saw the
+    // candidate's latest reply — it re-introduced the role like a first contact
+    // and the slot matcher ran against a stale inbound, so acceptances never
+    // booked.
     let msgs;
     if (args.applicationId) {
       const { data } = await supabaseAdmin
         .from("enterprise_messages")
         .select("direction, body, created_at")
         .eq("org_id", args.orgId).eq("application_id", args.applicationId)
-        .order("created_at", { ascending: true }).limit(12);
+        .order("created_at", { ascending: false }).limit(12);
       msgs = data;
     } else {
       const { data } = await supabaseAdmin
@@ -479,12 +484,13 @@ export async function maybeEnqueueAiSdrReply(args: {
         .select("direction, body, created_at")
         .eq("org_id", args.orgId)
         .or(`from_email.ilike.${email},to_email.ilike.${email}`)
-        .order("created_at", { ascending: true }).limit(12);
+        .order("created_at", { ascending: false }).limit(12);
       msgs = data;
     }
     const transcript: TranscriptMessage[] = ((msgs ?? []) as { direction: string; body: string | null }[])
       .map((m): TranscriptMessage => ({ direction: m.direction === "outbound" ? "outbound" : "inbound", body: m.body ?? "" }))
-      .filter((m) => m.body.trim().length > 0);
+      .filter((m) => m.body.trim().length > 0)
+      .reverse();
 
     // Deterministic pre-match: if the candidate's own words name ANY open time
     // on the calendar (not just the ones we emailed), the booking is decided in
