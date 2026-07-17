@@ -8,7 +8,7 @@ import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
-import { logMessage } from "@/lib/enterprise-messages";
+import { logMessage, lastInboundRfcId } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
 import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
@@ -109,25 +109,30 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const replyTo = intake ? `${orgName} <${intake}>` : (recruiter.email ?? undefined);
   const senderEmail = enterpriseSenderEmail(intake);
 
-  let subjectLine = (typeof editedSubject === "string" && editedSubject.trim()) || d.draft_subject?.trim() || "";
-  if (!subjectLine) {
-    const { data: last } = await supabaseAdmin
-      .from("enterprise_messages").select("subject")
-      .eq("org_id", a.org.id)
-      .or(`from_email.ilike.${t.candidate_email},to_email.ilike.${t.candidate_email}`)
-      .not("subject", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
-    const prev = (last?.subject as string | null) ?? null;
-    subjectLine = prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`;
-  }
+  // Subject: ALWAYS continue the conversation's subject when one exists (same
+  // rule as the auto-send cron) — a model-invented subject lands as a brand-new
+  // Gmail conversation. A reviewer-edited subject wins; draft_subject is only
+  // used when there is no prior thread subject at all.
+  const { data: last } = await supabaseAdmin
+    .from("enterprise_messages").select("subject")
+    .eq("org_id", a.org.id)
+    .or(`from_email.ilike.${t.candidate_email},to_email.ilike.${t.candidate_email}`)
+    .not("subject", "is", null).order("created_at", { ascending: false }).limit(1).maybeSingle();
+  const prev = (last?.subject as string | null) ?? null;
+  const subjectLine =
+    (typeof editedSubject === "string" && editedSubject.trim()) ||
+    (prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : (d.draft_subject?.trim() || `Message from ${orgName}`));
 
   const html = wrapEmail(renderOutreachBody(bodyText, recruiter.name, orgName), false);
   // Same sender identity as the campaign (connected mailbox when available) so
   // the candidate sees one continuous conversation; Reply-To stays the intake.
   const connected = await getConnectedSender(a.org.id);
+  const inReplyTo = await lastInboundRfcId(a.org.id, t.candidate_email);
   if (connected) {
     const res = await sendViaConnectedMailbox(connected, {
       to: t.candidate_email, subject: subjectLine, html, fromName,
       replyTo: intake ?? recruiter.email ?? null,
+      inReplyTo,
     });
     if (!res.ok) return NextResponse.json({ error: res.error ?? "Could not send from the connected mailbox." }, { status: 500 });
   } else {
@@ -135,6 +140,7 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       from: `${fromName} <${senderEmail}>`,
       to: t.candidate_email, subject: subjectLine, html,
       ...(replyTo ? { replyTo } : {}),
+      ...(inReplyTo ? { headers: { "In-Reply-To": inReplyTo, References: inReplyTo } } : {}),
     });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   }
