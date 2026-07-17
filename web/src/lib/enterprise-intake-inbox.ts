@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
+import { syncCandidateToCrm } from "@/lib/crm-candidate-sync";
 
 // Store the original resume file in the private resumes bucket and return its
 // storage key (path) — recruiters download it as-sent via a signed URL.
@@ -187,6 +188,9 @@ export async function createIntakeApplication(
     const newName = c.name?.trim();
     if (newName && newName.toLowerCase() !== email.split("@")[0]) patch.candidate_name = newName;
     await supabaseAdmin.from("enterprise_applications").update(patch).eq("id", dup.id);
+    await syncCandidateToCrm(c.orgId, "auto-sync", {
+      name: c.name, email, phone: c.phone ?? null, source: "applicant", applicationId: dup.id,
+    });
     return { id: dup.id, deduped: true };
   }
 
@@ -214,5 +218,9 @@ export async function createIntakeApplication(
     console.error("[intake] insert application failed:", error.message);
     return { id: null, deduped: false };
   }
+  // Mirror into the Recruiting CRM (best-effort — never blocks intake).
+  await syncCandidateToCrm(c.orgId, "auto-sync", {
+    name: c.name, email, phone: c.phone ?? null, source: "applicant", applicationId: data.id as string,
+  });
   return { id: data.id, deduped: false };
 }

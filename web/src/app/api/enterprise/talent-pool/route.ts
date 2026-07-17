@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg } from "@/lib/enterprise";
+import { syncCandidateToCrm } from "@/lib/crm-candidate-sync";
 import { resend } from "@/lib/resend";
 
 // Add a pool membership without relying on an ON CONFLICT unique constraint.
@@ -84,6 +85,11 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (body.group_id && data?.id) await ensureMembership(org.id, data.id as string, body.group_id);
+    await syncCandidateToCrm(org.id, userId, {
+      name: (app.candidate_name as string | null) ?? null, email: app.candidate_email as string,
+      phone: (app.candidate_phone as string | null) ?? null, linkedinUrl: (app.linkedin_url as string | null) ?? null,
+      source: "talent_pool", applicationId: app.id as string, talentPoolId: (data?.id as string | undefined) ?? null,
+    });
     return NextResponse.json({ data }, { status: 201 });
   }
 
@@ -109,5 +115,10 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   if (body.group_id && data?.id) await ensureMembership(org.id, data.id as string, body.group_id);
+  await syncCandidateToCrm(org.id, userId, {
+    name: body.candidate_name as string, email: body.candidate_email as string,
+    phone: (body.candidate_phone as string | null) ?? null, linkedinUrl: (body.linkedin_url as string | null) ?? null,
+    source: "talent_pool", talentPoolId: (data?.id as string | undefined) ?? null,
+  });
   return NextResponse.json({ data }, { status: 201 });
 }
