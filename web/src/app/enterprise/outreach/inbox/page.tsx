@@ -461,21 +461,21 @@ function InboxInner() {
               ))}
             </div>
 
-            {/* Action bar — the composer itself opens as an overlay card, so
-                writing never lives at the bottom of a long scroll. */}
-            {!(detail.thread.intent === "unsubscribe" || detail.suppressed) && (
-              <div className="flex items-center gap-2 border-t border-border p-3">
-                <button
-                  onClick={startReply}
-                  className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-4 py-2 text-sm font-semibold"
-                >
-                  <Send className="h-4 w-4" /> Reply
-                </button>
+            {/* Floating Reply/Forward — always visible over the thread, never
+                something to scroll for. The composer opens as an overlay. */}
+            {!(detail.thread.intent === "unsubscribe" || detail.suppressed) && !composerOpen && (
+              <div className="absolute bottom-5 right-6 z-10 flex items-center gap-2">
                 <button
                   onClick={startForward}
-                  className="inline-flex items-center gap-1.5 rounded-xl border border-border px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-xl hover:text-foreground"
                 >
                   <Share2 className="h-4 w-4" /> Forward
+                </button>
+                <button
+                  onClick={startReply}
+                  className="btn-cta inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold shadow-xl"
+                >
+                  <Send className="h-4 w-4" /> Reply
                 </button>
               </div>
             )}
