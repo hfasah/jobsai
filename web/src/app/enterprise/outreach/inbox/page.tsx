@@ -145,8 +145,14 @@ function InboxInner() {
     });
     setDraftBusy(false);
     if (res.ok) {
+      setReplyError(null);
       setAiDraft(null);
       if (action === "send") { openThread(selectedId); loadList(); }
+    } else {
+      // Surface why (e.g. the agreed slot could not be booked) — a silent
+      // failure reads as a dead button.
+      const j = await res.json().catch(() => null);
+      setReplyError((j as { error?: string } | null)?.error ?? `Could not ${action} the draft (HTTP ${res.status}).`);
     }
   };
 

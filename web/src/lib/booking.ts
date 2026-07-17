@@ -133,7 +133,14 @@ export async function bookSlot(
   candidate: { name: string; email: string; phone?: string | null; notes?: string | null },
 ): Promise<{ ok: boolean; taken?: boolean; meetLink?: string | null; calendarOk?: boolean; error?: string }> {
   const { slots } = await openSlotsForLink(link);
-  if (!slots.includes(startsAt)) return { ok: false, taken: true, error: "That time is no longer available." };
+  // Compare instants, not strings: the requested time may arrive in a different
+  // ISO spelling than computeSlots emits (Postgres timestamptz round-trips as
+  // "+00:00" while toISOString() gives ".000Z") — exact-string matching made
+  // every valid slot read as taken.
+  const startMs = Date.parse(startsAt);
+  const canonical = slots.find((s) => Date.parse(s) === startMs);
+  if (!canonical) return { ok: false, taken: true, error: "That time is no longer available." };
+  startsAt = canonical;
 
   const endsAt = new Date(Date.parse(startsAt) + link.duration_min * 60_000).toISOString();
   const { data: row, error } = await supabaseAdmin
