@@ -189,6 +189,9 @@ export async function POST(req: NextRequest) {
 
   const data = event.data ?? {};
   const emailId = (data.email_id ?? data.id) as string | undefined;
+  // The sender's RFC Message-ID (Resend includes it in the payload) — stored so
+  // replies can set In-Reply-To and thread inside the candidate's mail client.
+  const rfcMessageId = typeof data.message_id === "string" && data.message_id.trim() ? data.message_id.trim() : null;
   // Include received_for (the envelope recipient) — for forwarded mail the To:
   // header can still be the original mailbox, while received_for is the address
   // the message was actually delivered to (our intake address).
@@ -257,7 +260,7 @@ export async function POST(req: NextRequest) {
       await logMessage({
         orgId: org.id, applicationId: existingAppId, direction: "inbound",
         fromEmail: sender.email, toEmail: parseAddress(toList[0] ?? "").email || null,
-        subject, body: bodyText || null,
+        subject, body: bodyText || null, rfcMessageId,
       });
       await markOutreachReplied(org.id, sender.email);
       // AI SDR: classify intent, roll up the inbox thread, and fire
@@ -355,6 +358,7 @@ export async function POST(req: NextRequest) {
       orgId: org.id, applicationId: id, direction: "inbound",
       fromEmail: sender.email, toEmail: parseAddress(toList[0] ?? "").email || null,
       subject, body: bodyText || (resumeFromAttachment ? "[résumé attached]" : null),
+      rfcMessageId,
     });
   }
 

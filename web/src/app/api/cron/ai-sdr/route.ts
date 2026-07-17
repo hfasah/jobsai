@@ -5,7 +5,7 @@ import { resend } from "@/lib/resend";
 import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
-import { logMessage } from "@/lib/enterprise-messages";
+import { logMessage, lastInboundRfcId } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
@@ -151,11 +151,16 @@ export async function GET(req: NextRequest) {
       // one thread for the candidate. Reply-To stays the intake address so
       // their answers keep landing in the AI SDR Inbox.
       const connected = await getConnectedSender(r.org_id);
+      // In-Reply-To: anchor the reply to the candidate's own last message so
+      // their mail client threads it into the existing conversation — a matching
+      // subject alone is not enough for Gmail.
+      const inReplyTo = await lastInboundRfcId(r.org_id, r.candidate_email);
       let sendError: string | null = null;
       if (connected) {
         const res = await sendViaConnectedMailbox(connected, {
           to: t.candidate_email, subject: subjectLine, html, fromName,
           replyTo: intake ?? recruiter.email ?? null,
+          inReplyTo,
         });
         if (!res.ok) sendError = res.error ?? "connected send failed";
       } else {
@@ -165,6 +170,7 @@ export async function GET(req: NextRequest) {
           subject: subjectLine,
           html,
           ...(replyTo ? { replyTo } : {}),
+          ...(inReplyTo ? { headers: { "In-Reply-To": inReplyTo, References: inReplyTo } } : {}),
         });
         if (error) sendError = error.message;
       }
