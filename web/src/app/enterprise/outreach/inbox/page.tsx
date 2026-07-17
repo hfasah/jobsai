@@ -92,6 +92,8 @@ function InboxInner() {
   const [detail, setDetail] = useState<{ thread: ThreadRow; messages: Message[]; suppressed?: boolean; ai_reply?: { state: "auto" | "draft" | "off"; reason: string } } | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
+  const [forwardMode, setForwardMode] = useState(false);
+  const [forwardTo, setForwardTo] = useState("");
   const [replyError, setReplyError] = useState<string | null>(null);
   const [aiDraft, setAiDraft] = useState<AiDraft | null>(null);
   const [resubBusy, setResubBusy] = useState(false);
@@ -183,18 +185,30 @@ function InboxInner() {
 
   const sendReply = async () => {
     if (!selectedId || !reply.trim()) return;
+    if (forwardMode && !forwardTo.trim()) { setReplyError("Enter the email address to forward to."); return; }
     setSending(true);
     setReplyError(null);
     const res = await fetch(`/api/enterprise/outreach/inbox/${selectedId}/reply`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: reply }),
+      body: JSON.stringify({ body: reply, ...(forwardMode ? { to: forwardTo.trim() } : {}) }),
     });
     const json = await res.json().catch(() => ({}));
     setSending(false);
     if (!res.ok) { setReplyError(json.error ?? "Could not send."); return; }
     setReply("");
+    setForwardMode(false);
+    setForwardTo("");
     openThread(selectedId);
+  };
+
+  // Prefill the composer with the latest message, quoted, and switch to
+  // forward mode (send goes to a teammate instead of the candidate).
+  const startForward = () => {
+    if (!detail) return;
+    const lastMsg = detail.messages[detail.messages.length - 1];
+    setForwardMode(true);
+    setReply(`\n\n---------- Forwarded message ----------\n${(lastMsg?.body ?? "").trim()}`);
   };
 
   return (
@@ -355,10 +369,11 @@ function InboxInner() {
               )}
             </div>
 
-            {/* Messages */}
+            {/* Messages — NEWEST first (like every mail client): the latest
+                exchange is what the recruiter came to see, no scrolling. */}
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
               {detail.messages.length === 0 && <p className="text-center text-xs text-muted-foreground">No message history captured.</p>}
-              {detail.messages.map((m) => (
+              {[...detail.messages].reverse().map((m) => (
                 <div key={m.id} className={cn("flex", m.direction === "outbound" ? "justify-end" : "justify-start")}>
                   <div className={cn("max-w-[80%] rounded-2xl px-3 py-2 text-sm", m.direction === "outbound" ? "bg-primary/10 text-foreground" : "bg-muted/50")}>
                     {m.subject && <p className="mb-0.5 text-[11px] font-semibold text-muted-foreground">{m.subject}</p>}
@@ -434,18 +449,46 @@ function InboxInner() {
                     </div>
                   )}
                   {replyError && <p className="mb-1.5 text-xs text-red-400">{replyError}</p>}
+                  {forwardMode && (
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <span className="text-[11px] font-medium text-muted-foreground">Forward to</span>
+                      <input
+                        type="email"
+                        value={forwardTo}
+                        onChange={(e) => setForwardTo(e.target.value)}
+                        placeholder="teammate@company.com"
+                        className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                      />
+                      <button
+                        onClick={() => { setForwardMode(false); setForwardTo(""); setReply(""); }}
+                        className="text-[11px] text-muted-foreground hover:text-foreground"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                   <div className="flex items-end gap-2">
                     <textarea
                       value={reply}
                       onChange={(e) => setReply(e.target.value)}
                       onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) sendReply(); }}
                       rows={2}
-                      placeholder="Write a reply…  (⌘/Ctrl+Enter to send)"
+                      placeholder={forwardMode ? "Add a note for the recipient…" : "Write a reply…  (⌘/Ctrl+Enter to send)"}
                       className="flex-1 resize-y rounded-xl border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
                     />
+                    {!forwardMode && (
+                      <button
+                        onClick={startForward}
+                        title="Forward the latest message to a teammate"
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        <Share2 className="h-4 w-4" />
+                      </button>
+                    )}
                     <button
                       onClick={sendReply}
                       disabled={sending || !reply.trim()}
+                      title={forwardMode ? "Forward" : "Send reply"}
                       className="btn-cta inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold disabled:opacity-60"
                     >
                       {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}

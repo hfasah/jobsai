@@ -30,8 +30,12 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   if (!org) return NextResponse.json({ error: "No organization." }, { status: 404 });
 
   const { id } = await ctx.params;
-  const { body, subject } = await req.json().catch(() => ({}));
+  // `to` turns the send into a FORWARD (e.g. to a hiring manager): different
+  // recipient, "Fwd:" subject, no candidate-thread headers.
+  const { body, subject, to } = await req.json().catch(() => ({}));
   if (!body || !String(body).trim()) return NextResponse.json({ error: "Message body required." }, { status: 400 });
+  const forwardTo = typeof to === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to.trim()) ? to.trim().toLowerCase() : null;
+  if (to && !forwardTo) return NextResponse.json({ error: "Enter a valid email address to forward to." }, { status: 400 });
 
   const { data: thread } = await supabaseAdmin
     .from("inbox_threads")
@@ -41,7 +45,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .maybeSingle();
   const t = thread as { id: string; candidate_email: string; candidate_name: string | null; application_id: string | null; intent: string | null } | null;
   if (!t) return NextResponse.json({ error: "Thread not found." }, { status: 404 });
-  if (t.intent === "unsubscribe") {
+  if (!forwardTo && t.intent === "unsubscribe") {
     return NextResponse.json({ error: "This contact unsubscribed — you can't email them." }, { status: 403 });
   }
 
@@ -70,21 +74,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     .limit(1)
     .maybeSingle();
   const prev = (last?.subject as string | null) ?? null;
+  const baseSubject = prev ? prev.replace(/^(re|fwd?):\s*/i, "") : null;
   const subjectLine =
     (typeof subject === "string" && subject.trim()) ||
-    (prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`);
+    (forwardTo
+      ? (baseSubject ? `Fwd: ${baseSubject}` : `Fwd: Conversation with ${t.candidate_name || t.candidate_email}`)
+      : (prev ? (/^re:/i.test(prev) ? prev : `Re: ${prev}`) : `Message from ${orgName}`));
 
+  const recipient = forwardTo ?? t.candidate_email;
   const html = wrapEmail(renderOutreachBody(String(body), recruiterName, orgName), false);
   // Send from the REPLYING recruiter's own connected mailbox when they have
   // one (else any org mailbox, else white-label Resend) — same identity rules
   // as the SDR paths, so the conversation never switches From address.
   const connected = await getConnectedSender(org.id, userId);
-  const inReplyTo = await lastInboundRfcId(org.id, t.candidate_email);
+  // Thread into the candidate's conversation only when actually replying to
+  // them; a forward is a fresh conversation for the teammate.
+  const inReplyTo = forwardTo ? null : await lastInboundRfcId(org.id, t.candidate_email);
   let sendError: string | null = null;
   let sentFrom = senderEmail;
   if (connected) {
     const res = await sendViaConnectedMailbox(connected, {
-      to: t.candidate_email, subject: subjectLine, html, fromName,
+      to: recipient, subject: subjectLine, html, fromName,
       replyTo: intake ?? recruiterEmail ?? null,
       inReplyTo,
     });
@@ -93,7 +103,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
   } else {
     const { error } = await resend.emails.send({
       from: `${fromName} <${senderEmail}>`,
-      to: t.candidate_email,
+      to: recipient,
       subject: subjectLine,
       html,
       ...(replyTo ? { replyTo } : {}),
@@ -108,24 +118,27 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     applicationId: t.application_id,
     direction: "outbound",
     fromEmail: sentFrom,
-    toEmail: t.candidate_email,
+    toEmail: recipient,
     subject: subjectLine,
     body: String(body),
   });
 
   // Replying implicitly handles the thread: mark read, record the send.
-  await supabaseAdmin
-    .from("inbox_threads")
-    .update({ last_outbound_at: new Date().toISOString(), unread: false, updated_at: new Date().toISOString() })
-    .eq("id", id)
-    .eq("org_id", org.id);
-  // A human took the conversation → "Manual Reply" chip, unless a meeting is
-  // already booked (that outcome is stickier).
-  await supabaseAdmin
-    .from("inbox_threads")
-    .update({ outcome: "manual_reply" })
-    .eq("id", id).eq("org_id", org.id)
-    .is("outcome", null);
+  // (Forwards don't touch the candidate conversation state.)
+  if (!forwardTo) {
+    await supabaseAdmin
+      .from("inbox_threads")
+      .update({ last_outbound_at: new Date().toISOString(), unread: false, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("org_id", org.id);
+    // A human took the conversation → "Manual Reply" chip, unless a meeting is
+    // already booked (that outcome is stickier).
+    await supabaseAdmin
+      .from("inbox_threads")
+      .update({ outcome: "manual_reply" })
+      .eq("id", id).eq("org_id", org.id)
+      .is("outcome", null);
+  }
 
-  return NextResponse.json({ data: { sent: true } });
+  return NextResponse.json({ data: { sent: true, forwarded: !!forwardTo } });
 }
