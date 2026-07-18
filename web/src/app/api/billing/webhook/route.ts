@@ -97,8 +97,12 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   const planLabel = PLAN_LIMITS[plan].label;
   // Token allowance is granted lazily by getTokenAccount on the next read (it
-  // detects the plan change). Just announce the upgrade here.
-  createNotification(userId, "plan_upgraded", `Welcome to ${planLabel}!`, `Your plan has been upgraded to ${planLabel}. Your monthly tokens and features are now unlocked.`, { plan }).catch(console.error);
+  // detects the plan/trial change). Just announce here.
+  if (sub.status === "trialing") {
+    createNotification(userId, "plan_upgraded", "Your 7-day free trial has started", `You're trying ${planLabel} with 500 credits included. Your card will be charged for ${planLabel} when the trial ends — cancel anytime before then and you won't be charged.`, { plan, trial: true }).catch(console.error);
+  } else {
+    createNotification(userId, "plan_upgraded", `Welcome to ${planLabel}!`, `Your plan has been upgraded to ${planLabel}. Your monthly tokens and features are now unlocked.`, { plan }).catch(console.error);
+  }
 
   // Affiliate conversion
   const affiliateId = session.metadata?.affiliate_id;

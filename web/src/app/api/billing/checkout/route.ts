@@ -123,6 +123,18 @@ export async function POST(req: NextRequest) {
 
   const customerId = await ensureCustomer(userId);
 
+  // 7-day free trial (card required) — ONE per customer, ever. Eligibility is
+  // authoritative from Stripe: any subscription in the customer's history
+  // (trialing, canceled, anything) burns the trial. A requested-but-ineligible
+  // trial silently becomes a normal paid checkout — the paywall UI shows the
+  // right copy for both cases, and this keeps repeat-trial farming impossible.
+  const wantTrial = body.trial === true;
+  let withTrial = false;
+  if (wantTrial) {
+    const prev = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 1 });
+    withTrial = prev.data.length === 0;
+  }
+
   // Affiliate referral → 15% off via a reusable coupon
   const refCode = req.cookies.get("jobsai_ref")?.value;
   const affiliate = refCode ? await getAffiliateByCode(refCode) : null;
@@ -137,7 +149,10 @@ export async function POST(req: NextRequest) {
     cancel_url: `${APP_URL}/dashboard/billing?canceled=true`,
     // promotion codes and discounts are mutually exclusive in Stripe checkout
     ...(discounts ? { discounts } : { allow_promotion_codes: true }),
-    metadata: { clerk_user_id: userId, plan, interval, ...(affiliate ? { affiliate_id: affiliate.id, ref_code: refCode } : {}) },
+    // Card is ALWAYS collected — including during the free trial. The trial
+    // auto-converts to the selected paid plan at day 7 unless canceled first.
+    ...(withTrial ? { subscription_data: { trial_period_days: 7 }, payment_method_collection: "always" as const } : {}),
+    metadata: { clerk_user_id: userId, plan, interval, trial: withTrial ? "1" : "0", ...(affiliate ? { affiliate_id: affiliate.id, ref_code: refCode } : {}) },
   };
 
   // Chargeback armor: require explicit Terms-of-Service acceptance at checkout.

@@ -1,5 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabase";
-import { getUserPlan, type Plan } from "@/lib/billing";
+import { getUserBilling, type Plan } from "@/lib/billing";
 
 // ─── Economics ──────────────────────────────────────────────────────────────
 // Token costs are tuned so the price a user pays always exceeds the underlying
@@ -30,11 +30,18 @@ export const ROLLOVER_CAP_MONTHS = 2;
 // All plans re-grant monthly. Unused grant rolls over up to ROLLOVER_CAP_MONTHS;
 // PURCHASED top-ups persist separately and never expire (see two-bucket model).
 export const PLAN_TOKEN_GRANTS: Record<Plan, { amount: number; recurring: boolean }> = {
-  free:        { amount: 500,    recurring: true },  // cheap features only (~0 applies)
+  // Card-required model (2026-07-18): no allowance without a card on file. The
+  // "free" plan only exists as the pre-trial / lapsed state and grants nothing.
+  free:        { amount: 0,      recurring: false },
   pro:         { amount: 9_000,  recurring: true },  // ~15 auto-applies / mo
   premium:     { amount: 18_000, recurring: true },  // ~30 auto-applies / mo
   accelerator: { amount: 45_000, recurring: true },  // ~75 auto-applies / mo
 };
+
+// 7-day free trial (credit card required): a one-time 500-credit allowance to
+// try the product. The selected plan's full monthly allowance replaces it when
+// the trial converts to paid.
+export const TRIAL_TOKEN_GRANT = 500;
 
 // New accounts get a few free auto-applies (lifetime) so they can experience
 // the core feature before paying — consumed before any credits are charged.
@@ -124,8 +131,17 @@ async function writeLedger(
 // grant (the user's own cycle) for recurring plans.
 
 export async function getTokenAccount(userId: string): Promise<TokenAccount> {
-  const plan = await getUserPlan(userId);
-  const grant = PLAN_TOKEN_GRANTS[plan];
+  const billing = await getUserBilling(userId);
+  const plan = billing.plan;
+  // Trialing subscriptions get the one-time 500-credit trial allowance, not the
+  // plan's full monthly grant. The stored plan marker ("trial_premium") makes
+  // the trial→paid conversion register as a plan change, which triggers the
+  // full allowance grant the moment the first real payment lands.
+  const isTrial = billing.subscription_status === "trialing";
+  const planKey = isTrial ? `trial_${plan}` : plan;
+  const grant = isTrial
+    ? { amount: TRIAL_TOKEN_GRANT, recurring: false }
+    : PLAN_TOKEN_GRANTS[plan];
 
   // select("*") so this works whether or not the 052 bucket columns exist yet.
   const { data: existing } = await supabaseAdmin
@@ -141,12 +157,12 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
       user_id: userId,
       balance: grant.amount,
       monthly_grant: grant.amount,
-      plan,
+      plan: planKey,
       last_granted_at: nowIso,
       updated_at: nowIso,
     });
     await writeBuckets(userId, grant.amount, 0);
-    await writeLedger(userId, grant.amount, grant.amount, "signup_grant", null, { plan });
+    await writeLedger(userId, grant.amount, grant.amount, isTrial ? "trial_grant" : "signup_grant", null, { plan });
     // Free applies are NOT granted here (lazy row creation can be an existing
     // user's first token read). They're granted by the Clerk user.created webhook.
     return { balance: grant.amount, grant_balance: grant.amount, topup_balance: 0, free_applies: 0, monthly_grant: grant.amount, plan, last_granted_at: nowIso };
@@ -156,10 +172,12 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
   const { grant: grantBalPrev, topup } = readBuckets(existing as Record<string, unknown>);
   const lastGranted = new Date(existing.last_granted_at as string);
   const now = new Date();
-  const planChanged = existing.plan !== plan;
+  const planChanged = existing.plan !== planKey;
 
   const needsMonthly = grant.recurring && monthlyGrantDue(lastGranted, now);
-  const needsUpgradeGrant = planChanged && grant.recurring;
+  // A plan change grants: on upgrade/conversion (recurring plans) AND on trial
+  // start (one-time 500) — the trial marker makes both register as changes.
+  const needsUpgradeGrant = planChanged && (grant.recurring || isTrial);
 
   if (needsMonthly || needsUpgradeGrant) {
     // Unused grant ROLLS OVER, capped at ROLLOVER_CAP_MONTHS months of the
@@ -170,10 +188,10 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
     const newBalance = newGrant + topup;
     await supabaseAdmin
       .from("user_tokens")
-      .update({ balance: newBalance, monthly_grant: grant.amount, plan, last_granted_at: now.toISOString(), updated_at: now.toISOString() })
+      .update({ balance: newBalance, monthly_grant: grant.amount, plan: planKey, last_granted_at: now.toISOString(), updated_at: now.toISOString() })
       .eq("user_id", userId);
     await writeBuckets(userId, newGrant, topup);
-    await writeLedger(userId, grant.amount, newBalance, "monthly_grant", null, { plan, reset: true });
+    await writeLedger(userId, grant.amount, newBalance, isTrial ? "trial_grant" : "monthly_grant", null, { plan, reset: true });
     return { balance: newBalance, grant_balance: newGrant, topup_balance: topup, free_applies: freeApplies, monthly_grant: grant.amount, plan, last_granted_at: now.toISOString() };
   }
 
@@ -181,7 +199,7 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
   if (planChanged || existing.monthly_grant !== grant.amount) {
     await supabaseAdmin
       .from("user_tokens")
-      .update({ plan, monthly_grant: grant.amount, updated_at: now.toISOString() })
+      .update({ plan: planKey, monthly_grant: grant.amount, updated_at: now.toISOString() })
       .eq("user_id", userId);
   }
 
