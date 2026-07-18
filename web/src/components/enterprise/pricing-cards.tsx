@@ -69,12 +69,6 @@ export function EnterprisePricingCards() {
               {p.highlights.map((h) => <li key={h} className="flex items-start gap-2 text-sm text-muted-foreground"><Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{h}</li>)}
             </ul>
 
-            {/* Capacity — small, out of the way of the buying decision */}
-            <div className="mt-4 border-t border-border pt-3">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Includes</p>
-              <p className="mt-1 text-xs text-muted-foreground">{p.includes.join(" · ")}</p>
-            </div>
-
             {p.href.startsWith("http")
               ? <a href={p.href} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-center rounded-xl border border-border bg-card py-2.5 text-sm font-semibold hover:bg-muted">{p.cta}</a>
               : <Link href={p.href} className={`mt-5 flex items-center justify-center rounded-xl py-2.5 text-sm font-semibold ${p.popular ? "bg-gradient-brand text-white shadow-glow" : "border border-border bg-card hover:bg-muted"}`}>{p.cta}</Link>}
