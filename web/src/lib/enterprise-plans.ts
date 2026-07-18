@@ -4,10 +4,11 @@
 
 export type Plan = {
   name: string;
-  sub: string;
+  sub: string;            // ONE line: who this plan is for
+  journey: string;        // the progression ladder label (Start Hiring → …)
   monthly: number | null; // null = custom (Enterprise)
-  highlights: string[];
-  limits: string;
+  highlights: string[];   // max 5 — people buy fit, not feature counts
+  includes: string[];     // capacity limits, shown small under the features
   cta: string;
   href: string;
   popular?: boolean;
@@ -17,24 +18,40 @@ const BOOK_DEMO = "/enterprise/demo";
 
 export const PLANS: Plan[] = [
   {
-    name: "Professional", monthly: 299, sub: "For startups, small HR teams, and growing recruiting firms.",
-    highlights: ["ATS, career pages & candidate portal", "AI scoring, top picks & comparison", "Interview scheduling (Google/Microsoft)", "Offer letters & e-signature"],
-    limits: "3 recruiters · 10 active jobs · 5,000 candidates", cta: "Start free trial", href: "/enterprise-login",
+    name: "Professional",
+    sub: "For startups & growing teams",
+    journey: "Start Hiring",
+    monthly: 299,
+    highlights: ["AI Recruiting ATS", "AI Candidate Screening", "Career Pages & Candidate Portal", "Interview Scheduling", "Offer Letters & E-Signatures"],
+    includes: ["3 recruiters", "10 active jobs", "5,000 candidates"],
+    cta: "Start free trial", href: "/enterprise-login",
   },
   {
-    name: "Agency", monthly: 799, popular: true, sub: "For recruiting agencies, staffing firms, and executive search.",
-    highlights: ["Everything in Professional", "Recruiting CRM, talent pools & email sequences", "AI sourcing & advanced search", "Client portal, reporting & white label"],
-    limits: "10 recruiters · 50 active jobs · 50,000 candidates", cta: "Start free trial", href: "/enterprise-login",
+    name: "Agency",
+    sub: "For recruiting & staffing firms",
+    journey: "Scale Recruiting",
+    monthly: 799, popular: true,
+    highlights: ["Everything in Professional", "Recruiting CRM", "AI Sourcing & Outreach", "Talent Pools", "Client Portal & White Label"],
+    includes: ["10 recruiters", "50 active jobs", "50,000 candidates"],
+    cta: "Start free trial", href: "/enterprise-login",
   },
   {
-    name: "Business", monthly: 1499, sub: "For corporate HR and talent acquisition teams.",
-    highlights: ["Everything in Agency", "Hiring manager workspace & workflows", "Executive analytics & SAML/SSO", "Compliance center (GDPR, audit, legal hold)"],
-    limits: "25 recruiters · unlimited jobs & candidates", cta: "Start free trial", href: "/enterprise-login",
+    name: "Business",
+    sub: "For corporate HR & Talent Acquisition",
+    journey: "Enterprise Hiring",
+    monthly: 1499,
+    highlights: ["Everything in Agency", "Hiring Manager Workspace", "Workflow Automation", "Executive Analytics", "Enterprise Security (SSO)"],
+    includes: ["25 recruiters", "Unlimited jobs", "Unlimited candidates"],
+    cta: "Start free trial", href: "/enterprise-login",
   },
   {
-    name: "Enterprise", monthly: null, sub: "For healthcare, banking, government, and large organizations.",
-    highlights: ["Everything in Business", "Annual contracts, volume & multi-year discounts", "Dedicated onboarding, support & custom SLA", "Workday / ADP & custom integrations"],
-    limits: "Unlimited everything", cta: "Book a demo", href: BOOK_DEMO,
+    name: "Enterprise",
+    sub: "For large organizations with custom requirements",
+    journey: "Global Talent Operations",
+    monthly: null,
+    highlights: ["Everything in Business", "Custom Integrations", "Dedicated Success Manager", "Private Deployment Options", "Custom SLA"],
+    includes: ["Unlimited everything"],
+    cta: "Book a Consultation", href: BOOK_DEMO,
   },
 ];
 
