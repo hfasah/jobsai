@@ -9,7 +9,7 @@ import { wrapEmail, emailFromName } from "@/lib/email-utils";
 import { renderOutreachBody, getRecruiterIdentity } from "@/lib/sourcing-email";
 import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage, lastInboundRfcId } from "@/lib/enterprise-messages";
-import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
+import { getConnectedSender, sendViaConnectedMailbox, getLockedDomainSender } from "@/lib/outreach/connected-send";
 
 export const maxDuration = 30;
 
@@ -83,16 +83,29 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
 
   const recipient = forwardTo ?? t.candidate_email;
   const html = wrapEmail(renderOutreachBody(String(body), recruiterName, orgName), false);
-  // Send from the REPLYING recruiter's own connected mailbox when they have
-  // one (else any org mailbox, else white-label Resend) — same identity rules
-  // as the SDR paths, so the conversation never switches From address.
+  // Sender identity: the DOMAIN mailbox this conversation is locked to first
+  // (stay on-domain, no Reply-To needed — the domain receives), else the
+  // replying recruiter's own connected mailbox, else white-label Resend. The
+  // conversation never switches From address. Forwards go from the
+  // recruiter's own identity, not the campaign's.
+  const domainSender = forwardTo ? null : await getLockedDomainSender(org.id, t.candidate_email);
   const connected = await getConnectedSender(org.id, userId);
   // Thread into the candidate's conversation only when actually replying to
   // them; a forward is a fresh conversation for the teammate.
   const inReplyTo = forwardTo ? null : await lastInboundRfcId(org.id, t.candidate_email);
   let sendError: string | null = null;
   let sentFrom = senderEmail;
-  if (connected) {
+  if (domainSender) {
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${domainSender.address}>`,
+      to: recipient,
+      subject: subjectLine,
+      html,
+      ...(inReplyTo ? { headers: { "In-Reply-To": inReplyTo, References: inReplyTo } } : {}),
+    });
+    if (error) sendError = error.message;
+    else sentFrom = domainSender.address;
+  } else if (connected) {
     const res = await sendViaConnectedMailbox(connected, {
       to: recipient, subject: subjectLine, html, fromName,
       replyTo: intake ?? recruiterEmail ?? null,
