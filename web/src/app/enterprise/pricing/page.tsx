@@ -4,6 +4,7 @@ import { PlanComparison } from "@/components/enterprise/plan-comparison";
 import { EnterprisePricingCards } from "@/components/enterprise/pricing-cards";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
+import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 import { PLANS, monthlyEquiv, annualTotal } from "@/lib/enterprise-plans";
 
 export const metadata = {
@@ -13,15 +14,40 @@ export const metadata = {
 
 const BOOK_DEMO = "/enterprise/demo";
 
+// Add-ons sell OUTCOMES first — the feature list is supporting detail.
 const ADDONS = [
-  { name: "AI Interview Suite", price: "+$199/mo", desc: "AI voice & avatar interviews, auto-scoring, transcripts.", value: "Screen every applicant 24/7 — ranked, scored shortlists in hours, not weeks." },
-  { name: "Autonomous Recruiting Agent", price: "+$499/mo", desc: "24/7 sourcing, outreach, follow-ups & recommendations.", value: "An always-on AI recruiter at a fraction of a sourcer's cost — keeps your pipeline full." },
-  { name: "SMS & WhatsApp", price: "+$99/mo", desc: "Instant candidate messaging & automated reminders.", value: "Candidates reply far faster than email — fewer no-shows, faster scheduling." },
-  { name: "White Label Plus", price: "+$199/mo", desc: "Custom domain, branding removal & custom email branding.", value: "Fully your brand & domain, no “powered by” — builds trust, looks enterprise-grade." },
-  { name: "Additional Recruiters", price: "+$29/user/mo", desc: "Add seats beyond your plan limit.", value: "Scale seats instantly — each recruiter gets their own workspace & pipeline." },
+  { name: "AI Interview Suite", price: "+$199/mo", outcome: "Reduce screening time by up to 80%", features: ["AI voice interviews", "AI avatar interviews", "Auto scoring", "Transcripts"] },
+  { name: "Autonomous Recruiting Agent", price: "+$499/mo", outcome: "Your AI recruiter that never sleeps", features: ["24/7 sourcing", "Outreach & follow-ups", "Talent rediscovery", "Recommendations"] },
+  { name: "SMS & WhatsApp", price: "+$99/mo", outcome: "Reach candidates where they respond fastest", features: ["Instant messaging", "Automated reminders", "Fewer no-shows"] },
+  { name: "White Label Plus", price: "+$199/mo", outcome: "Make JobsAI look like your platform", features: ["Custom domain", "Branding removal", "Custom email branding"] },
+  { name: "Additional Recruiters", price: "+$29/user/mo", outcome: "Scale your recruiting team instantly", features: ["Extra seats anytime", "Own workspace & pipeline per recruiter"] },
 ];
 
 const WHY = ["ATS", "Recruiting CRM", "AI Sourcing", "AI Screening", "AI Interviews", "Workflow Automation", "Offer Management", "Analytics", "Compliance", "Enterprise Security"];
+
+const INTEGRATIONS = ["Google Workspace", "Microsoft 365", "Workday", "Greenhouse", "Lever", "Ashby", "BambooHR", "ADP", "Pipedrive", "Stripe"];
+
+// Honest competitive matrix — based on publicly available information; the
+// footnote says so. This is also the page's best organic-search asset.
+const COMPETITORS = ["JobsAI", "Ashby", "Greenhouse", "Loxo", "Pin"];
+const COMPETE_ROWS: { label: string; v: boolean[] }[] = [
+  { label: "Applicant Tracking System", v: [true, true, true, true, false] },
+  { label: "AI Interviews (voice & avatar)", v: [true, false, false, false, false] },
+  { label: "Recruiting CRM", v: [true, false, false, true, false] },
+  { label: "AI Sourcing & Outreach", v: [true, false, false, true, true] },
+  { label: "Workflow Automation", v: [true, true, true, false, false] },
+  { label: "White Label & Client Portal", v: [true, false, false, false, false] },
+  { label: "Autonomous Recruiting Agent", v: [true, false, false, false, false] },
+];
+
+const FAQS: { q: string; a: string }[] = [
+  { q: "Can I upgrade my plan anytime?", a: "Yes — upgrades apply immediately and the price difference is prorated automatically by Stripe. Your team, data, and settings carry over untouched." },
+  { q: "Can I downgrade?", a: "Yes, from Billing at any time. Downgrades take effect at the end of your current billing period so you keep everything you've paid for." },
+  { q: "What happens after my 14-day free trial?", a: "Your selected plan starts automatically on the card you added at signup. Cancel before the trial ends and you won't be charged at all." },
+  { q: "Can I cancel?", a: "Anytime, in one click from Billing. You keep access until the end of the period you've paid for, and your data can be exported before you go." },
+  { q: "Can I switch to annual billing later?", a: "Yes — switch from Billing whenever you like and the 20% annual discount (two months free) applies from your next cycle." },
+  { q: "How are add-ons billed?", a: "Add-ons are added or removed from inside your workspace and are prorated onto your existing subscription immediately — no separate invoice." },
+];
 
 export default function PublicPricingPage() {
   // Product + OfferCatalog structured data, generated from the same PLANS data
@@ -47,9 +73,19 @@ export default function PublicPricingPage() {
     description: "AI-powered talent acquisition operating system for sourcing, engaging, screening, interviewing, and hiring in one platform.",
     offers: { "@type": "OfferCatalog", name: "Plans", url: `${APP}/enterprise/pricing`, itemListElement: offers },
   };
+  const faqLd = {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: FAQS.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  };
   return (
     <main className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(pricingLd) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqLd) }} />
       <PublicEnterpriseHeader />
       {/* Hero */}
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-16 text-center">
@@ -75,33 +111,106 @@ export default function PublicPricingPage() {
         <PlanComparison />
       </section>
 
-      {/* Add-ons */}
+      {/* Add-ons — outcome first, features as supporting detail */}
       <section className="border-y border-border bg-muted/20 px-6 py-14">
         <div className="mx-auto max-w-5xl">
-          <h2 className="mb-2 text-center text-2xl font-bold">Premium add-ons</h2>
-          <p className="mb-8 text-center text-sm text-muted-foreground">Available on any plan — add or remove anytime from inside your workspace.</p>
+          <h2 className="mb-2 text-center text-2xl font-bold">Need more? Premium add-ons</h2>
+          <p className="mb-8 text-center text-sm text-muted-foreground">Available on any plan — add or remove anytime from inside your workspace, prorated automatically.</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {ADDONS.map((a) => (
               <div key={a.name} className="flex flex-col rounded-2xl border border-border bg-card p-5">
-                <h3 className="font-semibold">{a.name}</h3>
-                <p className="mt-1 text-sm font-bold text-primary">{a.price}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{a.desc}</p>
-                <p className="mt-2.5 flex items-start gap-1.5 rounded-lg bg-primary/5 px-2.5 py-2 text-xs leading-relaxed text-primary/90">
-                  <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  <span>{a.value}</span>
+                <p className="flex items-start gap-1.5 text-sm font-semibold leading-snug text-primary">
+                  <Sparkles className="mt-0.5 h-4 w-4 shrink-0" />
+                  {a.outcome}
                 </p>
+                <h3 className="mt-3 text-sm font-semibold">{a.name}</h3>
+                <p className="mt-0.5 text-sm font-bold">{a.price}</p>
+                <ul className="mt-3 space-y-1">
+                  {a.features.map((f) => (
+                    <li key={f} className="flex items-start gap-1.5 text-xs text-muted-foreground"><Check className="mt-0.5 h-3 w-3 shrink-0 text-emerald-500" />{f}</li>
+                  ))}
+                </ul>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Why */}
-      <section className="mx-auto max-w-4xl px-6 py-14 text-center">
-        <h2 className="text-2xl font-bold">Why JobsAI Enterprise?</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Most recruiting teams juggle separate tools for sourcing, screening, interviewing, scheduling, analytics, and compliance. JobsAI Enterprise brings it all into one AI-powered platform.</p>
+      {/* Integrations */}
+      <section className="mx-auto max-w-4xl px-6 py-12 text-center">
+        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Integrates with</p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2">
+          {INTEGRATIONS.map((i) => (
+            <span key={i} className="rounded-full border border-border bg-card px-3.5 py-1.5 text-sm font-medium text-muted-foreground">{i}</span>
+          ))}
+        </div>
+      </section>
+
+      {/* ROI calculator */}
+      <section className="border-t border-border bg-muted/20 px-6 py-14">
+        <div className="mx-auto max-w-4xl">
+          <h2 className="mb-2 text-center text-2xl font-bold">What is JobsAI worth to your team?</h2>
+          <p className="mb-8 text-center text-sm text-muted-foreground">A transparent estimate from automating sourcing, screening, and scheduling.</p>
+          <RoiCalculator />
+        </div>
+      </section>
+
+      {/* Why JobsAI — competitive matrix */}
+      <section className="mx-auto max-w-4xl px-6 py-14">
+        <h2 className="mb-2 text-center text-2xl font-bold">Why JobsAI?</h2>
+        <p className="mx-auto mb-8 max-w-2xl text-center text-sm text-muted-foreground">Most recruiting teams juggle separate tools for sourcing, screening, interviewing, scheduling, analytics, and compliance. JobsAI brings it all into one AI-powered platform.</p>
+        <div className="overflow-x-auto rounded-2xl border border-border">
+          <table className="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/40">
+                <th className="px-4 py-3 text-left font-semibold">Capability</th>
+                {COMPETITORS.map((c, i) => (
+                  <th key={c} className={`px-4 py-3 text-center font-semibold ${i === 0 ? "text-primary" : ""}`}>{c}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {COMPETE_ROWS.map((r, i) => (
+                <tr key={r.label} className={i % 2 ? "bg-muted/20" : ""}>
+                  <td className="px-4 py-2.5 text-left text-muted-foreground">{r.label}</td>
+                  {r.v.map((on, j) => (
+                    <td key={j} className="px-4 py-2.5 text-center">
+                      {on ? <Check className={`mx-auto h-4 w-4 ${j === 0 ? "text-primary" : "text-emerald-500"}`} /> : <span className="text-muted-foreground/40">—</span>}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">Based on publicly available information, July 2026. Features and packaging change — verify details with each vendor.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {WHY.map((w) => <span key={w} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-sm"><Check className="h-3.5 w-3.5 text-emerald-500" />{w}</span>)}
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="border-t border-border bg-muted/20 px-6 py-14">
+        <div className="mx-auto max-w-3xl">
+          <h2 className="mb-8 text-center text-2xl font-bold">Frequently asked questions</h2>
+          <div className="space-y-3">
+            {FAQS.map((f) => (
+              <details key={f.q} className="group rounded-2xl border border-border bg-card p-5">
+                <summary className="cursor-pointer list-none font-semibold marker:hidden">{f.q}</summary>
+                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="px-6 py-16 text-center">
+        <h2 className="text-3xl font-bold tracking-tight">Ready to modernize your hiring?</h2>
+        <p className="mx-auto mt-3 max-w-xl text-muted-foreground">Join recruiting agencies, staffing firms, and HR teams using AI to hire faster.</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <Link href="/enterprise-login" className="rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow">Start free trial</Link>
+          <a href={BOOK_DEMO} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold hover:bg-muted">Book a demo</a>
         </div>
       </section>
 
