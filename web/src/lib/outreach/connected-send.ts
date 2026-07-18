@@ -17,6 +17,36 @@ export interface ConnectedMailbox {
   created_by: string; // clerk userId whose OAuth token sends the mail
 }
 
+// The DOMAIN mailbox this candidate's conversation is locked to, if any: the
+// most recently used enrollment whose sender is a kind='domain' mailbox.
+// Replies (AI SDR or manual) must go out from the SAME domain address the
+// campaign used — and with the domain receiving-enabled, they need no
+// Reply-To at all (answers to the From address flow back into the inbox).
+export async function getLockedDomainSender(
+  orgId: string,
+  candidateEmail: string,
+): Promise<{ id: string; address: string } | null> {
+  const { data } = await supabaseAdmin
+    .from("enterprise_campaign_enrollments")
+    .select("mailbox_id, last_sent_at")
+    .eq("org_id", orgId)
+    .ilike("candidate_email", candidateEmail)
+    .not("mailbox_id", "is", null)
+    .order("last_sent_at", { ascending: false, nullsFirst: false })
+    .limit(1)
+    .maybeSingle();
+  const mailboxId = (data as { mailbox_id?: string | null } | null)?.mailbox_id;
+  if (!mailboxId) return null;
+  const { data: mb } = await supabaseAdmin
+    .from("sending_mailboxes")
+    .select("id, kind, address, status")
+    .eq("id", mailboxId)
+    .eq("org_id", orgId)
+    .maybeSingle();
+  const row = mb as { id: string; kind: string; address: string; status: string } | null;
+  return row && row.kind === "domain" && row.status === "active" ? { id: row.id, address: row.address } : null;
+}
+
 // All active connected mailboxes in the org (Gmail/Outlook).
 export async function getConnectedMailboxes(orgId: string): Promise<ConnectedMailbox[]> {
   const { data } = await supabaseAdmin

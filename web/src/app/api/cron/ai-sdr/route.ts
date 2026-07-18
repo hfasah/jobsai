@@ -9,7 +9,7 @@ import { logMessage, lastInboundRfcId } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { isWithinSendWindow, nextWindowOpen, type SendWindow } from "@/lib/outreach/send-window";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
-import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
+import { getConnectedSender, sendViaConnectedMailbox, getLockedDomainSender } from "@/lib/outreach/connected-send";
 import { isEmailSuppressed } from "@/lib/outreach/suppression";
 
 export const maxDuration = 60;
@@ -150,15 +150,26 @@ export async function GET(req: NextRequest) {
       // connected mailbox when the org has one — so the conversation stays in
       // one thread for the candidate. Reply-To stays the intake address so
       // their answers keep landing in the AI SDR Inbox.
-      // Prefer the campaign creator's own mailbox — SDR replies must come from
-      // the same identity the campaign emails did.
-      const connected = await getConnectedSender(r.org_id, c.created_by);
+      // Sender identity, in order: the DOMAIN mailbox this conversation is
+      // locked to (reply stays on-domain, no Reply-To — the domain receives),
+      // else the campaign creator's connected mailbox, else white-label Resend.
+      const domainSender = await getLockedDomainSender(r.org_id, r.candidate_email);
+      const connected = domainSender ? null : await getConnectedSender(r.org_id, c.created_by);
       // In-Reply-To: anchor the reply to the candidate's own last message so
       // their mail client threads it into the existing conversation — a matching
       // subject alone is not enough for Gmail.
       const inReplyTo = await lastInboundRfcId(r.org_id, r.candidate_email);
       let sendError: string | null = null;
-      if (connected) {
+      if (domainSender) {
+        const { error } = await resend.emails.send({
+          from: `${fromName} <${domainSender.address}>`,
+          to: t.candidate_email,
+          subject: subjectLine,
+          html,
+          ...(inReplyTo ? { headers: { "In-Reply-To": inReplyTo, References: inReplyTo } } : {}),
+        });
+        if (error) sendError = error.message;
+      } else if (connected) {
         const res = await sendViaConnectedMailbox(connected, {
           to: t.candidate_email, subject: subjectLine, html, fromName,
           replyTo: intake ?? recruiter.email ?? null,
@@ -186,7 +197,8 @@ export async function GET(req: NextRequest) {
 
       await logMessage({
         orgId: r.org_id, applicationId: t.application_id, direction: "outbound",
-        fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: bodyText,
+        fromEmail: domainSender?.address ?? connected?.address ?? senderEmail,
+        toEmail: t.candidate_email, subject: subjectLine, body: bodyText,
         sentVia: "ai_sdr",
       });
       await Promise.all([

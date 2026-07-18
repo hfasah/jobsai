@@ -385,6 +385,7 @@ export async function POST(req: NextRequest) {
     let mailboxId: string | null = null;
     let lockMailboxId: string | null = null; // set when we newly lock this enrollment
     let connectedSender: ConnectedMailbox | null = null;
+    let domainSend = false; // sending from a receiving-enabled domain mailbox
 
     const lockedId = (e.mailbox_id as string | null) ?? null;
     // Per-recruiter sender: the enrolment's locked mailbox wins (identity must
@@ -421,6 +422,10 @@ export async function POST(req: NextRequest) {
       fromEmail = claimed.address;
       mailboxId = claimed.id;
       if (!lockedId) lockMailboxId = claimed.id; // first send → remember to persist the lock
+      // Domain mailboxes RECEIVE (Resend receiving MX): candidates reply to
+      // the From address and it flows straight into the AI SDR Inbox — no
+      // intake Reply-To needed, and no third-party domain in the headers.
+      domainSend = true;
     }
 
     // Insert the send row first so we have an id for the open-tracking pixel.
@@ -479,7 +484,7 @@ export async function POST(req: NextRequest) {
           to: e.candidate_email as string,
           subject,
           html,
-          ...(replyTo ? { replyTo } : {}),
+          ...(replyTo && !domainSend ? { replyTo } : {}),
           ...(unsubUrl ? { headers: { "List-Unsubscribe": `<${unsubUrl}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
         });
       }

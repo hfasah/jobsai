@@ -11,7 +11,7 @@ import { intakeAddress } from "@/lib/enterprise-intake-inbox";
 import { logMessage, lastInboundRfcId } from "@/lib/enterprise-messages";
 import { audit } from "@/lib/enterprise-audit";
 import { executeSdrBooking } from "@/lib/outreach/ai-sdr";
-import { getConnectedSender, sendViaConnectedMailbox } from "@/lib/outreach/connected-send";
+import { getConnectedSender, sendViaConnectedMailbox, getLockedDomainSender } from "@/lib/outreach/connected-send";
 
 export const maxDuration = 30;
 type Ctx = { params: Promise<{ id: string }> };
@@ -135,9 +135,19 @@ export async function POST(req: NextRequest, { params }: Ctx) {
       .eq("id", d.campaign_id).eq("org_id", a.org.id).maybeSingle();
     senderPrefer = (camp as { created_by?: string | null } | null)?.created_by ?? a.userId;
   }
-  const connected = await getConnectedSender(a.org.id, senderPrefer);
+  // Domain-locked conversations stay on-domain (no Reply-To — the domain
+  // receives); else the campaign creator's connected mailbox; else Resend.
+  const domainSender = await getLockedDomainSender(a.org.id, t.candidate_email);
+  const connected = domainSender ? null : await getConnectedSender(a.org.id, senderPrefer);
   const inReplyTo = await lastInboundRfcId(a.org.id, t.candidate_email);
-  if (connected) {
+  if (domainSender) {
+    const { error } = await resend.emails.send({
+      from: `${fromName} <${domainSender.address}>`,
+      to: t.candidate_email, subject: subjectLine, html,
+      ...(inReplyTo ? { headers: { "In-Reply-To": inReplyTo, References: inReplyTo } } : {}),
+    });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  } else if (connected) {
     const res = await sendViaConnectedMailbox(connected, {
       to: t.candidate_email, subject: subjectLine, html, fromName,
       replyTo: intake ?? recruiter.email ?? null,
@@ -157,7 +167,8 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   const edited = bodyText !== d.draft_body;
   await logMessage({
     orgId: a.org.id, applicationId: t.application_id, direction: "outbound",
-    fromEmail: senderEmail, toEmail: t.candidate_email, subject: subjectLine, body: bodyText,
+    fromEmail: domainSender?.address ?? connected?.address ?? senderEmail,
+    toEmail: t.candidate_email, subject: subjectLine, body: bodyText,
     sentVia: "ai_sdr",
   });
   await Promise.all([
