@@ -48,6 +48,9 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const [controlMsg, setControlMsg] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteMsg, setDeleteMsg] = useState<string | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelConfirm, setCancelConfirm] = useState(false);
+  const [cancelMsg, setCancelMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/admin/users/${userId}`).then((r) => r.json()).then(setData).finally(() => setLoading(false));
@@ -81,6 +84,28 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
     const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
     setData(fresh);
     setChanging(false);
+  };
+
+  // Cancel the Stripe subscription at period end (two-click confirm). Support
+  // tool for disputes/cancellation requests — stops renewals, keeps paid-for
+  // access, refunds nothing.
+  const cancelSubscription = async () => {
+    if (!cancelConfirm) { setCancelConfirm(true); setTimeout(() => setCancelConfirm(false), 4000); return; }
+    setCancelConfirm(false);
+    setCancelBusy(true); setCancelMsg(null);
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/cancel-subscription`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const json = await res.json();
+      if (!res.ok) { setCancelMsg(json.error ?? "Cancel failed."); return; }
+      const pe = json.data?.period_end ? ` Access ends ${new Date(json.data.period_end).toLocaleDateString()}.` : "";
+      setCancelMsg(json.data?.canceled === "already" ? "✓ Was already canceled." : `✓ Canceled at period end.${pe} No further charges.`);
+      const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
+      setData(fresh);
+    } catch (err) {
+      setCancelMsg(err instanceof Error ? err.message : "Cancel failed.");
+    } finally {
+      setCancelBusy(false);
+    }
   };
 
   // "Open account" — mint a Clerk actor token, then hand off to the consumer
@@ -239,12 +264,26 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
               </div>
             ))}
           </div>
-          {billing.stripe_customer_id && (
-            <a href={`https://dashboard.stripe.com/customers/${String(billing.stripe_customer_id)}`} target="_blank" rel="noopener noreferrer"
-              className="mt-3 inline-flex items-center gap-1 text-xs text-primary hover:underline">
-              View in Stripe →
-            </a>
-          )}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            {billing.stripe_customer_id && (
+              <a href={`https://dashboard.stripe.com/customers/${String(billing.stripe_customer_id)}`} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                View in Stripe →
+              </a>
+            )}
+            {billing.stripe_subscription_id && billing.subscription_status !== "canceled" && (
+              <button
+                onClick={cancelSubscription}
+                disabled={cancelBusy}
+                title="Stops future renewals. The user keeps access until the end of the period they paid for (per the refund policy). No money is refunded."
+                className="inline-flex items-center gap-1.5 rounded-lg border border-red-500/40 px-2.5 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400"
+              >
+                {cancelBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                {cancelConfirm ? "Confirm — cancel at period end" : "Cancel subscription"}
+              </button>
+            )}
+            {cancelMsg && <span className={cn("text-xs font-medium", cancelMsg.startsWith("✓") ? "text-emerald-500" : "text-red-400")}>{cancelMsg}</span>}
+          </div>
         </div>
       )}
 
