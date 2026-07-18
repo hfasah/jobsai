@@ -27,6 +27,13 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
+    heading: "Free trial & payment method requirement",
+    body: [
+      "Using the Services requires a subscription with a valid payment method on file. New customers may be offered a one-time 7-day free trial that includes a limited credit allowance (currently 500 credits). A credit card is required to start the trial; you will not be charged during the trial period.",
+      "Unless you cancel before the trial ends, your selected plan starts automatically at the end of the trial and your payment method is charged the plan price shown at checkout. You can cancel during the trial in one click from your billing settings, in which case you pay nothing. Free trials are limited to one per customer; eligibility is verified against prior subscription history.",
+    ],
+  },
+  {
     heading: "Subscriptions, tokens, billing & renewals",
     body: [
       "Paid plans are billed on a recurring basis (monthly or yearly) and renew automatically until cancelled. Some advanced features are metered using tokens included with your plan or purchased as top-ups. Prices are shown at checkout. You can cancel anytime from your billing settings; cancellation stops future renewals and takes effect at the end of the current period.",

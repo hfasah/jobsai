@@ -26,17 +26,17 @@ type Tier = {
 
 const TIERS: Tier[] = [
   {
-    name: "Free",
-    planKey: "free",
+    name: "Free Trial",
+    planKey: "trial",
     icon: Sparkles,
     monthly: 0,
-    tagline: "Try the tools, no card",
-    cta: "Start free",
+    tagline: "7 days on any plan — card required, cancel anytime",
+    cta: "Start free trial",
     features: [
-      "500 credits / month",
-      "Spend on any tool: tailoring, ATS, cover letters, prep",
-      "Top up anytime for auto-apply & more",
-      "Job discovery & match scores",
+      "500 credits to try everything",
+      "Full access to your chosen plan for 7 days",
+      "No charge until day 7 — cancel in one click before then",
+      "One trial per customer",
     ],
   },
   {
@@ -181,7 +181,7 @@ function EnterpriseCard() {
 }
 
 function priceFor(monthly: number, yearly: boolean) {
-  if (monthly === 0) return { big: "$0", sub: "forever free", note: null as string | null };
+  if (monthly === 0) return { big: "$0", sub: "for 7 days", note: null as string | null };
   const perMoYearly = Math.round(monthly * 0.8); // ~20% off annual
   const savedPct = Math.round((1 - perMoYearly / monthly) * 100);
   if (yearly) {
@@ -200,6 +200,8 @@ export function PricingSection() {
   const handlePlanClick = useCallback(async (planKey: string, e: React.MouseEvent) => {
     if (!isSignedIn) return; // let the Link navigate to sign-up
     e.preventDefault();
+    // The trial card has no plan of its own — pick one on the trial page.
+    if (planKey === "trial") { window.location.href = "/start-trial"; return; }
     setLoading(planKey);
     try {
       const res = await fetch("/api/billing/checkout", {
@@ -232,8 +234,9 @@ export function PricingSection() {
             Apply more. <span className="text-gradient">Interview more.</span>
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Start free, then upgrade to auto-apply at higher volume and reach recruiters
-            directly. Interview prep is included on every paid plan.
+            Start with a 7-day free trial — 500 credits included, credit card required,
+            cancel anytime before day 7 and pay nothing. Interview prep is included on
+            every paid plan.
           </p>
 
           {/* billing toggle */}

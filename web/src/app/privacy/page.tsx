@@ -40,9 +40,9 @@ const SECTIONS: LegalSection[] = [
     bullets: [
       "Provide and operate the service — parse and tailor resumes, generate cover letters, discover and match jobs, and prepare/submit applications you request.",
       "Power interview prep — run written, voice, avatar, and live Interview Buddy assistance.",
-      "Process payments and manage your subscription and token balance.",
+      "Process payments and manage your subscription, free trial, and token balance. Payment card details are collected and stored by Stripe, our payment processor — we never see or store full card numbers.",
       "Improve reliability, security, and product quality.",
-      "Send service messages, and — only with your consent — marketing emails.",
+      "Send service and account messages (such as onboarding, trial reminders, billing notices, and job-alert digests you can opt out of), and — only with your consent — marketing emails. Every non-essential email includes a one-click unsubscribe.",
       "Detect, prevent, and address fraud, abuse, and security issues, and to comply with law.",
     ],
   },

@@ -6,7 +6,9 @@ import { AccountTypeNotice } from "@/components/account-type-notice";
 import { SuspendedNotice } from "@/components/suspended-notice";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
 import { getUserRole } from "@/lib/roles";
+import { getUserBilling } from "@/lib/billing";
 import { supabaseAdmin } from "@/lib/supabase";
+import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({
   children,
@@ -29,6 +31,14 @@ export default async function DashboardLayout({
     if (role !== "jobseeker") {
       return <AccountTypeNotice role={role} email={email} />;
     }
+
+    // Card-required model (2026-07-18): using the dashboard needs an active or
+    // trialing subscription. New signups and lapsed accounts go to the trial /
+    // plan page instead. past_due gets a grace pass so a failed renewal doesn't
+    // lock a paying customer out mid-dunning.
+    const billing = await getUserBilling(userId);
+    const subscribed = ["active", "trialing", "past_due"].includes(billing.subscription_status ?? "");
+    if (!subscribed) redirect("/start-trial");
   }
 
   // Check onboarding completion

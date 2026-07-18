@@ -34,6 +34,13 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
+    heading: "Free trial",
+    body: [
+      "New customers get a one-time 7-day free trial (500 credits) with a credit card on file. You are not charged during the trial. Cancel anytime before the trial ends — in one click from Billing — and you pay nothing at all.",
+      "If you don't cancel, your selected plan starts automatically when the trial ends and the plan price is charged to your card, as disclosed when you started the trial. Charges after a trial you chose not to cancel are valid charges and are not refundable as \"unwanted trial conversions\" — set a reminder if you're unsure.",
+    ],
+  },
+  {
     heading: "Subscriptions",
     body: [
       "Plans are billed in advance (monthly or yearly). You can cancel anytime — you keep access until the end of the current billing period, and you won't be charged again.",
