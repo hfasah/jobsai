@@ -388,6 +388,24 @@ function InboxInner() {
                 exchange is what the recruiter came to see, no scrolling. The
                 DNC banner / AI suggestion sit at the top with it. */}
             <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {/* Reply/Forward stick to the top of the window while scrolling —
+                  right where the newest message is, never something to hunt for. */}
+              {!(detail.thread.intent === "unsubscribe" || detail.suppressed) && !composerOpen && (
+                <div className="sticky top-2 z-10 -mb-1 flex justify-end gap-2">
+                  <button
+                    onClick={startForward}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-muted-foreground shadow-xl hover:text-foreground"
+                  >
+                    <Share2 className="h-4 w-4" /> Forward
+                  </button>
+                  <button
+                    onClick={startReply}
+                    className="btn-cta inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold shadow-xl"
+                  >
+                    <Send className="h-4 w-4" /> Reply
+                  </button>
+                </div>
+              )}
               {(detail.thread.intent === "unsubscribe" || detail.suppressed) && (
                 <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-center text-xs text-red-400">
                   <p>This contact is on the Do-Not-Contact list — auto-replies and sends are blocked.</p>
@@ -461,28 +479,9 @@ function InboxInner() {
               ))}
             </div>
 
-            {/* Floating Reply/Forward — always visible over the thread, never
-                something to scroll for. The composer opens as an overlay. */}
-            {!(detail.thread.intent === "unsubscribe" || detail.suppressed) && !composerOpen && (
-              <div className="absolute bottom-5 right-6 z-10 flex items-center gap-2">
-                <button
-                  onClick={startForward}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-xl hover:text-foreground"
-                >
-                  <Share2 className="h-4 w-4" /> Forward
-                </button>
-                <button
-                  onClick={startReply}
-                  className="btn-cta inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold shadow-xl"
-                >
-                  <Send className="h-4 w-4" /> Reply
-                </button>
-              </div>
-            )}
-
-            {/* Composer overlay (competitor-style floating card) */}
+            {/* Composer overlay (competitor-style floating card, viewport-fixed) */}
             {composerOpen && (
-              <div className="absolute inset-0 z-20 flex items-start justify-center bg-black/40 p-4 pt-16 backdrop-blur-[2px]" onClick={closeComposer}>
+              <div className="fixed inset-0 z-40 flex items-start justify-center bg-black/40 p-4 pt-16 backdrop-blur-[2px]" onClick={closeComposer}>
                 <div className="w-full max-w-2xl rounded-2xl border border-border bg-card p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-semibold">
