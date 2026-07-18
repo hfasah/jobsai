@@ -102,7 +102,9 @@ export default function OnboardingPage() {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan, interval }),
+        // trial:true → 7-day free trial with card collected (one per customer;
+        // the API silently drops the trial for ineligible repeat customers).
+        body: JSON.stringify({ plan, interval, trial: true }),
       });
       const json = await res.json();
       if (json.url) {
@@ -142,11 +144,12 @@ export default function OnboardingPage() {
             )}
 
             <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
-              Start free. Upgrade when you&apos;re ready.
+              Try everything free for 7 days.
             </h1>
             <p className="mt-3 max-w-xl text-muted-foreground">
-              Get into {APP_NAME} with no card required. We auto-apply to jobs and land you
-              interviews — guaranteed — then prep you to win them with written, voice, and avatar rounds.
+              Pick a plan to start your free trial — 500 credits included, no charge until day 7,
+              cancel anytime. We auto-apply to jobs and land you interviews — guaranteed — then
+              prep you to win them with written, voice, and avatar rounds.
             </p>
 
             {/* Billing toggle */}
@@ -227,7 +230,7 @@ export default function OnboardingPage() {
                     {loading === p.key ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <>Choose {p.name}<ArrowRight className="h-4 w-4" /></>
+                      <>Try {p.name} free for 7 days<ArrowRight className="h-4 w-4" /></>
                     )}
                   </button>
                 </div>
@@ -235,17 +238,18 @@ export default function OnboardingPage() {
             })}
           </div>
 
-          {/* Free path + trust microcopy */}
+          {/* Trial trust microcopy — card-required model: every plan starts
+              with a 7-day free trial; there is no card-free path. */}
           <div className="mt-10 flex flex-col items-center gap-3 text-center">
             <button
-              onClick={() => router.push("/dashboard")}
+              onClick={() => router.push("/start-trial")}
               className="text-sm font-semibold text-foreground underline-offset-4 hover:underline"
             >
-              Start free — no card needed →
+              Compare all plans →
             </button>
             <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5 text-desyn-success" />
-              No card to start · Cancel anytime · 90-day money-back on paid plans
+              7-day free trial on every plan · No charge until day 7 · Cancel anytime · 90-day money-back guarantee on paid plans
             </p>
           </div>
         </div>
