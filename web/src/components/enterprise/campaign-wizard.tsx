@@ -626,7 +626,10 @@ export default function CampaignWizard({
                     </div>
                   )}
                   {total === 0 && (
-                    <p className="mt-3 text-[11px] text-muted-foreground">No audience yet — go back to the Audience step to add candidates before launching.</p>
+                    <p className="mt-3 text-[11px] text-muted-foreground">
+                      No audience yet. You can launch anyway — the sequence starts sending as soon as candidates are added.
+                      Heads-up: searched leads only enroll after their email is <span className="font-medium text-foreground">revealed</span> (Audience step → select → Reveal emails, or Unlock &amp; enroll). Already-revealed leads are in your talent pool.
+                    </p>
                   )}
 
                   {/* Pilot launch */}

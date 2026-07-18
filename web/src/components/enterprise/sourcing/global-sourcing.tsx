@@ -503,16 +503,33 @@ export default function GlobalSourcing({
         </div>
       )}
 
-      {importNotice && (
-        <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-sm text-green-400">
-          {importNotice}
-          {/ran out of credits/i.test(importNotice) && (
-            <a href="/enterprise/sourcing/credits" className="ml-auto inline-flex items-center gap-1 rounded-lg border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10">
-              <Coins className="h-3.5 w-3.5" /> Top up credits →
-            </a>
-          )}
-        </div>
-      )}
+      {importNotice && (() => {
+        // Amber when anything was left behind — a "0 enrolled" outcome must
+        // never wear success styling.
+        const needsEmail = /need a revealed email/i.test(importNotice);
+        const hasSkips = needsEmail || /do-not-contact|skipped|failed/i.test(importNotice);
+        return (
+          <div className={cn(
+            "mb-3 rounded-xl border px-4 py-2.5 text-sm",
+            hasSkips ? "border-amber-500/40 bg-amber-500/10 text-amber-300" : "border-green-500/30 bg-green-500/10 text-green-400",
+          )}>
+            <div className="flex flex-wrap items-center gap-2">
+              {importNotice}
+              {/ran out of credits/i.test(importNotice) && (
+                <a href="/enterprise/sourcing/credits" className="ml-auto inline-flex items-center gap-1 rounded-lg border border-primary/40 px-2.5 py-1 text-xs font-semibold text-primary hover:bg-primary/10">
+                  <Coins className="h-3.5 w-3.5" /> Top up credits →
+                </a>
+              )}
+            </div>
+            {needsEmail && (
+              <p className="mt-1.5 text-xs opacity-90">
+                Searching finds people — <span className="font-semibold">revealing unlocks their email</span> so they can be enrolled.
+                Select the skipped leads again and use <span className="font-semibold">Reveal emails</span> (or <span className="font-semibold">Unlock &amp; enroll</span> in the add-to-campaign dialog).
+              </p>
+            )}
+          </div>
+        );
+      })()}
 
       {/* Bulk toolbar */}
       {selected.size > 0 && (
