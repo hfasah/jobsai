@@ -128,9 +128,9 @@ export async function POST(req: NextRequest) {
   const affiliate = refCode ? await getAffiliateByCode(refCode) : null;
   const discounts = affiliate ? [{ coupon: await getAffiliateCoupon(stripe, affiliate.discount_pct) }] : undefined;
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams = {
     customer: customerId,
-    mode: "subscription",
+    mode: "subscription" as const,
     line_items: [{ price: priceId, quantity: 1 }],
     ...(currency ? { currency } : {}),
     success_url: `${APP_URL}/onboarding/success`,
@@ -138,7 +138,29 @@ export async function POST(req: NextRequest) {
     // promotion codes and discounts are mutually exclusive in Stripe checkout
     ...(discounts ? { discounts } : { allow_promotion_codes: true }),
     metadata: { clerk_user_id: userId, plan, interval, ...(affiliate ? { affiliate_id: affiliate.id, ref_code: refCode } : {}) },
-  });
+  };
+
+  // Chargeback armor: require explicit Terms-of-Service acceptance at checkout.
+  // Stripe records the consent with a timestamp on the session — decisive
+  // evidence in "credit not processed" disputes ("customer affirmatively
+  // agreed to the cancellation/refund policy"). Requires the ToS URL to be set
+  // in Stripe Dashboard → Settings → Business → Public details; if it isn't,
+  // Stripe rejects the session — fall back to a consent-less session so a
+  // paying customer is NEVER blocked by our own armor.
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create({
+      ...sessionParams,
+      consent_collection: { terms_of_service: "required" as const },
+    });
+  } catch (consentErr: any) {
+    if (/terms of service/i.test(consentErr?.message ?? "")) {
+      console.error("[billing/checkout] ToS consent unavailable — set the Terms of Service URL in Stripe Settings → Business → Public details. Proceeding without consent:", consentErr?.message);
+      session = await stripe.checkout.sessions.create(sessionParams);
+    } else {
+      throw consentErr;
+    }
+  }
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
     console.error("Stripe checkout error:", {
