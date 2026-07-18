@@ -94,7 +94,7 @@ export async function preflightCampaign(orgId: string, campaignId: string): Prom
   const enrolled = enrollRows.length;
   checks.push(
     enrolled === 0
-      ? { key: "audience", label: "Audience", status: "fail", detail: "No candidates are enrolled." }
+      ? { key: "audience", label: "Audience", status: "fail", detail: "No candidates are enrolled. You can still launch — sending starts once candidates are added. Note: searched leads need a revealed email to enroll (select them → Reveal emails)." }
       : { key: "audience", label: "Audience", status: "pass", detail: `${enrolled} candidate${enrolled !== 1 ? "s" : ""} enrolled.` },
   );
 
