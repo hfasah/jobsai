@@ -25,13 +25,31 @@ export interface ReconcileSummary {
   credits_refunded: number;
 }
 
+// FIX-FORWARD ONLY: charges before this date are governed by the historical
+// backfill tool on /admin/reclaim (which carries deliberate per-user
+// exclusions — e.g. accounts whose balances were explicitly held). The sweep
+// must never relitigate those decisions.
+const FIX_FORWARD_CUTOFF = "2026-07-19T00:00:00Z";
+
+// Every ledger reason that represents money BACK for an auto-apply. The
+// finalize path writes auto_apply_failed_refund, metering writes
+// auto_apply_meter_refund, the admin backfill writes auto_apply_backfill_refund
+// — counting only one of them would double-refund the rest.
+const REFUND_REASONS = [
+  "auto_apply_refund",
+  "auto_apply_failed_refund",
+  "auto_apply_meter_refund",
+  "auto_apply_backfill_refund",
+];
+
 export async function refundStrandedAutoApplies(
   opts: { olderThanMinutes?: number; windowDays?: number; limit?: number } = {},
 ): Promise<ReconcileSummary> {
   // Only settle charges old enough that in-flight runs have finished (the
   // stuck-pending reconciler handles anything still unresolved after that).
   const olderThan = new Date(Date.now() - (opts.olderThanMinutes ?? 120) * 60_000).toISOString();
-  const since = new Date(Date.now() - (opts.windowDays ?? 30) * 86_400_000).toISOString();
+  const windowStart = new Date(Date.now() - (opts.windowDays ?? 30) * 86_400_000).toISOString();
+  const since = windowStart > FIX_FORWARD_CUTOFF ? windowStart : FIX_FORWARD_CUTOFF;
 
   const { data: charges, error } = await supabaseAdmin
     .from("token_ledger")
@@ -75,18 +93,29 @@ export async function refundStrandedAutoApplies(
       const status = (attempt as { status?: string } | null)?.status ?? "unknown";
       if (status === "submitted" || status === "pending") continue;
 
-      // Refunds already issued for this job (any source: launch failure,
-      // finalize, previous sweep).
+      // Refunds already issued for this job from ANY path (launch failure,
+      // finalize failure refund, metering, admin backfill, previous sweep).
       const { count: refunds, error: refundErr } = await supabaseAdmin
         .from("token_ledger")
         .select("id", { count: "exact", head: true })
         .eq("user_id", userId)
-        .eq("reason", "auto_apply_refund")
+        .in("reason", REFUND_REASONS)
         .contains("metadata", { job_id: jobId });
       if (refundErr) {
         console.error("[apply-reconcile] refund lookup failed:", refundErr.message);
         continue;
       }
+
+      // Employer-confirmation recharge = ground truth that the application DID
+      // go through (the "failed" status was Skyvern reporting wrong). Never
+      // refund those — it would undo the revenue reclaim.
+      const { count: recharges } = await supabaseAdmin
+        .from("token_ledger")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .eq("reason", "auto_apply_confirmed_recharge")
+        .contains("metadata", { job_id: jobId });
+      if ((recharges ?? 0) > 0) continue;
 
       const owed = deducts - (refunds ?? 0);
       if (owed <= 0) continue;
