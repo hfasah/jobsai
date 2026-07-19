@@ -69,9 +69,23 @@ export async function GET(req: NextRequest) {
     jobs_manual: 0,
     jobs_failed: 0,
     errors: 0,
+    stopped_early: false,
   };
 
+  // Stop starting new work well before Vercel's 300s hard kill: each job can
+  // cost 30s+ (score + tailor + cover letter + Skyvern launch), and a hard
+  // timeout dies mid-user with no digest/reconcile and a half-written run.
+  // Leftover jobs are still in the 26h window for the next run.
+  const startedAt = Date.now();
+  const TIME_BUDGET_MS = 240_000;
+  const outOfTime = () => Date.now() - startedAt > TIME_BUDGET_MS;
+
   for (const prefs of activePrefs) {
+    if (outOfTime()) {
+      summary.stopped_early = true;
+      console.warn("[cron/auto-apply] time budget reached — remaining users deferred to next run");
+      break;
+    }
     const userId = prefs.user_id;
     const threshold = prefs.auto_apply_threshold ?? 75;
     const mode = (prefs.auto_apply_mode ?? "hybrid") as "auto" | "hybrid" | "review";
@@ -133,6 +147,11 @@ export async function GET(req: NextRequest) {
       }).slice(0, MAX_PER_USER);
 
       for (const job of unapplied) {
+        if (outOfTime()) {
+          summary.stopped_early = true;
+          console.warn(`[cron/auto-apply] time budget reached mid-user ${userId} — remaining jobs deferred to next run`);
+          break;
+        }
         const jobId: string = job.id;
         const parsed = parsedByJob.get(jobId);
         const log: AutoApplyJobLog = {
@@ -210,13 +229,22 @@ export async function GET(req: NextRequest) {
             // Tailor resume
             try {
               const tailored = await tailorResume(ctx.resumeProfile, ctx.jobParsed);
-              await supabaseAdmin.from("tailored_resumes").upsert({
-                user_id: userId,
-                job_id: jobId,
-                resume_version_id: ctx.resumeVersionId,
-                tailored_json: tailored.tailored_json,
-                tailored_at: new Date().toISOString(),
-              });
+              // Schema: tailored_resumes has source_resume_version_id (NOT
+              // resume_version_id) and no tailored_at — the old column names
+              // 400'd silently, so every tailored resume was lost and
+              // regenerated on the next run.
+              if (ctx.resumeVersionId) {
+                const { error: trError } = await supabaseAdmin.from("tailored_resumes").upsert(
+                  {
+                    user_id: userId,
+                    job_id: jobId,
+                    source_resume_version_id: ctx.resumeVersionId,
+                    tailored_json: tailored.tailored_json,
+                  },
+                  { onConflict: "job_id,source_resume_version_id" }
+                );
+                if (trError) console.error(`[cron/auto-apply] tailored_resumes upsert failed job ${jobId}:`, trError.message);
+              }
               log.resume_used = ctx.resumeVersionId ?? null;
               summary.jobs_tailored++;
             } catch {
@@ -232,14 +260,17 @@ export async function GET(req: NextRequest) {
                 .eq("user_id", userId)
                 .maybeSingle();
 
-              if (!existing.data) {
+              if (!existing.data && ctx.resumeVersionId) {
                 const cl = await generateCoverLetter(ctx.resumeProfile, ctx.jobParsed, "professional", "medium");
-                await supabaseAdmin.from("cover_letters").insert({
+                // Schema: cover_letters requires resume_version_id (not null)
+                // and has no generated_at — the old insert 400'd silently.
+                const { error: clError } = await supabaseAdmin.from("cover_letters").insert({
                   user_id: userId,
                   job_id: jobId,
+                  resume_version_id: ctx.resumeVersionId,
                   body: cl,
-                  generated_at: new Date().toISOString(),
                 });
+                if (clError) console.error(`[cron/auto-apply] cover_letters insert failed job ${jobId}:`, clError.message);
               }
               log.cover_letter_used = true;
             } catch {
@@ -387,8 +418,9 @@ export async function GET(req: NextRequest) {
         runLog.push(log);
       }
 
-      // 7. Log the run to DB
-      await supabaseAdmin.from("auto_apply_runs").insert({
+      // 7. Log the run to DB (table created by migration 175 — inserts 404'd
+      // silently before it existed)
+      const { error: runLogError } = await supabaseAdmin.from("auto_apply_runs").insert({
         user_id: userId,
         jobs_found: unapplied.length,
         jobs_applied: runLog.filter((l) => l.status === "submitted").length,
@@ -398,6 +430,7 @@ export async function GET(req: NextRequest) {
         job_logs: runLog,
         completed_at: new Date().toISOString(),
       });
+      if (runLogError) console.error(`[cron/auto-apply] auto_apply_runs insert failed for user ${userId}:`, runLogError.message);
 
       // 8. Send daily email digest
       const applied = runLog.filter((l) => l.status === "submitted");
