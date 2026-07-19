@@ -34,7 +34,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     // No embedded joins: a failing PostgREST embed reads as "no rows" with no
     // error, which made this section report zero jobs while imports existed
     // (2026-07-19). Matches/attempts are fetched separately below.
-    supabaseAdmin.from("jobs").select("id, title, company, status, created_at").eq("user_id", userId).gte("created_at", h26).order("created_at", { ascending: false }).limit(30),
+    // jobs has NO title/company columns (they live on job_parsed) — selecting
+    // them made PostgREST reject the whole query, which supabase-js reported
+    // as zero rows. Title/company are joined from job_parsed below.
+    supabaseAdmin.from("jobs").select("id, status, created_at").eq("user_id", userId).gte("created_at", h26).order("created_at", { ascending: false }).limit(30),
     supabaseAdmin.from("jobs").select("id, created_at").eq("user_id", userId).gte("created_at", d7).order("created_at", { ascending: false }).limit(500),
     supabaseAdmin.from("apply_attempts").select("job_id, status, platform, error_msg, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
   ]);
@@ -51,17 +54,19 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 
   // Jobs the NEXT cron run would see (imported in last 26h, no attempt yet),
   // with their scores vs the threshold.
-  type JobRow = { id: string; title: string | null; company: string | null; status: string | null; created_at: string };
+  type JobRow = { id: string; status: string | null; created_at: string };
   const jobs26 = (jobs26Q.data ?? []) as JobRow[];
 
   const jobIds = jobs26.map((j) => j.id);
-  const [matches26Q, attempts26Q] = jobIds.length
+  const [matches26Q, attempts26Q, parsed26Q] = jobIds.length
     ? await Promise.all([
         supabaseAdmin.from("job_matches").select("job_id, match_score").in("job_id", jobIds),
         supabaseAdmin.from("apply_attempts").select("job_id, status").eq("user_id", userId).in("job_id", jobIds),
+        supabaseAdmin.from("job_parsed").select("job_id, title, company").in("job_id", jobIds),
       ])
-    : [{ data: [], error: null }, { data: [], error: null }];
+    : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
   const matchByJob = new Map(((matches26Q.data ?? []) as { job_id: string; match_score: number | null }[]).map((m) => [m.job_id, m.match_score]));
+  const parsedByJob = new Map(((parsed26Q.data ?? []) as { job_id: string; title: string | null; company: string | null }[]).map((p) => [p.job_id, p]));
   const attemptStatusByJob = new Map<string, string[]>();
   for (const a of (attempts26Q.data ?? []) as { job_id: string; status: string }[]) {
     attemptStatusByJob.set(a.job_id, [...(attemptStatusByJob.get(a.job_id) ?? []), a.status]);
@@ -74,7 +79,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     // escalation); anything submitted/pending/failed/blocked is done.
     const stillEligible = attemptStatuses.every((s) => s === "manual_required");
     return {
-      id: j.id, title: j.title, company: j.company, job_status: j.status, imported_at: j.created_at,
+      id: j.id, title: parsedByJob.get(j.id)?.title ?? null, company: parsedByJob.get(j.id)?.company ?? null, job_status: j.status, imported_at: j.created_at,
       match_score: score,
       attempt_statuses: attemptStatuses,
       would_auto_apply: stillEligible && score != null && score >= threshold && mode !== "review",
