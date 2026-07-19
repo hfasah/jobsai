@@ -80,20 +80,39 @@ export async function GET(req: NextRequest) {
     const runLog: AutoApplyJobLog[] = [];
 
     try {
-      // 2. Find jobs imported in the last 26h that haven't been applied to yet
+      // 2. Find jobs imported in the last 26h that haven't been applied to yet.
+      // NO embedded joins here: a failing PostgREST embed makes supabase-js
+      // report "no rows" with no error surfaced, which silently starved this
+      // cron of every job (2026-07-19). Plain queries, joined in code.
       const since = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
-      const { data: jobs } = await supabaseAdmin
+      const { data: jobs, error: jobsError } = await supabaseAdmin
         .from("jobs")
-        .select(`
-          id, title, company, source_url,
-          job_matches!left(match_score),
-          apply_attempts!left(id, status)
-        `)
+        .select("id, title, company, source_url")
         .eq("user_id", userId)
         .gte("created_at", since)
         .limit(MAX_PER_USER + 5); // fetch a few extra to account for already-applied
 
+      if (jobsError) {
+        summary.errors++;
+        console.error(`[cron/auto-apply] jobs query failed for user ${userId}:`, jobsError.message);
+        continue;
+      }
       if (!jobs?.length) continue;
+
+      const jobIds = jobs.map((j) => j.id);
+      const [matchesRes, attemptsRes] = await Promise.all([
+        supabaseAdmin.from("job_matches").select("job_id, match_score").in("job_id", jobIds),
+        supabaseAdmin.from("apply_attempts").select("job_id, status").eq("user_id", userId).in("job_id", jobIds),
+      ]);
+      if (matchesRes.error) console.error(`[cron/auto-apply] job_matches query failed for user ${userId}:`, matchesRes.error.message);
+      if (attemptsRes.error) console.error(`[cron/auto-apply] apply_attempts query failed for user ${userId}:`, attemptsRes.error.message);
+      const matchByJob = new Map((matchesRes.data ?? []).map((m) => [m.job_id, m.match_score]));
+      const attemptsByJob = new Map<string, { status: string }[]>();
+      for (const a of attemptsRes.data ?? []) {
+        const list = attemptsByJob.get(a.job_id) ?? [];
+        list.push(a);
+        attemptsByJob.set(a.job_id, list);
+      }
 
       // Filter: skip already applied. A job whose attempts are ALL
       // manual_required is a dead end, not an applied job: the import-time
@@ -103,7 +122,7 @@ export async function GET(req: NextRequest) {
       // Skipping on attempts.length made the Skyvern escalation below
       // unreachable for exactly the jobs that need it most.
       const unapplied = jobs.filter((j) => {
-        const attempts = Array.isArray(j.apply_attempts) ? j.apply_attempts : [];
+        const attempts = attemptsByJob.get(j.id) ?? [];
         return attempts.every((a) => a.status === "manual_required");
       }).slice(0, MAX_PER_USER);
 
@@ -122,10 +141,10 @@ export async function GET(req: NextRequest) {
         try {
           // 3. Score the job if not already scored
           let matchScore: number | null = null;
-          const existingMatch = Array.isArray(job.job_matches) ? job.job_matches[0] : null;
+          const existingScore = matchByJob.get(jobId);
 
-          if (existingMatch?.match_score != null) {
-            matchScore = existingMatch.match_score;
+          if (existingScore != null) {
+            matchScore = existingScore;
           } else {
             // Load context and score
             const ctx = await loadJobContext(userId, jobId);
