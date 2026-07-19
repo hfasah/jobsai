@@ -178,13 +178,25 @@ export async function GET(req: NextRequest) {
               const result = await scoreMatch(ctx.resumeProfile, ctx.jobParsed);
               matchScore = Math.round(result.match_score ?? 0);
               summary.jobs_scored++;
-              // Save match
-              await supabaseAdmin.from("job_matches").upsert({
-                user_id: userId,
-                job_id: jobId,
-                match_score: matchScore,
-                match_result: result,
-              });
+              // Save match. Schema (002_jobs.sql): job_matches has NO user_id
+              // or match_result columns and resume_version_id is NOT NULL —
+              // the old shape 400'd silently, so every score was recomputed on
+              // every run (a 10s+ OpenAI call per job per run, forever).
+              if (ctx.resumeVersionId) {
+                const { error: jmError } = await supabaseAdmin.from("job_matches").upsert(
+                  {
+                    job_id: jobId,
+                    resume_version_id: ctx.resumeVersionId,
+                    match_score: matchScore,
+                    matched_keywords: result.matched_keywords ?? [],
+                    missing_keywords: result.missing_keywords ?? [],
+                    explanation: result.explanation ?? null,
+                    scored_json: result,
+                  },
+                  { onConflict: "job_id,resume_version_id" }
+                );
+                if (jmError) console.error(`[cron/auto-apply] job_matches upsert failed job ${jobId}:`, jmError.message);
+              }
             }
           }
 
