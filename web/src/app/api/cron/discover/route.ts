@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { supabaseAdmin } from "@/lib/supabase";
 import { discoverJobs } from "@/lib/job-discovery";
-import { importJobFromUrl } from "@/lib/job-import";
+import { importDiscoveredJob } from "@/lib/job-import";
 import { sendDiscoverySummary } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import type { UserPreferences } from "@/types/preferences";
@@ -62,7 +62,9 @@ export async function GET(req: NextRequest) {
       for (const job of toImport) {
         if (!job.url) continue;
         try {
-          const result = await importJobFromUrl(job.url, prefs.user_id, false, true);
+          // Import straight from provider data — aggregator URLs (Adzuna
+          // /land/ad/…) are bot-blocked, so scraping them 403s every time.
+          const result = await importDiscoveredJob(job, prefs.user_id, true);
           if (result.status === "created") {
             summary.jobs_imported++;
             importedJobs.push({ title: job.title, company: job.company, jobId: result.job_id });

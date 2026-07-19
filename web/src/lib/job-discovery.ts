@@ -101,8 +101,10 @@ export async function fetchRemoteOK(prefs: UserPreferences): Promise<DiscoveredJ
         salary_min: j.salary_min,
         salary_max: j.salary_max,
         currency: "USD",
+        // Keep enough of the description to parse/score from — it now becomes
+        // the imported job's raw text (no URL scraping for discovered jobs).
         description: j.description
-          ? j.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 400)
+          ? j.description.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim().slice(0, 4000)
           : "",
         url: j.url,
         tags: j.tags ?? [],
@@ -199,7 +201,7 @@ export async function fetchAdzuna(prefs: UserPreferences): Promise<DiscoveredJob
         salary_min: j.salary_min,
         salary_max: j.salary_max,
         currency: prefs.salary_currency,
-        description: j.description?.replace(/<[^>]+>/g, " ").trim().slice(0, 400) ?? "",
+        description: j.description?.replace(/<[^>]+>/g, " ").trim().slice(0, 4000) ?? "",
         url: j.redirect_url,
         tags: [],
         posted_at: j.created,
