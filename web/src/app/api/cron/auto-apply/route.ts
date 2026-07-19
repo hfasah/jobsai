@@ -85,9 +85,12 @@ export async function GET(req: NextRequest) {
       // report "no rows" with no error surfaced, which silently starved this
       // cron of every job (2026-07-19). Plain queries, joined in code.
       const since = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString();
+      // NOTE: jobs has NO title/company columns — those live on job_parsed.
+      // Selecting them here was the actual root error PostgREST rejected
+      // ("column jobs.title does not exist") while supabase-js showed no rows.
       const { data: jobs, error: jobsError } = await supabaseAdmin
         .from("jobs")
-        .select("id, title, company, source_url")
+        .select("id, source_url")
         .eq("user_id", userId)
         .gte("created_at", since)
         .limit(MAX_PER_USER + 5); // fetch a few extra to account for already-applied
@@ -100,12 +103,15 @@ export async function GET(req: NextRequest) {
       if (!jobs?.length) continue;
 
       const jobIds = jobs.map((j) => j.id);
-      const [matchesRes, attemptsRes] = await Promise.all([
+      const [matchesRes, attemptsRes, parsedRes] = await Promise.all([
         supabaseAdmin.from("job_matches").select("job_id, match_score").in("job_id", jobIds),
         supabaseAdmin.from("apply_attempts").select("job_id, status").eq("user_id", userId).in("job_id", jobIds),
+        supabaseAdmin.from("job_parsed").select("job_id, title, company").in("job_id", jobIds),
       ]);
       if (matchesRes.error) console.error(`[cron/auto-apply] job_matches query failed for user ${userId}:`, matchesRes.error.message);
       if (attemptsRes.error) console.error(`[cron/auto-apply] apply_attempts query failed for user ${userId}:`, attemptsRes.error.message);
+      if (parsedRes.error) console.error(`[cron/auto-apply] job_parsed query failed for user ${userId}:`, parsedRes.error.message);
+      const parsedByJob = new Map((parsedRes.data ?? []).map((p) => [p.job_id, p]));
       const matchByJob = new Map((matchesRes.data ?? []).map((m) => [m.job_id, m.match_score]));
       const attemptsByJob = new Map<string, { status: string }[]>();
       for (const a of attemptsRes.data ?? []) {
@@ -128,10 +134,11 @@ export async function GET(req: NextRequest) {
 
       for (const job of unapplied) {
         const jobId: string = job.id;
+        const parsed = parsedByJob.get(jobId);
         const log: AutoApplyJobLog = {
           job_id: jobId,
-          title: job.title ?? "Unknown",
-          company: job.company ?? "Unknown",
+          title: parsed?.title ?? "Unknown",
+          company: parsed?.company ?? "Unknown",
           match_score: null,
           status: "skipped",
           resume_used: null,
