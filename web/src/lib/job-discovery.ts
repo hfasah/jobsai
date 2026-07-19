@@ -72,17 +72,13 @@ function isRemoteOKJob(v: unknown): v is RemoteOKJob {
 }
 
 export async function fetchRemoteOK(prefs: UserPreferences): Promise<DiscoveredJob[]> {
-  // Build tag query from job titles + keywords
-  const terms = [...prefs.job_titles, ...prefs.keywords]
-    .join(" ")
-    .toLowerCase()
-    .replace(/[^a-z0-9 ]/g, " ")
-    .split(/\s+/)
-    .filter((t) => t.length > 2)
-    .slice(0, 6);
-
-  const qs = terms.length ? `?tags=${encodeURIComponent(terms.join(","))}` : "";
-  const url = `https://remoteok.com/api${qs}`;
+  // Fetch the FULL feed and match locally. The old approach split job titles
+  // into word-tags ("frontend,engineer,full,stack,…") — mostly not real
+  // RemoteOK tags, so the tag-filtered feed silently returned zero for
+  // realistic profiles (root cause of a platform-wide discovery drought,
+  // 2026-07-19). The feed is a few hundred jobs and cached 5 min; the local
+  // relevance filter below does the actual matching.
+  const url = `https://remoteok.com/api`;
 
   const res = await fetch(url, {
     headers: { "User-Agent": "JobsAI/1.0 (jobsai.app)" },
@@ -114,6 +110,9 @@ export async function fetchRemoteOK(prefs: UserPreferences): Promise<DiscoveredJ
         employment_type: "full-time",
       })
     )
+    // Local relevance match replaces the broken tag filter: keep jobs that hit
+    // at least one of the user's titles/keywords; the caller sorts by score.
+    .filter((j) => relevanceScore(j, prefs) > 0)
     .filter((j) => passesFilters(j, prefs));
 }
 
@@ -142,19 +141,32 @@ export async function fetchAdzuna(prefs: UserPreferences): Promise<DiscoveredJob
   const appKey = process.env.ADZUNA_APP_KEY;
   if (!appId || !appKey) return [];
 
-  const what =
-    prefs.job_titles.length > 0
-      ? prefs.job_titles.join(" OR ")
-      : prefs.keywords.slice(0, 3).join(" OR ");
+  // Adzuna's `what` param requires ALL words to match — it does NOT understand
+  // "OR". Joining multiple job titles with " OR " demanded every title (plus
+  // the literal word OR) appear in one posting → zero results for any profile
+  // with 2+ titles (root cause of the 2026-07-19 discovery drought). The
+  // any-word semantics live in `what_or`: pass the distinct significant words
+  // from titles/keywords and let relevance sorting do the precision.
+  const orWords = [...new Set(
+    [...prefs.job_titles, ...prefs.keywords.slice(0, 6)]
+      .join(" ")
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]/g, " ")
+      .split(/\s+/)
+      .filter((w) => w.length > 2),
+  )].slice(0, 12);
 
-  if (!what.trim()) return [];
+  if (orWords.length === 0) return [];
 
   const country = CURRENCY_COUNTRY[prefs.salary_currency] ?? "us";
   const params = new URLSearchParams({
     app_id: appId,
     app_key: appKey,
     results_per_page: "20",
-    what: prefs.location_type === "remote" ? `${what} remote` : what,
+    what_or: orWords.join(" "),
+    // Remote profiles: require the word "remote" (ALL-words param) on top of
+    // the any-word title/keyword match.
+    ...(prefs.location_type === "remote" ? { what: "remote" } : {}),
     "content-type": "application/json",
   });
 
@@ -168,7 +180,12 @@ export async function fetchAdzuna(prefs: UserPreferences): Promise<DiscoveredJob
 
   const url = `https://api.adzuna.com/v1/api/jobs/${country}/search/1?${params}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(15_000) });
-  if (!res.ok) return [];
+  // Loud, not silent: a failing provider must surface in discoverJobs errors —
+  // a silent [] here masked the drought for days.
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Adzuna ${res.status}: ${body.slice(0, 200)}`);
+  }
 
   const data = (await res.json()) as { results?: AdzunaJob[] };
   return (data.results ?? [])
@@ -214,14 +231,16 @@ export async function discoverJobs(prefs: UserPreferences): Promise<{
     jobs.push(...remoteOK.value);
     sources.push("RemoteOK");
   } else if (remoteOK.status === "rejected") {
-    errors.push("RemoteOK unavailable");
+    errors.push(`RemoteOK: ${String(remoteOK.reason).slice(0, 200)}`);
   }
 
   if (adzuna.status === "fulfilled" && adzuna.value.length > 0) {
     jobs.push(...adzuna.value);
     sources.push("Adzuna");
+  } else if (adzuna.status === "rejected") {
+    errors.push(String(adzuna.reason).slice(0, 220));
   }
-  // Adzuna silently returns [] if no key — not an error
+  // Adzuna still silently returns [] when no API key is configured
 
   // Dedupe by URL, sort by relevance then recency
   const seen = new Set<string>();
