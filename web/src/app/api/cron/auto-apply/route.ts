@@ -95,10 +95,16 @@ export async function GET(req: NextRequest) {
 
       if (!jobs?.length) continue;
 
-      // Filter: skip already applied
+      // Filter: skip already applied. A job whose attempts are ALL
+      // manual_required is a dead end, not an applied job: the import-time
+      // path (processJob → autoApplyIfEnabled → applyToJob) logs
+      // manual_required for every unknown platform — which is ALL discovered
+      // jobs, since aggregator URLs (Adzuna/RemoteOK) never match an ATS.
+      // Skipping on attempts.length made the Skyvern escalation below
+      // unreachable for exactly the jobs that need it most.
       const unapplied = jobs.filter((j) => {
         const attempts = Array.isArray(j.apply_attempts) ? j.apply_attempts : [];
-        return attempts.length === 0;
+        return attempts.every((a) => a.status === "manual_required");
       }).slice(0, MAX_PER_USER);
 
       for (const job of unapplied) {
