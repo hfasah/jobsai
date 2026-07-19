@@ -253,6 +253,67 @@ export async function importJobFromUrl(
     throw new Error(`Job description too short (min ${MIN_CHARS} characters)`);
   }
 
+  return createJobFromText(rawText, url, userId, force, notifyOnMatch);
+}
+
+// ─── Import a discovered job (provider data, no scraping) ────────────────────
+// The discover cron already holds title/company/description/salary from the
+// provider API. Scraping the posting URL instead is both wasteful and broken —
+// aggregator links (Adzuna /land/ad/…) are bot-blocked redirect pages that 403
+// on direct fetch and give Jina nothing to extract, so every Adzuna discovery
+// failed to import (2026-07-19). Build the raw text from provider data.
+
+export interface DiscoveredJobInput {
+  title: string;
+  company: string;
+  url: string;
+  location?: string;
+  description?: string;
+  salary_min?: number;
+  salary_max?: number;
+  currency?: string;
+  employment_type?: string;
+  tags?: string[];
+  posted_at?: string;
+}
+
+export async function importDiscoveredJob(
+  job: DiscoveredJobInput,
+  userId: string,
+  notifyOnMatch = false
+): Promise<ImportResult> {
+  const salary =
+    job.salary_min || job.salary_max
+      ? [job.salary_min, job.salary_max]
+          .filter((n): n is number => typeof n === "number" && n > 0)
+          .map((n) => Math.round(n).toLocaleString("en-US"))
+          .join(" – ") + (job.currency ? ` ${job.currency}` : "")
+      : null;
+
+  const rawText = [
+    `Job Title: ${job.title}`,
+    `Company: ${job.company}`,
+    job.location ? `Location: ${job.location}` : null,
+    job.employment_type ? `Employment Type: ${job.employment_type}` : null,
+    salary ? `Salary: ${salary}` : null,
+    job.tags?.length ? `Skills / Tags: ${job.tags.join(", ")}` : null,
+    `Posting URL: ${job.url}`,
+    "",
+    job.description?.trim() || null,
+  ]
+    .filter((line) => line !== null)
+    .join("\n");
+
+  return createJobFromText(rawText, job.url, userId, false, notifyOnMatch);
+}
+
+async function createJobFromText(
+  rawText: string,
+  url: string,
+  userId: string,
+  force: boolean,
+  notifyOnMatch: boolean
+): Promise<ImportResult> {
   const canonical = rawText.replace(/\s+/g, " ").trim().toLowerCase();
   const contentHash = createHash("sha256").update(canonical).digest("hex");
   const sevenDaysAgo = new Date(Date.now() - SEVEN_DAYS).toISOString();
