@@ -1,5 +1,6 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminPerm, adminAudit } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -8,12 +9,6 @@ export const dynamic = "force-dynamic";
 // /admin, which jobsai.work redirects back to this enterprise portal).
 const CONSUMER_URL = process.env.NEXT_PUBLIC_CONSUMER_URL ?? "https://jobsai.work";
 
-async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId) ? userId : null;
-}
 
 // POST /api/admin/users/[userId]/impersonate — "Open account".
 //
@@ -27,8 +22,9 @@ async function requireAdmin() {
 // aren't capped. Trade-off: no Clerk `actor` claim, so the consumer side drives
 // the "Viewing as / Exit" banner from a per-tab flag instead.
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const ctx = await requireAdminPerm("users.impersonate");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const adminId = ctx.userId;
   const { userId } = await params;
 
   if (userId === adminId) {
@@ -71,6 +67,8 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ us
   } catch (err) {
     console.error("impersonate: admin return token failed (non-fatal):", err);
   }
+
+  await adminAudit(ctx, "users.impersonate", { type: "user", id: userId });
 
   const handoffUrl = `${CONSUMER_URL}/impersonate-handoff?ticket=${encodeURIComponent(token)}&imp=1`
     + (returnToken ? `&rt=${encodeURIComponent(returnToken)}` : "");

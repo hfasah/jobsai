@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 
 type Ctx = { params: Promise<{ orgId: string }> };
 
 // GET — org detail + members + LLM cost breakdown
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise.manage");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { orgId } = await params;
 
   const { data: org } = await supabaseAdmin.from("enterprise_orgs").select("*").eq("id", orgId).maybeSingle();
@@ -69,8 +69,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 
 // PUT — admin updates (notes, status, plan label, onboarding flag)
 export async function PUT(req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise.manage");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { orgId } = await params;
   const body = await req.json().catch(() => ({}));
 

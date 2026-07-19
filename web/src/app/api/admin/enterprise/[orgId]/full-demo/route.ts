@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { getOrgEntitlements } from "@/lib/enterprise-entitlements";
 
 type Ctx = { params: Promise<{ orgId: string }> };
@@ -21,8 +21,8 @@ const ADDONS = ["ai_interviews", "recruiting_agent", "sms_whatsapp", "white_labe
 // on plan_features or org_addons writes succeeding. Deliberately separate from
 // the generic "Open as-is" so we never hand a real customer free features.
 export async function POST(_req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise.manage");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { orgId } = await params;
 
   const { data: org } = await supabaseAdmin.from("enterprise_orgs").select("id").eq("id", orgId).maybeSingle();

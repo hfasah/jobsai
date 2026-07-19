@@ -1,14 +1,13 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { requireAdminPerm } from "@/lib/admin";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId) ? userId : null;
+  const ctx = await requireAdminPerm("overview");
+  return ctx ? ctx.userId : null;
 }
 
 const PLAN_MRR: Record<string, number> = { pro: 29, premium: 79, accelerator: 199 };

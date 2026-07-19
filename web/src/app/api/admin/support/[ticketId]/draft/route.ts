@@ -1,5 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminPerm } from "@/lib/admin";
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase";
 import { recordUsage } from "@/lib/llm-usage";
@@ -13,10 +13,8 @@ let _ai: OpenAI | null = null;
 const ai = () => (_ai ??= new OpenAI({ apiKey: process.env.OPENAI_API_KEY }));
 
 async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId) ? userId : null;
+  const ctx = await requireAdminPerm("support");
+  return ctx ? ctx.userId : null;
 }
 
 // POST — draft a suggested reply (NOT sent). The admin reviews/edits, then sends

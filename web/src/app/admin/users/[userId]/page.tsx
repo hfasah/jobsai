@@ -186,6 +186,12 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
   const summary = (data.tokenSummary as TokenSummary | undefined) ?? null;
   const currentPlan = (billing?.plan as string) ?? "free";
   const banned = Boolean(user.banned);
+  // Server-derived caller permissions (RBAC). `!== false` keeps everything
+  // visible for super admins and during rollout; the API enforces regardless.
+  const perms = (data.permissions ?? {}) as {
+    grant_credits?: boolean; grant_allowance_today?: number | null; money_refund?: boolean;
+    cancel_sub?: boolean; suspend?: boolean; delete?: boolean; impersonate?: boolean; plan_override?: boolean;
+  };
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -213,21 +219,25 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
         </div>
         {/* Admin controls */}
         <div className="flex flex-col items-stretch gap-2 shrink-0">
+          {perms.plan_override !== false && (
+            <div className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-muted-foreground" />
+              <select value={currentPlan} onChange={(e) => changePlan(e.target.value)}
+                disabled={changing}
+                className="h-9 flex-1 rounded-lg border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">
+                {PLANS.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
+              </select>
+            </div>
+          )}
           <div className="flex items-center gap-2">
-            <ShieldCheck className="h-4 w-4 text-muted-foreground" />
-            <select value={currentPlan} onChange={(e) => changePlan(e.target.value)}
-              disabled={changing}
-              className="h-9 flex-1 rounded-lg border border-border bg-card px-2.5 text-sm outline-none focus:ring-2 focus:ring-primary disabled:opacity-50">
-              {PLANS.map((p) => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)}
-            </select>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={openAccount} disabled={opening || banned}
-              title={banned ? "Reactivate the account first" : "Sign in as this user (consumer dashboard)"}
-              className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50">
-              {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Access account
-            </button>
-            {banned ? (
+            {perms.impersonate !== false && (
+              <button onClick={openAccount} disabled={opening || banned}
+                title={banned ? "Reactivate the account first" : "Sign in as this user (consumer dashboard)"}
+                className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-3 text-sm font-medium transition-colors hover:bg-accent disabled:opacity-50">
+                {opening ? <Loader2 className="h-4 w-4 animate-spin" /> : <LogIn className="h-4 w-4" />} Access account
+              </button>
+            )}
+            {perms.suspend !== false && (banned ? (
               <button onClick={() => toggleBan(true)} disabled={banBusy}
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-emerald-500/40 px-3 text-sm font-medium text-emerald-600 transition-colors hover:bg-emerald-500/10 disabled:opacity-50 dark:text-emerald-400">
                 {banBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCcw className="h-4 w-4" />} Reactivate
@@ -237,7 +247,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
                 className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-red-500/40 px-3 text-sm font-medium text-red-600 transition-colors hover:bg-red-500/10 disabled:opacity-50 dark:text-red-400">
                 {banBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />} Suspend
               </button>
-            )}
+            ))}
           </div>
           {controlMsg && (
             <p className={cn("text-right text-xs font-medium", controlMsg.startsWith("✓") ? "text-emerald-500" : "text-red-400")}>
@@ -271,7 +281,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
                 View in Stripe →
               </a>
             )}
-            {billing.stripe_subscription_id && billing.subscription_status !== "canceled" && (
+            {perms.cancel_sub !== false && billing.stripe_subscription_id && billing.subscription_status !== "canceled" && (
               <button
                 onClick={cancelSubscription}
                 disabled={cancelBusy}
@@ -299,8 +309,14 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
 
         <div className="grid gap-4 md:grid-cols-2">
           {/* Grant credits */}
+          {perms.grant_credits !== false && (
           <div className="rounded-xl border border-border bg-background/40 p-4">
-            <p className="mb-2 text-sm font-medium">Grant credits</p>
+            <p className="mb-2 text-sm font-medium">
+              Grant credits
+              {typeof perms.grant_allowance_today === "number" && (
+                <span className="ml-2 text-xs font-normal text-muted-foreground">({perms.grant_allowance_today.toLocaleString()} left today)</span>
+              )}
+            </p>
             <input type="number" min={1} value={creditAmount} onChange={(e) => setCreditAmount(e.target.value)} placeholder="Tokens (e.g. 5000)"
               className="mb-2 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary" />
             <input value={creditReason} onChange={(e) => setCreditReason(e.target.value)} placeholder="Reason (e.g. support issue, goodwill)"
@@ -311,8 +327,10 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
               Grant credits
             </button>
           </div>
+          )}
 
           {/* Money refund (exceptional) */}
+          {perms.money_refund !== false && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
             <p className="mb-2 text-sm font-medium text-amber-600 dark:text-amber-400">Money refund (exceptional)</p>
             <input value={refundRef} onChange={(e) => setRefundRef(e.target.value)} placeholder="Stripe payment intent / charge id"
@@ -325,6 +343,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
               Issue money refund
             </button>
           </div>
+          )}
         </div>
 
         {actionMsg && <p className="mt-3 text-sm font-medium text-desyn-success">{actionMsg}</p>}
@@ -510,6 +529,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
       )}
 
       {/* Danger zone — permanent deletion */}
+      {perms.delete !== false && (
       <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5">
         <h2 className="flex items-center gap-2 font-semibold text-red-500"><Trash2 className="h-4 w-4" /> Danger zone</h2>
         <p className="mt-1 mb-3 max-w-xl text-xs text-muted-foreground">
@@ -526,6 +546,7 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
         </button>
         {deleteMsg && <p className="mt-2 text-xs font-medium text-red-400">{deleteMsg}</p>}
       </div>
+      )}
     </div>
   );
 }

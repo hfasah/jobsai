@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const provided = req.headers.get("x-admin-stats-token");
   const tokenOk = !!token && provided === token;
   if (!tokenOk) {
-    const admin = await requireAdmin();
-    if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    const admin = await requireAdminPerm("enterprise");
+    if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const [{ data: orgs }, { data: plans }] = await Promise.all([

@@ -1,3 +1,4 @@
+import { requireAdminPerm } from "@/lib/admin";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
@@ -5,10 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 export const dynamic = "force-dynamic";
 
 async function requireAdmin(): Promise<boolean> {
-  const { userId } = await auth();
-  if (!userId) return false;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId);
+  return Boolean(await requireAdminPerm("analytics"));
 }
 
 const STUCK_MS = 60 * 60 * 1000; // pending older than 1h = webhook never landed

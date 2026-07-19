@@ -1,5 +1,5 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminPerm } from "@/lib/admin";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend, FROM_SUPPORT, REPLY_TO_SUPPORT } from "@/lib/resend";
 import { linkifyHtml } from "@/lib/email-utils";
@@ -9,10 +9,8 @@ function escapeHtml(s: string): string {
 }
 
 async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId) ? userId : null;
+  const ctx = await requireAdminPerm("support");
+  return ctx ? ctx.userId : null;
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ ticketId: string }> }) {

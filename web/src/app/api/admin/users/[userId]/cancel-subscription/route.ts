@@ -1,15 +1,13 @@
-import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminPerm } from "@/lib/admin";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getStripe } from "@/lib/stripe";
 
 export const dynamic = "force-dynamic";
 
 async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId) ? userId : null;
+  const ctx = await requireAdminPerm("users.cancel_sub");
+  return ctx ? ctx.userId : null;
 }
 
 // POST /api/admin/users/[userId]/cancel-subscription { immediately?: boolean }

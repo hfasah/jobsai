@@ -1,21 +1,16 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { addTokens, getTokenAccount } from "@/lib/tokens";
 import { getStripe } from "@/lib/stripe";
 import { createNotification } from "@/lib/notifications";
+import { requireAdminPerm, adminAudit, grantAllowanceToday } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
-async function requireAdmin() {
-  const { userId } = await auth();
-  if (!userId) return null;
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  return adminIds.includes(userId) ? userId : null;
-}
-
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const ctx = await requireAdminPerm("users.view");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { userId } = await params;
 
   const client = await clerkClient();
@@ -85,7 +80,21 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     recent: attempts.slice(0, 20),
   };
 
+  // The client page hides actions the caller can't perform (the server checks
+  // below are the real enforcement).
+  const permissions = {
+    grant_credits: ctx.can("users.grant_credits"),
+    grant_allowance_today: ctx.can("users.grant_credits") ? await grantAllowanceToday(ctx).then((n) => (Number.isFinite(n) ? n : null)) : 0,
+    money_refund: ctx.can("users.money_refund"),
+    cancel_sub: ctx.can("users.cancel_sub"),
+    suspend: ctx.can("users.suspend"),
+    delete: ctx.can("users.delete"),
+    impersonate: ctx.can("users.impersonate"),
+    plan_override: ctx.can("users.plan_override"),
+  };
+
   return NextResponse.json({
+    permissions,
     user: {
       id: clerkUser.id,
       email: clerkUser.emailAddresses[0]?.emailAddress ?? "—",
@@ -112,25 +121,36 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 // Body: { action: "grant_credit", amount, reason }
 //   or  { action: "refund", payment_intent_id?, charge_id?, reason, amount? }
 export async function POST(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const ctx = await requireAdminPerm("users.view");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const adminId = ctx.userId;
   const { userId } = await params;
   const body = await req.json().catch(() => ({}));
 
   // ── Grant credits (the default, preferred remedy) ──────────────────────────
   if (body.action === "grant_credit") {
+    if (!ctx.can("users.grant_credits")) return NextResponse.json({ error: "You don't have permission to grant credits." }, { status: 403 });
     const amount = Math.round(Number(body.amount));
     const reason = (body.reason as string | undefined)?.trim() || "Goodwill credit";
     if (!Number.isFinite(amount) || amount <= 0 || amount > 1_000_000) {
       return NextResponse.json({ error: "Enter a valid token amount." }, { status: 400 });
     }
+    const allowance = await grantAllowanceToday(ctx);
+    if (amount > allowance) {
+      return NextResponse.json(
+        { error: `Daily grant limit reached: ${Number.isFinite(allowance) ? allowance.toLocaleString() : "0"} credits remaining today (cap ${ctx.grantCapDaily?.toLocaleString()}). Escalate larger grants to a super admin.` },
+        { status: 403 },
+      );
+    }
     const balance = await addTokens(userId, amount, "admin_credit", { reason, by: adminId });
+    await adminAudit(ctx, "users.grant_credits", { type: "user", id: userId }, { amount, reason });
     createNotification(userId, "plan_upgraded", "Credits added", `We've added ${amount.toLocaleString()} tokens to your account: ${reason}.`, { amount, reason }).catch(() => {});
     return NextResponse.json({ ok: true, balance });
   }
 
   // ── Money refund (exceptional — via Stripe) ────────────────────────────────
   if (body.action === "refund") {
+    if (!ctx.can("users.money_refund")) return NextResponse.json({ error: "You don't have permission to issue money refunds." }, { status: 403 });
     const reason = (body.reason as string | undefined)?.trim() || "requested_by_customer";
     const payment_intent = (body.payment_intent_id as string | undefined)?.trim();
     const charge = (body.charge_id as string | undefined)?.trim();
@@ -154,6 +174,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
         metadata: { stripe_refund_id: refund.id, amount: refund.amount, currency: refund.currency, note: reason, by: adminId },
       });
       createNotification(userId, "plan_upgraded", "Refund issued", `A refund of ${(refund.amount / 100).toFixed(2)} ${refund.currency.toUpperCase()} has been processed.`, { refund_id: refund.id }).catch(() => {});
+      await adminAudit(ctx, "users.money_refund", { type: "user", id: userId }, { stripe_refund_id: refund.id, amount: refund.amount, currency: refund.currency, note: reason });
       return NextResponse.json({ ok: true, refund_id: refund.id, amount: refund.amount, currency: refund.currency });
     } catch (err) {
       console.error("Admin refund error:", err);
@@ -165,6 +186,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
   // Uses a Clerk privateMetadata flag (free) which the consumer app enforces,
   // rather than Clerk's paywalled banUser (returns 402 "Payment Required").
   if (body.action === "ban" || body.action === "unban") {
+    if (!ctx.can("users.suspend")) return NextResponse.json({ error: "You don't have permission to suspend accounts." }, { status: 403 });
     if (userId === adminId) {
       return NextResponse.json({ error: "You can't suspend your own account." }, { status: 400 });
     }
@@ -178,6 +200,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       console.error("Admin suspend/reactivate error:", err);
       return NextResponse.json({ error: err instanceof Error ? err.message : "Action failed." }, { status: 422 });
     }
+    await adminAudit(ctx, suspend ? "users.suspend" : "users.unsuspend", { type: "user", id: userId });
     return NextResponse.json({ ok: true, banned: suspend });
   }
 
@@ -186,11 +209,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
 
 // PATCH — admin can change a user's plan
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  if (!(await requireAdmin())) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const ctx = await requireAdminPerm("users.plan_override");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { userId } = await params;
   const body = await req.json().catch(() => ({}));
 
   if (body.plan) {
+    await adminAudit(ctx, "users.plan_override", { type: "user", id: userId }, { plan: body.plan });
     await supabaseAdmin.from("user_billing").upsert(
       { user_id: userId, plan: body.plan, subscription_status: body.plan === "free" ? "inactive" : "active" },
       { onConflict: "user_id" }
@@ -205,8 +230,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ us
 //   2. delete every DB row keyed by user_id (admin_delete_user_data fn),
 //   3. delete the Clerk login.
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ userId: string }> }) {
-  const adminId = await requireAdmin();
-  if (!adminId) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const ctx = await requireAdminPerm("users.delete");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const adminId = ctx.userId;
   const { userId } = await params;
   if (userId === adminId) {
     return NextResponse.json({ error: "You can't delete your own account." }, { status: 400 });
@@ -262,5 +288,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ u
     );
   }
 
+  await adminAudit(ctx, "users.delete", { type: "user", id: userId }, { email, filesRemoved });
   return NextResponse.json({ ok: true, email, filesRemoved, cleanup });
 }

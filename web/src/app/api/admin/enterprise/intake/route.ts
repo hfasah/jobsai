@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
 // GET — list intake/lead submissions (newest first), optionally by status.
 export async function GET(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const status = new URL(req.url).searchParams.get("status") ?? "all";
   const query = supabaseAdmin

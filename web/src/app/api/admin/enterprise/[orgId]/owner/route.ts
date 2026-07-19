@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { inviteToken } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 
@@ -13,8 +13,8 @@ type Ctx = { params: Promise<{ orgId: string }> };
 // first sign-in via claimPendingInvites — no data is recreated. Use to set the
 // owner, change the owner, or simply re-send the login invite.
 export async function POST(req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise.manage");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const { orgId } = await params;
   const body = await req.json().catch(() => ({}));
