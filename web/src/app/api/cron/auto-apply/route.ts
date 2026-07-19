@@ -9,6 +9,7 @@ import { sendAutoApplyDigest } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
+import { refundStrandedAutoApplies } from "@/lib/apply-reconcile";
 import type { UserPreferences } from "@/types/preferences";
 
 const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
@@ -387,8 +388,16 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  console.log("[cron/auto-apply]", summary);
-  return NextResponse.json({ ok: true, ...summary });
+  // Settlement sweep: refund any auto_apply charge whose job did NOT end in a
+  // submitted application (manual_required, failed-without-refund, abandoned).
+  // A charge is only earned when the application actually went through.
+  const reconcile = await refundStrandedAutoApplies().catch((e) => {
+    console.error("[cron/auto-apply] reconcile failed:", e);
+    return null;
+  });
+
+  console.log("[cron/auto-apply]", summary, reconcile ?? {});
+  return NextResponse.json({ ok: true, ...summary, reconcile });
 }
 
 interface AutoApplyJobLog {
