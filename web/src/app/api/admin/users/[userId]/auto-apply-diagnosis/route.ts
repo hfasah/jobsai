@@ -31,7 +31,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
     supabaseAdmin.from("user_preferences").select("auto_apply_enabled, auto_apply_mode, auto_apply_threshold, job_titles, keywords, locations").eq("user_id", userId).maybeSingle(),
     supabaseAdmin.from("user_billing").select("plan, subscription_status").eq("user_id", userId).maybeSingle(),
     supabaseAdmin.from("user_tokens").select("balance").eq("user_id", userId).maybeSingle(),
-    supabaseAdmin.from("jobs").select("id, title, company, status, created_at, job_matches!left(match_score), apply_attempts!left(id, status)").eq("user_id", userId).gte("created_at", h26).order("created_at", { ascending: false }).limit(30),
+    // No embedded joins: a failing PostgREST embed reads as "no rows" with no
+    // error, which made this section report zero jobs while imports existed
+    // (2026-07-19). Matches/attempts are fetched separately below.
+    supabaseAdmin.from("jobs").select("id, title, company, status, created_at").eq("user_id", userId).gte("created_at", h26).order("created_at", { ascending: false }).limit(30),
     supabaseAdmin.from("jobs").select("id, created_at").eq("user_id", userId).gte("created_at", d7).order("created_at", { ascending: false }).limit(500),
     supabaseAdmin.from("apply_attempts").select("job_id, status, platform, error_msg, created_at").eq("user_id", userId).order("created_at", { ascending: false }).limit(15),
   ]);
@@ -48,15 +51,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
 
   // Jobs the NEXT cron run would see (imported in last 26h, no attempt yet),
   // with their scores vs the threshold.
-  type JobRow = { id: string; title: string | null; company: string | null; status: string | null; created_at: string; job_matches: { match_score: number | null }[] | { match_score: number | null } | null; apply_attempts: { id: string }[] | null };
+  type JobRow = { id: string; title: string | null; company: string | null; status: string | null; created_at: string };
   const jobs26 = (jobs26Q.data ?? []) as JobRow[];
+
+  const jobIds = jobs26.map((j) => j.id);
+  const [matches26Q, attempts26Q] = jobIds.length
+    ? await Promise.all([
+        supabaseAdmin.from("job_matches").select("job_id, match_score").in("job_id", jobIds),
+        supabaseAdmin.from("apply_attempts").select("job_id, status").eq("user_id", userId).in("job_id", jobIds),
+      ])
+    : [{ data: [], error: null }, { data: [], error: null }];
+  const matchByJob = new Map(((matches26Q.data ?? []) as { job_id: string; match_score: number | null }[]).map((m) => [m.job_id, m.match_score]));
+  const attemptStatusByJob = new Map<string, string[]>();
+  for (const a of (attempts26Q.data ?? []) as { job_id: string; status: string }[]) {
+    attemptStatusByJob.set(a.job_id, [...(attemptStatusByJob.get(a.job_id) ?? []), a.status]);
+  }
+
   const window_jobs = jobs26.map((j) => {
-    const m = Array.isArray(j.job_matches) ? j.job_matches[0] : j.job_matches;
+    const score = matchByJob.get(j.id) ?? null;
+    const attemptStatuses = attemptStatusByJob.get(j.id) ?? [];
+    // Mirrors the cron: all-manual_required jobs are still in play (Skyvern
+    // escalation); anything submitted/pending/failed/blocked is done.
+    const stillEligible = attemptStatuses.every((s) => s === "manual_required");
     return {
       id: j.id, title: j.title, company: j.company, job_status: j.status, imported_at: j.created_at,
-      match_score: m?.match_score ?? null,
-      already_attempted: (j.apply_attempts ?? []).length > 0,
-      would_auto_apply: (j.apply_attempts ?? []).length === 0 && m?.match_score != null && m.match_score >= threshold && mode !== "review",
+      match_score: score,
+      attempt_statuses: attemptStatuses,
+      would_auto_apply: stillEligible && score != null && score >= threshold && mode !== "review",
     };
   });
 
@@ -74,7 +95,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ use
   if (!paidEligible && !tokenEligible) blockers.push(`Not eligible: no active paid subscription AND balance ${balance} < 600.`);
   if ((prefs?.job_titles?.length ?? 0) === 0 && (prefs?.keywords?.length ?? 0) === 0) blockers.push("No job_titles or keywords — the DISCOVER cron skips this user, so no jobs are ever imported for auto-apply.");
   if (window_jobs.length === 0) blockers.push("Zero jobs imported in the last 26h — the auto-apply cron had NOTHING to process at its last run (check discovery: import history below).");
-  const unattempted = window_jobs.filter((j) => !j.already_attempted);
+  const unattempted = window_jobs.filter((j) => j.attempt_statuses.every((s) => s === "manual_required"));
   if (unattempted.length > 0 && unattempted.every((j) => j.match_score == null || j.match_score < threshold)) {
     blockers.push(`Jobs exist but ALL score below the ${threshold} threshold (mode=${mode}) — they are queued for review silently, no attempt rows are created.`);
   }
