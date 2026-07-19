@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { runResumeParse } from "@/lib/resume-parse-pipeline";
 
 export const maxDuration = 60;
@@ -17,8 +17,8 @@ const STUCK_STATES = ["pending", "extracting_text", "partial"];
 //   ?limit=<n>               batch size (default 10, max 50)
 // Runs the batch via after() so the response returns immediately.
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("ops");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const userId = req.nextUrl.searchParams.get("userId");
   const limit = Math.min(

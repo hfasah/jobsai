@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { resend, FROM_SUPPORT, SUPPORT_EMAIL } from "@/lib/resend";
 import { quoteEmail } from "@/lib/enterprise-email";
 import { fmtUSD } from "@/lib/enterprise-quote";
@@ -11,8 +11,8 @@ const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.jobsai.work").r
 
 // PATCH — update a quote's status (e.g. mark accepted/expired from the admin).
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const b = await req.json().catch(() => ({}));
   const patch: Record<string, unknown> = {};
@@ -24,8 +24,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // POST — email the quote to the client and mark it sent.
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
 
   const { data: q } = await supabaseAdmin.from("enterprise_quotes").select("*").eq("id", id).maybeSingle();

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { STAGE_BY_KEY } from "@/lib/sales-pipeline";
 
 export const dynamic = "force-dynamic";
@@ -8,8 +8,8 @@ export const dynamic = "force-dynamic";
 // PATCH — update a deal (fields and/or stage). Used by the board's drag-to-move
 // and the edit modal.
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("sales");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const b = await req.json().catch(() => ({}));
 
@@ -32,8 +32,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE — remove a deal.
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("sales");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
   const { error } = await supabaseAdmin.from("sales_deals").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { supabaseAdmin } from "@/lib/supabase";
 import { resend } from "@/lib/resend";
 import { adminCreatePartner } from "@/lib/partner-program";
@@ -10,16 +10,16 @@ const validEmail = (e: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e);
 
 // List all partners + stats for the admin portal.
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("partners");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const partners = await listPartnersForAdmin();
   return NextResponse.json({ data: partners });
 }
 
 // Create a partner directly (active + verified) and email them their links.
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("partners");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const b = await req.json().catch(() => ({}));
   const email = String(b.email ?? "").trim();
@@ -64,8 +64,8 @@ export async function POST(req: NextRequest) {
 
 // Update a partner: approve / suspend / reactivate, or adjust commission rate.
 export async function PATCH(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("partners");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const id = body.id as string | undefined;

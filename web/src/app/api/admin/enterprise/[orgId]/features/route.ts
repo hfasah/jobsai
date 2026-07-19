@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { loadCatalog } from "@/lib/enterprise-catalog";
 import { getOrgEntitlements } from "@/lib/enterprise-entitlements";
 
@@ -12,8 +12,8 @@ type Ctx = { params: Promise<{ orgId: string }> };
 // it, the admin override state (on/off/null), and the effective result. Drives
 // the admin "Plan & feature access" panel.
 export async function GET(_req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise.manage");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { orgId } = await params;
 
   const { data: org } = await supabaseAdmin.from("enterprise_orgs").select("id").eq("id", orgId).maybeSingle();
@@ -59,8 +59,8 @@ export async function GET(_req: NextRequest, { params }: Ctx) {
 //   { plan_slug }                         → change plan
 //   { feature_key, state: "on"|"off"|"default" } → force on / force off / clear
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise.manage");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { orgId } = await params;
   const body = await req.json().catch(() => ({}));
 

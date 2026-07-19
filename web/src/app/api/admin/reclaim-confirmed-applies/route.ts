@@ -1,4 +1,4 @@
-import { auth } from "@clerk/nextjs/server";
+import { requireAdminPerm } from "@/lib/admin";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { reclaimConfirmedApply } from "@/lib/agent-cost";
@@ -9,9 +9,7 @@ export const maxDuration = 300;
 async function authorized(req: NextRequest): Promise<boolean> {
   const bearer = req.headers.get("authorization");
   if (process.env.CRON_SECRET && bearer === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const { userId } = await auth();
-  if (!userId) return false;
-  return (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).includes(userId);
+  return Boolean(await requireAdminPerm("ops"));
 }
 
 // One-time (re-runnable) backfill: reclaim refunds for PAST auto-applies the

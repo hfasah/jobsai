@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +16,8 @@ function stripHtml(html: string): string {
 
 // GET — all blog posts (newest first), for the admin list.
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("blog");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { data, error } = await supabaseAdmin
     .from("blog_posts").select(SELECT).order("published_at", { ascending: false }).limit(500);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -27,8 +27,8 @@ export async function GET() {
 // POST — create or update a post (upsert on slug). Body: { slug?, title, excerpt?,
 // content_html, cover_image_url?, author?, tag?, published_at? }.
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("blog");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const b = await req.json().catch(() => ({}));
   const title = (b.title as string | undefined)?.trim();

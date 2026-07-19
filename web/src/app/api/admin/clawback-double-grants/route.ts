@@ -1,4 +1,5 @@
-import { auth, clerkClient } from "@clerk/nextjs/server";
+import { requireAdminPerm } from "@/lib/admin";
+import { clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { deductTokens } from "@/lib/tokens";
@@ -13,9 +14,7 @@ const ALWAYS_GRANDFATHER = ["tom.bianco@gmail.com"];
 async function authorized(req: NextRequest): Promise<boolean> {
   const bearer = req.headers.get("authorization");
   if (process.env.CRON_SECRET && bearer === `Bearer ${process.env.CRON_SECRET}`) return true;
-  const { userId } = await auth();
-  if (!userId) return false;
-  return (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).includes(userId);
+  return Boolean(await requireAdminPerm("ops"));
 }
 
 // Resolve a set of email addresses to Clerk user IDs (for exclusion).

@@ -1,38 +1,45 @@
 "use server";
-import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, CreditCard, Building2,
-  MessageSquareWarning, ShieldCheck, Inbox, BarChart3, Globe, Handshake, Target, Newspaper, Rocket, Coins,
+  MessageSquareWarning, ShieldCheck, Inbox, BarChart3, Globe, Handshake, Target, Newspaper, Rocket, Coins, UserCog,
 } from "lucide-react";
 import { AdminSignOut } from "@/components/admin-sign-out";
+import { getAdminContext, type AdminPerm } from "@/lib/admin";
 
-async function checkAdmin() {
-  const { userId } = await auth();
-  if (!userId) redirect("/sign-in");
-  const adminIds = (process.env.ADMIN_USER_IDS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
-  if (!adminIds.includes(userId)) redirect("/dashboard");
-}
+const ROLE_LABEL: Record<string, string> = {
+  super_admin: "Super Admin Portal",
+  support_agent: "Support Portal",
+  support_lead: "Support Portal (Lead)",
+  analyst: "Analytics Portal",
+  sales: "Sales Portal",
+};
 
-const NAV = [
-  { href: "/admin",             label: "Overview",     icon: LayoutDashboard },
-  { href: "/admin/users",       label: "All Users",    icon: Users },
-  { href: "/admin/subscribers", label: "Subscribers",  icon: CreditCard },
-  { href: "/admin/usage",       label: "Token Usage",  icon: BarChart3 },
-  { href: "/admin/apply-health", label: "Auto-Apply",  icon: Rocket },
-  { href: "/admin/reclaim",     label: "Revenue Reclaim", icon: Coins },
-  { href: "/admin/traffic",     label: "Traffic",      icon: Globe },
-  { href: "/admin/enterprise",  label: "Enterprise",   icon: Building2 },
-  { href: "/admin/blog",        label: "Blog",         icon: Newspaper },
-  { href: "/admin/sales",       label: "Sales",        icon: Target },
-  { href: "/admin/partners",    label: "Partners",     icon: Handshake },
-  { href: "/admin/churn",       label: "Churn",        icon: MessageSquareWarning },
-  { href: "/admin/support",     label: "Support Inbox", icon: Inbox },
+// Nav gated per area — hiding is cosmetic; every API route enforces the same
+// permission server-side.
+const NAV: { href: string; label: string; icon: typeof Users; perm: AdminPerm }[] = [
+  { href: "/admin",             label: "Overview",        icon: LayoutDashboard, perm: "overview" },
+  { href: "/admin/users",       label: "All Users",       icon: Users,           perm: "users.view" },
+  { href: "/admin/subscribers", label: "Subscribers",     icon: CreditCard,      perm: "analytics" },
+  { href: "/admin/usage",       label: "Token Usage",     icon: BarChart3,       perm: "analytics" },
+  { href: "/admin/apply-health", label: "Auto-Apply",     icon: Rocket,          perm: "analytics" },
+  { href: "/admin/reclaim",     label: "Revenue Reclaim", icon: Coins,           perm: "ops" },
+  { href: "/admin/traffic",     label: "Traffic",         icon: Globe,           perm: "analytics" },
+  { href: "/admin/enterprise",  label: "Enterprise",      icon: Building2,       perm: "enterprise" },
+  { href: "/admin/blog",        label: "Blog",            icon: Newspaper,       perm: "blog" },
+  { href: "/admin/sales",       label: "Sales",           icon: Target,          perm: "sales" },
+  { href: "/admin/partners",    label: "Partners",        icon: Handshake,       perm: "partners" },
+  { href: "/admin/churn",       label: "Churn",           icon: MessageSquareWarning, perm: "analytics" },
+  { href: "/admin/support",     label: "Support Inbox",   icon: Inbox,           perm: "support" },
+  { href: "/admin/staff",       label: "Staff & Access",  icon: UserCog,         perm: "staff.manage" },
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
-  await checkAdmin();
+  const ctx = await getAdminContext();
+  if (!ctx) redirect("/dashboard");
+
+  const nav = NAV.filter((item) => ctx.can(item.perm));
 
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -43,7 +50,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           <span className="font-bold text-sm">JobsAI Admin</span>
         </div>
         <nav className="flex flex-col gap-0.5 p-2 flex-1">
-          {NAV.map(({ href, label, icon: Icon }) => (
+          {nav.map(({ href, label, icon: Icon }) => (
             <Link key={href} href={href}
               className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
               <Icon className="h-4 w-4 shrink-0" />
@@ -59,8 +66,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {/* Main */}
       <div className="flex flex-1 flex-col min-w-0">
         <header className="flex items-center justify-between border-b border-border bg-card px-6 py-3">
-          <p className="text-xs text-muted-foreground">Super Admin Portal</p>
-          <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">ADMIN</span>
+          <p className="text-xs text-muted-foreground">{ROLE_LABEL[ctx.role] ?? "Admin Portal"}</p>
+          <span className="rounded-full bg-destructive/10 px-2.5 py-0.5 text-[11px] font-semibold text-destructive">
+            {ctx.role === "super_admin" ? "ADMIN" : ctx.role.replace("_", " ").toUpperCase()}
+          </span>
         </header>
         <main className="flex-1 overflow-auto p-6">{children}</main>
       </div>

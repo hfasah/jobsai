@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 
 type Ctx = { params: Promise<{ id: string }> };
 
 // PATCH — update an intake's status (reviewed / archived / converted). When
 // converting, the admin UI also passes the created org_id.
 export async function PATCH(req: NextRequest, { params }: Ctx) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("enterprise");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { id } = await params;
 
   const { status, org_id } = (await req.json().catch(() => ({}))) as { status?: string; org_id?: string };

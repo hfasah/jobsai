@@ -1,22 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdminPerm } from "@/lib/admin";
 import { STAGE_BY_KEY } from "@/lib/sales-pipeline";
 
 export const dynamic = "force-dynamic";
 
 // GET — all deals (newest first).
 export async function GET() {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("sales");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const { data } = await supabaseAdmin.from("sales_deals").select("*").order("updated_at", { ascending: false }).limit(1000);
   return NextResponse.json({ data: data ?? [] });
 }
 
 // POST — create a deal.
 export async function POST(req: NextRequest) {
-  const admin = await requireAdmin();
-  if (!admin.ok) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const admin = await requireAdminPerm("sales");
+  if (!admin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const b = await req.json().catch(() => ({}));
   const title = (b.title as string | undefined)?.trim();
