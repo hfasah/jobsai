@@ -32,7 +32,9 @@ export async function POST(req: NextRequest, { params }: Ctx) {
 
   const { data: app, error } = await supabaseAdmin
     .from("enterprise_applications")
-    .update({ assigned_to: hiring_manager_id, updated_at: new Date().toISOString() })
+    // enterprise_applications has no updated_at column — writing it errored
+    // the whole update, so assignment 500'd for the user.
+    .update({ assigned_to: hiring_manager_id })
     .eq("id", appId).eq("org_id", org.id)
     .select("candidate_name, job:enterprise_jobs(title)")
     .single();

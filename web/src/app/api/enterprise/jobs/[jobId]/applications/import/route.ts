@@ -74,8 +74,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ job
       portfolio_url: row.portfolio_url?.trim() || null,
       source: row.source?.trim() || "import",
       stage: VALID_STAGES.has(stage ?? "") ? stage : "applied",
+      // NOTE: enterprise_applications has no created_by column — including it
+      // made every imported row fail.
       notes: row.notes?.trim() || null,
-      created_by: userId,
     });
 
     if (error) { errors.push(`${email}: ${error.message}`); continue; }

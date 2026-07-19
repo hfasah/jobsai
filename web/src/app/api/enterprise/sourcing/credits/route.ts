@@ -46,9 +46,23 @@ export async function PATCH(req: NextRequest) {
   for (const action of ACTIONS) {
     const v = costs[action];
     if (typeof v !== "number" || !Number.isInteger(v) || v < 0 || v > 1000) continue;
-    await supabaseAdmin
+    // The unique index on sourcing_credit_costs is an EXPRESSION index
+    // (coalesce(org_id, …), action) — Postgres won't match it for
+    // ON CONFLICT (org_id, action), so the old upsert errored silently and
+    // per-org cost overrides never saved. Explicit select→update/insert.
+    const { data: existing, error: exError } = await supabaseAdmin
       .from("sourcing_credit_costs")
-      .upsert({ org_id: org.id, action, cost: v }, { onConflict: "org_id,action" });
+      .select("id")
+      .eq("org_id", org.id)
+      .eq("action", action)
+      .maybeSingle();
+    const { error: writeError } = existing
+      ? await supabaseAdmin.from("sourcing_credit_costs").update({ cost: v }).eq("id", existing.id)
+      : await supabaseAdmin.from("sourcing_credit_costs").insert({ org_id: org.id, action, cost: v });
+    if (exError || writeError) {
+      console.error(`[sourcing/credits] cost override save failed (${action}):`, (exError ?? writeError)?.message);
+      continue;
+    }
     applied[action] = v;
   }
 
