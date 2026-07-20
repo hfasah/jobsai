@@ -104,8 +104,10 @@ function UsageBar({ label, used, limit }: { label: string; used: number; limit: 
 // ─── Cancel modal ─────────────────────────────────────────────────────────────
 
 type CancelReason = "too_expensive" | "found_alternative" | "got_job" | "not_using" | "missing_features" | "technical" | "other";
-type CancelStep = "survey" | "offer" | "done";
-type DoneVariant = "discount" | "pause" | "feedback";
+// Retention ladder: survey → reason-tailored offer → 30% off (2mo) → final
+// 50% off (2mo) → cancel. Discount-type reasons skip straight to the ladder.
+type CancelStep = "survey" | "offer" | "discount30" | "discount50" | "done";
+type DoneVariant = "discount30" | "discount50" | "pause" | "feedback";
 
 const CANCEL_REASONS_LIST: { id: CancelReason; label: string; subtext: string }[] = [
   { id: "too_expensive",     label: "It's too expensive",             subtext: "The price doesn't fit my budget right now" },
@@ -129,14 +131,25 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
   const [step, setStep]           = useState<CancelStep>("survey");
   const [reason, setReason]       = useState<CancelReason | null>(null);
   const [comment, setComment]     = useState("");
-  const [doneVariant, setDoneVariant] = useState<DoneVariant>("discount");
+  const [doneVariant, setDoneVariant] = useState<DoneVariant>("discount30");
   const [submitting, setSubmitting] = useState(false);
+  // Server-checked: one retention discount per customer per 12 months. While
+  // loading we assume eligible — the API enforces regardless.
+  const [discountEligible, setDiscountEligible] = useState(true);
+  const [offerError, setOfferError] = useState<string | null>(null);
 
-  const offerType: "discount" | "pause" | "feedback" | "support" = (() => {
-    if (!reason || reason === "too_expensive" || reason === "found_alternative" || reason === "other") return "discount";
+  useEffect(() => {
+    fetch("/api/billing/retention-offer")
+      .then((r) => r.json())
+      .then((j) => setDiscountEligible(j.eligible !== false))
+      .catch(() => {});
+  }, []);
+
+  const offerType: "pause" | "feedback" | "support" | null = (() => {
     if (reason === "got_job" || reason === "not_using") return "pause";
     if (reason === "missing_features") return "feedback";
-    return "support";
+    if (reason === "technical") return "support";
+    return null; // too_expensive / found_alternative / other → straight to the discount ladder
   })();
 
   const submitSurvey = async () => {
@@ -145,15 +158,34 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ reasons: [reason], comment, wait: false }),
     }).catch(() => {});
-    setStep("offer");
+    if (offerType) setStep("offer");
+    else if (discountEligible) setStep("discount30");
+    else onGoToPortal();
   };
 
-  const claimDiscount = async () => {
+  // "Still cancel" from a tailored offer: enter the discount ladder if allowed.
+  const declineTailored = () => {
+    if (discountEligible) setStep("discount30");
+    else onGoToPortal();
+  };
+
+  const claimDiscount = async (tier: "30" | "50") => {
     setSubmitting(true);
-    try { await fetch("/api/billing/retention-offer", { method: "POST" }); } catch { /* */ }
-    setSubmitting(false);
-    setDoneVariant("discount");
-    setStep("done");
+    setOfferError(null);
+    try {
+      const res = await fetch("/api/billing/retention-offer", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tier }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setOfferError(json.error ?? "Couldn't apply the discount."); return; }
+      setDoneVariant(tier === "50" ? "discount50" : "discount30");
+      setStep("done");
+    } catch {
+      setOfferError("Couldn't apply the discount. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const pauseSubscription = async () => {
@@ -222,13 +254,13 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
           </div>
         )}
 
-        {/* ── Step 2: Offer — discount ── */}
-        {step === "offer" && offerType === "discount" && (
+        {/* ── Discount ladder rung 1: 30% off for 2 months ── */}
+        {step === "discount30" && (
           <div className="p-6">
             <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-cta/10 text-2xl">💡</div>
             <h2 className="text-lg font-bold">Let&apos;s make it work for you</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Stay with JobsAI and get <span className="font-semibold text-cta">30% off for the next 3 months</span> — keep your tokens, resume, and progress.
+              Stay with JobsAI and get <span className="font-semibold text-cta">30% off for the next 2 months</span> — keep your tokens, resume, and progress.
             </p>
             <div className="mt-5 grid grid-cols-3 gap-3">
               {OFFER_PLANS.map(({ plan, label, monthly }) => {
@@ -247,16 +279,58 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
                 );
               })}
             </div>
-            <p className="mt-2 text-center text-xs text-muted-foreground">Applies for 3 months, then regular pricing resumes.</p>
+            <p className="mt-2 text-center text-xs text-muted-foreground">Applies for 2 months, then regular pricing resumes.</p>
+            {offerError && <p className="mt-2 text-center text-xs font-medium text-destructive">{offerError}</p>}
             <div className="mt-5 flex gap-2">
-              <button onClick={onGoToPortal}
+              <button onClick={() => setStep("discount50")}
                 className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                 Still cancel
               </button>
-              <button onClick={claimDiscount} disabled={submitting}
+              <button onClick={() => claimDiscount("30")} disabled={submitting}
                 className="btn-cta flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
                 {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
                 Claim 30% Off →
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Discount ladder rung 2 (final offer): 50% off for 2 months ── */}
+        {step === "discount50" && (
+          <div className="p-6">
+            <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-cta/10 text-2xl">🎁</div>
+            <h2 className="text-lg font-bold">Our best offer — half price</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This is the best we can do: <span className="font-semibold text-cta">50% off for the next 2 months</span>. After that, regular pricing resumes — cancel anytime.
+            </p>
+            <div className="mt-5 grid grid-cols-3 gap-3">
+              {OFFER_PLANS.map(({ plan, label, monthly }) => {
+                const discounted = Math.round(monthly * 0.5);
+                const isCurrent = plan === currentPlan;
+                return (
+                  <div key={plan} className={cn(
+                    "rounded-xl border p-3 text-center",
+                    isCurrent ? "border-cta bg-cta/10" : "border-border bg-muted/30"
+                  )}>
+                    <p className="text-xs font-semibold text-foreground">{label}</p>
+                    <p className="mt-1 text-xl font-bold">${discounted}<span className="text-xs font-normal text-muted-foreground">/mo</span></p>
+                    <p className="text-xs line-through text-muted-foreground">${monthly}/mo</p>
+                    {isCurrent && <p className="mt-1 text-[10px] font-semibold text-cta">Your plan</p>}
+                  </div>
+                );
+              })}
+            </div>
+            <p className="mt-2 text-center text-xs text-muted-foreground">One-time offer — it won&apos;t be shown again.</p>
+            {offerError && <p className="mt-2 text-center text-xs font-medium text-destructive">{offerError}</p>}
+            <div className="mt-5 flex gap-2">
+              <button onClick={onGoToPortal}
+                className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+                Cancel my subscription
+              </button>
+              <button onClick={() => claimDiscount("50")} disabled={submitting}
+                className="btn-cta flex-1 inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold disabled:opacity-60">
+                {submitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                Claim 50% Off →
               </button>
             </div>
           </div>
@@ -283,7 +357,7 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
               </div>
             </div>
             <div className="mt-5 flex gap-2">
-              <button onClick={onGoToPortal}
+              <button onClick={declineTailored}
                 className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                 Still cancel
               </button>
@@ -308,7 +382,7 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
               placeholder="What would make JobsAI perfect for you?"
               className="mt-4 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary" />
             <div className="mt-5 flex gap-2">
-              <button onClick={onGoToPortal}
+              <button onClick={declineTailored}
                 className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                 Still cancel
               </button>
@@ -335,7 +409,7 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
               </div>
             )}
             <div className="mt-5 flex gap-2">
-              <button onClick={onGoToPortal}
+              <button onClick={declineTailored}
                 className="flex-1 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
                 Still cancel
               </button>
@@ -348,12 +422,12 @@ function CancelModal({ currentPlan, onGoToPortal, onClose }: {
         )}
 
         {/* ── Step 3: Done — discount ── */}
-        {step === "done" && doneVariant === "discount" && (
+        {step === "done" && (doneVariant === "discount30" || doneVariant === "discount50") && (
           <div className="flex flex-col items-center gap-4 p-8 text-center">
             <div className="flex h-14 w-14 items-center justify-center rounded-full bg-cta/15 text-2xl">🎉</div>
             <div>
-              <p className="text-lg font-bold">30% Off Applied!</p>
-              <p className="mt-1 text-sm text-muted-foreground">Your discount is active for the next 3 months. Keep applying — your next interview is one step closer.</p>
+              <p className="text-lg font-bold">{doneVariant === "discount50" ? "50" : "30"}% Off Applied!</p>
+              <p className="mt-1 text-sm text-muted-foreground">Your discount is active for the next 2 months. Keep applying — your next interview is one step closer.</p>
             </div>
             <button onClick={onClose} className="btn-cta mt-2 inline-flex items-center justify-center rounded-xl px-6 py-2.5 text-sm font-semibold">
               Back to billing
