@@ -187,6 +187,30 @@ export async function sendWelcomeEmail(opts: { to: string; firstName?: string | 
   if (error) console.error("[email] welcome send failed:", error);
 }
 
+// Sent when someone is added to the admin portal staff roster (RBAC).
+export async function sendStaffAccessEmail(opts: {
+  to: string;
+  firstName?: string | null;
+  roleLabel: string;
+  addedByEmail?: string | null;
+}): Promise<void> {
+  const name = (opts.firstName || "").trim();
+  const hi = name ? `Hi ${escapeHtml(name)},` : "Hi there,";
+  const portalUrl = "https://app.jobsai.work/admin";
+
+  const body = `
+    ${h2("You've been given JobsAI Admin access 🔑")}
+    ${p(hi)}
+    ${p(`You now have access to the JobsAI admin portal as <strong>${escapeHtml(opts.roleLabel)}</strong>${opts.addedByEmail ? ` (added by ${escapeHtml(opts.addedByEmail)})` : ""}.`)}
+    ${p(`Sign in with this email address (${escapeHtml(opts.to)}) — the same login you already use for JobsAI — and open the portal:`)}
+    ${btn(portalUrl, "Open the Admin Portal")}
+    ${p(`You'll only see the tools your role includes. Every action in the portal is logged.`, true)}
+    ${p(`If you weren't expecting this, reply to this email and we'll remove the access.`, true)}
+  `;
+
+  await send(opts.to, "Your JobsAI Admin Portal access", wrap(body));
+}
+
 // ─── Email types ─────────────────────────────────────────────────────────────
 
 export async function sendApplySubmitted(
