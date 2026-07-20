@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdminPerm } from "@/lib/admin";
-import { uniqueSlug, inviteToken } from "@/lib/enterprise";
+import { uniqueSlug, inviteToken, inviteExpiresAt } from "@/lib/enterprise";
 import { getTemplate, ORG_TEMPLATES } from "@/lib/enterprise-templates";
 import { resend } from "@/lib/resend";
 
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   let inviteUrl: string | null = null;
   if (ownerEmail) {
     const { data: inv } = await supabaseAdmin.from("enterprise_invitations")
-      .insert({ org_id: org.id, email: ownerEmail, role: "owner", invited_by: admin.userId, token: inviteToken(slug) })
+      .insert({ org_id: org.id, email: ownerEmail, role: "owner", invited_by: admin.userId, token: inviteToken(slug), expires_at: inviteExpiresAt() })
       .select("token").single();
 
     if (inv) {

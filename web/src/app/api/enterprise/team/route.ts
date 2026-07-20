@@ -2,7 +2,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { enforceLimit } from "@/lib/enterprise-limits";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
-import { getMyOrg, getMyMembership, inviteToken } from "@/lib/enterprise";
+import { getMyOrg, getMyMembership, inviteToken, inviteExpiresAt } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 import { teamInviteEmail } from "@/lib/enterprise-email";
 import { audit } from "@/lib/enterprise-audit";
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
 
   const { data: invitation, error } = await supabaseAdmin
     .from("enterprise_invitations")
-    .insert({ org_id: org.id, email, role, invited_by: userId, token: inviteToken(org.slug) })
+    .insert({ org_id: org.id, email, role, invited_by: userId, token: inviteToken(org.slug), expires_at: inviteExpiresAt() })
     .select("*")
     .single();
 
