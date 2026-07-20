@@ -37,7 +37,7 @@ export function EnterprisePricingCards() {
       </div>
 
       {/* Plan cards */}
-      <div className="grid gap-6 lg:grid-cols-4">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {PLANS.map((p) => (
           <div key={p.name} className={`relative flex flex-col rounded-2xl border bg-card p-6 ${p.popular ? "border-primary shadow-glow" : "border-border"}`}>
             {p.popular && <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gradient-brand px-3 py-0.5 text-[11px] font-semibold text-white">⭐ Most Popular</span>}
@@ -72,6 +72,9 @@ export function EnterprisePricingCards() {
             {p.href.startsWith("http")
               ? <a href={p.href} target="_blank" rel="noreferrer" className="mt-5 flex items-center justify-center rounded-xl border border-border bg-card py-2.5 text-sm font-semibold hover:bg-muted">{p.cta}</a>
               : <Link href={p.href} className={`mt-5 flex items-center justify-center rounded-xl py-2.5 text-sm font-semibold ${p.popular ? "bg-gradient-brand text-white shadow-glow" : "border border-border bg-card hover:bg-muted"}`}>{p.cta}</Link>}
+            {p.badge && (
+              <p className="mt-2.5 text-center text-[11px] font-semibold text-emerald-500">{p.badge}</p>
+            )}
           </div>
         ))}
       </div>

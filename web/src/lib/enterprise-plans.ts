@@ -12,11 +12,22 @@ export type Plan = {
   cta: string;
   href: string;
   popular?: boolean;
+  badge?: string;         // reassurance ribbon under the CTA (e.g. Starter's upgrade promise)
 };
 
 const BOOK_DEMO = "/enterprise/demo";
 
 export const PLANS: Plan[] = [
+  {
+    name: "Starter",
+    sub: "For independent recruiters & boutique agencies",
+    journey: "Go Solo",
+    monthly: 99,
+    highlights: ["AI Recruiting ATS & CRM", "AI Match Scores & Top Picks", "Career Page & Candidate Portal", "Interview Scheduling (Google & Microsoft)", "Offer Letters & E-Signatures"],
+    includes: ["1 recruiter", "10 active jobs", "2,000 candidates"],
+    cta: "Start free trial", href: "/enterprise-login",
+    badge: "🚀 Upgrade anytime — keep all your data",
+  },
   {
     name: "Professional",
     sub: "For startups & growing teams",
