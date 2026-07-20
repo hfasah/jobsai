@@ -2,6 +2,8 @@ import { clerkClient } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdminPerm, adminAudit, type AdminRole } from "@/lib/admin";
+import { ROLE_LABELS } from "@/lib/admin-perms";
+import { sendStaffAccessEmail } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -56,7 +58,22 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   await adminAudit(ctx, "staff.add", { type: "staff", id: target.id }, { email, role });
-  return NextResponse.json({ ok: true, user_id: target.id });
+
+  // Tell them they're in — which role, and where to sign in. Awaited (never
+  // fire-and-forget on serverless) but non-fatal: access exists either way.
+  let adderEmail: string | null = null;
+  try {
+    const adder = await client.users.getUser(ctx.userId);
+    adderEmail = adder.emailAddresses[0]?.emailAddress ?? null;
+  } catch { /* non-fatal */ }
+  await sendStaffAccessEmail({
+    to: email,
+    firstName: target.firstName,
+    roleLabel: ROLE_LABELS[role],
+    addedByEmail: adderEmail,
+  }).catch((e) => console.error("[staff] access email failed:", e));
+
+  return NextResponse.json({ ok: true, user_id: target.id, email_sent: true });
 }
 
 // PATCH /api/admin/staff — update role / overrides / cap / active
