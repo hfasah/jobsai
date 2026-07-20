@@ -97,7 +97,13 @@ export default function AcceptInvitePage({ params }: { params: Promise<{ token: 
   );
 
   if (error && !info) return (
-    <Shell><p className="text-sm text-destructive">{error}</p></Shell>
+    <Shell>
+      <p className="text-sm text-destructive">{error}</p>
+      <a href="/enterprise-login"
+        className="mt-4 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground">
+        Sign in to your workspace
+      </a>
+    </Shell>
   );
 
   const inviteEmail = info!.email?.toLowerCase() ?? "";

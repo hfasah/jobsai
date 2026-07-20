@@ -178,6 +178,13 @@ export function inviteToken(slug: string): string {
   return `${clean}-${randomBytes(8).toString("hex")}`;
 }
 
+// Client invite links never expire (a client opening the welcome email weeks
+// later must still get in). The table default used to be 7 days and silently
+// killed links — always set this explicitly on insert.
+export function inviteExpiresAt(): string {
+  return new Date(Date.now() + 100 * 365 * 86_400_000).toISOString();
+}
+
 // Auto-join any enterprise org this user was invited to by email. The admin
 // "create org from intake" flow writes an enterprise_invitations row for the
 // primary contact; once that person creates a Clerk account (any sign-up), this

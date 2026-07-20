@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { requireAdminPerm } from "@/lib/admin";
-import { inviteToken } from "@/lib/enterprise";
+import { inviteToken, inviteExpiresAt } from "@/lib/enterprise";
 import { resend } from "@/lib/resend";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work";
@@ -33,25 +33,35 @@ export async function POST(req: NextRequest, { params }: Ctx) {
   // Record as the org's owner/primary contact.
   await supabaseAdmin.from("enterprise_orgs").update({ contact_email: email }).eq("id", orgId);
 
-  // Reuse a pending invite for this org+email, else create one.
+  // Reuse a pending invite for this org+email, else create one. Either way the
+  // link must be alive when it leaves this route: refresh the expiry on reuse —
+  // handing back a stale token was exactly how "freshly created" client links
+  // arrived dead ("Invalid or expired invitation", 2026-07-19).
   const { data: existing } = await supabaseAdmin
     .from("enterprise_invitations")
-    .select("token")
+    .select("id, token")
     .eq("org_id", orgId)
     .eq("email", email)
     .is("accepted_at", null)
     .maybeSingle();
   let token = existing?.token as string | undefined;
-  if (!token) {
+  if (token) {
+    const { error: refreshError } = await supabaseAdmin
+      .from("enterprise_invitations")
+      .update({ expires_at: inviteExpiresAt() })
+      .eq("id", existing!.id);
+    if (refreshError) console.error("[admin/owner] invite expiry refresh failed:", refreshError.message);
+  } else {
     token = inviteToken(org.slug);
-    await supabaseAdmin.from("enterprise_invitations").insert({
+    const { error: insertError } = await supabaseAdmin.from("enterprise_invitations").insert({
       org_id: orgId,
       email,
       role: "owner",
       invited_by: admin.userId,
       token,
-      expires_at: new Date(Date.now() + 30 * 86_400_000).toISOString(),
+      expires_at: inviteExpiresAt(),
     });
+    if (insertError) return NextResponse.json({ error: `Could not create the invitation: ${insertError.message}` }, { status: 500 });
   }
   const inviteUrl = `${APP_URL}/enterprise/invite/${token}`;
 
