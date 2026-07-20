@@ -62,7 +62,11 @@ export async function POST(req: NextRequest) {
   const contentHtml = pick(a, ["content_html", "html", "html_content", "content", "body", "article_html", "contentHtml"]) ?? "";
   const excerpt = pick(a, ["excerpt", "summary", "meta_description", "description", "seo_description", "metaDescription"])
     ?? stripHtml(contentHtml).slice(0, 180);
-  const cover = pick(a, ["cover_image_url", "featured_image_url", "cover_image", "featured_image", "image_url", "image", "og_image", "thumbnail", "coverImage"]) ?? null;
+  // Provider payloads rarely include a cover field, but the article HTML
+  // always carries images — fall back to the first <img src> so listing cards
+  // get a thumbnail (backfill for older posts: migration 181).
+  const firstImg = contentHtml.match(/<img[^>]+src="(https?:\/\/[^"]+)"/i)?.[1] ?? null;
+  const cover = pick(a, ["cover_image_url", "featured_image_url", "cover_image", "featured_image", "image_url", "image", "og_image", "thumbnail", "coverImage"]) ?? firstImg;
   const author = pick(a, ["author", "author_name", "byline", "authorName"]) ?? "The JobsAI Team";
   const tag = pick(a, ["tag", "category"]) ?? firstOfArray(a, ["tags", "keywords", "categories"]) ?? "Article";
   const publishedAt = toIso(pick(a, ["published_at", "publishedAt", "date", "published_date", "created_at", "createdAt"]));
