@@ -3,6 +3,7 @@ import { Check } from "lucide-react";
 // Grouped feature matrix — grouping makes the list feel shorter, and every
 // cell says what it means: "Included", "Add-on", or "—".
 const PLAN_HEADERS: { name: string; tag: string; popular?: boolean }[] = [
+  { name: "Starter", tag: "Solo Recruiters" },
   { name: "Professional", tag: "Best for Startups" },
   { name: "Agency", tag: "Most Popular ⭐", popular: true },
   { name: "Business", tag: "Best Value" },
@@ -10,58 +11,59 @@ const PLAN_HEADERS: { name: string; tag: string; popular?: boolean }[] = [
 ];
 
 type CellV = "in" | "addon" | "no";
-type Row = { label: string; v: [CellV, CellV, CellV, CellV] };
+type Row = { label: string; v: [CellV, CellV, CellV, CellV, CellV] };
 type Group = { title: string; rows: Row[] };
 
 const GROUPS: Group[] = [
   {
     title: "Core Recruiting",
     rows: [
-      { label: "Applicant Tracking System (ATS)", v: ["in", "in", "in", "in"] },
-      { label: "Career Pages & Candidate Portal", v: ["in", "in", "in", "in"] },
-      { label: "Interview Scheduling (Google / Microsoft)", v: ["in", "in", "in", "in"] },
-      { label: "Offer Letters & E-Signature", v: ["in", "in", "in", "in"] },
-      { label: "Candidate Comparison", v: ["in", "in", "in", "in"] },
+      { label: "Applicant Tracking System (ATS)", v: ["in", "in", "in", "in", "in"] },
+      { label: "Career Pages & Candidate Portal", v: ["in", "in", "in", "in", "in"] },
+      { label: "Interview Scheduling (Google / Microsoft)", v: ["in", "in", "in", "in", "in"] },
+      { label: "Offer Letters & E-Signature", v: ["in", "in", "in", "in", "in"] },
+      { label: "Candidate Comparison", v: ["no", "in", "in", "in", "in"] },
     ],
   },
   {
     title: "AI",
     rows: [
-      { label: "AI Candidate Scoring & Top Picks", v: ["in", "in", "in", "in"] },
-      { label: "AI Sourcing & Advanced Search", v: ["no", "in", "in", "in"] },
-      { label: "AI Outreach Campaigns & Email Sequences", v: ["no", "in", "in", "in"] },
-      { label: "AI Interview Suite (voice & avatar)", v: ["addon", "addon", "addon", "in"] },
-      { label: "Autonomous Recruiting Agent", v: ["addon", "addon", "addon", "addon"] },
+      { label: "AI Candidate Scoring & Top Picks", v: ["in", "in", "in", "in", "in"] },
+      { label: "AI Sourcing & Advanced Search", v: ["no", "no", "in", "in", "in"] },
+      { label: "AI Outreach Campaigns & Email Sequences", v: ["no", "no", "in", "in", "in"] },
+      { label: "AI Interview Suite (voice & avatar)", v: ["addon", "addon", "addon", "addon", "in"] },
+      { label: "Autonomous Recruiting Agent", v: ["addon", "addon", "addon", "addon", "addon"] },
     ],
   },
   {
     title: "Collaboration",
     rows: [
-      { label: "Recruiting CRM & Talent Pools", v: ["no", "in", "in", "in"] },
-      { label: "Client Portal & Reporting", v: ["no", "in", "in", "in"] },
-      { label: "Hiring Manager Workspace", v: ["no", "no", "in", "in"] },
-      { label: "Workflow Automation", v: ["no", "no", "in", "in"] },
-      { label: "White Label & Custom Domain", v: ["no", "in", "in", "in"] },
-      { label: "SMS & WhatsApp Messaging", v: ["addon", "addon", "addon", "addon"] },
+      { label: "Recruiting CRM & Talent Pools", v: ["in", "in", "in", "in", "in"] },
+      { label: "CRM Automation & Candidate Nurturing", v: ["no", "no", "in", "in", "in"] },
+      { label: "Client Portal & Reporting", v: ["no", "no", "in", "in", "in"] },
+      { label: "Hiring Manager Workspace", v: ["no", "no", "no", "in", "in"] },
+      { label: "Workflow Automation", v: ["no", "no", "no", "in", "in"] },
+      { label: "White Label & Custom Domain", v: ["no", "no", "in", "in", "in"] },
+      { label: "SMS & WhatsApp Messaging", v: ["addon", "addon", "addon", "addon", "addon"] },
     ],
   },
   {
     title: "Enterprise",
     rows: [
-      { label: "SAML / SSO & Advanced RBAC", v: ["no", "no", "in", "in"] },
-      { label: "Compliance Center (GDPR, Audit Logs, Legal Hold)", v: ["no", "no", "in", "in"] },
-      { label: "Executive Analytics & Funnel Reporting", v: ["no", "no", "in", "in"] },
-      { label: "ATS Integrations (Greenhouse, Lever & more)", v: ["no", "in", "in", "in"] },
-      { label: "Custom Integrations (Workday, ADP)", v: ["no", "no", "no", "in"] },
-      { label: "Dedicated Success Manager & Custom SLA", v: ["no", "no", "no", "in"] },
+      { label: "SAML / SSO & Advanced RBAC", v: ["no", "no", "no", "in", "in"] },
+      { label: "Compliance Center (GDPR, Audit Logs, Legal Hold)", v: ["no", "no", "no", "in", "in"] },
+      { label: "Executive Analytics & Funnel Reporting", v: ["no", "no", "no", "in", "in"] },
+      { label: "ATS Integrations (Greenhouse, Lever & more)", v: ["no", "no", "in", "in", "in"] },
+      { label: "Custom Integrations (Workday, ADP)", v: ["no", "no", "no", "no", "in"] },
+      { label: "Dedicated Success Manager & Custom SLA", v: ["no", "no", "no", "no", "in"] },
     ],
   },
 ];
 
 const LIMITS: { label: string; v: string[] }[] = [
-  { label: "Recruiters", v: ["3", "10", "25", "Unlimited"] },
-  { label: "Active jobs", v: ["10", "50", "Unlimited", "Unlimited"] },
-  { label: "Candidates", v: ["5,000", "50,000", "Unlimited", "Unlimited"] },
+  { label: "Recruiters", v: ["1", "3", "10", "25", "Unlimited"] },
+  { label: "Active jobs", v: ["10", "10", "50", "Unlimited", "Unlimited"] },
+  { label: "Candidates", v: ["2,000", "5,000", "50,000", "Unlimited", "Unlimited"] },
 ];
 
 function Cell({ v }: { v: CellV }) {
@@ -81,7 +83,7 @@ function Cell({ v }: { v: CellV }) {
 export function PlanComparison() {
   return (
     <div className="overflow-x-auto rounded-2xl border border-border">
-      <table className="w-full min-w-[720px] text-sm">
+      <table className="w-full min-w-[880px] text-sm">
         <thead>
           <tr className="border-b border-border bg-muted/40">
             <th className="px-4 py-3 text-left font-semibold">Features</th>
@@ -98,7 +100,7 @@ export function PlanComparison() {
             <FragmentGroup key={g.title} group={g} />
           ))}
           <tr className="border-t border-border bg-muted/40">
-            <td className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground" colSpan={5}>Capacity</td>
+            <td className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground" colSpan={6}>Capacity</td>
           </tr>
           {LIMITS.map((r) => (
             <tr key={r.label}>
@@ -116,7 +118,7 @@ function FragmentGroup({ group }: { group: Group }) {
   return (
     <>
       <tr className="border-t border-border bg-muted/40">
-        <td className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground" colSpan={5}>{group.title}</td>
+        <td className="px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground" colSpan={6}>{group.title}</td>
       </tr>
       {group.rows.map((r, i) => (
         <tr key={r.label} className={i % 2 ? "bg-muted/20" : ""}>
