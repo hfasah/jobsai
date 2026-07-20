@@ -76,6 +76,41 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: true, user_id: target.id, email_sent: true });
 }
 
+// PUT /api/admin/staff — resend the access notification email. Body: { user_id }
+export async function PUT(req: NextRequest) {
+  const ctx = await requireAdminPerm("staff.manage");
+  if (!ctx) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  const body = await req.json().catch(() => ({}));
+  const userId = String(body.user_id ?? "");
+  if (!userId) return NextResponse.json({ error: "user_id required." }, { status: 400 });
+
+  const { data: row, error } = await supabaseAdmin
+    .from("admin_staff")
+    .select("email, role, active")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (!row) return NextResponse.json({ error: "Staff member not found." }, { status: 404 });
+  if (!row.active) return NextResponse.json({ error: "This member is deactivated — reactivate before resending." }, { status: 400 });
+
+  const client = await clerkClient();
+  const [target, adder] = await Promise.all([
+    client.users.getUser(userId).catch(() => null),
+    client.users.getUser(ctx.userId).catch(() => null),
+  ]);
+
+  await sendStaffAccessEmail({
+    to: row.email,
+    firstName: target?.firstName ?? null,
+    roleLabel: ROLE_LABELS[row.role as AdminRole] ?? row.role,
+    addedByEmail: adder?.emailAddresses[0]?.emailAddress ?? null,
+  });
+
+  await adminAudit(ctx, "staff.notify_resend", { type: "staff", id: userId }, { email: row.email });
+  return NextResponse.json({ ok: true });
+}
+
 // PATCH /api/admin/staff — update role / overrides / cap / active
 // Body: { user_id, role?, overrides?, grant_cap_daily?, active? }
 export async function PATCH(req: NextRequest) {
