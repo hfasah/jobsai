@@ -143,6 +143,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
       );
     }
     const balance = await addTokens(userId, amount, "admin_credit", { reason, by: adminId });
+    // Granted credits must be usable: unlock the dashboard past the trial gate
+    // for non-subscribers (harmless for subscribers).
+    const { error: unlockError } = await supabaseAdmin.from("user_billing").upsert(
+      { user_id: userId, dashboard_access_override: true },
+      { onConflict: "user_id" }
+    );
+    if (unlockError) console.error("[admin] dashboard unlock on grant failed:", unlockError.message);
     await adminAudit(ctx, "users.grant_credits", { type: "user", id: userId }, { amount, reason });
     createNotification(userId, "plan_upgraded", "Credits added", `We've added ${amount.toLocaleString()} tokens to your account: ${reason}.`, { amount, reason }).catch(() => {});
     return NextResponse.json({ ok: true, balance });
@@ -202,6 +209,19 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ use
     }
     await adminAudit(ctx, suspend ? "users.suspend" : "users.unsuspend", { type: "user", id: userId });
     return NextResponse.json({ ok: true, banned: suspend });
+  }
+
+  // ── Dashboard access override (bypass the card-required trial gate) ────────
+  if (body.action === "dashboard_access") {
+    if (!ctx.can("users.plan_override")) return NextResponse.json({ error: "You don't have permission to change dashboard access." }, { status: 403 });
+    const enabled = body.enabled === true;
+    const { error } = await supabaseAdmin.from("user_billing").upsert(
+      { user_id: userId, dashboard_access_override: enabled },
+      { onConflict: "user_id" }
+    );
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    await adminAudit(ctx, "users.dashboard_access", { type: "user", id: userId }, { enabled });
+    return NextResponse.json({ ok: true, enabled });
   }
 
   return NextResponse.json({ error: "Unknown action." }, { status: 400 });

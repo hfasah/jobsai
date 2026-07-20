@@ -75,6 +75,23 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
     }
   };
 
+  // Bypass the card-required trial gate for this user (grandfathered credit
+  // buyers, comp accounts). Server enforces the users.plan_override permission.
+  const [accessBusy, setAccessBusy] = useState(false);
+  const toggleDashboardAccess = async (enabled: boolean) => {
+    setAccessBusy(true);
+    try {
+      await fetch(`/api/admin/users/${userId}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "dashboard_access", enabled }),
+      });
+      const fresh = await fetch(`/api/admin/users/${userId}`).then((r) => r.json());
+      setData(fresh);
+    } finally {
+      setAccessBusy(false);
+    }
+  };
+
   const changePlan = async (plan: string) => {
     setChanging(true);
     await fetch(`/api/admin/users/${userId}`, {
@@ -293,6 +310,23 @@ export default function AdminUserDetail({ params }: { params: Promise<{ userId: 
               </button>
             )}
             {cancelMsg && <span className={cn("text-xs font-medium", cancelMsg.startsWith("✓") ? "text-emerald-500" : "text-red-400")}>{cancelMsg}</span>}
+            {perms.plan_override !== false && (
+              billing.dashboard_access_override ? (
+                <button onClick={() => toggleDashboardAccess(false)} disabled={accessBusy}
+                  title="This user can use the dashboard WITHOUT a subscription (grandfathered credits / comp). Click to remove the bypass."
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-600 disabled:opacity-50 dark:text-emerald-400">
+                  {accessBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                  Dashboard access: bypass ON
+                </button>
+              ) : (
+                <button onClick={() => toggleDashboardAccess(true)} disabled={accessBusy}
+                  title="Let this user use the dashboard without a subscription (no card required) — for customers with purchased credits or comp accounts."
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-50">
+                  {accessBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ShieldCheck className="h-3.5 w-3.5" />}
+                  Grant no-card dashboard access
+                </button>
+              )
+            )}
           </div>
         </div>
       )}
