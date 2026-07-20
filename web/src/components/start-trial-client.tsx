@@ -61,14 +61,26 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
       <div className="w-full max-w-4xl text-center">
         {trialEligible ? (
           <>
-            <p className="mx-auto mb-3 inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-              <Sparkles className="h-3.5 w-3.5" /> 7-day free trial · 500 credits included
+            <h1 className="text-3xl font-bold sm:text-4xl">Try everything free for 7 days</h1>
+            <p className="mx-auto mt-2 text-lg font-bold text-emerald-500 sm:text-xl">
+              $0 today — your card will <span className="underline decoration-2 underline-offset-2">not</span> be charged
             </p>
-            <h1 className="text-3xl font-bold sm:text-4xl">Pick a plan to start your free trial</h1>
-            <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
-              A credit card is required to start. You won&apos;t be charged today — your trial runs for 7 days with 500
-              credits to try everything. Cancel anytime before day 7 and you pay nothing; otherwise your plan starts
-              automatically.
+            {/* The reassurances ARE the message — big, bold, colored, impossible
+                to miss. Nobody reads fine print under a price grid. */}
+            <div className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-2 sm:gap-3">
+              {[
+                { icon: <Sparkles className="h-4 w-4" />, text: "500 FREE credits" },
+                { icon: <ShieldCheck className="h-4 w-4" />, text: "No charge for 7 days" },
+                { icon: <Check className="h-4 w-4" />, text: "Cancel anytime — 1 click" },
+              ].map(({ icon, text }) => (
+                <span key={text} className="inline-flex items-center gap-1.5 rounded-full border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                  {icon} {text}
+                </span>
+              ))}
+            </div>
+            <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
+              Pick the plan to try — a card is needed to start, but nothing is charged today. Cancel before day 7 and
+              you pay nothing at all; otherwise your plan starts automatically.
             </p>
           </>
         ) : (
@@ -111,6 +123,9 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
                   {busy === t.key ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {trialEligible ? "Start 7-day free trial" : `Continue with ${t.name}`}
                 </button>
+                {trialEligible && (
+                  <p className="mt-2 text-center text-xs font-bold text-emerald-500">$0 due today · 500 free credits</p>
+                )}
               </div>
             );
           })}
