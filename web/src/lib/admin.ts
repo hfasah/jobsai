@@ -29,7 +29,9 @@ function buildContext(userId: string, role: AdminRole, overrides: Record<string,
     if (v === true) perms.add(p);
     else if (v === false) perms.delete(p);
   }
-  const grantCapDaily = capOverride ?? ROLE_GRANT_CAP[role] ?? null;
+  // Super admins are never capped — even a stray grant_cap_daily on their row
+  // is ignored.
+  const grantCapDaily = role === "super_admin" ? null : capOverride ?? ROLE_GRANT_CAP[role] ?? null;
   return { userId, role, perms, grantCapDaily, can: (perm) => perms.has(perm) };
 }
 
