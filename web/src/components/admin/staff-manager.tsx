@@ -158,9 +158,29 @@ export function StaffManager() {
             {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />} Add
           </button>
         </div>
-        {role === "support_agent" && (
-          <p className="text-xs text-muted-foreground">Support Agents can grant up to {(ROLE_GRANT_CAP.support_agent ?? 0).toLocaleString()} credits/day; larger grants escalate to you.</p>
-        )}
+        {/* Live preview: exactly what the selected role can and can't do —
+            the same matrix the API enforces, so no trial and error. */}
+        <div className="rounded-lg border border-border bg-background/40 p-3">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            {ROLE_LABELS[role]} — access preview
+            {role === "support_agent" && <> · grants capped at {(ROLE_GRANT_CAP.support_agent ?? 0).toLocaleString()} credits/day</>}
+          </p>
+          <div className="grid grid-cols-1 gap-x-4 gap-y-1 sm:grid-cols-2">
+            {ALL_PERMS.map((perm) => {
+              const has = ROLE_GRANTS[role].includes(perm);
+              const dangerous = DANGEROUS.includes(perm);
+              return (
+                <div key={perm} className={`flex items-center gap-1.5 text-xs ${has ? "" : "text-muted-foreground/60"}`}>
+                  <span className={has ? "text-emerald-500" : "text-muted-foreground/40"}>{has ? "✓" : "✕"}</span>
+                  <span className={has && dangerous ? "text-amber-500 font-medium" : ""}>{PERM_LABELS[perm]}{dangerous ? " ⚠" : ""}</span>
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            After adding, open the row&apos;s <span className="font-medium">Access</span> panel to toggle any individual tool for that person.
+          </p>
+        </div>
       </form>
 
       {/* Env super admins */}
