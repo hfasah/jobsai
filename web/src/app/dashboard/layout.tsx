@@ -38,7 +38,18 @@ export default async function DashboardLayout({
     // lock a paying customer out mid-dunning.
     const billing = await getUserBilling(userId);
     const subscribed = ["active", "trialing", "past_due"].includes(billing.subscription_status ?? "");
-    if (!subscribed) redirect("/start-trial");
+    if (!subscribed) {
+      // Grandfathered paid-credit customers (bought top-ups / support grants
+      // before the card gate) bypass the trial wall — migration 180 backfills
+      // the flag, and admins can toggle it per user. Fails closed pre-migration.
+      const { data: override, error: overrideError } = await supabaseAdmin
+        .from("user_billing")
+        .select("dashboard_access_override")
+        .eq("user_id", userId)
+        .maybeSingle();
+      if (overrideError) console.error("[dashboard-gate] override lookup failed:", overrideError.message);
+      if (!override?.dashboard_access_override) redirect("/start-trial");
+    }
   }
 
   // Check onboarding completion
