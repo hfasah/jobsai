@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, ShieldOff, ShieldCheck } from "lucide-react";
+import { Loader2, Plus, Trash2, ChevronDown, ChevronUp, ShieldOff, ShieldCheck, Mail } from "lucide-react";
 import {
   ALL_PERMS, ROLE_GRANTS, ROLE_GRANT_CAP, ROLE_LABELS, PERM_LABELS,
   type AdminPerm, type AdminRole,
@@ -99,6 +99,28 @@ export function StaffManager() {
       await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Update failed.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  const [notified, setNotified] = useState<string | null>(null);
+
+  async function resendNotify(userId: string) {
+    setBusy(userId);
+    setError(null);
+    try {
+      const res = await fetch("/api/admin/staff", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_id: userId }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Resend failed.");
+      setNotified(userId);
+      setTimeout(() => setNotified((cur) => (cur === userId ? null : cur)), 4000);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Resend failed.");
     } finally {
       setBusy(null);
     }
@@ -224,6 +246,11 @@ export function StaffManager() {
                   disabled={busy === row.user_id}
                   className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-xs font-medium ${row.active ? "bg-muted text-muted-foreground hover:text-foreground" : "bg-emerald-500/10 text-emerald-500"}`}>
                   {row.active ? <><ShieldOff className="h-3.5 w-3.5" /> Deactivate</> : <><ShieldCheck className="h-3.5 w-3.5" /> Reactivate</>}
+                </button>
+                <button onClick={() => resendNotify(row.user_id)} disabled={busy === row.user_id || !row.active}
+                  title={row.active ? "Resend the access notification email" : "Reactivate first"}
+                  className="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground disabled:opacity-50">
+                  <Mail className="h-3.5 w-3.5" /> {notified === row.user_id ? "Sent ✓" : "Resend invite"}
                 </button>
                 <button onClick={() => setExpanded(isExpanded ? null : row.user_id)}
                   className="inline-flex items-center gap-1 rounded-lg bg-muted px-2.5 py-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
