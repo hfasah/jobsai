@@ -51,7 +51,7 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
       if (!res.ok || !json.url) { setError(json.error ?? "Could not start checkout."); setBusy(null); return; }
       window.location.href = json.url;
     } catch {
-      setError("Something went wrong — try again.");
+      setError("Something went wrong. Please try again.");
       setBusy(null);
     }
   };
@@ -63,7 +63,7 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
           <>
             <h1 className="text-3xl font-bold sm:text-4xl">Try everything free for 7 days</h1>
             <p className="mx-auto mt-2 text-lg font-bold text-emerald-500 sm:text-xl">
-              $0 today — your card will <span className="underline decoration-2 underline-offset-2">not</span> be charged
+              $0 today: your card will <span className="underline decoration-2 underline-offset-2">not</span> be charged
             </p>
             {/* The reassurances ARE the message — big, bold, colored, impossible
                 to miss. Nobody reads fine print under a price grid. */}
@@ -71,7 +71,7 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
               {[
                 { icon: <Sparkles className="h-4 w-4" />, text: "500 FREE credits" },
                 { icon: <ShieldCheck className="h-4 w-4" />, text: "No charge for 7 days" },
-                { icon: <Check className="h-4 w-4" />, text: "Cancel anytime — 1 click" },
+                { icon: <Check className="h-4 w-4" />, text: "Cancel anytime, 1 click" },
               ].map(({ icon, text }) => (
                 <span key={text} className="inline-flex items-center gap-1.5 rounded-full border-2 border-emerald-500/50 bg-emerald-500/10 px-4 py-1.5 text-sm font-bold text-emerald-600 dark:text-emerald-400">
                   {icon} {text}
@@ -79,7 +79,7 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
               ))}
             </div>
             <p className="mx-auto mt-4 max-w-xl text-sm text-muted-foreground">
-              Pick the plan to try — a card is needed to start, but nothing is charged today. Cancel before day 7 and
+              Pick the plan to try. A card is needed to start, but nothing is charged today. Cancel before day 7 and
               you pay nothing at all; otherwise your plan starts automatically.
             </p>
           </>
@@ -88,7 +88,7 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
             <h1 className="text-3xl font-bold sm:text-4xl">Choose a plan to continue</h1>
             <p className="mx-auto mt-3 max-w-xl text-sm text-muted-foreground">
               Your account doesn&apos;t have an active subscription (free trials are one per customer). Pick a plan to
-              get back to your job search — you can cancel anytime.
+              get back to your job search. You can cancel anytime.
             </p>
           </>
         )}
@@ -134,12 +134,12 @@ export function StartTrialClient({ trialEligible }: { trialEligible: boolean }) 
         <p className="mx-auto mt-6 flex max-w-xl items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" />
           {trialEligible
-            ? "No charge until your trial ends. Cancel in one click from Billing. Card details are handled by Stripe — we never see them."
-            : "Secure checkout by Stripe. Cancel anytime — you keep access until the end of the period you paid for."}
+            ? "No charge until your trial ends. Cancel in one click from Billing. Card details are handled by Stripe. We never see them."
+            : "Secure checkout by Stripe. Cancel anytime. You keep access until the end of the period you paid for."}
         </p>
 
         <button onClick={() => signOut({ redirectUrl: "/" })} className="mt-8 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
-          Not now — sign out
+          Not now, sign out
         </button>
       </div>
     </main>

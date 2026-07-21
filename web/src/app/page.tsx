@@ -71,14 +71,14 @@ const FEATURES = [
 ];
 
 const TESTIMONIALS = [
-  { quote: "Six interviews booked in my first week — JobsAI ran every application for me while I focused on prepping. I just showed up and interviewed.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
+  { quote: "Six interviews booked in my first week. JobsAI ran every application for me while I focused on prepping. I just showed up and interviewed.", name: "Marcus T.", role: "Senior Software Engineer", initials: "MT" },
   { quote: "I stopped spending nights on applications, the interviews just started showing up. The prep tools got me the offer.", name: "Priya S.", role: "VP Product", initials: "PS" },
   { quote: "Five interviews in two weeks without me lifting a finger on applications. This is the whole job search, automated.", name: "Daniel R.", role: "Data Scientist", initials: "DR" },
 ];
 
 const FAQ = [
   { q: "What is JobsAI and how does it work?", a: "JobsAI is your AI job-search co-pilot, it takes you from a rough resume to interviews booked. It parses your background, tailors a resume and cover letter to each role, scores them against the ATS, finds matching jobs across the US, Canada, UK, and EU, and can auto-apply for you. When interviews land, it preps you to win them." },
-  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. We back it with our guarantee: interviews in 90 days or your money back (some conditions apply — see our Terms of Service)." },
+  { q: "How does JobsAI get me interviews faster?", a: "Every application is tailored to the job description, the right keywords to clear Applicant Tracking Systems, and sent at a volume and consistency that's hard to match by hand. More targeted applications, sent faster, means more interviews. We back it with our guarantee: interviews in 90 days or your money back (some conditions apply, see our Terms of Service)." },
   { q: "What's included, what can JobsAI do?", a: "One workflow covers it all: AI Resume Builder, Optimizer & ATS Score, Cover Letter Generator, a live Job Search board, Auto-Apply, Salary Explorer, Resume Translator (68+ languages), and a full interview suite, written coach, voice and avatar mock rounds, and the real-time Interview Buddy." },
   { q: "Do I need an existing resume to start?", a: "No. Upload a PDF or DOCX, import your LinkedIn profile, or start from scratch, JobsAI structures it into an editable profile and builds from there." },
   { q: "Will my resume be ATS-friendly?", a: "Yes. The templates use clean, parseable structure, and tailoring weaves in the right keywords naturally. The ATS Scanner then gives you a 0–100 score with specific fixes before you apply." },
@@ -120,8 +120,8 @@ export default function Home() {
             </h1>
 
             <p className="reveal reveal-3 mt-6 max-w-2xl text-lg text-muted-foreground">
-              {APP_NAME} runs your whole job search &mdash; tailoring every application, applying
-              for you, and reaching recruiters directly &mdash; then preps you for every interview
+              {APP_NAME} runs your whole job search: tailoring every application, applying
+              for you, and reaching recruiters directly. Then it preps you for every interview
               with AI coaching. You stop grinding applications and start landing them,{" "}
               <span className="font-semibold text-foreground">guaranteed in 90 days, or your money back.</span>
             </p>

@@ -7,7 +7,7 @@ import { StartTrialClient } from "@/components/start-trial-client";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Start your free trial — JobsAI",
+  title: "Start your free trial | JobsAI",
   description: "7-day free trial with 500 credits. Credit card required; cancel anytime before day 7 and you won't be charged.",
 };
 
