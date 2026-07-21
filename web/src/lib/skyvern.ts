@@ -191,8 +191,10 @@ export async function createSkyvernTask(p: SkyvernTaskPayload): Promise<SkyvernT
     webhook_url: p.webhookCallbackUrl,
     // skyvern-2.0 handles complex, multi-step flows (login + multi-page forms)
     engine: "skyvern-2.0",
-    // Charged per step — allow enough for login + multi-page forms
-    max_steps: 75,
+    // Charged per step, success or not — a hopeless run (login wall, captcha
+    // loop) must fail fast instead of thrashing. 40 covers real multi-page
+    // application forms; the old 75 nearly doubled the cost of every failure.
+    max_steps: 40,
   };
 
   const post = async (body: Record<string, unknown>) => {
