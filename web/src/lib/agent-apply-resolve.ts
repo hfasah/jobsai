@@ -145,3 +145,37 @@ export async function resolvePendingAgentTasks(userId: string): Promise<number> 
   );
   return resolved;
 }
+
+/**
+ * Resolve ALL users' unresolved agent tasks, oldest first — the cron-side
+ * backstop. Page-load reconciliation only helps users who visit; when the
+ * webhook is lost (e.g. the callback URL pointed at the wrong deploy,
+ * 2026-07-21: 15 tasks stuck >24h, users charged with nothing to show),
+ * nobody settles the rest. Called at the end of the daily auto-apply cron.
+ * Tasks younger than 10 minutes are skipped (still legitimately running).
+ */
+export async function resolveAllPendingAgentTasks(limit = 100): Promise<{ scanned: number; resolved: number }> {
+  const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString();
+  const { data: tasks, error } = await supabaseAdmin
+    .from("agent_apply_tasks")
+    .select("task_id, user_id, job_id")
+    .is("resolved_at", null)
+    .lt("created_at", tenMinAgo)
+    .order("created_at", { ascending: true })
+    .limit(limit);
+  if (error) {
+    console.error("[agent-resolve] unresolved-tasks query failed:", error.message);
+    return { scanned: 0, resolved: 0 };
+  }
+  if (!tasks?.length) return { scanned: 0, resolved: 0 };
+
+  let resolved = 0;
+  for (const t of tasks) {
+    try {
+      if (await resolveAgentTask(t as TaskRow)) resolved++;
+    } catch (e) {
+      console.error(`[agent-resolve] task ${t.task_id} failed:`, e instanceof Error ? e.message : e);
+    }
+  }
+  return { scanned: tasks.length, resolved };
+}

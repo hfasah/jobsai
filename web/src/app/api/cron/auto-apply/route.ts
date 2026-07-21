@@ -10,9 +10,12 @@ import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/li
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { refundStrandedAutoApplies } from "@/lib/apply-reconcile";
+import { resolveAllPendingAgentTasks } from "@/lib/agent-apply-resolve";
 import type { UserPreferences } from "@/types/preferences";
 
-const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://jobsai.work").replace(/\/$/, "");
+// MUST be the www host: the apex 308-redirects and webhook senders (Skyvern)
+// don't follow redirects — an apex callback URL silently loses every webhook.
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL ?? "https://www.jobsai.work").replace(/\/$/, "");
 
 export const maxDuration = 300;
 
@@ -465,6 +468,15 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // Poll-settle every unresolved Skyvern task FIRST (webhooks are best-effort
+  // and were lost entirely when the callback URL pointed at the wrong deploy):
+  // completed runs flip to submitted, failed runs to failed-with-reason, so
+  // the settlement sweep below sees the truth and refunds correctly.
+  const agentResolve = await resolveAllPendingAgentTasks().catch((e) => {
+    console.error("[cron/auto-apply] agent resolve failed:", e);
+    return null;
+  });
+
   // Settlement sweep: refund any auto_apply charge whose job did NOT end in a
   // submitted application (manual_required, failed-without-refund, abandoned).
   // A charge is only earned when the application actually went through.
@@ -473,8 +485,8 @@ export async function GET(req: NextRequest) {
     return null;
   });
 
-  console.log("[cron/auto-apply]", summary, reconcile ?? {});
-  return NextResponse.json({ ok: true, ...summary, reconcile });
+  console.log("[cron/auto-apply]", summary, agentResolve ?? {}, reconcile ?? {});
+  return NextResponse.json({ ok: true, ...summary, agent_resolve: agentResolve, reconcile });
 }
 
 interface AutoApplyJobLog {
