@@ -8,7 +8,7 @@ import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 import { PLANS, monthlyEquiv, annualTotal } from "@/lib/enterprise-plans";
 
 export const metadata = {
-  title: "JobsAI Enterprise pricing — plans, billing & free trial",
+  title: "JobsAI Enterprise pricing: plans, billing & free trial",
   description: "JobsAI Enterprise pricing: monthly or annual billing (save 20%), plans from $299/mo ($239/mo billed annually), each with a 14-day free trial.",
 };
 
@@ -41,12 +41,12 @@ const COMPETE_ROWS: { label: string; v: boolean[] }[] = [
 ];
 
 const FAQS: { q: string; a: string }[] = [
-  { q: "Can I upgrade my plan anytime?", a: "Yes — upgrades apply immediately and the price difference is prorated automatically by Stripe. Your team, data, and settings carry over untouched." },
+  { q: "Can I upgrade my plan anytime?", a: "Yes. Upgrades apply immediately and the price difference is prorated automatically by Stripe. Your team, data, and settings carry over untouched." },
   { q: "Can I downgrade?", a: "Yes, from Billing at any time. Downgrades take effect at the end of your current billing period so you keep everything you've paid for." },
   { q: "What happens after my 14-day free trial?", a: "Your selected plan starts automatically on the card you added at signup. Cancel before the trial ends and you won't be charged at all." },
   { q: "Can I cancel?", a: "Anytime, in one click from Billing. You keep access until the end of the period you've paid for, and your data can be exported before you go." },
-  { q: "Can I switch to annual billing later?", a: "Yes — switch from Billing whenever you like and the 20% annual discount (two months free) applies from your next cycle." },
-  { q: "How are add-ons billed?", a: "Add-ons are added or removed from inside your workspace and are prorated onto your existing subscription immediately — no separate invoice." },
+  { q: "Can I switch to annual billing later?", a: "Yes. Switch from Billing whenever you like and the 20% annual discount (two months free) applies from your next cycle." },
+  { q: "How are add-ons billed?", a: "Add-ons are added or removed from inside your workspace and are prorated onto your existing subscription immediately, with no separate invoice." },
 ];
 
 export default function PublicPricingPage() {
@@ -58,10 +58,10 @@ export default function PublicPricingPage() {
   for (const p of PLANS) {
     const slug = p.name.toLowerCase();
     if (p.monthly === null) {
-      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}`, name: `${p.name} Plan — custom`, description: p.sub, availability: "https://schema.org/PreOrder", priceCurrency: "USD" } });
+      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}`, name: `${p.name} Plan (custom)`, description: p.sub, availability: "https://schema.org/PreOrder", priceCurrency: "USD" } });
     } else {
-      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}-monthly`, name: `${p.name} Plan — monthly`, price: p.monthly, priceCurrency: "USD", availability: "https://schema.org/InStock", description: p.sub } });
-      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}-annual`, name: `${p.name} Plan — annual`, price: annualTotal(p.monthly), priceCurrency: "USD", availability: "https://schema.org/InStock", description: `Billed annually ($${monthlyEquiv(p.monthly)}/mo) — save 20% vs monthly.` } });
+      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}-monthly`, name: `${p.name} Plan (monthly)`, price: p.monthly, priceCurrency: "USD", availability: "https://schema.org/InStock", description: p.sub } });
+      offers.push({ "@type": "ListItem", position: ++pos, item: { "@type": "Offer", url: `${APP}/enterprise/pricing#${slug}-annual`, name: `${p.name} Plan (annual)`, price: annualTotal(p.monthly), priceCurrency: "USD", availability: "https://schema.org/InStock", description: `Billed annually ($${monthlyEquiv(p.monthly)}/mo). Save 20% vs monthly.` } });
     }
   }
   const pricingLd = {
@@ -92,7 +92,7 @@ export default function PublicPricingPage() {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand"><Building2 className="h-6 w-6 text-white" /></div>
         <p className="text-xs font-bold uppercase tracking-widest text-primary">JobsAI Enterprise</p>
         <h1 className="mt-2 text-4xl font-bold tracking-tight">The AI-Powered Talent Acquisition Operating System</h1>
-        <p className="mt-3 text-lg text-muted-foreground">Source. Engage. Screen. Interview. Hire — in one platform.</p>
+        <p className="mt-3 text-lg text-muted-foreground">Source. Engage. Screen. Interview. Hire. All in one platform.</p>
         <p className="mt-1 text-sm text-muted-foreground">All plans include a 14-day free trial.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/enterprise-login" className="rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow">Start free trial</Link>
@@ -115,7 +115,7 @@ export default function PublicPricingPage() {
       <section className="border-y border-border bg-muted/20 px-6 py-14">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-2 text-center text-2xl font-bold">Need more? Premium add-ons</h2>
-          <p className="mb-8 text-center text-sm text-muted-foreground">Available on any plan — add or remove anytime from inside your workspace, prorated automatically.</p>
+          <p className="mb-8 text-center text-sm text-muted-foreground">Available on any plan. Add or remove anytime from inside your workspace, prorated automatically.</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             {ADDONS.map((a) => (
               <div key={a.name} className="flex flex-col rounded-2xl border border-border bg-card p-5">
@@ -183,7 +183,7 @@ export default function PublicPricingPage() {
             </tbody>
           </table>
         </div>
-        <p className="mt-3 text-center text-[11px] text-muted-foreground">Based on publicly available information, July 2026. Features and packaging change — verify details with each vendor.</p>
+        <p className="mt-3 text-center text-[11px] text-muted-foreground">Based on publicly available information, July 2026. Features and packaging change, verify details with each vendor.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {WHY.map((w) => <span key={w} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-sm"><Check className="h-3.5 w-3.5 text-emerald-500" />{w}</span>)}
         </div>

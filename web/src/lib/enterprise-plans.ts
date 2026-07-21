@@ -26,7 +26,7 @@ export const PLANS: Plan[] = [
     highlights: ["AI Recruiting ATS & CRM", "AI Match Scores & Top Picks", "Career Page & Candidate Portal", "Interview Scheduling (Google & Microsoft)", "Offer Letters & E-Signatures"],
     includes: ["1 recruiter", "10 active jobs", "2,000 candidates"],
     cta: "Start free trial", href: "/enterprise-login",
-    badge: "🚀 Upgrade anytime — keep all your data",
+    badge: "🚀 Upgrade anytime, keep all your data",
   },
   {
     name: "Professional",

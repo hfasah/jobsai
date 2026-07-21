@@ -11,7 +11,7 @@ import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 export const metadata = {
   // `absolute` bypasses the layout's "%s | JobsAI Enterprise" template (which
   // otherwise double-stamps the brand and pushes the title past 60 chars).
-  title: { absolute: "JobsAI Enterprise — Talent Acquisition Operating System" }, // 55 chars
+  title: { absolute: "JobsAI Enterprise: Talent Acquisition Operating System" }, // 55 chars
   description:
     "JobsAI Enterprise orchestrates sourcing, engagement, screening, evidence, submissions, hiring, and redeployment in one AI platform. 14-day free trial.", // 150 chars
   alternates: { canonical: "/enterprise/home" },
@@ -23,7 +23,7 @@ const FEATURES = [
   { icon: Database, name: "Applicant Tracking System", desc: "Kanban pipeline, candidate database, career pages, and resume parsing." },
   { icon: Users, name: "Recruiting CRM", desc: "Talent pools, nurturing, and outreach campaigns to engage candidates." },
   { icon: Sparkles, name: "AI Sourcing", desc: "Autonomous candidate discovery, talent rediscovery, and recommendations." },
-  { icon: MessageSquare, name: "Multi-channel outreach", desc: "Reach candidates by email, SMS, and WhatsApp — with automated sequences and reminders." },
+  { icon: MessageSquare, name: "Multi-channel outreach", desc: "Reach candidates by email, SMS, and WhatsApp, with automated sequences and reminders." },
   { icon: Mic, name: "AI Interviews", desc: "AI voice & avatar interviews with automated scoring and transcripts." },
   { icon: Zap, name: "Workflow Automation", desc: "Automate stage moves, follow-ups, and recruiting operations." },
   { icon: BarChart3, name: "Executive Analytics", desc: "Funnel reporting, time-to-hire, and recruiter productivity metrics." },
@@ -47,7 +47,7 @@ const JSON_LD = [
     "@type": "WebPage",
     "@id": "https://app.jobsai.work#webpage",
     url: "https://app.jobsai.work",
-    name: "JobsAI Enterprise — Talent Acquisition Operating System",
+    name: "JobsAI Enterprise: Talent Acquisition Operating System",
     inLanguage: "en",
     isPartOf: { "@type": "WebSite", url: "https://app.jobsai.work", name: "JobsAI" },
     mainEntity: { "@id": "https://app.jobsai.work#jobsai-enterprise" },
@@ -104,7 +104,7 @@ export default function EnterpriseHome() {
           The AI-Powered Talent Acquisition Operating System
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-          Orchestrate sourcing, engagement, screening, evidence, submissions, hiring, and redeployment&mdash;all in one intelligent platform.
+          Orchestrate sourcing, engagement, screening, evidence, submissions, hiring, and redeployment, all in one intelligent platform.
         </p>
         <p className="mt-3 text-sm font-medium text-muted-foreground">All plans include a 14-day free trial.</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
@@ -118,7 +118,7 @@ export default function EnterpriseHome() {
       <section className="mx-auto max-w-4xl px-6 py-16 text-center">
         <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">The problem</p>
         <h2 className="mt-2 text-2xl font-bold">Recruiting teams juggle six+ disconnected tools</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Separate point solutions for sourcing, screening, interviewing, scheduling, analytics, and compliance — slow, expensive, and hard to govern.</p>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Separate point solutions for sourcing, screening, interviewing, scheduling, analytics, and compliance: slow, expensive, and hard to govern.</p>
         <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-gradient-brand px-6 py-2 text-sm font-semibold text-white shadow-glow">One platform for everything <ArrowRight className="h-4 w-4" /></div>
       </section>
 
@@ -161,7 +161,7 @@ export default function EnterpriseHome() {
             <p className="text-xs font-bold uppercase tracking-widest text-primary">Interview automation</p>
             <h2 className="mx-auto mt-2 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">Automate your entire interview pipeline</h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-              From the first AI phone screen to deep, full-assessment rounds, JobsAI runs every stage of your funnel — screening, scoring, and scheduling on autopilot — so your team spends its time on finalists, not logistics.
+              From the first AI phone screen to deep, full-assessment rounds, JobsAI runs every stage of your funnel (screening, scoring, and scheduling on autopilot) so your team spends its time on finalists, not logistics.
             </p>
           </div>
 
@@ -186,12 +186,12 @@ export default function EnterpriseHome() {
               <div className="flex items-center gap-2 text-primary"><PlugZap className="h-5 w-5" /><span className="text-sm font-bold uppercase tracking-wide">Integrates with your ATS</span></div>
               <h3 className="mt-2 text-2xl font-bold tracking-tight">Plug into your stack in one click</h3>
               <p className="mt-2 text-muted-foreground">
-                Connect your existing ATS, HRMS, or job board in one click — Greenhouse, Lever, Workday, Bullhorn, and more — with two-way sync that keeps candidates and stages aligned everywhere.
+                Connect your existing ATS, HRMS, or job board in one click (Greenhouse, Lever, Workday, Bullhorn, and more) with two-way sync that keeps candidates and stages aligned everywhere.
               </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-5">
               <p className="text-sm font-semibold">Don&apos;t have a stack?</p>
-              <p className="mt-1 text-sm text-muted-foreground">A full <strong className="text-foreground">built-in ATS is included</strong> with every plan — start free for 14 days, no credit card.</p>
+              <p className="mt-1 text-sm text-muted-foreground">A full <strong className="text-foreground">built-in ATS is included</strong> with every plan. Start free for 14 days, cancel anytime.</p>
               <Link href="/enterprise-login" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white shadow-glow">
                 Start free trial <ArrowRight className="h-4 w-4" />
               </Link>
@@ -212,7 +212,7 @@ export default function EnterpriseHome() {
       {/* Why one platform */}
       <section className="mx-auto max-w-4xl px-6 py-16 text-center">
         <h2 className="text-2xl font-bold">Why JobsAI Enterprise?</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Replace your recruiting stack with one AI-powered platform — and cut time-to-hire, cost, and tool sprawl.</p>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Replace your recruiting stack with one AI-powered platform, and cut time-to-hire, cost, and tool sprawl.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           {PLATFORM.map((p) => <span key={p} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-sm"><Check className="h-3.5 w-3.5 text-emerald-500" />{p}</span>)}
         </div>
@@ -223,7 +223,7 @@ export default function EnterpriseHome() {
         <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-8 text-center">
           <Sparkles className="mx-auto h-6 w-6 text-primary" />
           <h2 className="mt-3 text-2xl font-bold">Ready to transform your hiring?</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Start a 14-day free trial — no credit card — or book a walkthrough with our team.</p>
+          <p className="mt-2 text-sm text-muted-foreground">Start a 14-day free trial (cancel anytime) or book a walkthrough with our team.</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
             <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start free trial <ArrowRight className="h-4 w-4" /></Link>
             <Link href="/enterprise/pricing" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">View pricing</Link>
