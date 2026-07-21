@@ -60,14 +60,23 @@ function parseAddress(raw: string | null | undefined): { name: string | null; em
 // "verify email forward" bot) should never receive an auto-reply.
 const MAIL_SYSTEM_DOMAINS = ["one.com", "amazonses.com", "amazonaws.com", "sendgrid.net", "mailgun.org"];
 
-// Don't auto-reply to automated senders (avoids mail loops with no-reply
-// addresses, mailer-daemons, forwarding-confirmation bots, or ourselves).
+// Automated senders: no ticket and no auto-reply (avoids mail loops with
+// no-reply addresses, mailer-daemons, verification bots, forwarding-confirmation
+// bots, or ourselves). Covers jobsai.work subdomains (send./help./talent.) too —
+// our own outbound must never open a ticket.
 function isAutomatedSender(email: string): boolean {
   return /(^|[._-])(no[._-]?reply|do[._-]?not[._-]?reply|donotreply|mailer[-_]?daemon|postmaster|bounce|notifications?|forward(ing)?[._-]?(verification|confirm)?)@/i.test(email)
+    || /verification[._-]?reply/i.test(email)
     || email.endsWith("@jobsai.work")
+    || email.endsWith(".jobsai.work")
     || email.endsWith(`@${INTAKE_DOMAIN}`)
     || MAIL_SYSTEM_DOMAINS.some((d) => email === `@${d}` || email.endsWith(`@${d}`) || email.endsWith(`.${d}`));
 }
+
+// Bounce reports and auto-generated mail must not become tickets; neither should
+// our own acknowledgment when the support@ forward loops it back to the intake.
+const JUNK_SUBJECT_RE = /^(undeliverable[:\s]|mail delivery fail|delivery status notification|returned mail|failure notice|auto[-\s]?reply|automatic reply|out of office)/i;
+const OWN_ACK_PREFIX = "We've received your message";
 
 export async function POST(req: NextRequest) {
   const raw = await req.text();
@@ -96,6 +105,13 @@ export async function POST(req: NextRequest) {
   const subject = (full?.subject ?? (data.subject as string) ?? "(no subject)").trim() || "(no subject)";
   const bodyText = (full?.text ?? (full?.html ? full.html.replace(/<[^>]+>/g, " ") : "") ?? "").trim();
   const senderName = sender.name ?? sender.email.split("@")[0];
+
+  // Automated mail (bounces, system notices, our own ack looping back) never
+  // becomes a ticket — it buries real customers and trips the health sweep.
+  if (isAutomatedSender(sender.email) || JUNK_SUBJECT_RE.test(subject) || subject.startsWith(OWN_ACK_PREFIX)) {
+    console.log(`[support/inbound] skipped automated mail from ${sender.email}: ${subject}`);
+    return NextResponse.json({ ok: true, ignored: "automated-mail" });
+  }
 
   // Create a support ticket + log the inbound message (shows in admin Support Inbox).
   const { data: ticket, error } = await supabaseAdmin
