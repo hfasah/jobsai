@@ -12,8 +12,9 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envContent = fs.readFileSync(path.resolve(__dirname, "../.env.local"), "utf-8");
-const apiKey = envContent.split("\n").find((l) => l.startsWith("STRIPE_SECRET_KEY="))?.split("=")[1]?.trim();
-if (!apiKey) { console.error("❌ STRIPE_SECRET_KEY not found in .env.local"); process.exit(1); }
+const fileKey = envContent.split("\n").find((l) => l.startsWith("STRIPE_SECRET_KEY="))?.split("=")[1]?.trim()?.replace(/^"|"$/g, "");
+const apiKey = process.env.STRIPE_SECRET_KEY || fileKey;
+if (!apiKey) { console.error("❌ STRIPE_SECRET_KEY not set (env var or .env.local)"); process.exit(1); }
 
 const stripe = new Stripe(apiKey);
 
