@@ -8,7 +8,7 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 
 export const metadata = {
-  title: "About JobsAI Enterprise — our mission & platform",
+  title: "About JobsAI Enterprise: our mission & platform",
   description:
     "JobsAI Enterprise: AI-powered talent acquisition OS uniting ATS, CRM, AI sourcing, AI interviews, automation, analytics, and governance. Book a demo.",
 };
@@ -50,22 +50,22 @@ const VALUES = [
   {
     icon: Lightbulb,
     title: "Relentless Innovation",
-    body: "We push the boundaries of what AI can do across the whole hiring lifecycle — from sourcing to screening to offers — so your team always has the sharpest tools.",
+    body: "We push the boundaries of what AI can do across the whole hiring lifecycle, from sourcing to screening to offers, so your team always has the sharpest tools.",
   },
   {
     icon: Heart,
     title: "Human-Centered AI",
-    body: "AI should amplify the human side of hiring, not erase it. We automate the busywork so recruiters build real relationships — and every candidate is treated with respect.",
+    body: "AI should amplify the human side of hiring, not erase it. We automate the busywork so recruiters build real relationships, and every candidate is treated with respect.",
   },
   {
     icon: ShieldCheck,
     title: "Trust by Default",
-    body: "We handle people's careers and your company's data. Security, privacy, and compliance aren't add-ons — they're built into everything we ship.",
+    body: "We handle people's careers and your company's data. Security, privacy, and compliance aren't add-ons. They're built into everything we ship.",
   },
   {
     icon: Globe,
     title: "Access for Everyone",
-    body: "Enterprise-grade recruiting shouldn't be a luxury. A five-person agency should hire with the same intelligence as a Fortune 500 — anywhere in the world.",
+    body: "Enterprise-grade recruiting shouldn't be a luxury. A five-person agency should hire with the same intelligence as a Fortune 500, anywhere in the world.",
   },
   {
     icon: BarChart3,
@@ -121,7 +121,7 @@ export default function EnterpriseAboutPage() {
                 Intelligence, Analytics, and Enterprise Governance into one unified system.
               </p>
               <p>
-                Today, recruiters and HR teams often manage hiring across multiple disconnected tools — ATS
+                Today, recruiters and HR teams often manage hiring across multiple disconnected tools: ATS
                 platforms, sourcing tools, scheduling software, interview systems, spreadsheets, reporting
                 dashboards, and communication platforms. JobsAI Enterprise brings everything together into a
                 single AI-powered workspace designed to streamline the entire hiring lifecycle.
@@ -171,7 +171,7 @@ export default function EnterpriseAboutPage() {
           <Sparkles className="h-3.5 w-3.5" /> Our Vision
         </span>
         <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-4xl">
-          The future of recruiting is not more software —{" "}
+          The future of recruiting is not more software.{" "}
           <span className="bg-gradient-brand bg-clip-text text-transparent">it is intelligent automation</span>.
         </h2>
         <p className="mx-auto mt-5 max-w-2xl leading-relaxed text-muted-foreground">
@@ -244,7 +244,7 @@ export default function EnterpriseAboutPage() {
             <Target className="h-3.5 w-3.5" /> Our Mission
           </span>
           <p className="mx-auto mt-5 max-w-2xl text-xl font-medium leading-relaxed sm:text-2xl">
-            To help organizations hire better talent, faster — through intelligent automation, AI-powered
+            To help organizations hire better talent, faster, through intelligent automation, AI-powered
             decision-making, and a unified recruiting experience.
           </p>
           <p className="mt-8 text-sm font-semibold uppercase tracking-[0.2em] text-muted-foreground">

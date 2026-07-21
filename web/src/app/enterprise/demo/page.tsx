@@ -13,15 +13,15 @@ import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 const BOOKING_SRC = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
 
 export const metadata = {
-  title: "Book a JobsAI Enterprise demo — AI recruiting tour",
-  description: "Book a free, personalized walkthrough of the AI-powered Talent Acquisition Operating System — tailored to your team's hiring workflow and tech stack.",
+  title: "Book a JobsAI Enterprise demo: AI recruiting tour",
+  description: "Book a free, personalized walkthrough of the AI-powered Talent Acquisition Operating System, tailored to your team's hiring workflow and tech stack.",
 };
 
 const HERO_POINTS = [
   "30-minute personalized walkthrough",
   "See AI sourcing & screening on real scenarios",
   "Custom integration plan for your ATS",
-  "No commitment — free, no card required",
+  "No commitment. Free, no card required",
 ];
 
 const STATS = [
@@ -34,12 +34,12 @@ const HOW_IT_WORKS = [
   {
     n: 1,
     title: "Discovery",
-    body: "We start by understanding your hiring workflow, where it breaks down, and the ATS and tools you use today — so the demo is built around your team, not a generic script.",
+    body: "We start by understanding your hiring workflow, where it breaks down, and the ATS and tools you use today, so the demo is built around your team, not a generic script.",
   },
   {
     n: 2,
     title: "Live walkthrough",
-    body: "Watch AI source candidates, run a screening call, score answers, and move people through the pipeline in real time — using scenarios that match how you actually hire.",
+    body: "Watch AI source candidates, run a screening call, score answers, and move people through the pipeline in real time, using scenarios that match how you actually hire.",
   },
   {
     n: 3,
@@ -54,7 +54,7 @@ const WILL_SEE = [
   { icon: LayoutGrid, title: "Pipeline & talent pools", body: "A Kanban pipeline and reusable talent pools to organize every candidate and role." },
   { icon: FileSignature, title: "Offers & e-signature", body: "Generate, send, and track offer letters with built-in e-signature." },
   { icon: BarChart3, title: "Analytics & compliance", body: "Executive dashboards plus GDPR/CCPA-ready audit logs, encryption, and data controls." },
-  { icon: Globe, title: "White-label client portals", body: "Branded portals and career pages — perfect for staffing agencies serving clients." },
+  { icon: Globe, title: "White-label client portals", body: "Branded portals and career pages, perfect for staffing agencies serving clients." },
 ];
 
 const WHY = [
@@ -82,7 +82,7 @@ export default function EnterpriseDemoPage() {
               See <span className="text-primary">JobsAI Enterprise</span> in action
             </h1>
             <p className="mt-4 max-w-lg text-lg text-muted-foreground">
-              Experience how AI sourcing, screening, and outreach come together in one talent acquisition platform — book a walkthrough tailored to your hiring workflow.
+              Experience how AI sourcing, screening, and outreach come together in one talent acquisition platform. Book a walkthrough tailored to your hiring workflow.
             </p>
             <ul className="mt-6 space-y-3">
               {HERO_POINTS.map((p) => (
@@ -195,7 +195,7 @@ export default function EnterpriseDemoPage() {
           <div className="rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-transparent p-8">
             <h3 className="text-xl font-bold">Ready to transform your hiring?</h3>
             <p className="mt-2 text-sm text-muted-foreground">
-              Get a personalized demo tailored to your workflow — see exactly how JobsAI Enterprise fits your team before you commit.
+              Get a personalized demo tailored to your workflow. See exactly how JobsAI Enterprise fits your team before you commit.
             </p>
             <a
               href="#book"
