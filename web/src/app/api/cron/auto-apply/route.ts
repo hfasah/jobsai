@@ -11,6 +11,7 @@ import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { refundStrandedAutoApplies } from "@/lib/apply-reconcile";
 import { resolveAllPendingAgentTasks } from "@/lib/agent-apply-resolve";
+import { loadAgentDomainStats, agentPreflight } from "@/lib/agent-preflight";
 import type { UserPreferences } from "@/types/preferences";
 
 // MUST be the www host: the apex 308-redirects and webhook senders (Skyvern)
@@ -71,9 +72,13 @@ export async function GET(req: NextRequest) {
     jobs_applied: 0,
     jobs_manual: 0,
     jobs_failed: 0,
+    jobs_preflight_skipped: 0,
     errors: 0,
     stopped_early: false,
   };
+
+  // Domain outcome stats for the agent pre-flight (loaded once per run).
+  const agentStats = await loadAgentDomainStats();
 
   // Stop starting new work well before Vercel's 300s hard kill: each job can
   // cost 30s+ (score + tailor + cover letter + Skyvern launch), and a hard
@@ -318,6 +323,21 @@ export async function GET(req: NextRequest) {
               ]);
 
               const cronUrl = jobRow?.source_url || jobParsedRow?.posting_url;
+
+              // Pre-flight BEFORE any charge: refuse to pay Skyvern for runs
+              // we already know will fail (login-wall boards, domains with a
+              // 100% recent failure record). The job stays manual_required —
+              // the user still has the tailored resume + cover letter ready.
+              const verdict = agentPreflight(cronUrl, agentStats);
+              if (verdict.skip) {
+                console.log(`[cron/auto-apply] agent preflight skip job ${jobId}: ${verdict.reason}`);
+                summary.jobs_preflight_skipped++;
+                log.status = "manual_required";
+                summary.jobs_manual++;
+                runLog.push(log);
+                continue;
+              }
+
               if (profile?.email && profile?.first_name && cronUrl) {
                 // Generate 1-hour resume download URL
                 const { data: doc } = await supabaseAdmin
