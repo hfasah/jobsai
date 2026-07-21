@@ -18,9 +18,10 @@ const STATIC_DOOMED: string[] = [
 ];
 
 // Learned rule: a domain with this many agent attempts and ZERO successes is
-// treated as doomed until something changes (a later manual success on the
-// domain resets the stats naturally).
-const LEARN_MIN_ATTEMPTS = 3;
+// treated as doomed until something changes (a later success on the domain
+// resets the stats naturally). Two strikes: we never pay a third time to
+// confirm a pattern.
+const LEARN_MIN_ATTEMPTS = 2;
 const LOOKBACK_DAYS = 90;
 
 export function domainOf(url: string): string | null {
@@ -87,13 +88,17 @@ export interface PreflightVerdict {
   reason?: string;
 }
 
+function isDoomedDomain(domain: string): boolean {
+  return STATIC_DOOMED.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
 /** Should we refuse to spend money launching an agent at this URL? */
 export function agentPreflight(url: string | null | undefined, stats: AgentDomainStats): PreflightVerdict {
   if (!url) return { skip: true, reason: "no posting URL" };
   const domain = domainOf(url);
   if (!domain) return { skip: true, reason: "unparseable posting URL" };
 
-  if (STATIC_DOOMED.some((d) => domain === d || domain.endsWith(`.${d}`))) {
+  if (isDoomedDomain(domain)) {
     return { skip: true, reason: `${domain} requires a login the agent can't complete` };
   }
 
@@ -103,4 +108,42 @@ export function agentPreflight(url: string | null | undefined, stats: AgentDomai
   }
 
   return { skip: false };
+}
+
+/** Does this domain have at least one successful agent submission on record? */
+export function isProvenDomain(url: string, stats: AgentDomainStats): boolean {
+  const domain = domainOf(url);
+  if (!domain) return false;
+  return (stats.byDomain.get(domain)?.submitted ?? 0) > 0;
+}
+
+/**
+ * Free HTTP liveness probe before a PAID browser run: dead postings (404/410)
+ * and links that redirect into a login-wall domain never launch. Bot-blocked
+ * responses (403/999 — e.g. Adzuna land pages) count as ALIVE: a real browser
+ * can pass where a plain fetch can't, so we only skip on certain death.
+ */
+export async function postingLivenessCheck(url: string): Promise<PreflightVerdict> {
+  try {
+    const res = await fetch(url, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+        Accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (res.status === 404 || res.status === 410) {
+      return { skip: true, reason: `posting is gone (${res.status})` };
+    }
+    const finalDomain = domainOf(res.url);
+    if (finalDomain && isDoomedDomain(finalDomain)) {
+      return { skip: true, reason: `posting redirects to ${finalDomain} (login required)` };
+    }
+    return { skip: false };
+  } catch {
+    // Network hiccup or hard bot-block on the probe — not proof of death.
+    return { skip: false };
+  }
 }
