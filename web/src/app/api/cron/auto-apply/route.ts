@@ -11,7 +11,7 @@ import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { refundStrandedAutoApplies } from "@/lib/apply-reconcile";
 import { resolveAllPendingAgentTasks } from "@/lib/agent-apply-resolve";
-import { loadAgentDomainStats, agentPreflight } from "@/lib/agent-preflight";
+import { loadAgentDomainStats, agentPreflight, postingLivenessCheck, isProvenDomain } from "@/lib/agent-preflight";
 import type { UserPreferences } from "@/types/preferences";
 
 // MUST be the www host: the apex 308-redirects and webhook senders (Skyvern)
@@ -79,6 +79,11 @@ export async function GET(req: NextRequest) {
 
   // Domain outcome stats for the agent pre-flight (loaded once per run).
   const agentStats = await loadAgentDomainStats();
+  // Probe budget: at most this many paid launches per run on domains with NO
+  // prior success — bounds the daily worst-case spend on unproven territory
+  // while proven domains flow freely. Learning continues, just slowly.
+  const MAX_UNPROVEN_PROBES = 2;
+  let unprovenProbes = 0;
 
   // Stop starting new work well before Vercel's 300s hard kill: each job can
   // cost 30s+ (score + tailor + cover letter + Skyvern launch), and a hard
@@ -328,7 +333,18 @@ export async function GET(req: NextRequest) {
               // we already know will fail (login-wall boards, domains with a
               // 100% recent failure record). The job stays manual_required —
               // the user still has the tailored resume + cover letter ready.
-              const verdict = agentPreflight(cronUrl, agentStats);
+              let verdict = agentPreflight(cronUrl, agentStats);
+              // Free HTTP probe: dead postings and login-wall redirects never
+              // get a paid run.
+              if (!verdict.skip && cronUrl) verdict = await postingLivenessCheck(cronUrl);
+              // Probe budget for unproven domains.
+              if (!verdict.skip && cronUrl && !isProvenDomain(cronUrl, agentStats)) {
+                if (unprovenProbes >= MAX_UNPROVEN_PROBES) {
+                  verdict = { skip: true, reason: "unproven-domain probe budget reached for this run" };
+                } else {
+                  unprovenProbes++;
+                }
+              }
               if (verdict.skip) {
                 console.log(`[cron/auto-apply] agent preflight skip job ${jobId}: ${verdict.reason}`);
                 summary.jobs_preflight_skipped++;
