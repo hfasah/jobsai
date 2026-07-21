@@ -25,24 +25,24 @@ const SECTIONS: LegalSection[] = [
     heading: "Data we collect",
     body: ["We collect the following categories of data:"],
     bullets: [
-      "Account & contact details — your name and email, managed through our authentication provider (Clerk).",
-      "Job-search materials — resumes/CVs you upload or build, parsed profile fields, cover letters, and tailored documents.",
-      "Application data — the jobs you save, the answers and materials submitted via Auto-Apply, and application status.",
-      "Interview prep data — for voice, avatar, and Interview Buddy sessions: audio you provide and the resulting transcripts and feedback.",
-      "Usage & technical data — device, browser, IP, log and diagnostic data used to keep the service reliable and secure.",
-      "Billing data — subscription and token-purchase records (card details are handled directly by Stripe; we never store full card numbers).",
-      "Preferences — your job targets, locations, and marketing choices.",
+      "Account & contact details: your name and email, managed through our authentication provider (Clerk).",
+      "Job-search materials: resumes/CVs you upload or build, parsed profile fields, cover letters, and tailored documents.",
+      "Application data: the jobs you save, the answers and materials submitted via Auto-Apply, and application status.",
+      "Interview prep data. For voice, avatar, and Interview Buddy sessions: audio you provide and the resulting transcripts and feedback.",
+      "Usage & technical data: device, browser, IP, log and diagnostic data used to keep the service reliable and secure.",
+      "Billing data: subscription and token-purchase records (card details are handled directly by Stripe; we never store full card numbers).",
+      "Preferences: your job targets, locations, and marketing choices.",
     ],
   },
   {
     heading: "How we use your data",
     body: ["We use your data to:"],
     bullets: [
-      "Provide and operate the service — parse and tailor resumes, generate cover letters, discover and match jobs, and prepare/submit applications you request.",
-      "Power interview prep — run written, voice, avatar, and live Interview Buddy assistance.",
-      "Process payments and manage your subscription, free trial, and token balance. Payment card details are collected and stored by Stripe, our payment processor — we never see or store full card numbers.",
+      "Provide and operate the service: parse and tailor resumes, generate cover letters, discover and match jobs, and prepare/submit applications you request.",
+      "Power interview prep: run written, voice, avatar, and live Interview Buddy assistance.",
+      "Process payments and manage your subscription, free trial, and token balance. Payment card details are collected and stored by Stripe, our payment processor. We never see or store full card numbers.",
       "Improve reliability, security, and product quality.",
-      "Send service and account messages (such as onboarding, trial reminders, billing notices, and job-alert digests you can opt out of), and — only with your consent — marketing emails. Every non-essential email includes a one-click unsubscribe.",
+      "Send service and account messages (such as onboarding, trial reminders, billing notices, and job-alert digests you can opt out of), and, only with your consent, marketing emails. Every non-essential email includes a one-click unsubscribe.",
       "Detect, prevent, and address fraud, abuse, and security issues, and to comply with law.",
     ],
   },
@@ -68,11 +68,11 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    heading: "Google user data — connected Google account (Gmail & Calendar)",
+    heading: "Google user data: connected Google account (Gmail & Calendar)",
     body: [
       "If you choose to connect your Google account, we request only the permissions needed for the feature: sending email on your behalf (the gmail.send scope) so you can reply to recruiters from your own address, and creating or updating calendar events (the calendar.events scope) so we can add interviews to your calendar. We do NOT request permission to read, list, or download your existing Gmail messages. Incoming recruiter emails reach your in-app inbox through email forwarding, not through the Gmail API.",
       "How we use it: we use these permissions solely to (a) send reply emails that you explicitly compose and send from within the app, and (b) create or update interview events on your calendar at your request. We do not read, scan, or store your existing emails, and we do not access unrelated calendar data.",
-      "Storage & retention: we store the OAuth access and refresh tokens needed to perform these actions, encrypted at rest, and retain them only until you disconnect your Google account or delete your account — at which point they are deleted. Reply emails you send are saved in your in-app inbox so you can see your sent history.",
+      "Storage & retention: we store the OAuth access and refresh tokens needed to perform these actions, encrypted at rest, and retain them only until you disconnect your Google account or delete your account, at which point they are deleted. Reply emails you send are saved in your in-app inbox so you can see your sent history.",
       "Sharing & purpose limits: we do not sell Google user data, do not use it for advertising, and do not use it to develop, improve, or train generalized AI/ML models. We transfer it only to Google's own APIs to carry out the actions above, or where required by law.",
       `Limited Use: ${APP_NAME}'s use and transfer of information received from Google APIs to any other app will adhere to the Google API Services User Data Policy, including the Limited Use requirements.`,
       "Revoking access: you can disconnect your Google account at any time from the in-app inbox, or revoke access directly at https://myaccount.google.com/permissions.",
@@ -90,7 +90,7 @@ const SECTIONS: LegalSection[] = [
       "We do not sell or rent your personal data. We share it only as needed to run the service:",
     ],
     bullets: [
-      "Service providers (processors) acting on our behalf — e.g. Clerk (authentication), Supabase (database/storage), OpenAI (AI text and voice generation), HeyGen/LiveAvatar (streaming video avatar for avatar interviews), Skyvern (browser automation that fills and submits applications for Auto-Apply), Stripe (payments), Resend (email), PostHog (product/visitor analytics), and job-data providers such as Adzuna.",
+      "Service providers (processors) acting on our behalf, e.g. Clerk (authentication), Supabase (database/storage), OpenAI (AI text and voice generation), HeyGen/LiveAvatar (streaming video avatar for avatar interviews), Skyvern (browser automation that fills and submits applications for Auto-Apply), Stripe (payments), Resend (email), PostHog (product/visitor analytics), and job-data providers such as Adzuna.",
       "Job platforms and employer application systems (ATS) when you apply or auto-apply to a role.",
       "Authorities or third parties when required by law, or to protect our rights, users, or the security of the service.",
     ],
@@ -110,7 +110,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Cookies & similar technologies",
     body: [
-      "We use cookies and similar technologies for sign-in/session management, remembering preferences, and product analytics (via PostHog) to understand how visitors — signed-in or not — navigate and engage with the site, including pages viewed, clicks, time on page, and approximate location (country/region/city) derived from IP. You can control cookies through your browser settings.",
+      "We use cookies and similar technologies for sign-in/session management, remembering preferences, and product analytics (via PostHog) to understand how visitors (signed-in or not) navigate and engage with the site, including pages viewed, clicks, time on page, and approximate location (country/region/city) derived from IP. You can control cookies through your browser settings.",
     ],
   },
   {

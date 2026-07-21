@@ -8,19 +8,19 @@ import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { SiteFooter } from "@/components/marketing/site-footer";
 
 export const metadata: Metadata = {
-  title: "About JobsAI — Apply Less. Interview More.",
+  title: "About JobsAI: Apply Less. Interview More.",
   description:
-    "JobsAI is your AI job-search copilot: it finds matching jobs, tailors your resume, applies for you, and preps you for interviews — so you spend your energy where it counts.",
+    "JobsAI is your AI job-search copilot: it finds matching jobs, tailors your resume, applies for you, and preps you for interviews, so you spend your energy where it counts.",
   alternates: { canonical: "/about" },
 };
 
 const WHAT_WE_DO = [
   { icon: Search, title: "AI Job Discovery", body: "Scans thousands of listings daily and surfaces the roles that actually match your skills, experience, and goals." },
-  { icon: Rocket, title: "Auto Apply", body: "Applies to matching jobs for you — fully autonomous, hybrid, or review-first. Your search keeps moving while you sleep." },
-  { icon: FileText, title: "Resume Tailoring & Cover Letters", body: "Adapts your real experience to each job description so you get past ATS screens — adaptation, never invention." },
+  { icon: Rocket, title: "Auto Apply", body: "Applies to matching jobs for you: fully autonomous, hybrid, or review-first. Your search keeps moving while you sleep." },
+  { icon: FileText, title: "Resume Tailoring & Cover Letters", body: "Adapts your real experience to each job description so you get past ATS screens. Adaptation, never invention." },
   { icon: Mic, title: "Interview Practice", body: "AI voice and avatar interviews with feedback, so the first time you answer the hard question isn't in the real room." },
-  { icon: GraduationCap, title: "Career Coaching", body: "Real strategy sessions when you want a human in the loop — direction, positioning, and honest feedback." },
-  { icon: BarChart3, title: "One Place for Everything", body: "Applications, matches, interviews, and follow-ups tracked together — no more spreadsheet archaeology." },
+  { icon: GraduationCap, title: "Career Coaching", body: "Real strategy sessions when you want a human in the loop: direction, positioning, and honest feedback." },
+  { icon: BarChart3, title: "One Place for Everything", body: "Applications, matches, interviews, and follow-ups tracked together. No more spreadsheet archaeology." },
 ];
 
 const VALUES = [
@@ -42,7 +42,7 @@ const VALUES = [
   {
     icon: Lightbulb,
     title: "Relentless Innovation",
-    body: "The job market keeps changing, and so do we — from smarter matching to interview practice that feels like the real thing.",
+    body: "The job market keeps changing, and so do we: from smarter matching to interview practice that feels like the real thing.",
   },
   {
     icon: Globe,
@@ -52,7 +52,7 @@ const VALUES = [
   {
     icon: BarChart3,
     title: "Outcomes Over Activity",
-    body: "We measure interviews landed and offers signed — not applications fired into the void. Quality beats volume, always.",
+    body: "We measure interviews landed and offers signed, not applications fired into the void. Quality beats volume, always.",
   },
 ];
 
@@ -77,7 +77,7 @@ export default function AboutPage() {
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
             Searching for a job shouldn&apos;t be a full-time job. JobsAI is your AI copilot that finds the right
-            roles, tailors your resume, applies for you, and gets you ready for the interview — so you spend your
+            roles, tailors your resume, applies for you, and gets you ready for the interview, so you spend your
             energy where it actually counts.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
@@ -97,12 +97,12 @@ export default function AboutPage() {
         <div className="mt-6 space-y-4 leading-relaxed text-muted-foreground">
           <p>
             Anyone who has looked for work recently knows the grind: hours scrolling job boards, rewriting the same
-            resume for the tenth time, filling in endless application forms, writing cover letters nobody may read —
-            and then, silence. The modern job search asks for full-time effort and gives back very little signal.
+            resume for the tenth time, filling in endless application forms, writing cover letters nobody may read.
+            And then, silence. The modern job search asks for full-time effort and gives back very little signal.
           </p>
           <p>
             Meanwhile, employers were adopting AI to screen candidates at scale. Job seekers were bringing a keyboard
-            to an algorithm fight. We built JobsAI to level that field — to give every candidate the same intelligence,
+            to an algorithm fight. We built JobsAI to level that field, to give every candidate the same intelligence,
             speed, and polish that the other side of the table already has.
           </p>
           <p>
@@ -164,7 +164,7 @@ export default function AboutPage() {
           <Sparkles className="mx-auto h-8 w-8 text-primary" />
           <h2 className="mt-4 text-2xl font-bold tracking-tight sm:text-3xl">Your next role may already be waiting</h2>
           <p className="mx-auto mt-3 max-w-md text-muted-foreground">
-            Upload your resume and let JobsAI start working for you today — 7-day free trial, 500 free credits, cancel anytime.
+            Upload your resume and let JobsAI start working for you today: 7-day free trial, 500 free credits, cancel anytime.
           </p>
           <Link href="/sign-up" className="mt-6 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-8 py-3 text-sm font-semibold text-white shadow-glow">
             Start free <ArrowRight className="h-4 w-4" />

@@ -11,7 +11,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Our approach",
     body: [
-      `At ${APP_NAME} we want every user to feel taken care of. When something goes wrong — a technical glitch, a confusing experience, or a support issue — our first remedy is to make it right with account credits (tokens), quickly and generously.`,
+      `At ${APP_NAME} we want every user to feel taken care of. When something goes wrong (a technical glitch, a confusing experience, or a support issue), our first remedy is to make it right with account credits (tokens), quickly and generously.`,
       "Money refunds are reserved for exceptional cases (see below). For everything else, credits are faster, and you keep using the tools you came for.",
     ],
   },
@@ -27,7 +27,7 @@ const SECTIONS: LegalSection[] = [
     ],
   },
   {
-    heading: "Credits — the details",
+    heading: "Credits: the details",
     body: [
       "Credits are added directly to your account balance and can be used across all AI features (résumé tailoring, cover letters, ATS scans, and voice/avatar interview prep).",
       "Credits have no cash value, are non-transferable, and are not redeemable for money. They don't expire while your account is active.",
@@ -36,15 +36,15 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Free trial",
     body: [
-      "New customers get a one-time 7-day free trial (500 credits) with a credit card on file. You are not charged during the trial. Cancel anytime before the trial ends — in one click from Billing — and you pay nothing at all.",
-      "If you don't cancel, your selected plan starts automatically when the trial ends and the plan price is charged to your card, as disclosed when you started the trial. Charges after a trial you chose not to cancel are valid charges and are not refundable as \"unwanted trial conversions\" — set a reminder if you're unsure.",
+      "New customers get a one-time 7-day free trial (500 credits) with a credit card on file. You are not charged during the trial. Cancel anytime before the trial ends, in one click from Billing, and you pay nothing at all.",
+      "If you don't cancel, your selected plan starts automatically when the trial ends and the plan price is charged to your card, as disclosed when you started the trial. Charges after a trial you chose not to cancel are valid charges and are not refundable as \"unwanted trial conversions\". Set a reminder if you're unsure.",
     ],
   },
   {
     heading: "Subscriptions",
     body: [
-      "Plans are billed in advance (monthly or yearly). You can cancel anytime — you keep access until the end of the current billing period, and you won't be charged again.",
-      "We generally do not provide partial-period refunds for subscriptions. If you were charged in error or hit a serious issue, contact us — we'll make it right, usually with credits and, where warranted, a money refund.",
+      "Plans are billed in advance (monthly or yearly). You can cancel anytime. You keep access until the end of the current billing period, and you won't be charged again.",
+      "We generally do not provide partial-period refunds for subscriptions. If you were charged in error or hit a serious issue, contact us and we'll make it right, usually with credits and, where warranted, a money refund.",
     ],
   },
   {
@@ -74,7 +74,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Chargebacks",
     body: [
-      "If you have a billing concern, please contact us first — we can almost always resolve it faster than a bank dispute. Initiating a chargeback without contacting us may result in suspension of the account while the dispute is reviewed.",
+      "If you have a billing concern, please contact us first. We can almost always resolve it faster than a bank dispute. Initiating a chargeback without contacting us may result in suspension of the account while the dispute is reviewed.",
     ],
   },
 ];

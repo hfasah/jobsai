@@ -30,12 +30,12 @@ const TIERS: Tier[] = [
     planKey: "trial",
     icon: Sparkles,
     monthly: 0,
-    tagline: "7 days on any plan — card required, cancel anytime",
+    tagline: "7 days on any plan. Card required, cancel anytime",
     cta: "Start free trial",
     features: [
       "500 credits to try everything",
       "Full access to your chosen plan for 7 days",
-      "No charge until day 7 — cancel in one click before then",
+      "No charge until day 7. Cancel in one click before then",
       "One trial per customer",
     ],
   },
@@ -186,10 +186,10 @@ function priceFor(monthly: number, yearly: boolean) {
   const savedPct = Math.round((1 - perMoYearly / monthly) * 100);
   if (yearly) {
     const annual = perMoYearly * 12;
-    return { big: `$${perMoYearly}`, sub: "/mo · billed yearly", note: `$${annual}/yr — you save ${savedPct}%` };
+    return { big: `$${perMoYearly}`, sub: "/mo · billed yearly", note: `$${annual}/yr · you save ${savedPct}%` };
   }
   const annual = monthly * 12;
-  return { big: `$${monthly}`, sub: "/month", note: `$${annual}/yr — or go yearly & save ${savedPct}%` };
+  return { big: `$${monthly}`, sub: "/month", note: `$${annual}/yr · or go yearly & save ${savedPct}%` };
 }
 
 export function PricingSection() {
@@ -214,7 +214,7 @@ export function PricingSection() {
         window.location.href = json.url;
       } else {
         // Surface the error then send to billing page so they can retry
-        alert(json.error ?? "Checkout failed — please try from the billing page.");
+        alert(json.error ?? "Checkout failed. Please try from the billing page.");
         window.location.href = "/dashboard/billing";
       }
     } catch {
@@ -234,7 +234,7 @@ export function PricingSection() {
             Apply more. <span className="text-gradient">Interview more.</span>
           </h2>
           <p className="mx-auto mt-3 max-w-xl text-muted-foreground">
-            Start with a 7-day free trial — 500 credits included, credit card required,
+            Start with a 7-day free trial: 500 credits included, credit card required,
             cancel anytime before day 7 and pay nothing. Interview prep is included on
             every paid plan.
           </p>

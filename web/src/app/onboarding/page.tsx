@@ -138,7 +138,7 @@ export default function OnboardingPage() {
             {countdown && (
               <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-[var(--cta)]/40 bg-[var(--cta)]/10 px-4 py-1.5 text-sm font-semibold">
                 <Sparkles className="h-4 w-4 text-[var(--cta)]" />
-                Welcome offer — 20% off your first year ·
+                Welcome offer: 20% off your first year ·
                 <span className="tabular-nums text-[var(--cta)]">{countdown}</span>
               </div>
             )}
@@ -147,8 +147,8 @@ export default function OnboardingPage() {
               Try everything free for 7 days.
             </h1>
             <p className="mt-3 max-w-xl text-muted-foreground">
-              Pick a plan to start your free trial — 500 credits included, no charge until day 7,
-              cancel anytime. We auto-apply to jobs and land you interviews — guaranteed — then
+              Pick a plan to start your free trial. 500 credits included, no charge until day 7,
+              cancel anytime. We auto-apply to jobs and land you interviews, guaranteed. Then
               prep you to win them with written, voice, and avatar rounds.
             </p>
 

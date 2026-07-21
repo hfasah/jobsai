@@ -23,7 +23,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "The Services",
     body: [
-      `${APP_NAME} provides software tools to help you find jobs and prepare and submit applications, including resume building/optimization, ATS scoring, cover letters, job discovery and matching, Auto-Apply, and interview preparation. ${APP_NAME} is software — not an employment agency, recruiter, or career advisor.`,
+      `${APP_NAME} provides software tools to help you find jobs and prepare and submit applications, including resume building/optimization, ATS scoring, cover letters, job discovery and matching, Auto-Apply, and interview preparation. ${APP_NAME} is software, not an employment agency, recruiter, or career advisor.`,
     ],
   },
   {
@@ -42,7 +42,7 @@ const SECTIONS: LegalSection[] = [
   {
     heading: "Refunds",
     body: [
-      "Except where required by law, subscription fees and token purchases are non-refundable once the billing period has started or tokens have been used. If something isn't working, contact support@jobsai.work first — we review refund requests case by case and may offer a prorated refund or credit at our discretion.",
+      "Except where required by law, subscription fees and token purchases are non-refundable once the billing period has started or tokens have been used. If something isn't working, contact support@jobsai.work first. We review refund requests case by case and may offer a prorated refund or credit at our discretion.",
     ],
   },
   {
