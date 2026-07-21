@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import {
   LayoutDashboard, Users, CreditCard, Building2,
-  MessageSquareWarning, ShieldCheck, Inbox, BarChart3, Globe, Handshake, Target, Newspaper, Rocket, Coins, UserCog,
+  MessageSquareWarning, ShieldCheck, Inbox, BarChart3, Globe, Handshake, Target, Newspaper, Rocket, Coins, UserCog, Activity,
 } from "lucide-react";
 import { AdminSignOut } from "@/components/admin-sign-out";
 import { getAdminContext, type AdminPerm } from "@/lib/admin";
@@ -32,6 +32,7 @@ const NAV: { href: string; label: string; icon: typeof Users; perm: AdminPerm }[
   { href: "/admin/partners",    label: "Partners",        icon: Handshake,       perm: "partners" },
   { href: "/admin/churn",       label: "Churn",           icon: MessageSquareWarning, perm: "analytics" },
   { href: "/admin/support",     label: "Support Inbox",   icon: Inbox,           perm: "support" },
+  { href: "/admin/health",      label: "Health",          icon: Activity,        perm: "analytics" },
   { href: "/admin/staff",       label: "Staff & Access",  icon: UserCog,         perm: "staff.manage" },
 ];
 
