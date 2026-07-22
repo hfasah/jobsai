@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getUserBilling } from "@/lib/billing";
 import { getStripe } from "@/lib/stripe";
 import { StartTrialClient } from "@/components/start-trial-client";
+import { PromoBanner } from "@/components/marketing/promo-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -36,5 +37,10 @@ export default async function StartTrialPage() {
     }
   }
 
-  return <StartTrialClient trialEligible={trialEligible} />;
+  return (
+    <>
+      <PromoBanner />
+      <StartTrialClient trialEligible={trialEligible} />
+    </>
+  );
 }

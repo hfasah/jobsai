@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { UserButton, useUser } from "@clerk/nextjs";
 import { APP_NAME } from "@/lib/constants";
+import { PromoBanner } from "@/components/marketing/promo-banner";
 
 const NAV = [
   { href: "/#how", label: "How it works" },
@@ -21,6 +22,7 @@ export function MarketingHeader() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-white/10 bg-background/70 backdrop-blur-xl">
+      <PromoBanner />
       <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
         <Link href="/" className="text-lg font-bold tracking-tight">
           <span className="text-gradient">{APP_NAME}</span>
