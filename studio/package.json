@@ -1,0 +1,16 @@
+{
+  "name": "jobsai-marketing-studio",
+  "private": true,
+  "description": "Sanity Studio for the JobsAI Enterprise marketing surface. Marketing edits content here; the app on Vercel renders it.",
+  "scripts": {
+    "dev": "sanity dev",
+    "build": "sanity build",
+    "deploy": "sanity deploy"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "sanity": "^4.0.0",
+    "styled-components": "^6.1.13"
+  }
+}
