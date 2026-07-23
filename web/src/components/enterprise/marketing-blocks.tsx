@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { sanityImageUrl } from "@/lib/sanity";
+import { LeadForm } from "@/components/enterprise/lead-form";
 
 // The whitelisted block library for CMS-composed marketing pages. Marketing
 // composes pages out of these in Sanity Studio; engineering owns what each
@@ -92,8 +93,9 @@ export interface FeatureGridBlock { _type: "featureGridBlock"; _key: string; hea
 export interface FaqListBlock { _type: "faqListBlock"; _key: string; heading?: string; items?: { _key: string; question?: string; answer?: string }[] }
 export interface CtaBlock { _type: "ctaBlock"; _key: string; heading?: string; subheading?: string; cta?: Cta }
 export interface BookingBlock { _type: "bookingBlock"; _key: string; heading?: string }
+export interface LeadFormBlock { _type: "leadFormBlock"; _key: string; heading?: string; subheading?: string; buttonLabel?: string; successMessage?: string; tag?: string; showPhone?: boolean }
 
-export type MarketingBlock = HeroBlock | RichTextBlock | FeatureGridBlock | FaqListBlock | CtaBlock | BookingBlock;
+export type MarketingBlock = HeroBlock | RichTextBlock | FeatureGridBlock | FaqListBlock | CtaBlock | BookingBlock | LeadFormBlock;
 
 // Same LeadConnector widget the /enterprise/demo page embeds.
 const BOOKING_SRC = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
@@ -185,6 +187,13 @@ export function MarketingBlocks({ blocks }: { blocks: MarketingBlock[] }) {
                 {block.heading && <h2 className="mb-6 text-center text-3xl font-bold tracking-tight">{block.heading}</h2>}
                 <iframe src={BOOKING_SRC} title="Book a demo"
                   className="h-[780px] w-full rounded-2xl border border-border bg-card" />
+              </section>
+            );
+          case "leadFormBlock":
+            return (
+              <section key={block._key} className="mx-auto max-w-xl px-4 py-12 sm:px-6">
+                <LeadForm heading={block.heading} subheading={block.subheading} buttonLabel={block.buttonLabel}
+                  successMessage={block.successMessage} tag={block.tag} showPhone={block.showPhone} />
               </section>
             );
           default:

@@ -1,9 +1,11 @@
-import { auth } from "@clerk/nextjs/server";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { after } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase";
 import { getMyOrg, uniqueSlug } from "@/lib/enterprise";
 import { attributeOrgToPartner, PARTNER_REF_COOKIE } from "@/lib/partner-program";
+import { ghlTrackEvent } from "@/lib/ghl";
 
 export async function GET() {
   const { userId } = await auth();
@@ -54,6 +56,20 @@ export async function POST(req: NextRequest) {
   } catch {
     // Attribution is best-effort — never block workspace creation.
   }
+
+  // Marketing milestone → GHL, so the agency's nurture reflects real product
+  // progress. after() so it never delays or fails the response.
+  after(async () => {
+    try {
+      const user = await (await clerkClient()).users.getUser(userId);
+      await ghlTrackEvent(user.emailAddresses[0]?.emailAddress, "product-org-created", {
+        firstName: user.firstName ?? undefined,
+        lastName: user.lastName ?? undefined,
+      });
+    } catch (e) {
+      console.error("[org] ghl milestone failed:", e instanceof Error ? e.message : e);
+    }
+  });
 
   return NextResponse.json({ data: org }, { status: 201 });
 }

@@ -90,6 +90,19 @@ export const ctaBlock = defineType({
   preview: { select: { title: "heading" }, prepare: ({ title }) => ({ title: title ?? "CTA", subtitle: "Call to action" }) },
 });
 
+export const leadFormBlock = defineType({
+  name: "leadFormBlock", title: "Lead capture form", type: "object",
+  fields: [
+    defineField({ name: "heading", title: "Heading", type: "string" }),
+    defineField({ name: "subheading", title: "Subheading", type: "text", rows: 2 }),
+    defineField({ name: "buttonLabel", title: "Button text", type: "string", initialValue: "Get started" }),
+    defineField({ name: "successMessage", title: "Success message", type: "string", description: "Shown after someone submits." }),
+    defineField({ name: "tag", title: "GoHighLevel tag", type: "string", description: "Contacts from this form get this tag in GHL. Point your automation at it, e.g. fair-followup-2026." }),
+    defineField({ name: "showPhone", title: "Ask for phone number", type: "boolean", initialValue: false }),
+  ],
+  preview: { select: { title: "heading" }, prepare: ({ title }) => ({ title: title ?? "Lead capture form", subtitle: "Lead capture form" }) },
+});
+
 export const bookingBlock = defineType({
   name: "bookingBlock", title: "Book a demo widget", type: "object",
   fields: [

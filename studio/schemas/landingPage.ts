@@ -24,6 +24,7 @@ export const landingPage = defineType({
         { type: "faqListBlock" },
         { type: "ctaBlock" },
         { type: "bookingBlock" },
+        { type: "leadFormBlock" },
       ],
       validation: (r) => r.min(1),
     }),

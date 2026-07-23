@@ -1,5 +1,6 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { getStripe } from "@/lib/stripe";
+import { ghlTrackEvent } from "@/lib/ghl";
 import type Stripe from "stripe";
 
 export interface InvoicePreview {
@@ -45,11 +46,12 @@ function customerId(sub: Stripe.Subscription): string {
 export async function syncSubscriptionToOrg(sub: Stripe.Subscription): Promise<void> {
   const { data: org } = await supabaseAdmin
     .from("enterprise_orgs")
-    .select("id")
+    .select("id, contact_email, access_status")
     .eq("stripe_customer_id", customerId(sub))
     .maybeSingle();
   if (!org) return; // unknown customer (org not linked yet)
   const orgId = (org as { id: string }).id;
+  const orgRow = org as { id: string; contact_email: string | null; access_status: string | null };
 
   const priceIds = sub.items.data.map((i) => i.price.id);
 
@@ -81,6 +83,14 @@ export async function syncSubscriptionToOrg(sub: Stripe.Subscription): Promise<v
     update.activated_at = new Date().toISOString();
   }
   await supabaseAdmin.from("enterprise_orgs").update(update).eq("id", orgId);
+
+  // Marketing milestones → GHL on the first transition into trial/paid, so the
+  // agency's nurture reflects real billing progress. Fire-and-forget (ghl lib
+  // never throws); tag merge in GHL makes repeat syncs harmless.
+  if (orgRow.contact_email && orgRow.access_status !== accessFromStatus(sub.status)) {
+    if (sub.status === "trialing") void ghlTrackEvent(orgRow.contact_email, "product-trial-started");
+    else if (sub.status === "active") void ghlTrackEvent(orgRow.contact_email, "product-subscription-active");
+  }
 
   // Add-ons: features flagged is_addon whose price is on the subscription.
   // Capture quantity (for per-seat add-ons like extra_recruiter).

@@ -3,6 +3,7 @@ import Image from "next/image";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { PERSONAS, INDUSTRIES, type Persona } from "@/lib/enterprise-personas";
 import { AppearanceMenu } from "@/components/enterprise/appearance-menu";
+import { AttributionCapture } from "@/components/enterprise/attribution-capture";
 
 function MenuColumn({ label, basePath, items, seeAll }: { label: string; basePath: string; items: Persona[]; seeAll: string }) {
   return (
@@ -36,6 +37,7 @@ function MenuColumn({ label, basePath, items, seeAll }: { label: string; basePat
 export function PublicEnterpriseHeader({ partnerMode = false }: { partnerMode?: boolean }) {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur">
+      <AttributionCapture />
       <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-6">
         <Link href={partnerMode ? "/enterprise/partners" : "/enterprise/home"} className="flex items-center gap-2">
           <Image src="/logo.png" alt="JobsAI" width={28} height={28} className="rounded-lg" />

@@ -1,6 +1,6 @@
 import { siteBanner } from "./siteBanner";
 import { landingPage } from "./landingPage";
-import { heroBlock, richTextBlock, featureGridBlock, faqListBlock, ctaBlock, bookingBlock } from "./blocks";
+import { heroBlock, richTextBlock, featureGridBlock, faqListBlock, ctaBlock, bookingBlock, leadFormBlock } from "./blocks";
 
 export const schemaTypes = [
   // documents
@@ -13,4 +13,5 @@ export const schemaTypes = [
   faqListBlock,
   ctaBlock,
   bookingBlock,
+  leadFormBlock,
 ];
