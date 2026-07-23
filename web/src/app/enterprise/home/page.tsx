@@ -4,6 +4,7 @@ import {
   Building2, Briefcase, Landmark, Check, Phone, PlugZap, ClipboardCheck, MessageSquare,
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
+import { CmsBanner } from "@/components/enterprise/cms-banner";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { AudienceToggle } from "@/components/enterprise/audience-toggle";
 import { RoiCalculator } from "@/components/enterprise/roi-calculator";
@@ -92,6 +93,7 @@ export default function EnterpriseHome() {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
+      <CmsBanner />
       <PublicEnterpriseHeader />
 
       {/* Hero */}
