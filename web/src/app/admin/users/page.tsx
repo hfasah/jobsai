@@ -6,7 +6,8 @@ import { Search, Loader2, ChevronLeft, ChevronRight, Building2, User } from "luc
 import { cn } from "@/lib/utils";
 
 interface UserRow {
-  id: string; email: string; name: string; plan: string;
+  id: string; email: string; name: string; plan: string | null;
+  billingState: string;
   subscriptionStatus: string; createdAt: number; lastActiveAt: number | null;
   resumeCount: number; jobCount: number; imageUrl: string;
   suspended?: boolean;
@@ -16,11 +17,19 @@ interface UserRow {
 }
 
 const PLAN_BADGE: Record<string, string> = {
-  free: "bg-muted text-muted-foreground",
   pro: "bg-blue-500/15 text-blue-400",
   premium: "bg-purple-500/15 text-purple-400",
   accelerator: "bg-amber-500/15 text-amber-400",
-  enterprise: "bg-emerald-500/15 text-emerald-400",
+};
+
+// Billing truth: there is no free tier, so every consumer is either carded
+// (trial/active/past due/canceled) or never entered a card at all.
+const BILLING_BADGE: Record<string, { label: string; cls: string; title: string }> = {
+  signup_only:        { label: "Signup only",      cls: "bg-muted text-muted-foreground",       title: "Created an account but never reached checkout. No card entered." },
+  abandoned_checkout: { label: "Left at checkout", cls: "bg-orange-500/15 text-orange-400",     title: "Opened Stripe checkout but never completed it. No card entered." },
+  trialing:           { label: "Trial · card ✓",   cls: "bg-emerald-500/15 text-emerald-400",   title: "Card on file. 7-day trial, converts to paid unless canceled." },
+  past_due:           { label: "Past due",         cls: "bg-red-500/15 text-red-400",           title: "Card on file but the last payment failed." },
+  canceled:           { label: "Canceled",         cls: "bg-zinc-500/15 text-zinc-400",         title: "Had a card and subscription before; now canceled." },
 };
 
 function timeAgo(ms: number | null) {
@@ -80,12 +89,16 @@ export default function AdminUsers() {
         </select>
         <select value={plan} onChange={(e) => setPlan(e.target.value)}
           className="h-10 rounded-xl border border-border bg-card px-3 text-sm outline-none">
-          <option value="all">All plans</option>
-          <option value="free">Free</option>
+          <option value="all">All billing</option>
+          <option value="signup_only">Signup only (no card)</option>
+          <option value="abandoned_checkout">Left at checkout (no card)</option>
+          <option value="trialing">Trial (card on file)</option>
+          <option value="active">Active (paying)</option>
           <option value="pro">Pro</option>
           <option value="premium">Premium</option>
           <option value="accelerator">Accelerator</option>
-          <option value="enterprise">Enterprise</option>
+          <option value="past_due">Past due</option>
+          <option value="canceled">Canceled</option>
         </select>
       </div>
 
@@ -99,7 +112,7 @@ export default function AdminUsers() {
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/40">
               <tr>
-                {["User", "Type", "Plan", "Resumes", "Jobs", "Joined", "Last Active", ""].map((h) => (
+                {["User", "Type", "Billing", "Resumes", "Jobs", "Joined", "Last Active", ""].map((h) => (
                   <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground">{h}</th>
                 ))}
               </tr>
@@ -133,9 +146,19 @@ export default function AdminUsers() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", PLAN_BADGE[u.plan] ?? PLAN_BADGE.free)}>
-                      {u.plan}
-                    </span>
+                    {u.billingState === "active" && u.plan ? (
+                      <span title="Card on file. Paying subscriber."
+                        className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold capitalize", PLAN_BADGE[u.plan] ?? "bg-emerald-500/15 text-emerald-400")}>
+                        {u.plan} · card ✓
+                      </span>
+                    ) : (
+                      <span title={BILLING_BADGE[u.billingState]?.title ?? ""}
+                        className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", (BILLING_BADGE[u.billingState] ?? BILLING_BADGE.signup_only).cls)}>
+                        {u.billingState === "trialing" && u.plan
+                          ? <>Trial · <span className="capitalize">{u.plan}</span> · card ✓</>
+                          : (BILLING_BADGE[u.billingState] ?? BILLING_BADGE.signup_only).label}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{u.resumeCount}</td>
                   <td className="px-4 py-3 tabular-nums text-muted-foreground">{u.jobCount}</td>

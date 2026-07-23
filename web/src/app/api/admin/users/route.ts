@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   // Get billing for all these users
   const { data: billingRows } = await supabaseAdmin
     .from("user_billing")
-    .select("user_id, plan, subscription_status, created_at")
+    .select("user_id, plan, subscription_status, stripe_customer_id, created_at")
     .in("user_id", userIds);
 
   const billingMap = new Map((billingRows ?? []).map((b) => [b.user_id, b]));
@@ -65,17 +65,30 @@ export async function GET(req: NextRequest) {
 
   let users = clerkRes.data.map((u) => {
     const billing = billingMap.get(u.id);
+    const status = billing?.subscription_status ?? null;
     const activePlan =
-      billing?.subscription_status === "active" || billing?.subscription_status === "trialing"
-        ? billing.plan
-        : "free";
+      status === "active" || status === "trialing" || status === "past_due"
+        ? billing?.plan ?? null
+        : null;
+    // Billing truth for the admin list. There is no free tier: a consumer either
+    // completed card-required checkout (trialing/active/past_due/canceled) or
+    // never did. A Stripe customer with no subscription means they clicked
+    // through to checkout but bailed before entering a card.
+    const billingState =
+      status === "active" ? "active"
+      : status === "trialing" ? "trialing"
+      : status === "past_due" ? "past_due"
+      : status === "canceled" ? "canceled"
+      : billing?.stripe_customer_id ? "abandoned_checkout"
+      : "signup_only";
     const member = memberMap.get(u.id);
     return {
       id: u.id,
       email: u.emailAddresses[0]?.emailAddress ?? "—",
       name: [u.firstName, u.lastName].filter(Boolean).join(" ") || "—",
       plan: activePlan,
-      subscriptionStatus: billing?.subscription_status ?? "inactive",
+      billingState,
+      subscriptionStatus: status ?? "inactive",
       createdAt: u.createdAt,
       lastActiveAt: u.lastActiveAt,
       resumeCount: resumeCounts.get(u.id) ?? 0,
@@ -89,7 +102,14 @@ export async function GET(req: NextRequest) {
     };
   });
 
-  if (plan !== "all") users = users.filter((u) => u.plan === plan);
+  // The `plan` filter accepts either a plan slug (pro/premium/accelerator) or a
+  // billing state (signup_only/abandoned_checkout/trialing/active/past_due/canceled).
+  const PLAN_SLUGS = new Set(["pro", "premium", "accelerator"]);
+  if (plan !== "all") {
+    users = PLAN_SLUGS.has(plan)
+      ? users.filter((u) => u.plan === plan)
+      : users.filter((u) => u.billingState === plan);
+  }
   if (type !== "all") users = users.filter((u) => u.type === type);
 
   return NextResponse.json({ users, total: clerkRes.totalCount, page, pages: Math.ceil(clerkRes.totalCount / limit) });
