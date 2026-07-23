@@ -22,7 +22,9 @@ export async function POST(req: NextRequest) {
     tags.push(`sanity:${type}`);
     if (typeof slug === "string" && slug) tags.push(`sanity:${type}:${slug}`);
   }
-  for (const tag of tags) revalidateTag(tag);
+  // "max" = stale-while-revalidate (this Next version requires the profile
+  // argument; the bare 1-arg call is deprecated and fails type check).
+  for (const tag of tags) revalidateTag(tag, "max");
   console.log("[revalidate] refreshed:", tags.join(", ") || "(nothing — missing _type)");
 
   return NextResponse.json({ ok: true, revalidated: tags });
