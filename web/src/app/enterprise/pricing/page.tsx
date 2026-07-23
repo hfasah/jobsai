@@ -6,6 +6,7 @@ import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { RoiCalculator } from "@/components/enterprise/roi-calculator";
 import { PLANS, monthlyEquiv, annualTotal } from "@/lib/enterprise-plans";
+import { sanityFetch } from "@/lib/sanity";
 
 export const metadata = {
   title: "JobsAI Enterprise pricing: plans, billing & free trial",
@@ -49,7 +50,22 @@ const FAQS: { q: string; a: string }[] = [
   { q: "How are add-ons billed?", a: "Add-ons are added or removed from inside your workspace and are prorated onto your existing subscription immediately, with no separate invoice." },
 ];
 
-export default function PublicPricingPage() {
+// Marketing-editable copy (Sanity pricingCopy singleton). Copy ONLY: prices,
+// plan names, and limits stay sourced from PLANS/Stripe — the numbers a
+// customer is charged must never come from a CMS. Unset fields fall back to
+// the hardcoded copy, so the page is identical until marketing edits it.
+interface PricingCopy {
+  heroHeading?: string;
+  heroSubheading?: string;
+  trialNote?: string;
+  faqs?: { q?: string; a?: string }[];
+}
+const PRICING_QUERY = `*[_type == "pricingCopy"][0]{heroHeading, heroSubheading, trialNote, faqs}`;
+
+export default async function PublicPricingPage() {
+  const cms = await sanityFetch<PricingCopy>(PRICING_QUERY, {}, { tags: ["sanity:pricingCopy"], revalidate: 3600 });
+  const faqs = cms?.faqs?.filter((f): f is { q: string; a: string } => Boolean(f.q && f.a)) ?? [];
+  const faqList = faqs.length ? faqs : FAQS;
   // Product + OfferCatalog structured data, generated from the same PLANS data
   // the cards render (so prices in search can't drift from what's shown).
   const APP = "https://app.jobsai.work";
@@ -76,7 +92,7 @@ export default function PublicPricingPage() {
   const faqLd = {
     "@context": "https://schema.org",
     "@type": "FAQPage",
-    mainEntity: FAQS.map((f) => ({
+    mainEntity: faqList.map((f) => ({
       "@type": "Question",
       name: f.q,
       acceptedAnswer: { "@type": "Answer", text: f.a },
@@ -91,9 +107,9 @@ export default function PublicPricingPage() {
       <section className="border-b border-border bg-gradient-to-b from-primary/5 to-transparent px-6 py-16 text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-brand"><Building2 className="h-6 w-6 text-white" /></div>
         <p className="text-xs font-bold uppercase tracking-widest text-primary">JobsAI Enterprise</p>
-        <h1 className="mt-2 text-4xl font-bold tracking-tight">The AI-Powered Talent Acquisition Operating System</h1>
-        <p className="mt-3 text-lg text-muted-foreground">Source. Engage. Screen. Interview. Hire. All in one platform.</p>
-        <p className="mt-1 text-sm text-muted-foreground">All plans include a 14-day free trial.</p>
+        <h1 className="mt-2 text-4xl font-bold tracking-tight">{cms?.heroHeading ?? "The AI-Powered Talent Acquisition Operating System"}</h1>
+        <p className="mt-3 text-lg text-muted-foreground">{cms?.heroSubheading ?? "Source. Engage. Screen. Interview. Hire. All in one platform."}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{cms?.trialNote ?? "All plans include a 14-day free trial."}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link href="/enterprise-login" className="rounded-xl bg-gradient-brand px-6 py-3 text-sm font-semibold text-white shadow-glow">Start free trial</Link>
           <a href={BOOK_DEMO} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-6 py-3 text-sm font-semibold hover:bg-muted">Book a demo</a>
@@ -194,7 +210,7 @@ export default function PublicPricingPage() {
         <div className="mx-auto max-w-3xl">
           <h2 className="mb-8 text-center text-2xl font-bold">Frequently asked questions</h2>
           <div className="space-y-3">
-            {FAQS.map((f) => (
+            {faqList.map((f) => (
               <details key={f.q} className="group rounded-2xl border border-border bg-card p-5">
                 <summary className="cursor-pointer list-none font-semibold marker:hidden">{f.q}</summary>
                 <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.a}</p>

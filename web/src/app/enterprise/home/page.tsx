@@ -5,6 +5,7 @@ import {
 } from "lucide-react";
 import { PublicEnterpriseHeader } from "@/components/enterprise/public-header";
 import { CmsBanner } from "@/components/enterprise/cms-banner";
+import { sanityFetch } from "@/lib/sanity";
 import { PublicEnterpriseFooter } from "@/components/enterprise/public-footer";
 import { AudienceToggle } from "@/components/enterprise/audience-toggle";
 import { RoiCalculator } from "@/components/enterprise/roi-calculator";
@@ -89,7 +90,25 @@ const JSON_LD = [
   },
 ];
 
-export default function EnterpriseHome() {
+// Marketing-editable copy (Sanity homePage singleton). Every field optional:
+// unset fields fall back to the hardcoded copy in this file, so the page is
+// pixel-identical until marketing edits something in the Studio.
+interface HomeCopy {
+  heroHeading?: string;
+  heroSubheading?: string;
+  trialNote?: string;
+  featuresHeading?: string;
+  featuresSubheading?: string;
+  features?: { name?: string; description?: string }[];
+}
+const HOME_QUERY = `*[_type == "homePage"][0]{heroHeading, heroSubheading, trialNote, featuresHeading, featuresSubheading, features}`;
+
+export default async function EnterpriseHome() {
+  const cms = await sanityFetch<HomeCopy>(HOME_QUERY, {}, { tags: ["sanity:homePage"], revalidate: 3600 });
+  // CMS feature items reuse the hardcoded icon sequence (icons stay code-owned).
+  const featureItems = cms?.features?.length
+    ? cms.features.map((f, i) => ({ name: f.name ?? "", desc: f.description ?? "", icon: FEATURES[i % FEATURES.length].icon }))
+    : FEATURES;
   return (
     <main className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
@@ -103,12 +122,12 @@ export default function EnterpriseHome() {
         </div>
         <p className="text-xs font-bold uppercase tracking-widest text-primary">JobsAI Enterprise</p>
         <h1 className="mx-auto mt-3 max-w-3xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-          The AI-Powered Talent Acquisition Operating System
+          {cms?.heroHeading ?? "The AI-Powered Talent Acquisition Operating System"}
         </h1>
         <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-          Orchestrate sourcing, engagement, screening, evidence, submissions, hiring, and redeployment, all in one intelligent platform.
+          {cms?.heroSubheading ?? "Orchestrate sourcing, engagement, screening, evidence, submissions, hiring, and redeployment, all in one intelligent platform."}
         </p>
-        <p className="mt-3 text-sm font-medium text-muted-foreground">All plans include a 14-day free trial.</p>
+        <p className="mt-3 text-sm font-medium text-muted-foreground">{cms?.trialNote ?? "All plans include a 14-day free trial."}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
           <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start 14-day free trial <ArrowRight className="h-4 w-4" /></Link>
           <Link href="/enterprise/tour" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Take a tour</Link>
@@ -127,11 +146,11 @@ export default function EnterpriseHome() {
       {/* Features */}
       <section id="features" className="border-y border-border bg-muted/20 px-6 py-16 scroll-mt-16">
         <div className="mx-auto max-w-6xl">
-          <h2 className="mb-2 text-center text-2xl font-bold">Everything recruiting, AI-powered</h2>
-          <p className="mb-10 text-center text-sm text-muted-foreground">One operating system from first touch to signed offer.</p>
+          <h2 className="mb-2 text-center text-2xl font-bold">{cms?.featuresHeading ?? "Everything recruiting, AI-powered"}</h2>
+          <p className="mb-10 text-center text-sm text-muted-foreground">{cms?.featuresSubheading ?? "One operating system from first touch to signed offer."}</p>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f) => (
-              <div key={f.name} className="rounded-2xl border border-border bg-card p-5">
+            {featureItems.map((f, i) => (
+              <div key={`${f.name}-${i}`} className="rounded-2xl border border-border bg-card p-5">
                 <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10"><f.icon className="h-5 w-5 text-primary" /></div>
                 <h3 className="font-semibold">{f.name}</h3>
                 <p className="mt-1 text-sm text-muted-foreground">{f.desc}</p>
