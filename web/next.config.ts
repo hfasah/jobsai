@@ -31,7 +31,9 @@ const securityHeaders = [
       "frame-src blob: https://*.clerk.com https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://api.leadconnectorhq.com https://link.msgsndr.com https://*.merge.dev",
       "media-src 'self' blob:",
       "worker-src blob:",
-      "frame-ancestors 'self' https://jobsai-marketing.sanity.studio",
+      // The studio directly, plus sanity.io's Dashboard which nests the studio
+      // in its own frame (frame-ancestors validates every ancestor in the chain).
+      "frame-ancestors 'self' https://jobsai-marketing.sanity.studio https://www.sanity.io https://sanity.io",
     ].join("; "),
   },
 ];
