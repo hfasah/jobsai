@@ -73,7 +73,7 @@ export default function SalariesPage() {
       {data && !data.configured && (
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--cta)]/30 bg-[var(--cta)]/10 p-3 text-sm">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cta)]" />
-          <p className="text-muted-foreground">Add a free <span className="font-medium text-foreground">Adzuna API key</span> to load live salary data.</p>
+          <p className="text-muted-foreground">Live salary data is temporarily unavailable for this search. Please try again shortly.</p>
         </div>
       )}
 
