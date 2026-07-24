@@ -5,8 +5,10 @@ import { BuyTokensHost } from "@/components/buy-tokens-host";
 import { AccountTypeNotice } from "@/components/account-type-notice";
 import { SuspendedNotice } from "@/components/suspended-notice";
 import { OnboardingChecklist } from "@/components/onboarding-checklist";
+import { TrialConvertBanner } from "@/components/trial-convert-banner";
 import { getUserRole } from "@/lib/roles";
 import { getUserBilling } from "@/lib/billing";
+import { getTokenBalance } from "@/lib/tokens";
 import { supabaseAdmin } from "@/lib/supabase";
 import { redirect } from "next/navigation";
 
@@ -18,6 +20,7 @@ export default async function DashboardLayout({
   // Strict role separation: Admin and Enterprise accounts can never use the
   // job-seeker dashboard. Show a friendly notice instead of the job board.
   const { userId } = await auth();
+  let trialStatus = "";
   if (userId) {
     const user = await currentUser();
     const email = user?.emailAddresses?.[0]?.emailAddress;
@@ -37,6 +40,7 @@ export default async function DashboardLayout({
     // plan page instead. past_due gets a grace pass so a failed renewal doesn't
     // lock a paying customer out mid-dunning.
     const billing = await getUserBilling(userId);
+    trialStatus = billing.subscription_status ?? "";
     const subscribed = ["active", "trialing", "past_due"].includes(billing.subscription_status ?? "");
     if (!subscribed) {
       // Grandfathered paid-credit customers (bought top-ups / support grants
@@ -83,6 +87,10 @@ export default async function DashboardLayout({
     hasApplyProfile = !!(profileRes.data?.first_name || profileRes.data?.email);
   }
 
+  // Convert-on-exhaustion prompt: only meaningful for a trialing user, and only
+  // fetch the balance in that case.
+  const trialBalance = trialStatus === "trialing" && userId ? await getTokenBalance(userId) : 0;
+
   return (
     <DashboardShell>
       <OnboardingChecklist
@@ -90,6 +98,7 @@ export default async function DashboardLayout({
         hasJobPreferences={hasJobPreferences}
         hasApplyProfile={hasApplyProfile}
       />
+      {trialStatus === "trialing" && <TrialConvertBanner status={trialStatus} balance={trialBalance} />}
       {children}
       <UpgradeHost />
       <BuyTokensHost />
