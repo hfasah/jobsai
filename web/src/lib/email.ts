@@ -347,6 +347,20 @@ export async function sendDiscoverySummary(
 
 interface AutoApplyDigestJob { job_id: string; title: string; company: string; match_score: number | null }
 
+// Auto-apply paused because the user ran out of credits — nudge them to top up
+// so the continuous applying resumes.
+export async function sendAutoApplyLowCredits(userId: string, applied: number) {
+  const to = await getUserEmail(userId);
+  if (!to) return;
+  const html = wrap(`
+    ${h2("Your auto-apply is paused — top up to keep going")}
+    ${p(`Auto Apply has been working for you${applied ? ` and submitted <strong>${applied}</strong> applications` : ""}, but you're out of credits, so it's paused.`)}
+    ${p("Top up and JobsAI will pick right back up — continuously finding and applying to matching jobs on your behalf.", true)}
+    ${btn(`${APP_URL}/dashboard/billing`, "Top up credits")}
+  `);
+  await send(to, "Auto-apply paused — top up to keep applying", html);
+}
+
 export async function sendAutoApplyDigest(
   userId: string,
   data: { applied: AutoApplyDigestJob[]; manual: AutoApplyDigestJob[]; threshold: number }
