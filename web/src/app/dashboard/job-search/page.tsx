@@ -188,13 +188,16 @@ export default function JobSearchPage() {
     setter((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
 
   const run = useCallback(
-    async (nextPage: number) => {
+    async (nextPage: number, override?: Partial<{ what: string; where: string; remote: boolean; empTypes: EmploymentType[] }>) => {
       const id = ++reqId.current;
       setLoading(true);
       setError(null);
-      const qs = new URLSearchParams({ what, where, countries: countries.join(","), page: String(nextPage), sort });
-      if (remote) qs.set("remote", "1");
-      if (empTypes.length) qs.set("employment_types", empTypes.join(","));
+      // Overrides let the initial preference-seeded search fire with the seed
+      // values directly, without waiting for React state to settle.
+      const q = { what, where, remote, empTypes, ...override };
+      const qs = new URLSearchParams({ what: q.what, where: q.where, countries: countries.join(","), page: String(nextPage), sort });
+      if (q.remote) qs.set("remote", "1");
+      if (q.empTypes.length) qs.set("employment_types", q.empTypes.join(","));
       if (jobSites.length) qs.set("job_sites", jobSites.join(","));
       try {
         const res = await fetch(`/api/job-search?${qs}`);
@@ -217,10 +220,45 @@ export default function JobSearchPage() {
     [what, where, countries, sort, remote, empTypes, jobSites]
   );
 
-  // Initial broad search so the board isn't empty on first load.
+  // Seed the search from the user's saved Preferences (target titles, location,
+  // remote, job types) so the board is relevant to THEM on first load — a
+  // DevOps profile shouldn't open to Physical Therapist listings. Falls back to
+  // a broad search when no preferences are set. Runs once on mount.
+  const [matchedToProfile, setMatchedToProfile] = useState(false);
   /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
-    run(1);
+    (async () => {
+      try {
+        const res = await fetch("/api/preferences");
+        const json = await res.json();
+        const p = json?.data;
+        const titles: string[] = Array.isArray(p?.job_titles) ? p.job_titles : [];
+        const locs: string[] = Array.isArray(p?.locations) ? p.locations : [];
+        if (titles.length || locs.length) {
+          // Map preference employment types → search chips (part-time has no
+          // search equivalent; hybrid location preference maps to the chip).
+          const EMP_MAP: Record<string, EmploymentType> = { "full-time": "fulltime", contract: "contract", internship: "internship" };
+          const seedEmp = [
+            ...((Array.isArray(p?.employment_types) ? p.employment_types : []) as string[])
+              .map((e) => EMP_MAP[e]).filter(Boolean) as EmploymentType[],
+            ...(p?.location_type === "hybrid" ? (["hybrid"] as EmploymentType[]) : []),
+          ];
+          const seedRemote = p?.location_type === "remote";
+          const seedWhat = titles[0] ?? "";
+          const seedWhere = seedRemote ? "" : (locs[0] ?? "");
+          setWhat(seedWhat);
+          setWhere(seedWhere);
+          setRemote(seedRemote);
+          setEmpTypes(seedEmp);
+          setMatchedToProfile(true);
+          run(1, { what: seedWhat, where: seedWhere, remote: seedRemote, empTypes: seedEmp });
+          return;
+        }
+      } catch {
+        // preferences unavailable — fall through to a broad search
+      }
+      run(1);
+    })();
   }, []);
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
@@ -377,6 +415,13 @@ export default function JobSearchPage() {
             </span>
             {result?.sources?.length ? <span className="hidden sm:inline">via {result.sources.join(", ")}</span> : null}
           </div>
+
+          {matchedToProfile && what && (
+            <p className="mb-3 flex items-center gap-1.5 text-xs text-primary">
+              <Zap className="h-3.5 w-3.5" />
+              Matched to your profile. <Link href="/dashboard/preferences" className="underline underline-offset-2 hover:text-foreground">Edit preferences</Link> or refine the search above.
+            </p>
+          )}
 
           {loading && !result ? (
             <div className="flex items-center gap-2 rounded-xl border border-border bg-card p-6 text-sm text-muted-foreground">
