@@ -25,6 +25,7 @@ export const landingPage = defineType({
         { type: "ctaBlock" },
         { type: "bookingBlock" },
         { type: "leadFormBlock" },
+        { type: "ghlEmbedBlock" },
       ],
       validation: (r) => r.min(1),
     }),

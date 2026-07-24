@@ -110,3 +110,18 @@ export const bookingBlock = defineType({
   ],
   preview: { prepare: () => ({ title: "Book a demo widget" }) },
 });
+
+export const ghlEmbedBlock = defineType({
+  name: "ghlEmbedBlock", title: "GoHighLevel embed (form / calendar / survey)", type: "object",
+  description: "Embed anything built in GoHighLevel. Submissions and bookings appear natively in GHL and trigger its workflows.",
+  fields: [
+    defineField({ name: "heading", title: "Heading", type: "string" }),
+    defineField({
+      name: "url", title: "GoHighLevel widget link", type: "url",
+      description: "In GHL open your form, calendar, or survey and copy its share/embed LINK (starts with https://api.leadconnectorhq.com/widget/… or https://link.msgsndr.com/…). Paste it here.",
+      validation: (r) => r.required(),
+    }),
+    defineField({ name: "height", title: "Height (pixels)", type: "number", initialValue: 700, description: "Increase if the form is cut off." }),
+  ],
+  preview: { select: { title: "heading", subtitle: "url" }, prepare: ({ title, subtitle }) => ({ title: title ?? "GoHighLevel embed", subtitle }) },
+});

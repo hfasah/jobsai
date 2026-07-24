@@ -28,7 +28,7 @@ const securityHeaders = [
       "font-src 'self' data: https://fonts.gstatic.com https://*.clerk.com https://clerk.jobsai.work",
       "img-src 'self' data: blob: https: http:",
       "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.clerk.com https://*.clerk.accounts.dev https://clerk.jobsai.work https://challenges.cloudflare.com https://api.clerk.dev https://api.skyvern.com https://api.resend.com https://api.stripe.com https://api.leadconnectorhq.com https://link.msgsndr.com https://*.merge.dev",
-      "frame-src blob: https://*.clerk.com https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://api.leadconnectorhq.com https://*.merge.dev",
+      "frame-src blob: https://*.clerk.com https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://api.leadconnectorhq.com https://link.msgsndr.com https://*.merge.dev",
       "media-src 'self' blob:",
       "worker-src blob:",
       "frame-ancestors 'self' https://jobsai-marketing.sanity.studio",

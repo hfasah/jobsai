@@ -94,8 +94,20 @@ export interface FaqListBlock { _type: "faqListBlock"; _key: string; heading?: s
 export interface CtaBlock { _type: "ctaBlock"; _key: string; heading?: string; subheading?: string; cta?: Cta }
 export interface BookingBlock { _type: "bookingBlock"; _key: string; heading?: string }
 export interface LeadFormBlock { _type: "leadFormBlock"; _key: string; heading?: string; subheading?: string; buttonLabel?: string; successMessage?: string; tag?: string; showPhone?: boolean }
+export interface GhlEmbedBlock { _type: "ghlEmbedBlock"; _key: string; heading?: string; url?: string; height?: number }
 
-export type MarketingBlock = HeroBlock | RichTextBlock | FeatureGridBlock | FaqListBlock | CtaBlock | BookingBlock | LeadFormBlock;
+export type MarketingBlock = HeroBlock | RichTextBlock | FeatureGridBlock | FaqListBlock | CtaBlock | BookingBlock | LeadFormBlock | GhlEmbedBlock;
+
+// Only GoHighLevel's own widget hosts may be embedded — anything else is
+// silently dropped (protects the page from arbitrary third-party iframes).
+const GHL_EMBED_HOSTS = new Set(["api.leadconnectorhq.com", "link.msgsndr.com"]);
+function safeGhlUrl(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw);
+    return u.protocol === "https:" && GHL_EMBED_HOSTS.has(u.hostname) ? u.toString() : null;
+  } catch { return null; }
+}
 
 // Same LeadConnector widget the /enterprise/demo page embeds.
 const BOOKING_SRC = "https://api.leadconnectorhq.com/widget/booking/5HFMVFvz8AJQ4gjY7B9F";
@@ -189,6 +201,18 @@ export function MarketingBlocks({ blocks }: { blocks: MarketingBlock[] }) {
                   className="h-[780px] w-full rounded-2xl border border-border bg-card" />
               </section>
             );
+          case "ghlEmbedBlock": {
+            const src = safeGhlUrl(block.url);
+            if (!src) return null;
+            return (
+              <section key={block._key} className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
+                {block.heading && <h2 className="mb-6 text-center text-3xl font-bold tracking-tight">{block.heading}</h2>}
+                <iframe src={src} title={block.heading || "GoHighLevel widget"}
+                  style={{ height: `${Math.min(Math.max(block.height ?? 700, 200), 2400)}px` }}
+                  className="w-full rounded-2xl border border-border bg-card" />
+              </section>
+            );
+          }
           case "leadFormBlock":
             return (
               <section key={block._key} className="mx-auto max-w-xl px-4 py-12 sm:px-6">
