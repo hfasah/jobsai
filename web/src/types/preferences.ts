@@ -71,7 +71,7 @@ export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   blocked_domains: [],
   auto_apply_enabled: false,
   auto_apply_mode: "hybrid" as const,
-  auto_apply_threshold: 75,
+  auto_apply_threshold: 60,
   require_approval: false,
   cc_email_enabled: false,
   cc_email: null,

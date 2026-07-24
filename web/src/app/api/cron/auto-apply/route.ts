@@ -104,7 +104,7 @@ export async function GET(req: NextRequest) {
       break;
     }
     const userId = prefs.user_id;
-    const threshold = prefs.auto_apply_threshold ?? 75;
+    const threshold = prefs.auto_apply_threshold ?? 60;
     const mode = (prefs.auto_apply_mode ?? "hybrid") as "auto" | "hybrid" | "review";
     summary.users_processed++;
 
