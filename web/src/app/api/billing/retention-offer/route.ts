@@ -15,7 +15,9 @@ const COUPONS: Record<"30" | "50", { id: string; percent: number; months: number
 
 const TWELVE_MONTHS_MS = 365 * 24 * 60 * 60 * 1000;
 
-async function getOrCreateCoupon(tier: "30" | "50"): Promise<string> {
+// Monthly plans: reusable percent-off coupon that repeats for 2 billing months
+// = exactly "2 months at X% off". Correct as-is.
+async function getOrCreateMonthlyCoupon(tier: "30" | "50"): Promise<string> {
   const spec = COUPONS[tier];
   const stripe = getStripe();
   try {
@@ -31,6 +33,24 @@ async function getOrCreateCoupon(tier: "30" | "50"): Promise<string> {
     });
     return coupon.id;
   }
+}
+
+// Yearly plans: a percent-off "repeating 2 months" coupon would discount the
+// ENTIRE annual invoice (Stripe applies duration_in_months to whatever invoice
+// falls in the window), turning "50% off 2 months" into ~50% off a whole year.
+// Instead grant a ONE-TIME fixed amount equal to 2 months of the plan's value:
+// annual_price × percent% × (2/12). A fresh coupon per amount (Stripe-assigned
+// id), duration "once".
+async function createYearlyCoupon(tier: "30" | "50", annualAmount: number, currency: string): Promise<string> {
+  const spec = COUPONS[tier];
+  const amountOff = Math.round((annualAmount * spec.percent / 100) * (spec.months / 12));
+  const coupon = await getStripe().coupons.create({
+    amount_off: Math.max(amountOff, 1),
+    currency,
+    duration: "once",
+    name: `${spec.name} (annual)`,
+  });
+  return coupon.id;
 }
 
 async function isEligible(userId: string): Promise<{ eligible: boolean; reason?: string }> {
@@ -80,7 +100,12 @@ export async function POST(req: NextRequest) {
 
   try {
     const stripe = getStripe();
-    const couponId = await getOrCreateCoupon(tier);
+    const sub = await stripe.subscriptions.retrieve(billing.stripe_subscription_id, { expand: ["items.data.price"] });
+    const price = sub.items.data[0]?.price;
+    const isYearly = price?.recurring?.interval === "year";
+    const couponId = isYearly
+      ? await createYearlyCoupon(tier, price?.unit_amount ?? 0, price?.currency ?? "usd")
+      : await getOrCreateMonthlyCoupon(tier);
     await stripe.subscriptions.update(billing.stripe_subscription_id, {
       discounts: [{ coupon: couponId }],
     });

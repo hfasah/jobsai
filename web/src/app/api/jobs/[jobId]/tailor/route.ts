@@ -6,7 +6,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { tailorResume } from "@/lib/ai-content";
 import { fillExperienceDates } from "@/lib/resume-dates";
-import { getTokenAccount, deductTokens, TOKEN_COSTS } from "@/lib/tokens";
+import { deductTokens, addTokens, TOKEN_COSTS } from "@/lib/tokens";
 
 // GET /api/jobs/[jobId]/tailor — fetch saved tailored resume
 export async function GET(
@@ -47,12 +47,15 @@ export async function POST(
     return NextResponse.json({ error: ctx.error }, { status: ctx.status });
   }
 
-  // Token gate (all plans, incl. free's 500-token grant). Charged on success.
+  // Reserve tokens ATOMICALLY before doing the paid LLM work. deductTokens does
+  // a conditional balance update, so concurrent requests can't both pass — only
+  // one reservation of `cost` wins, closing the "fire N concurrent, all get the
+  // result, only one is charged" race. Refunded below if the work fails.
   const cost = TOKEN_COSTS.resume_tailor;
-  const account = await getTokenAccount(userId);
-  if (account.balance < cost) {
+  const reservation = await deductTokens(userId, cost, "resume_tailor", { jobId }, { meterFree: true });
+  if (!reservation.ok) {
     return NextResponse.json(
-      { error: `You're out of tokens. Tailoring a résumé costs ${cost} and you have ${account.balance}. Upgrade your plan or top up to continue.`, upgrade_required: true, balance: account.balance },
+      { error: `You're out of tokens. Tailoring a résumé costs ${cost} and you have ${reservation.balance}. Upgrade your plan or top up to continue.`, upgrade_required: true, balance: reservation.balance },
       { status: 402 }
     );
   }
@@ -62,6 +65,7 @@ export async function POST(
     result = await tailorResume(ctx.resumeProfile, ctx.jobParsed, detail, ctx.resumeRawText);
   } catch (err) {
     console.error("Tailoring error:", err);
+    await addTokens(userId, cost, "resume_tailor_refund", { jobId, reason: "llm_error" });
     return NextResponse.json({ error: aiErrorMessage(err) }, { status: 500 });
   }
 
@@ -93,9 +97,9 @@ export async function POST(
 
   if (error) {
     console.error("Tailor save error:", error.message);
+    await addTokens(userId, cost, "resume_tailor_refund", { jobId, reason: "save_error" });
     return NextResponse.json({ error: "Couldn't save your tailored résumé. Please try again." }, { status: 500 });
   }
 
-  const spend = await deductTokens(userId, cost, "resume_tailor", { jobId }, { meterFree: true });
-  return NextResponse.json({ data, balance: spend.balance });
+  return NextResponse.json({ data, balance: reservation.balance });
 }
