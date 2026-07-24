@@ -59,6 +59,7 @@ export type PreferencesUpdate = Omit<UserPreferences, "id" | "user_id" | "create
 
 export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   job_titles: [],
+  primary_title: null,
   keywords: [],
   location_type: "any",
   locations: [],
