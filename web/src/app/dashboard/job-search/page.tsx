@@ -402,8 +402,8 @@ export default function JobSearchPage() {
         <div className="mt-4 flex items-start gap-3 rounded-xl border border-[var(--cta)]/30 bg-[var(--cta)]/10 p-3 text-sm">
           <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--cta)]" />
           <p className="text-muted-foreground">
-            Showing a <span className="font-medium text-foreground">limited free sample</span> (remote roles).
-            Add a free <span className="font-medium text-foreground">Adzuna API key</span> for full US, Canada, UK &amp; EU coverage.
+            Showing <span className="font-medium text-foreground">remote roles</span> for this search.
+            Try a broader keyword or add another country for more listings.
           </p>
         </div>
       )}
