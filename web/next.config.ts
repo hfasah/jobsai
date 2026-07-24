@@ -2,8 +2,9 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const securityHeaders = [
-  // Prevent clickjacking — stop the site being embedded in iframes.
-  { key: "X-Frame-Options", value: "SAMEORIGIN" },
+  // Clickjacking protection lives in CSP frame-ancestors below (supersedes
+  // X-Frame-Options in modern browsers): same-origin plus the Sanity Studio,
+  // whose Presentation pane embeds the site for visual editing previews.
   // Stop browsers guessing MIME types (XSS vector).
   { key: "X-Content-Type-Options", value: "nosniff" },
   // Don't send the Referer header to third-party sites.
@@ -30,6 +31,7 @@ const securityHeaders = [
       "frame-src blob: https://*.clerk.com https://clerk.jobsai.work https://challenges.cloudflare.com https://js.stripe.com https://hooks.stripe.com https://api.leadconnectorhq.com https://*.merge.dev",
       "media-src 'self' blob:",
       "worker-src blob:",
+      "frame-ancestors 'self' https://jobsai-marketing.sanity.studio",
     ].join("; "),
   },
 ];
