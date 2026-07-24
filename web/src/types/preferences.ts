@@ -30,6 +30,7 @@ export interface UserPreferences {
   id: string;
   user_id: string;
   job_titles: string[];
+  primary_title: string | null;
   keywords: string[];
   location_type: LocationType;
   locations: string[];

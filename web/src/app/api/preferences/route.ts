@@ -27,6 +27,7 @@ export async function PUT(req: NextRequest) {
 
   const update: Partial<PreferencesUpdate> = {
     job_titles:           Array.isArray(body.job_titles)         ? body.job_titles         : undefined,
+    primary_title:        typeof body.primary_title === "string" ? body.primary_title      : (body.primary_title === null ? null : undefined),
     keywords:             Array.isArray(body.keywords)           ? body.keywords           : undefined,
     location_type:        body.location_type                     ?? undefined,
     locations:            Array.isArray(body.locations)          ? body.locations          : undefined,
