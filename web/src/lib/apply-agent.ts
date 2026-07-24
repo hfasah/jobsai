@@ -5,6 +5,7 @@ import { generateCoverLetter } from "@/lib/ai-content";
 import { sendApplySubmitted, sendManualRequired } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { parseAshbyUrl, submitToAshby } from "@/lib/ashby-apply";
+import { parseGreenhouseUrl, submitToGreenhouse } from "@/lib/greenhouse-apply";
 import { browserAgentConfigured, callBrowserAgent } from "@/lib/browser-client";
 import type { ApplyPlatform, ApplyResult, ApplyProfile } from "@/types/apply";
 
@@ -178,7 +179,7 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
 
     if (result.ok) {
       await upsertApplication(userId, jobId, "applied");
-      const attempt = await logAttempt(userId, jobId, "lever", "submitted");
+      const attempt = await logAttempt(userId, jobId, "lever", "submitted", undefined, "direct_api");
       sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
       createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
       return attempt;
@@ -200,13 +201,33 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
 
     if (result.ok) {
       await upsertApplication(userId, jobId, "applied");
-      const attempt = await logAttempt(userId, jobId, "ashby", "submitted");
+      const attempt = await logAttempt(userId, jobId, "ashby", "submitted", undefined, "direct_api");
       sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
       createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
       return attempt;
     }
     // Ashby API failed — fall through to manual
     return manualRequired(userId, jobId, "ashby", result.message, ctx, sourceUrl);
+  }
+
+  // ── Greenhouse: try the free direct API first, then fall through ──────────
+  // The public Greenhouse Job Board API lets us submit without a browser (~$0).
+  // On any failure (auth-gated board, unanswerable required question, reCAPTCHA)
+  // we DON'T return — we drop to the browser-agent block below, so there's no
+  // regression versus today's behavior, only a cheaper happy path.
+  if (platform === "greenhouse" && resume) {
+    const gh = parseGreenhouseUrl(sourceUrl);
+    if (gh) {
+      const result = await submitToGreenhouse(gh.token, gh.jobId, profile as ApplyProfile, resume.blob, resume.filename, coverLetter);
+      if (result.ok) {
+        await upsertApplication(userId, jobId, "applied");
+        const attempt = await logAttempt(userId, jobId, "greenhouse", "submitted", undefined, "direct_api");
+        sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
+        createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
+        return attempt;
+      }
+      console.log(`[apply] greenhouse direct API fell through to browser agent: ${result.message}`);
+    }
   }
 
   // ── Platforms handled by the browser agent (Greenhouse, Workday, etc.) ────
@@ -225,7 +246,7 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
 
     if (agentResult.status === "submitted") {
       await upsertApplication(userId, jobId, "applied");
-      const attempt = await logAttempt(userId, jobId, platform, "submitted");
+      const attempt = await logAttempt(userId, jobId, platform, "submitted", undefined, "browser_agent");
       sendApplySubmitted(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId).catch(console.error);
       createNotification(userId, "auto_applied", "Application submitted", `Applied to ${ctx.jobParsed.title ?? "a role"} at ${ctx.jobParsed.company ?? "a company"}`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
       return attempt;
@@ -262,31 +283,44 @@ async function manualRequired(
   const label = PLATFORM_LABELS[platform] ?? "This platform";
   const msg = reason ?? `${label} requires manual submission. Your cover letter and resume are ready.`;
   await upsertApplication(userId, jobId, "saved");
-  const attempt = await logAttempt(userId, jobId, platform, "manual_required", msg);
+  const attempt = await logAttempt(userId, jobId, platform, "manual_required", msg, "manual");
   sendManualRequired(userId, ctx.jobParsed.title ?? "Role", ctx.jobParsed.company ?? "Company", jobId, sourceUrl || null).catch(console.error);
   createNotification(userId, "manual_required", "Manual application needed", `${ctx.jobParsed.title ?? "A role"} at ${ctx.jobParsed.company ?? "a company"} requires manual submission. Your cover letter is ready.`, { job_id: jobId, title: ctx.jobParsed.title, company: ctx.jobParsed.company }).catch(console.error);
   return attempt;
 }
 
+// engine: which tier handled the apply — "direct_api" (~$0, Lever/Ashby/
+// Greenhouse), "browser_agent" (~cents, self-hosted), "manual" (user), or null.
+// Powers the per-tier cost breakdown on the admin apply-health view. The column
+// is optional (migration 184); the insert degrades gracefully if it's absent.
 async function logAttempt(
   userId: string,
   jobId: string,
   platform: ApplyPlatform,
   status: "submitted" | "failed" | "manual_required" | "blocked",
-  errorMsg?: string
+  errorMsg?: string,
+  engine?: "direct_api" | "browser_agent" | "manual"
 ): Promise<ApplyResult> {
-  const { data } = await supabaseAdmin
+  const row: Record<string, unknown> = {
+    user_id: userId,
+    job_id: jobId,
+    platform,
+    status,
+    submitted_at: status === "submitted" ? new Date().toISOString() : null,
+    error_msg: errorMsg ?? null,
+  };
+  if (engine) row.engine = engine;
+  let { data } = await supabaseAdmin
     .from("apply_attempts")
-    .insert({
-      user_id: userId,
-      job_id: jobId,
-      platform,
-      status,
-      submitted_at: status === "submitted" ? new Date().toISOString() : null,
-      error_msg: errorMsg ?? null,
-    })
+    .insert(row)
     .select("id")
     .single();
+  // Pre-migration fallback: retry without the engine column so a deploy before
+  // migration 184 never drops apply attempts.
+  if (!data && engine) {
+    delete row.engine;
+    ({ data } = await supabaseAdmin.from("apply_attempts").insert(row).select("id").single());
+  }
 
   return {
     status,
