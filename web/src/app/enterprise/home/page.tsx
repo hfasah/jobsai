@@ -42,6 +42,12 @@ const SOLUTIONS = [
 
 const PLATFORM = ["ATS", "Recruiting CRM", "AI Sourcing", "AI Screening", "AI Interviews", "Workflow Automation", "Offer Management", "Analytics", "Compliance", "Enterprise Security"];
 
+const INTERVIEW_STEPS = [
+  { icon: Phone, title: "AI phone screens", desc: "Conversational AI calls candidates, asks role-specific questions, and scores every answer in real time." },
+  { icon: Mic, title: "Avatar & assessment rounds", desc: "Deeper AI voice and avatar interviews with structured, full assessments for your shortlist." },
+  { icon: ClipboardCheck, title: "Scorecards & handoff", desc: "Ranked, explainable scorecards flow straight into your pipeline for the final human decision." },
+];
+
 // Structured data (JSON-LD) for rich results: the WebPage + the SoftwareApplication it describes.
 const JSON_LD = [
   {
@@ -93,22 +99,59 @@ const JSON_LD = [
 // Marketing-editable copy (Sanity homePage singleton). Every field optional:
 // unset fields fall back to the hardcoded copy in this file, so the page is
 // pixel-identical until marketing edits something in the Studio.
+interface CmsCta { label?: string; href?: string }
+interface NamedCard { name?: string; description?: string }
 interface HomeCopy {
   heroHeading?: string;
   heroSubheading?: string;
   trialNote?: string;
+  heroPrimaryCta?: CmsCta;
+  heroSecondaryCta?: CmsCta;
+  heroTertiaryCta?: CmsCta;
+  problemEyebrow?: string;
+  problemHeading?: string;
+  problemText?: string;
+  problemBadge?: string;
   featuresHeading?: string;
   featuresSubheading?: string;
-  features?: { name?: string; description?: string }[];
+  features?: NamedCard[];
+  solutionsHeading?: string;
+  solutionsSubheading?: string;
+  solutions?: NamedCard[];
+  interviewEyebrow?: string;
+  interviewHeading?: string;
+  interviewText?: string;
+  interviewCards?: NamedCard[];
+  atsHeading?: string;
+  atsText?: string;
+  atsBoxTitle?: string;
+  atsBoxText?: string;
+  atsCta?: CmsCta;
+  roiHeading?: string;
+  roiSubheading?: string;
+  whyHeading?: string;
+  whyText?: string;
+  platformChips?: string[];
+  ctaHeading?: string;
+  ctaSubheading?: string;
+  ctaPrimary?: CmsCta;
+  ctaSecondary?: CmsCta;
 }
-const HOME_QUERY = `*[_type == "homePage"][0]{heroHeading, heroSubheading, trialNote, featuresHeading, featuresSubheading, features}`;
+const HOME_QUERY = `*[_type == "homePage"][0]`;
 
 export default async function EnterpriseHome() {
   const cms = await sanityFetch<HomeCopy>(HOME_QUERY, {}, { tags: ["sanity:homePage"], revalidate: 3600 });
-  // CMS feature items reuse the hardcoded icon sequence (icons stay code-owned).
+  // CMS card lists reuse the hardcoded icon sequences (icons stay code-owned).
   const featureItems = cms?.features?.length
     ? cms.features.map((f, i) => ({ name: f.name ?? "", desc: f.description ?? "", icon: FEATURES[i % FEATURES.length].icon }))
     : FEATURES;
+  const solutionItems = cms?.solutions?.length
+    ? cms.solutions.map((s, i) => ({ name: s.name ?? "", desc: s.description ?? "", icon: SOLUTIONS[i % SOLUTIONS.length].icon }))
+    : SOLUTIONS;
+  const interviewItems = cms?.interviewCards?.length
+    ? cms.interviewCards.map((c, i) => ({ title: c.name ?? "", desc: c.description ?? "", icon: INTERVIEW_STEPS[i % INTERVIEW_STEPS.length].icon }))
+    : INTERVIEW_STEPS;
+  const platformChips = cms?.platformChips?.length ? cms.platformChips : PLATFORM;
   return (
     <main className="min-h-screen bg-background text-foreground">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(JSON_LD) }} />
@@ -129,18 +172,18 @@ export default async function EnterpriseHome() {
         </p>
         <p className="mt-3 text-sm font-medium text-muted-foreground">{cms?.trialNote ?? "All plans include a 14-day free trial."}</p>
         <div className="mt-7 flex flex-wrap justify-center gap-3">
-          <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start 14-day free trial <ArrowRight className="h-4 w-4" /></Link>
-          <Link href="/enterprise/tour" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Take a tour</Link>
-          <a href={BOOK_DEMO} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Book a demo</a>
+          <Link href={cms?.heroPrimaryCta?.href ?? "/enterprise-login"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">{cms?.heroPrimaryCta?.label ?? "Start 14-day free trial"} <ArrowRight className="h-4 w-4" /></Link>
+          <Link href={cms?.heroSecondaryCta?.href ?? "/enterprise/tour"} className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">{cms?.heroSecondaryCta?.label ?? "Take a tour"}</Link>
+          <a href={cms?.heroTertiaryCta?.href ?? BOOK_DEMO} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">{cms?.heroTertiaryCta?.label ?? "Book a demo"}</a>
         </div>
       </section>
 
       {/* Problem → Solution */}
       <section className="mx-auto max-w-4xl px-6 py-16 text-center">
-        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">The problem</p>
-        <h2 className="mt-2 text-2xl font-bold">Recruiting teams juggle six+ disconnected tools</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Separate point solutions for sourcing, screening, interviewing, scheduling, analytics, and compliance: slow, expensive, and hard to govern.</p>
-        <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-gradient-brand px-6 py-2 text-sm font-semibold text-white shadow-glow">One platform for everything <ArrowRight className="h-4 w-4" /></div>
+        <p className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{cms?.problemEyebrow ?? "The problem"}</p>
+        <h2 className="mt-2 text-2xl font-bold">{cms?.problemHeading ?? "Recruiting teams juggle six+ disconnected tools"}</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">{cms?.problemText ?? "Separate point solutions for sourcing, screening, interviewing, scheduling, analytics, and compliance: slow, expensive, and hard to govern."}</p>
+        <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-gradient-brand px-6 py-2 text-sm font-semibold text-white shadow-glow">{cms?.problemBadge ?? "One platform for everything"} <ArrowRight className="h-4 w-4" /></div>
       </section>
 
       {/* Features */}
@@ -162,11 +205,11 @@ export default async function EnterpriseHome() {
 
       {/* Solutions */}
       <section id="solutions" className="mx-auto max-w-6xl px-6 py-16 scroll-mt-16">
-        <h2 className="mb-2 text-center text-2xl font-bold">Built for how you hire</h2>
-        <p className="mb-10 text-center text-sm text-muted-foreground">Purpose-built for agencies, staffing firms, and enterprise HR.</p>
+        <h2 className="mb-2 text-center text-2xl font-bold">{cms?.solutionsHeading ?? "Built for how you hire"}</h2>
+        <p className="mb-10 text-center text-sm text-muted-foreground">{cms?.solutionsSubheading ?? "Purpose-built for agencies, staffing firms, and enterprise HR."}</p>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {SOLUTIONS.map((s) => (
-            <div key={s.name} className="rounded-2xl border border-border bg-card p-5">
+          {solutionItems.map((s, i) => (
+            <div key={`${s.name}-${i}`} className="rounded-2xl border border-border bg-card p-5">
               <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-brand"><s.icon className="h-5 w-5 text-white" /></div>
               <h3 className="font-semibold">{s.name}</h3>
               <p className="mt-1 text-sm text-muted-foreground">{s.desc}</p>
@@ -179,19 +222,15 @@ export default async function EnterpriseHome() {
       <section className="border-t border-border bg-background px-6 py-16">
         <div className="mx-auto max-w-6xl">
           <div className="text-center">
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">Interview automation</p>
-            <h2 className="mx-auto mt-2 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">Automate your entire interview pipeline</h2>
+            <p className="text-xs font-bold uppercase tracking-widest text-primary">{cms?.interviewEyebrow ?? "Interview automation"}</p>
+            <h2 className="mx-auto mt-2 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">{cms?.interviewHeading ?? "Automate your entire interview pipeline"}</h2>
             <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">
-              From the first AI phone screen to deep, full-assessment rounds, JobsAI runs every stage of your funnel (screening, scoring, and scheduling on autopilot) so your team spends its time on finalists, not logistics.
+              {cms?.interviewText ?? "From the first AI phone screen to deep, full-assessment rounds, JobsAI runs every stage of your funnel (screening, scoring, and scheduling on autopilot) so your team spends its time on finalists, not logistics."}
             </p>
           </div>
 
           <div className="mt-10 grid gap-4 md:grid-cols-3">
-            {[
-              { icon: Phone, title: "AI phone screens", desc: "Conversational AI calls candidates, asks role-specific questions, and scores every answer in real time." },
-              { icon: Mic, title: "Avatar & assessment rounds", desc: "Deeper AI voice and avatar interviews with structured, full assessments for your shortlist." },
-              { icon: ClipboardCheck, title: "Scorecards & handoff", desc: "Ranked, explainable scorecards flow straight into your pipeline for the final human decision." },
-            ].map((s, i) => (
+            {interviewItems.map((s, i) => (
               <div key={s.title} className="relative rounded-2xl border border-border bg-card p-6">
                 <span className="absolute right-4 top-4 text-xs font-bold text-muted-foreground/40">0{i + 1}</span>
                 <span className="grid h-11 w-11 place-items-center rounded-xl bg-gradient-brand text-white"><s.icon className="h-5 w-5" /></span>
@@ -205,16 +244,16 @@ export default async function EnterpriseHome() {
           <div className="mt-6 grid items-center gap-6 rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-6 sm:p-8 lg:grid-cols-[1.3fr_1fr]">
             <div>
               <div className="flex items-center gap-2 text-primary"><PlugZap className="h-5 w-5" /><span className="text-sm font-bold uppercase tracking-wide">Integrates with your ATS</span></div>
-              <h3 className="mt-2 text-2xl font-bold tracking-tight">Plug into your stack in one click</h3>
+              <h3 className="mt-2 text-2xl font-bold tracking-tight">{cms?.atsHeading ?? "Plug into your stack in one click"}</h3>
               <p className="mt-2 text-muted-foreground">
-                Connect your existing ATS, HRMS, or job board in one click (Greenhouse, Lever, Workday, Bullhorn, and more) with two-way sync that keeps candidates and stages aligned everywhere.
+                {cms?.atsText ?? "Connect your existing ATS, HRMS, or job board in one click (Greenhouse, Lever, Workday, Bullhorn, and more) with two-way sync that keeps candidates and stages aligned everywhere."}
               </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-5">
-              <p className="text-sm font-semibold">Don&apos;t have a stack?</p>
-              <p className="mt-1 text-sm text-muted-foreground">A full <strong className="text-foreground">built-in ATS is included</strong> with every plan. Start free for 14 days, cancel anytime.</p>
-              <Link href="/enterprise-login" className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white shadow-glow">
-                Start free trial <ArrowRight className="h-4 w-4" />
+              <p className="text-sm font-semibold">{cms?.atsBoxTitle ?? "Don't have a stack?"}</p>
+              <p className="mt-1 text-sm text-muted-foreground">{cms?.atsBoxText ?? "A full built-in ATS is included with every plan. Start free for 14 days, cancel anytime."}</p>
+              <Link href={cms?.atsCta?.href ?? "/enterprise-login"} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-5 py-2.5 text-sm font-semibold text-white shadow-glow">
+                {cms?.atsCta?.label ?? "Start free trial"} <ArrowRight className="h-4 w-4" />
               </Link>
             </div>
           </div>
@@ -224,18 +263,18 @@ export default async function EnterpriseHome() {
       {/* ROI */}
       <section id="roi" className="border-y border-border bg-muted/20 px-6 py-16 scroll-mt-16">
         <div className="mx-auto max-w-4xl">
-          <h2 className="mb-2 text-center text-2xl font-bold">Calculate your ROI</h2>
-          <p className="mb-8 text-center text-sm text-muted-foreground">See how much your team could save by automating recruiting.</p>
+          <h2 className="mb-2 text-center text-2xl font-bold">{cms?.roiHeading ?? "Calculate your ROI"}</h2>
+          <p className="mb-8 text-center text-sm text-muted-foreground">{cms?.roiSubheading ?? "See how much your team could save by automating recruiting."}</p>
           <RoiCalculator />
         </div>
       </section>
 
       {/* Why one platform */}
       <section className="mx-auto max-w-4xl px-6 py-16 text-center">
-        <h2 className="text-2xl font-bold">Why JobsAI Enterprise?</h2>
-        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">Replace your recruiting stack with one AI-powered platform, and cut time-to-hire, cost, and tool sprawl.</p>
+        <h2 className="text-2xl font-bold">{cms?.whyHeading ?? "Why JobsAI Enterprise?"}</h2>
+        <p className="mx-auto mt-3 max-w-2xl text-muted-foreground">{cms?.whyText ?? "Replace your recruiting stack with one AI-powered platform, and cut time-to-hire, cost, and tool sprawl."}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
-          {PLATFORM.map((p) => <span key={p} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-sm"><Check className="h-3.5 w-3.5 text-emerald-500" />{p}</span>)}
+          {platformChips.map((p) => <span key={p} className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-3 py-1 text-sm"><Check className="h-3.5 w-3.5 text-emerald-500" />{p}</span>)}
         </div>
       </section>
 
@@ -243,11 +282,11 @@ export default async function EnterpriseHome() {
       <section className="mx-auto max-w-4xl px-6 pb-20">
         <div className="rounded-2xl border border-primary/30 bg-gradient-to-r from-primary/10 to-transparent p-8 text-center">
           <Sparkles className="mx-auto h-6 w-6 text-primary" />
-          <h2 className="mt-3 text-2xl font-bold">Ready to transform your hiring?</h2>
-          <p className="mt-2 text-sm text-muted-foreground">Start a 14-day free trial (cancel anytime) or book a walkthrough with our team.</p>
+          <h2 className="mt-3 text-2xl font-bold">{cms?.ctaHeading ?? "Ready to transform your hiring?"}</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{cms?.ctaSubheading ?? "Start a 14-day free trial (cancel anytime) or book a walkthrough with our team."}</p>
           <div className="mt-5 flex flex-wrap justify-center gap-3">
-            <Link href="/enterprise-login" className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">Start free trial <ArrowRight className="h-4 w-4" /></Link>
-            <Link href="/enterprise/pricing" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">View pricing</Link>
+            <Link href={cms?.ctaPrimary?.href ?? "/enterprise-login"} className="inline-flex items-center gap-2 rounded-xl bg-gradient-brand px-7 py-3 text-sm font-semibold text-white shadow-glow">{cms?.ctaPrimary?.label ?? "Start free trial"} <ArrowRight className="h-4 w-4" /></Link>
+            <Link href={cms?.ctaSecondary?.href ?? "/enterprise/pricing"} className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">{cms?.ctaSecondary?.label ?? "View pricing"}</Link>
             <a href={BOOK_DEMO} target="_blank" rel="noreferrer" className="rounded-xl border border-border bg-card px-7 py-3 text-sm font-semibold hover:bg-muted">Book a demo</a>
           </div>
         </div>
