@@ -8,6 +8,7 @@ import { createNotification } from "@/lib/notifications";
 import { sendAutoApplyDigest, sendAutoApplyLowCredits } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
+import { resolveAggregatorUrl } from "@/lib/url-resolve";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
 import { refundStrandedAutoApplies } from "@/lib/apply-reconcile";
 import { resolveAllPendingAgentTasks } from "@/lib/agent-apply-resolve";
@@ -330,7 +331,10 @@ export async function GET(req: NextRequest) {
                 supabaseAdmin.from("job_parsed").select("posting_url, location").eq("job_id", jobId).maybeSingle(),
               ]);
 
-              const cronUrl = jobRow?.source_url || jobParsedRow?.posting_url;
+              // Unwrap aggregator redirects to the real posting so the agent
+              // doesn't hit the aggregator's regional gate (no-op / instant when
+              // already a direct URL).
+              const cronUrl = await resolveAggregatorUrl(jobRow?.source_url || jobParsedRow?.posting_url || "");
 
               // Pre-flight BEFORE any charge: refuse to pay Skyvern for runs
               // we already know will fail (login-wall boards, domains with a
