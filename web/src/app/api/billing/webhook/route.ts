@@ -3,7 +3,7 @@ import { getStripe } from "@/lib/stripe";
 import { supabaseAdmin } from "@/lib/supabase";
 import { createNotification } from "@/lib/notifications";
 import { PLAN_LIMITS, planFromPriceId } from "@/lib/billing";
-import { addTokens } from "@/lib/tokens";
+import { addTokens, forfeitGrantCredits, convertTrialToPaid } from "@/lib/tokens";
 import type Stripe from "stripe";
 
 // Stripe sends the raw body — must NOT parse as JSON before signature check
@@ -60,6 +60,21 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   if (tokenPack) {
     const tokens = Number(session.metadata?.tokens ?? 0);
     if (tokens > 0) {
+      // Idempotency: Stripe delivers webhooks at-least-once (retries + possible
+      // redelivery after a 200). Skip if this exact session already credited a
+      // top-up, so a redelivery can't double-grant the purchased tokens.
+      const { data: already } = await supabaseAdmin
+        .from("token_ledger")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("reason", "topup")
+        .filter("metadata->>session", "eq", session.id)
+        .limit(1)
+        .maybeSingle();
+      if (already) {
+        console.log(`[billing/webhook] duplicate top-up for session ${session.id} — skipped`);
+        return;
+      }
       await addTokens(userId, tokens, "topup", { pack: tokenPack, session: session.id });
       createNotification(userId, "plan_upgraded", "Tokens added", `${tokens.toLocaleString()} tokens have been added to your balance.`, { tokens, pack: tokenPack }).catch(console.error);
     }
@@ -126,7 +141,7 @@ async function handleSubscriptionChange(sub: Stripe.Subscription) {
 
   const { data: billing } = await supabaseAdmin
     .from("user_billing")
-    .select("user_id")
+    .select("user_id, subscription_status")
     .eq("stripe_customer_id", customerId)
     .maybeSingle();
 
@@ -136,6 +151,8 @@ async function handleSubscriptionChange(sub: Stripe.Subscription) {
   const priceId = sub.items.data[0]?.price?.id;
   const plan = planFromPriceId(priceId) ?? "pro";
 
+  const wasTrialing = billing.subscription_status === "trialing";
+
   await supabaseAdmin
     .from("user_billing")
     .update({
@@ -143,6 +160,14 @@ async function handleSubscriptionChange(sub: Stripe.Subscription) {
       subscription_status: sub.status,
     })
     .eq("user_id", billing.user_id);
+
+  // Genuine trial → paid conversion: grant the full monthly allowance now, from
+  // the authoritative Stripe transition (idempotent via the plan marker). This
+  // is the ONLY place the trial→paid allowance is granted, which is what keeps
+  // a mid-trial status flip from ever unlocking it early.
+  if (wasTrialing && sub.status === "active") {
+    await convertTrialToPaid(billing.user_id);
+  }
 }
 
 async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
@@ -165,4 +190,9 @@ async function handleSubscriptionDeleted(sub: Stripe.Subscription) {
       stripe_subscription_id: null,
     })
     .eq("user_id", billing.user_id);
+
+  // Forfeit the unspent plan/trial allowance — a canceled user shouldn't keep
+  // spending credits they no longer pay for. Purchased top-ups are preserved.
+  await forfeitGrantCredits(billing.user_id).catch((e) =>
+    console.error("[billing/webhook] forfeit on cancel failed:", e));
 }

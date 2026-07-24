@@ -172,14 +172,38 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
   const { grant: grantBalPrev, topup } = readBuckets(existing as Record<string, unknown>);
   const lastGranted = new Date(existing.last_granted_at as string);
   const now = new Date();
-  const planChanged = existing.plan !== planKey;
+  const prevKey = String(existing.plan);
+  const planChanged = prevKey !== planKey;
 
-  const needsMonthly = grant.recurring && monthlyGrantDue(lastGranted, now);
-  // A plan change grants: on upgrade/conversion (recurring plans) AND on trial
-  // start (one-time 500) — the trial marker makes both register as changes.
-  const needsUpgradeGrant = planChanged && (grant.recurring || isTrial);
+  // ── Grant-flip-flop guard ──────────────────────────────────────────────────
+  // If subscription_status momentarily reads "active" mid-trial (webhook race /
+  // out-of-order events), the marker would flip trial_x → x and wrongly grant
+  // the full monthly allowance, then flip back to trial_x and grant the 500
+  // again (observed: monthly_grant +18,000 immediately followed by a second
+  // trial_grant +500, all while still trialing). Prevent BOTH directions using
+  // only the stored marker (no extra query):
+  //  • trial_x → x (the day-7 conversion) is granted by the WEBHOOK on the real
+  //    trialing→active event, or here only once the trial has genuinely elapsed
+  //    (>6 days) as a safety net if that webhook is missed — never on an early
+  //    same-cycle flip.
+  //  • x → trial_x (a paid marker downgrading to trial) never happens on Stripe
+  //    and must never grant or even flip the marker back.
+  const prevWasTrialOfThisPlan = prevKey === `trial_${plan}`;
+  const prevWasPaid = !prevKey.startsWith("trial_") && prevKey !== "free";
+  const trialElapsed = now.getTime() - lastGranted.getTime() > 6 * 24 * 3600 * 1000;
 
-  if (needsMonthly || needsUpgradeGrant) {
+  const needsMonthly = grant.recurring && !isTrial && monthlyGrantDue(lastGranted, now);
+  // One-time trial grant: only when arriving at a trial marker we weren't at,
+  // and never FROM a paid marker (that's a spurious downgrade, not a new trial).
+  const needsTrialGrant = isTrial && planChanged && !prevWasPaid;
+  // Full-allowance grant on a genuine paid transition: a real tier change
+  // (pro→premium) or resurrection (free→paid). The trial→paid conversion is
+  // excluded here (webhook-owned) unless the trial has truly elapsed.
+  const needsUpgradeGrant =
+    planChanged && grant.recurring && !isTrial &&
+    (!prevWasTrialOfThisPlan || trialElapsed);
+
+  if (needsMonthly || needsTrialGrant || needsUpgradeGrant) {
     // Unused grant ROLLS OVER, capped at ROLLOVER_CAP_MONTHS months of the
     // allowance. Purchased top-ups are untouched and never expire.
     // Pre-052 fallback (grant=0, topup=legacy balance) degrades to "add", so no
@@ -195,11 +219,17 @@ export async function getTokenAccount(userId: string): Promise<TokenAccount> {
     return { balance: newBalance, grant_balance: newGrant, topup_balance: topup, free_applies: freeApplies, monthly_grant: grant.amount, plan, last_granted_at: now.toISOString() };
   }
 
-  // Keep stored plan/grant in sync without crediting tokens.
-  if (planChanged || existing.monthly_grant !== grant.amount) {
+  // Keep stored plan/grant in sync without crediting tokens — but NEVER flip a
+  // trial marker to its paid form here (trial_x → x). That transition is the
+  // conversion, whose grant is webhook-owned and made idempotent by the marker
+  // still reading trial_x; flipping it silently would make the webhook think
+  // conversion already happened and skip the allowance. A spurious mid-trial
+  // "active" read lands here, and we deliberately leave the marker untouched.
+  const wouldFlipTrialToPaid = !isTrial && prevWasTrialOfThisPlan;
+  if ((planChanged && !wouldFlipTrialToPaid) || existing.monthly_grant !== grant.amount) {
     await supabaseAdmin
       .from("user_tokens")
-      .update({ plan: planKey, monthly_grant: grant.amount, updated_at: now.toISOString() })
+      .update({ plan: wouldFlipTrialToPaid ? prevKey : planKey, monthly_grant: grant.amount, updated_at: now.toISOString() })
       .eq("user_id", userId);
   }
 
@@ -341,4 +371,58 @@ export async function addTokens(
   }
   await writeLedger(userId, amount, next, reason, null, metadata);
   return next;
+}
+
+// Forfeit unspent GRANT (monthly/trial allowance) credits when a subscription
+// ends. Purchased top-ups are kept — the user paid for those. Prevents a
+// canceled/lapsed user from continuing to spend the plan allowance they no
+// longer pay for. Idempotent (no-op when the grant bucket is already empty).
+export async function forfeitGrantCredits(userId: string): Promise<void> {
+  const { data: existing } = await supabaseAdmin
+    .from("user_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (!existing) return;
+  const { grant, topup } = readBuckets(existing as Record<string, unknown>);
+  if (grant <= 0) return;
+  await supabaseAdmin
+    .from("user_tokens")
+    .update({ balance: topup, plan: "free", monthly_grant: 0, updated_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  await writeBuckets(userId, 0, topup);
+  await writeLedger(userId, -grant, topup, "cancel_grant_forfeit", null, { forfeited: grant });
+}
+
+// Grant the plan's full monthly allowance on a genuine trial→paid conversion.
+// Called from the billing webhook when Stripe reports the real trialing→active
+// transition. Idempotent via the stored plan marker: it only acts while the
+// marker is still `trial_<plan>`, and flipping it to `<plan>` means a webhook
+// redelivery is a no-op.
+export async function convertTrialToPaid(userId: string): Promise<void> {
+  const billing = await getUserBilling(userId);
+  if (billing.subscription_status !== "active") return; // not a real conversion
+  const plan = billing.plan;
+  const spec = PLAN_TOKEN_GRANTS[plan];
+  if (!spec?.recurring) return;
+
+  const { data: existing } = await supabaseAdmin
+    .from("user_tokens")
+    .select("*")
+    .eq("user_id", userId)
+    .maybeSingle();
+  // Only convert while the marker still says trial — the idempotency guard.
+  if (!existing || String(existing.plan) !== `trial_${plan}`) return;
+
+  const { topup } = readBuckets(existing as Record<string, unknown>);
+  // Conversion replaces the one-time trial allowance with the full monthly one
+  // (no rollover of the trial 500 — it was a teaser).
+  const newBalance = spec.amount + topup;
+  const nowIso = new Date().toISOString();
+  await supabaseAdmin
+    .from("user_tokens")
+    .update({ balance: newBalance, monthly_grant: spec.amount, plan, last_granted_at: nowIso, updated_at: nowIso })
+    .eq("user_id", userId);
+  await writeBuckets(userId, spec.amount, topup);
+  await writeLedger(userId, spec.amount, newBalance, "monthly_grant", null, { plan, conversion: true });
 }
