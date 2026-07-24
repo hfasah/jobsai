@@ -6,6 +6,7 @@ import { sendApplySubmitted, sendManualRequired } from "@/lib/email";
 import { createNotification } from "@/lib/notifications";
 import { parseAshbyUrl, submitToAshby } from "@/lib/ashby-apply";
 import { parseGreenhouseUrl, submitToGreenhouse } from "@/lib/greenhouse-apply";
+import { resolveAggregatorUrl } from "@/lib/url-resolve";
 import { browserAgentConfigured, callBrowserAgent } from "@/lib/browser-client";
 import type { ApplyPlatform, ApplyResult, ApplyProfile } from "@/types/apply";
 
@@ -115,7 +116,16 @@ export async function applyToJob(userId: string, jobId: string): Promise<ApplyRe
     .eq("id", jobId)
     .single();
 
-  const sourceUrl = jobRow?.source_url ?? "";
+  // Unwrap aggregator redirect links (Adzuna etc.) to the real employer/ATS URL
+  // BEFORE detecting platform. This bypasses the aggregator's regional gate
+  // ("not available in your region") so we apply on the actual posting and the
+  // employer decides eligibility — and it lets a deterministic ATS adapter kick
+  // in. Persist the resolved URL so future applies + detectPlatform benefit.
+  const rawUrl = jobRow?.source_url ?? "";
+  const sourceUrl = await resolveAggregatorUrl(rawUrl);
+  if (sourceUrl && sourceUrl !== rawUrl) {
+    await supabaseAdmin.from("jobs").update({ source_url: sourceUrl }).eq("id", jobId).then(() => {}, () => {});
+  }
   const platform = detectPlatform(sourceUrl);
 
   // 3b. Block list — never apply to a company/domain the user has blocked.
