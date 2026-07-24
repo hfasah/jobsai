@@ -5,7 +5,7 @@ import { scoreMatch } from "@/lib/job-parser";
 import { tailorResume, generateCoverLetter } from "@/lib/ai-content";
 import { loadJobContext, isContextError } from "@/lib/job-context";
 import { createNotification } from "@/lib/notifications";
-import { sendAutoApplyDigest } from "@/lib/email";
+import { sendAutoApplyDigest, sendAutoApplyLowCredits } from "@/lib/email";
 import { createSkyvernTask, getSkyvernKey, proxyLocationForLocation } from "@/lib/skyvern";
 import { getOrCreateAlias, inboundEmailEnabled } from "@/lib/apply-alias";
 import { deductTokens, addTokens, consumeFreeApply, restoreFreeApply, getTokenBalance, TOKEN_COSTS } from "@/lib/tokens";
@@ -92,6 +92,9 @@ export async function GET(req: NextRequest) {
   const startedAt = Date.now();
   const TIME_BUDGET_MS = 240_000;
   const outOfTime = () => Date.now() - startedAt > TIME_BUDGET_MS;
+
+  // Users emailed a low-credit reminder this run (dedupe: one email per user).
+  const outOfCreditsEmailed = new Set<string>();
 
   for (const prefs of activePrefs) {
     if (outOfTime()) {
@@ -388,10 +391,18 @@ export async function GET(req: NextRequest) {
                 if (!usedFreeApply) {
                   const spend = await deductTokens(userId, applyCost, "auto_apply", { job_id: jobId, source: "cron" }, { meterFree: true });
                   if (!spend.ok) {
+                    // Out of credits — auto-apply pauses here. Email a top-up
+                    // reminder once per user per run so continuous applying can
+                    // resume. outOfCreditsEmailed dedupes within the run; the
+                    // notification write throttles across runs.
+                    if (!outOfCreditsEmailed.has(userId)) {
+                      outOfCreditsEmailed.add(userId);
+                      sendAutoApplyLowCredits(userId, summary.jobs_applied).catch((e) => console.error("[cron/auto-apply] low-credit email failed:", e));
+                    }
                     log.status = "manual_required";
                     summary.jobs_manual++;
                     runLog.push(log);
-                    continue;
+                    break; // no point trying more jobs for this user — all will fail
                   }
                 }
 

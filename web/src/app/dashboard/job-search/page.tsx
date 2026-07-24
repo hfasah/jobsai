@@ -5,8 +5,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   Search, MapPin, Loader2, Briefcase, Building2, DollarSign, Clock,
-  ExternalLink, ChevronLeft, ChevronRight, ChevronDown, Wifi, AlertCircle, Zap, Check, Globe,
+  ExternalLink, ChevronLeft, ChevronRight, ChevronDown, Wifi, AlertCircle, Zap, Check, Globe, Sparkles,
 } from "lucide-react";
+import { AutoApplyControls } from "@/components/apply/auto-apply-controls";
 import { cn } from "@/lib/utils";
 import {
   SEARCH_COUNTRIES, JOB_SITES, EMPLOYMENT_TYPES, companyLogoUrl, MAX_COUNTRIES,
@@ -221,48 +222,46 @@ export default function JobSearchPage() {
   );
 
   // Seed the search from the user's saved Preferences (target titles, location,
-  // remote, job types) so the board is relevant to THEM on first load — a
-  // DevOps profile shouldn't open to Physical Therapist listings. Falls back to
-  // a broad search when no preferences are set. Runs once on mount.
+  // remote, job types) so the board is relevant to THEM — a DevOps profile
+  // shouldn't open to Physical Therapist listings. Reused by the mount effect
+  // AND the "Profile Search" button. Returns true if it seeded from prefs.
   const [matchedToProfile, setMatchedToProfile] = useState(false);
+  const profileSearch = useCallback(async (): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/preferences");
+      const json = await res.json();
+      const p = json?.data;
+      const titles: string[] = Array.isArray(p?.job_titles) ? p.job_titles : [];
+      const locs: string[] = Array.isArray(p?.locations) ? p.locations : [];
+      if (titles.length || locs.length) {
+        const EMP_MAP: Record<string, EmploymentType> = { "full-time": "fulltime", contract: "contract", internship: "internship" };
+        const seedEmp = [
+          ...((Array.isArray(p?.employment_types) ? p.employment_types : []) as string[])
+            .map((e) => EMP_MAP[e]).filter(Boolean) as EmploymentType[],
+          ...(p?.location_type === "hybrid" ? (["hybrid"] as EmploymentType[]) : []),
+        ];
+        const seedRemote = p?.location_type === "remote";
+        const seedWhat = titles[0] ?? "";
+        const seedWhere = seedRemote ? "" : (locs[0] ?? "");
+        setWhat(seedWhat); setWhere(seedWhere); setRemote(seedRemote); setEmpTypes(seedEmp);
+        setMatchedToProfile(true);
+        run(1, { what: seedWhat, where: seedWhere, remote: seedRemote, empTypes: seedEmp });
+        return true;
+      }
+    } catch { /* preferences unavailable */ }
+    return false;
+  }, [run]);
+
   /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
     (async () => {
-      try {
-        const res = await fetch("/api/preferences");
-        const json = await res.json();
-        const p = json?.data;
-        const titles: string[] = Array.isArray(p?.job_titles) ? p.job_titles : [];
-        const locs: string[] = Array.isArray(p?.locations) ? p.locations : [];
-        if (titles.length || locs.length) {
-          // Map preference employment types → search chips (part-time has no
-          // search equivalent; hybrid location preference maps to the chip).
-          const EMP_MAP: Record<string, EmploymentType> = { "full-time": "fulltime", contract: "contract", internship: "internship" };
-          const seedEmp = [
-            ...((Array.isArray(p?.employment_types) ? p.employment_types : []) as string[])
-              .map((e) => EMP_MAP[e]).filter(Boolean) as EmploymentType[],
-            ...(p?.location_type === "hybrid" ? (["hybrid"] as EmploymentType[]) : []),
-          ];
-          const seedRemote = p?.location_type === "remote";
-          const seedWhat = titles[0] ?? "";
-          const seedWhere = seedRemote ? "" : (locs[0] ?? "");
-          setWhat(seedWhat);
-          setWhere(seedWhere);
-          setRemote(seedRemote);
-          setEmpTypes(seedEmp);
-          setMatchedToProfile(true);
-          run(1, { what: seedWhat, where: seedWhere, remote: seedRemote, empTypes: seedEmp });
-          return;
-        }
-      } catch {
-        // preferences unavailable — fall through to a broad search
-      }
-      run(1);
+      const seeded = await profileSearch();
+      if (!seeded) run(1); // no preferences set → broad search
     })();
   }, []);
   /* eslint-enable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
 
-  const onSubmit = (e: React.FormEvent) => { e.preventDefault(); run(1); };
+  const onSubmit = (e: React.FormEvent) => { e.preventDefault(); setMatchedToProfile(false); run(1); };
 
   // Apply inside JobsAI: import the job, then drop the user on the in-app job
   // page where tailoring + auto-apply happen. No external redirect.
@@ -304,10 +303,18 @@ export default function JobSearchPage() {
     <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
       <h1 className="text-2xl font-bold tracking-tight">Search Jobs</h1>
       <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-        One search, every board. We aggregate live listings from Indeed, LinkedIn, Glassdoor,
-        ZipRecruiter, Google and more — across multiple countries at once — so you don&apos;t have to
-        check ten sites. Pick up to {MAX_COUNTRIES} countries to search them together.
+        One search, every board — Indeed, LinkedIn, Glassdoor, ZipRecruiter, Google and more,
+        across up to {MAX_COUNTRIES} countries at once.
       </p>
+
+      {/* Two-click actions: search by profile, or hand it off entirely. */}
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => profileSearch()}
+          className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-muted">
+          <Sparkles className="h-4 w-4 text-primary" /> Profile Search
+        </button>
+        <AutoApplyControls />
+      </div>
 
       {/* Search bar */}
       <form onSubmit={onSubmit} className="mt-6 flex flex-col gap-2 lg:flex-row">
