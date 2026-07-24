@@ -78,6 +78,9 @@ export const MAX_COUNTRIES = 3;
 
 export interface SearchParams {
   what: string;
+  /** Profile Search: cast a wide net across MULTIPLE titles (any-word match)
+   *  instead of the single all-words `what`. When set, providers OR these. */
+  whatOr?: string[];
   where?: string;
   /** Primary country (back-compat). Prefer `countries`. */
   country: string;
@@ -190,6 +193,12 @@ async function searchAdzuna(p: SearchParams): Promise<SearchResult | null> {
   if (p.remote) what = `${what} remote`.trim();
   if (et.has("hybrid")) what = `${what} hybrid`.trim();
   if (what) params.set("what", what);
+  // Wide-net Profile Search: match ANY word across the user's titles (Adzuna's
+  // what_or has any-word semantics), so all their roles surface — not just one.
+  if (p.whatOr?.length) {
+    const orWords = [...new Set(p.whatOr.join(" ").toLowerCase().split(/\s+/).filter((w) => w.length > 1))];
+    if (orWords.length) params.set("what_or", orWords.join(" "));
+  }
   if (p.where?.trim()) params.set("where", p.where.trim());
   if (p.salaryMin) params.set("salary_min", String(p.salaryMin));
   if (et.has("fulltime")) params.set("full_time", "1");
@@ -277,7 +286,10 @@ async function searchJSearch(
   // Each UI page = 2 JSearch pages (~20 results) for cleaner pagination.
   const jsPage = (uiPage - 1) * 2 + 1;
 
-  const query = [jsearchQuery(p.what), p.where?.trim() ? `in ${p.where.trim()}` : ""].join(" ").trim();
+  // Profile Search: OR the titles so JSearch (Google for Jobs) returns any of
+  // the user's roles; otherwise the single expanded query.
+  const base = p.whatOr?.length ? p.whatOr.map((t) => `(${t})`).join(" OR ") : jsearchQuery(p.what);
+  const query = [base, p.where?.trim() ? `in ${p.where.trim()}` : ""].join(" ").trim();
   const params = new URLSearchParams({
     query,
     page: String(jsPage),
@@ -428,7 +440,8 @@ function matchesQuery(job: SearchJob, terms: string[]): boolean {
 }
 
 async function searchFreeSources(p: SearchParams): Promise<SearchResult> {
-  const terms = p.what.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
+  const termSource = p.whatOr?.length ? p.whatOr.join(" ") : p.what;
+  const terms = termSource.toLowerCase().split(/\s+/).filter((t) => t.length > 1);
   const [ro, an] = await Promise.allSettled([fetchRemoteOK(), fetchArbeitnow()]);
 
   const sources: string[] = [];

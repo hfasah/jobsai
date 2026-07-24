@@ -189,14 +189,15 @@ export default function JobSearchPage() {
     setter((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
 
   const run = useCallback(
-    async (nextPage: number, override?: Partial<{ what: string; where: string; remote: boolean; empTypes: EmploymentType[] }>) => {
+    async (nextPage: number, override?: Partial<{ what: string; whatOr: string[]; where: string; remote: boolean; empTypes: EmploymentType[]; countries: string[] }>) => {
       const id = ++reqId.current;
       setLoading(true);
       setError(null);
       // Overrides let the initial preference-seeded search fire with the seed
       // values directly, without waiting for React state to settle.
-      const q = { what, where, remote, empTypes, ...override };
-      const qs = new URLSearchParams({ what: q.what, where: q.where, countries: countries.join(","), page: String(nextPage), sort });
+      const q = { what, whatOr: [] as string[], where, remote, empTypes, countries, ...override };
+      const qs = new URLSearchParams({ what: q.what, where: q.where, countries: q.countries.join(","), page: String(nextPage), sort });
+      if (q.whatOr.length) qs.set("what_or", q.whatOr.join(","));
       if (q.remote) qs.set("remote", "1");
       if (q.empTypes.length) qs.set("employment_types", q.empTypes.join(","));
       if (jobSites.length) qs.set("job_sites", jobSites.join(","));
@@ -226,34 +227,29 @@ export default function JobSearchPage() {
   // shouldn't open to Physical Therapist listings. Reused by the mount effect
   // AND the "Profile Search" button. Returns true if it seeded from prefs.
   const [matchedToProfile, setMatchedToProfile] = useState(false);
+  // Profile Search: cast a WIDE net across all the user's roles (OR'd) in their
+  // own country — not one niche title in the US. The seed is computed
+  // server-side from Preferences + Apply Profile.
   const profileSearch = useCallback(async (): Promise<boolean> => {
     try {
-      const res = await fetch("/api/preferences");
-      const json = await res.json();
-      const p = json?.data;
-      const titles: string[] = Array.isArray(p?.job_titles) ? p.job_titles : [];
-      const locs: string[] = Array.isArray(p?.locations) ? p.locations : [];
-      if (titles.length || locs.length) {
-        const EMP_MAP: Record<string, EmploymentType> = { "full-time": "fulltime", contract: "contract", internship: "internship" };
-        const seedEmp = [
-          ...((Array.isArray(p?.employment_types) ? p.employment_types : []) as string[])
-            .map((e) => EMP_MAP[e]).filter(Boolean) as EmploymentType[],
-          ...(p?.location_type === "hybrid" ? (["hybrid"] as EmploymentType[]) : []),
-        ];
-        const seedRemote = p?.location_type === "remote";
-        // Use the user's designated primary title; fall back to the first title
-        // only when no primary is set (or it's no longer in the list).
-        const primary = typeof p?.primary_title === "string" && titles.includes(p.primary_title) ? p.primary_title : null;
-        const seedWhat = primary ?? titles[0] ?? "";
-        const seedWhere = seedRemote ? "" : (locs[0] ?? "");
-        setWhat(seedWhat); setWhere(seedWhere); setRemote(seedRemote); setEmpTypes(seedEmp);
+      const res = await fetch("/api/job-search/profile-seed");
+      const seed = await res.json();
+      if (seed?.hasProfile) {
+        const seedEmp = (seed.employmentTypes as EmploymentType[]) ?? [];
+        const seedCountries = typeof seed.country === "string" ? [seed.country] : countries;
+        setWhat(seed.primary ?? "");
+        setWhere("");                 // country-wide for breadth, not one city
+        setRemote(Boolean(seed.remote));
+        setEmpTypes(seedEmp);
+        setCountries(seedCountries);
         setMatchedToProfile(true);
-        run(1, { what: seedWhat, where: seedWhere, remote: seedRemote, empTypes: seedEmp });
+        // whatOr = every title, so all the user's roles surface at once.
+        run(1, { what: seed.primary ?? "", whatOr: seed.titles ?? [], where: "", remote: Boolean(seed.remote), empTypes: seedEmp, countries: seedCountries });
         return true;
       }
-    } catch { /* preferences unavailable */ }
+    } catch { /* profile unavailable */ }
     return false;
-  }, [run]);
+  }, [run, countries]);
 
   /* eslint-disable react-hooks/exhaustive-deps, react-hooks/set-state-in-effect */
   useEffect(() => {
