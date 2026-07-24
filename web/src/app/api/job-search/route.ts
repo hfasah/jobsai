@@ -17,8 +17,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const countries = csv("countries");
+    const whatOr = csv("what_or");
     const result = await searchJobs({
       what: sp.get("what")?.trim() ?? "",
+      whatOr: whatOr.length ? whatOr : undefined,
       where: sp.get("where")?.trim() || undefined,
       country: countries[0] || sp.get("country") || "us",
       countries: countries.length ? countries : undefined,
