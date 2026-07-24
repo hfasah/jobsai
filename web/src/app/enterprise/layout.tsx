@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { headers } from "next/headers";
+import { headers, draftMode } from "next/headers";
+import { VisualEditing } from "next-sanity/visual-editing";
 import { EnterpriseShell } from "@/components/enterprise/enterprise-shell";
 
 // Entity-level structured data present on every enterprise page (satisfies the
@@ -53,11 +54,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function EnterpriseLayout({ children }: { children: React.ReactNode }) {
+export default async function EnterpriseLayout({ children }: { children: React.ReactNode }) {
+  // Visual editing: when the Studio's Presentation pane opens this site in
+  // draft mode, mount Sanity's runtime — it completes the Studio handshake
+  // (no more "Continue anyway"), draws click-to-edit overlays from stega
+  // metadata, and refreshes the preview when drafts change. Renders nothing
+  // for normal visitors; the chunk is only ever served in draft mode.
+  const { isEnabled: draftPreview } = await draftMode();
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ENTERPRISE_JSONLD) }} />
       <EnterpriseShell>{children}</EnterpriseShell>
+      {draftPreview && <VisualEditing />}
     </>
   );
 }

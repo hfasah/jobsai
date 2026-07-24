@@ -22,7 +22,8 @@ export async function sanityFetch<T>(
 
   // Visual-editing preview: when Next draft mode is on (enabled by
   // /api/preview from the Studio's Presentation pane), read DRAFT content
-  // with the preview token and no caching, so editors see unpublished edits.
+  // via @sanity/client with stega encoding — the invisible metadata that
+  // powers click-on-the-page-to-edit overlays in the Presentation pane.
   let drafts = false;
   try {
     const { draftMode } = await import("next/headers");
@@ -30,14 +31,27 @@ export async function sanityFetch<T>(
   } catch { /* outside a request context (e.g. build) — published view */ }
   const previewToken = process.env.SANITY_PREVIEW_TOKEN;
 
+  if (drafts && previewToken) {
+    try {
+      const { createClient } = await import("next-sanity");
+      const client = createClient({
+        projectId, dataset, apiVersion: "2024-01-01", useCdn: false,
+        token: previewToken, perspective: "previewDrafts",
+        stega: { enabled: true, studioUrl: "https://jobsai-marketing.sanity.studio" },
+      });
+      return await client.fetch<T>(query, params, { cache: "no-store" } as never);
+    } catch (e) {
+      console.error("[sanity] draft fetch error:", e instanceof Error ? e.message : e);
+      return null;
+    }
+  }
+
   const search = new URLSearchParams({ query });
   for (const [k, v] of Object.entries(params)) search.set(`$${k}`, JSON.stringify(v));
-  if (drafts && previewToken) search.set("perspective", "previewDrafts");
   const url = `https://${projectId}.api.sanity.io/v2024-01-01/data/query/${dataset}?${search.toString()}`;
   try {
-    const res = await fetch(url, drafts && previewToken
-      ? { cache: "no-store", headers: { Authorization: `Bearer ${previewToken}` } }
-      : { next: { revalidate: opts.revalidate ?? 3600, ...(opts.tags ? { tags: opts.tags } : {}) } });
+    const res = await fetch(url,
+      { next: { revalidate: opts.revalidate ?? 3600, ...(opts.tags ? { tags: opts.tags } : {}) } });
     if (!res.ok) {
       console.error("[sanity] query failed:", res.status, await res.text().catch(() => ""));
       return null;
