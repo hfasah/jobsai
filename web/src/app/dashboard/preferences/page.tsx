@@ -165,6 +165,21 @@ export default function PreferencesPage() {
                   placeholder="e.g. Senior Frontend Engineer — press Enter to add"
                 />
               </div>
+              {prefs.job_titles.length > 1 && (
+                <div>
+                  <FieldLabel>Primary title</FieldLabel>
+                  <select
+                    value={prefs.primary_title && prefs.job_titles.includes(prefs.primary_title) ? prefs.primary_title : prefs.job_titles[0]}
+                    onChange={(e) => set("primary_title", e.target.value)}
+                    className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    {prefs.job_titles.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    The title Profile Search leads with. Your other titles still count in auto-discovery.
+                  </p>
+                </div>
+              )}
               <div>
                 <FieldLabel>Additional keywords</FieldLabel>
                 <TagInput

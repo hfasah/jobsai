@@ -241,7 +241,10 @@ export default function JobSearchPage() {
           ...(p?.location_type === "hybrid" ? (["hybrid"] as EmploymentType[]) : []),
         ];
         const seedRemote = p?.location_type === "remote";
-        const seedWhat = titles[0] ?? "";
+        // Use the user's designated primary title; fall back to the first title
+        // only when no primary is set (or it's no longer in the list).
+        const primary = typeof p?.primary_title === "string" && titles.includes(p.primary_title) ? p.primary_title : null;
+        const seedWhat = primary ?? titles[0] ?? "";
         const seedWhere = seedRemote ? "" : (locs[0] ?? "");
         setWhat(seedWhat); setWhere(seedWhere); setRemote(seedRemote); setEmpTypes(seedEmp);
         setMatchedToProfile(true);

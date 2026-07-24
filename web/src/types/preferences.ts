@@ -30,6 +30,7 @@ export interface UserPreferences {
   id: string;
   user_id: string;
   job_titles: string[];
+  primary_title: string | null;
   keywords: string[];
   location_type: LocationType;
   locations: string[];
@@ -58,6 +59,7 @@ export type PreferencesUpdate = Omit<UserPreferences, "id" | "user_id" | "create
 
 export const DEFAULT_PREFERENCES: PreferencesUpdate = {
   job_titles: [],
+  primary_title: null,
   keywords: [],
   location_type: "any",
   locations: [],
